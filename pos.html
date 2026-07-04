@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=1366, user-scalable=no">
 <title>布丁喵 · POS 管理系统</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="./supabase.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;touch-action:manipulation;}
 html,body{width:1366px;height:768px;overflow:hidden;font-family:"Noto Sans SC",sans-serif;background:#fff;}
@@ -507,6 +508,7 @@ tr:hover td{background:rgba(141,5,5,.02);}
       <nav class="a-side-nav">
         <div class="asi" id="asi-dashboard" onclick="showAdmin('dashboard')">📊 交易 / 仪表盘</div>
         <div class="asi" onclick="backToPOS()">🖥️ 返回 POS</div>
+        <div class="asi" id="asi-menu" onclick="showAdmin('menu')">🍮 菜单管理</div>
         <div class="asi" id="asi-members" onclick="showAdmin('members')">👤 会员管理</div>
         <div class="asi" id="asi-reports" onclick="showAdmin('reports')">📈 月度报告</div>
       </nav>
@@ -611,8 +613,30 @@ function ss(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 function gj(k,d){try{var r=localStorage.getItem(k);return r?JSON.parse(r):d}catch(e){return d}}
 function sj(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 
+/* ── SUPABASE 云端（两个值必须和 pudding-meow.html 里一模一样）── */
+var SUPABASE_URL='https://vmdjsvapikfgcbthnapw.supabase.co';
+var SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZtZGpzdmFwaWtmZ2NidGhuYXB3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MjczODYsImV4cCI6MjA5ODMwMzM4Nn0.gHeQR9HKfphTsJjVRamidKS2qtUqBeqvEZo8Pb1zF28';
+var db=(window.supabase && SUPABASE_URL.indexOf('YOUR-')<0)?window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY):null;
+/* 云端连接状态小标（右上角）：绿=已连，红=离线 */
+function setCloudStatus(s){
+  var el=document.getElementById('cloudStatus');
+  if(!el){ el=document.createElement('div'); el.id='cloudStatus';
+    el.style.cssText='position:fixed;right:10px;top:8px;z-index:99999;font-size:12px;padding:4px 10px;border-radius:10px;font-family:sans-serif;box-shadow:0 2px 6px rgba(0,0,0,.25)';
+    (document.body||document.documentElement).appendChild(el); }
+  if(s==='online'){ el.textContent='☁ 已连云端'; el.style.background='#1D7715'; el.style.color='#fff'; }
+  else if(s==='offline'){ el.textContent='⚠ 离线·未连云端'; el.style.background='#8D0505'; el.style.color='#fff'; }
+  else { el.textContent='… 连接云端中'; el.style.background='#4A4848'; el.style.color='#fff'; }
+}
+setTimeout(function(){ setCloudStatus(db?'connecting':'offline'); },0);
+/* 订单对象 <-> 数据库行（只映射数据库已有的列，tender/change/customerName 等不入库）*/
+function orderToRow(o){return{id:o.id,order_num:o.orderNum,created_at:o.createdAt,items:o.items||[],
+  total:o.total||0,pay_method:o.payMethod,status:o.status,source:o.source,table_name:o.tableName,ta_mode:o.taMode};}
+function rowToOrder(r){return{id:r.id,orderNum:r.order_num||(r.id?String(r.id).slice(-4):''),createdAt:r.created_at,
+  items:r.items||[],total:Number(r.total)||0,payMethod:r.pay_method||'counter',status:r.status||'pending',
+  source:r.source||'app',tableName:r.table_name||'',taMode:r.ta_mode||''};}
+
 /* ── MENU DATA (from Figma item panels) ── */
-var MENU={
+var MENU_FALLBACK={
   special:{cn:'精选系列',en:'Special',items:[
     {name:'Pudding Parfait',name_cn:'布丁芭菲杯',price:19.8},
     {name:'Banana Pudding Cake',name_cn:'香蕉布丁烧',price:11.0},
@@ -659,6 +683,44 @@ var MENU={
     {name:'Brown Sugar Milk',name_cn:'黑糖鲜奶',price:6.5},
   ]},
 };
+
+/* 分类顺序 + 中英名（收银网格 7 个分类按钮对应）*/
+var POS_CATS=['special','classic','toast','boat','ice','preorder','drinks'];
+var POS_CATN={special:['精选系列','Special'],classic:['经典系列','Classic'],toast:['吐司','Toast'],
+  boat:['布丁船','Pudding Boat'],ice:['冰激凌布丁','Ice Cream Pudding'],preorder:['预订','Preorder'],drinks:['饮料','Drinks']};
+/* 当前生效菜单（先用兜底，云端拉到后替换）+ 原始行（供后台管理）*/
+var MENU=MENU_FALLBACK;
+var _menuRows=[];
+/* 云端行 -> 收银网格结构（收银网格用 name=英文、name_cn=中文）*/
+function buildPosMenuFromRows(rows){
+  var m={};
+  POS_CATS.forEach(function(c){ m[c]={cn:POS_CATN[c][0],en:POS_CATN[c][1],items:[]}; });
+  (rows||[]).slice().sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);}).forEach(function(r){
+    var c=r.cat; if(!m[c]) m[c]={cn:c,en:c,items:[]};
+    m[c].items.push({name:r.en||r.name,name_cn:r.name,price:Number(r.price)||0,sold_out:!!r.sold_out,id:r.id});
+  });
+  return m;
+}
+function posMenuHasItems(m){return Object.keys(m||{}).some(function(c){return m[c].items&&m[c].items.length;});}
+function loadMenuCache(){try{var raw=localStorage.getItem('pm_menu_cache');if(!raw)return null;
+  var m=buildPosMenuFromRows(JSON.parse(raw));return posMenuHasItems(m)?m:null;}catch(e){return null;}}
+async function loadMenu(){
+  if(!db){ setCloudStatus('offline'); MENU=loadMenuCache()||MENU_FALLBACK; return; }
+  try{
+    var res=await db.from('menu_items').select('*').order('sort_order');
+    if(res.error) throw res.error;
+    setCloudStatus('online');
+    _menuRows=res.data||[];
+    try{ localStorage.setItem('pm_menu_cache',JSON.stringify(_menuRows)); }catch(e){}
+    var m=buildPosMenuFromRows(_menuRows);
+    MENU=posMenuHasItems(m)?m:(loadMenuCache()||MENU_FALLBACK);
+    try{ if(document.getElementById('adminView').style.display==='flex' && document.getElementById('asi-menu') && document.getElementById('asi-menu').classList.contains('a')) renderMenuAdmin(); }catch(e){}
+  }catch(e){ setCloudStatus('offline'); MENU=loadMenuCache()||MENU_FALLBACK; }
+}
+function subscribeMenu(){
+  if(!db) return;
+  db.channel('menu-pos').on('postgres_changes',{event:'*',schema:'public',table:'menu_items'},function(){ loadMenu(); }).subscribe();
+}
 
 /* ── STATE ── */
 var cart=[],selIdx=-1,payMethod='cash',taMode=true;
@@ -946,8 +1008,9 @@ function askPrint(yes){
   document.getElementById('askBg').classList.remove('show');
   var o=_pendingOrder;
   if(!o) return;
-  // 保存订单并广播给小程序（打通两个系统）
+  // 保存订单：本地缓存 + 广播 + 写云端（跨设备）
   _orders.unshift(o);sj('pm_orders',_orders);pmBroadcastOrders();
+  if(db) db.from('orders').insert(orderToRow(o)).then(function(res){ if(res&&res.error) console.error('pos order insert',res.error); }).catch(function(e){ console.error('pos order insert',e); });
   if(yes) printRec(o);
   // 清空购物车
   cart=[];selIdx=-1;
@@ -1003,7 +1066,7 @@ function showPending(){
   document.getElementById('pendBg').classList.add('show');
 }
 function closePending(){document.getElementById('pendBg').classList.remove('show');}
-function markPaid(id){var o=_orders.find(function(x){return x.id===id;});if(o){o.status=(o.source==='app'?'preparing':'paid');sj('pm_orders',_orders);pmBroadcastOrders();updPend();showPending();}}
+function markPaid(id){var o=_orders.find(function(x){return x.id===id;});if(o){o.status=(o.source==='app'?'preparing':'paid');sj('pm_orders',_orders);pmBroadcastOrders();if(db)db.from('orders').update({status:o.status}).eq('id',id).then(function(res){if(res&&res.error)console.error('markPaid',res.error);}).catch(function(e){console.error('markPaid',e);});updPend();showPending();}}
 function reprO(id){var o=_orders.find(function(x){return x.id===id;});if(o)printRec(o);}
 
 /* ── ADMIN ── */
@@ -1011,8 +1074,9 @@ function backToPOS(){document.getElementById('adminView').style.display='none';d
 function showAdmin(tab){
   document.getElementById('posView').style.display='none';
   document.getElementById('adminView').style.display='flex';
-  ['dashboard','members','reports'].forEach(function(t){var el=document.getElementById('asi-'+t);if(el)el.classList.toggle('a',t===tab);});
+  ['dashboard','menu','members','reports'].forEach(function(t){var el=document.getElementById('asi-'+t);if(el)el.classList.toggle('a',t===tab);});
   if(tab==='dashboard') renderDash();
+  if(tab==='menu') renderMenuAdmin();
   if(tab==='members') renderMembers();
   if(tab==='reports') renderReports();
 }
@@ -1115,6 +1179,66 @@ function renderReports(){
 }
 function setRM(v){ss('pm_rm',v);renderReports();}
 
+/* ── 菜单管理（云端 menu_items 增/改价/上下架/删；改动实时同步到顾客小程序）── */
+function renderMenuAdmin(){
+  var el=document.getElementById('adminContent');
+  if(!db){ el.innerHTML='<div class="page-title">🍮 菜单管理</div><div style="padding:30px;color:#8D0505">未连接云端（Supabase 未配置或离线），无法编辑菜单。</div>'; return; }
+  var rows=(_menuRows||[]).slice().sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
+  var html='<div class="page-title">🍮 菜单管理 · Menu</div>'
+    +'<div style="font-size:13px;color:#4A4848;margin-bottom:14px">改价 / 上下架 / 加新品 / 删除——保存后<b>顾客小程序实时更新</b>。「下架」的品项顾客端不显示。</div>';
+  POS_CATS.forEach(function(c){
+    var items=rows.filter(function(r){return r.cat===c;});
+    html+='<div class="tx-card" style="margin-bottom:16px"><div class="tx-ch" style="display:flex;justify-content:space-between;align-items:center">'
+      +'<h3>'+POS_CATN[c][0]+' <span style="color:#4A4848;font-size:13px">'+POS_CATN[c][1]+'</span></h3>'
+      +'<button onclick="menuAdd(\''+c+'\')" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px">＋ 加新品</button></div>'
+      +'<table><thead><tr><th>中文名</th><th>English</th><th>价格 RM</th><th>状态</th><th>操作</th></tr></thead><tbody>'
+      +(items.length?items.map(function(r){
+        return '<tr'+(r.sold_out?' style="opacity:.5"':'')+'>'
+          +'<td><b>'+esc(r.name)+'</b></td><td style="font-size:12px;color:#4A4848">'+esc(r.en||'')+'</td>'
+          +'<td>'+Number(r.price).toFixed(1)+'</td>'
+          +'<td>'+(r.sold_out?'<span style="color:#8D0505">已下架</span>':'<span style="color:#1D7715">在售</span>')+'</td>'
+          +'<td style="white-space:nowrap">'
+          +'<button onclick="menuEdit(\''+r.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">改</button>'
+          +'<button onclick="menuToggleSold(\''+r.id+'\','+(r.sold_out?'true':'false')+')" style="border:none;background:#FFDE5B;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">'+(r.sold_out?'上架':'下架')+'</button>'
+          +'<button onclick="menuDel(\''+r.id+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">删</button>'
+          +'</td></tr>';
+      }).join(''):'<tr><td colspan="5" style="text-align:center;padding:16px;color:#4A4848">（暂无品项，点「＋ 加新品」）</td></tr>')
+      +'</tbody></table></div>';
+  });
+  el.innerHTML=html;
+}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function _menuAfterWrite(res,msg){ if(res&&res.error){showN('❌ '+(res.error.message||'操作失败'));return;} showN(msg); loadMenu().then(function(){renderMenuAdmin();}); }
+function menuAdd(cat){
+  if(!db){showN('未连接云端');return;}
+  var name=prompt('中文名（必填）：');if(!name)return;
+  var en=prompt('English（可留空）：','')||'';
+  var price=parseFloat(prompt('价格 RM：','0'));if(isNaN(price)){showN('价格无效');return;}
+  var maxSo=(_menuRows||[]).reduce(function(m,r){return Math.max(m,r.sort_order||0);},0);
+  db.from('menu_items').insert({cat:cat,name:name,en:en,price:price,descr:'',flavors:['Original'],sold_out:false,sort_order:maxSo+10})
+    .then(function(res){_menuAfterWrite(res,'✅ 已添加：'+name);}).catch(function(e){showN('❌ 网络错误');});
+}
+function menuEdit(id){
+  if(!db){showN('未连接云端');return;}
+  var r=(_menuRows||[]).find(function(x){return String(x.id)===String(id);});if(!r)return;
+  var name=prompt('中文名：',r.name);if(name===null)return;
+  var en=prompt('English：',r.en||'');if(en===null)return;
+  var price=parseFloat(prompt('价格 RM：',String(r.price)));if(isNaN(price)){showN('价格无效');return;}
+  db.from('menu_items').update({name:name||r.name,en:en,price:price}).eq('id',id)
+    .then(function(res){_menuAfterWrite(res,'✅ 已保存');}).catch(function(e){showN('❌ 网络错误');});
+}
+function menuToggleSold(id,cur){
+  if(!db){showN('未连接云端');return;}
+  db.from('menu_items').update({sold_out:!cur}).eq('id',id)
+    .then(function(res){_menuAfterWrite(res,cur?'✅ 已上架':'✅ 已下架');}).catch(function(e){showN('❌ 网络错误');});
+}
+function menuDel(id){
+  if(!db){showN('未连接云端');return;}
+  if(!confirm('确定删除该品项？此操作不可撤销。'))return;
+  db.from('menu_items').delete().eq('id',id)
+    .then(function(res){_menuAfterWrite(res,'🗑️ 已删除');}).catch(function(e){showN('❌ 网络错误');});
+}
+
 /* ── NOTIF ── */
 function showN(m){var n=document.getElementById('notif');n.textContent=m;n.style.display='block';clearTimeout(n._t);n._t=setTimeout(function(){n.style.display='none';},2500);}
 
@@ -1147,6 +1271,36 @@ function pmRefreshOrders(announce){
 }
 if(_pmBC)_pmBC.onmessage=function(ev){if(ev&&ev.data&&ev.data.t==='orders')pmRefreshOrders(true);};
 window.addEventListener('storage',function(e){if(e.key==='pm_orders')pmRefreshOrders(true);});
+
+/* ── 云端订单：跨设备读取 + Realtime（取代跨设备场景下的本地同步）── */
+var _pmKnownCloud={};
+async function loadOrdersFromCloud(announce){
+  if(!db) return;
+  try{
+    var res=await db.from('orders').select('*').order('created_at',{ascending:false}).limit(200);
+    if(res.error) throw res.error;
+    var prev=_pmKnownCloud; _pmKnownCloud={};
+    var arr=(res.data||[]).map(rowToOrder), newN=0, last=null;
+    arr.forEach(function(o){ _pmKnownCloud[o.id]=o.status;
+      if(announce && !(o.id in prev) && o.source==='app' && o.status==='pending'){ newN++; last=o; } });
+    _orders=arr;
+    try{ sj('pm_orders',_orders); }catch(e){}
+    try{ updPend(); }catch(e){}
+    try{ if(document.getElementById('pendBg').classList.contains('show')) showPending(); }catch(e){}
+    try{ if(document.getElementById('adminView').style.display==='flex' && document.getElementById('asi-dashboard') && document.getElementById('asi-dashboard').classList.contains('a')) renderDash(); }catch(e){}
+    if(newN){ try{ showN('🔔 新线上订单 #'+last.orderNum+(newN>1?(' 等 '+newN+' 单'):'')); }catch(e){} }
+  }catch(e){}
+}
+function subscribeOrders(){
+  if(!db) return;
+  db.channel('orders-pos').on('postgres_changes',{event:'*',schema:'public',table:'orders'},function(){ loadOrdersFromCloud(true); }).subscribe();
+}
+
+/* 云端启动：拉菜单 + 拉订单（首次不弹提示）+ 订阅实时 */
+loadMenu();
+loadOrdersFromCloud(false);
+subscribeOrders();
+subscribeMenu();
 </script>
 </body>
 </html>
