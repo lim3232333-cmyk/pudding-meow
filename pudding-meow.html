@@ -6,7 +6,7 @@
 <title>布丁喵 Pudding Meow</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Pattaya&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./supabase.min.js"></script>
 <style>
   :root{
     --cream:#FFFDD6;
@@ -780,6 +780,19 @@ var db = (window.supabase && SUPABASE_URL.indexOf('YOUR-') < 0)
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
   : null;
 
+/* 云端连接状态小标（左下角）：绿=已连，红=离线。绿色 3 秒后自动隐藏，红色常显 */
+function setCloudStatus(s){
+  var el = document.getElementById('cloudStatus');
+  if(!el){ el = document.createElement('div'); el.id='cloudStatus';
+    el.style.cssText='position:fixed;left:8px;bottom:8px;z-index:99999;font-size:11px;padding:4px 9px;border-radius:10px;font-family:sans-serif;box-shadow:0 2px 6px rgba(0,0,0,.2);transition:opacity .4s';
+    (document.body||document.documentElement).appendChild(el); }
+  clearTimeout(el._t); el.style.opacity='1';
+  if(s==='online'){ el.textContent='☁ 已连云端'; el.style.background='#1D7715'; el.style.color='#fff'; el._t=setTimeout(function(){el.style.opacity='0';},3000); }
+  else if(s==='offline'){ el.textContent='⚠ 离线·未连云端'; el.style.background='#8D0505'; el.style.color='#fff'; }
+  else { el.textContent='… 连接云端中'; el.style.background='#4A4848'; el.style.color='#fff'; }
+}
+if(!db) setTimeout(function(){ setCloudStatus('offline'); },0); else setTimeout(function(){ setCloudStatus('connecting'); },0);
+
 /* 订单对象 <-> 数据库行（app 用驼峰，DB 用下划线）*/
 function orderToRow(o){
   return { id:o.id, order_num:o.orderNum, created_at:o.createdAt, items:o.items||[],
@@ -897,14 +910,16 @@ function loadMenuCache(){
 }
 /* 从云端拉菜单；失败则用缓存、再退到写死菜单 */
 async function loadMenu(){
-  if(!db){ applyMenu(loadMenuCache() || MENU_FALLBACK); return; }
+  if(!db){ setCloudStatus('offline'); applyMenu(loadMenuCache() || MENU_FALLBACK); return; }
   try{
     var res = await db.from('menu_items').select('*').order('sort_order');
     if(res.error) throw res.error;
+    setCloudStatus('online');
     try{ localStorage.setItem('pm_menu_cache', JSON.stringify(res.data||[])); }catch(e){}
     var m = buildMenuFromRows(res.data||[]);
     applyMenu(Object.keys(m).length ? m : (loadMenuCache() || MENU_FALLBACK));
   }catch(e){
+    setCloudStatus('offline');
     applyMenu(loadMenuCache() || MENU_FALLBACK);
   }
 }
@@ -1035,7 +1050,7 @@ function confirmOrder(){
   try{ var ex=JSON.parse(localStorage.getItem('pm_orders')||'[]'); ex.unshift(order); localStorage.setItem('pm_orders',JSON.stringify(ex)); }catch(e){}
   try{ pmBroadcastOrders(); }catch(e){}
   // 写入云端（跨设备：店里 POS 实时收到）
-  if(db){ db.from('orders').insert(orderToRow(order)).then(function(res){ if(res && res.error) console.error('order insert', res.error); }).catch(function(e){ console.error('order insert', e); }); }
+  if(db){ db.from('orders').insert(orderToRow(order)).then(function(res){ if(res && res.error){ console.error('order insert', res.error); setCloudStatus('offline'); } else { setCloudStatus('online'); } }).catch(function(e){ console.error('order insert', e); setCloudStatus('offline'); }); }
 
   document.getElementById('cartSheet').classList.remove('show');
   document.getElementById('cartOverlay').classList.remove('show');
