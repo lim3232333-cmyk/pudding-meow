@@ -6,6 +6,7 @@
 <title>布丁喵 Pudding Meow</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Pattaya&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --cream:#FFFDD6;
@@ -765,6 +766,32 @@
 </div>
 
 <script>
+/* ===========================================================================
+   Supabase 云端配置
+   ⬇⬇⬇ 把你 Supabase 项目的两个值填在这里（pos.html 里也要填成一模一样）⬇⬇⬇
+   在 Supabase Dashboard → Settings ⚙️ → API 里复制：
+     - Project URL      → SUPABASE_URL
+     - anon public key  → SUPABASE_KEY
+   =========================================================================== */
+var SUPABASE_URL = 'https://vmdjsvapikfgcbthnapw.supabase.co';
+var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZtZGpzdmFwaWtmZ2NidGhuYXB3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MjczODYsImV4cCI6MjA5ODMwMzM4Nn0.gHeQR9HKfphTsJjVRamidKS2qtUqBeqvEZo8Pb1zF28';
+/* ⬆⬆⬆ 填好后保存即可。未填 / 离线 / 库加载失败时，自动回退到本地模式（写死菜单 + localStorage）。 */
+var db = (window.supabase && SUPABASE_URL.indexOf('YOUR-') < 0)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+  : null;
+
+/* 订单对象 <-> 数据库行（app 用驼峰，DB 用下划线）*/
+function orderToRow(o){
+  return { id:o.id, order_num:o.orderNum, created_at:o.createdAt, items:o.items||[],
+    total:o.total||0, pay_method:o.payMethod, status:o.status,
+    source:o.source, table_name:o.tableName, ta_mode:o.taMode };
+}
+function rowToOrder(r){
+  return { id:r.id, orderNum:r.order_num||(r.id?String(r.id).slice(-4):''), createdAt:r.created_at,
+    items:r.items||[], total:Number(r.total)||0, payMethod:r.pay_method||'counter',
+    status:r.status||'pending', source:r.source||'app', tableName:r.table_name||'', taMode:r.ta_mode||'' };
+}
+
 /* ---------- tab switching ---------- */
 function switchTab(tab){
   try{ closeSheet(); }catch(e){}
@@ -774,9 +801,10 @@ function switchTab(tab){
   document.getElementById('screen-'+tab).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.toggle('active', n.dataset.tab===tab); });
   if(tab==='orders'){
-    // 从 localStorage 补充订单（含 POS 端写入/更新的订单）
+    // 先用本地缓存秒出，再从云端拉最新
     mergeOrdersFromStorage();
     renderOrdersList();
+    loadOrdersFromCloud().then(function(){ try{ renderOrdersList(); }catch(e){} });
   }
   window.scrollTo(0,0);
 }
@@ -804,7 +832,8 @@ function setMenuMode(el){
 }
 
 /* ---------- menu data ---------- */
-const menu = {
+/* 写死菜单：作为离线 / 首屏 / 云端不可达时的兜底数据源 */
+var MENU_FALLBACK = {
   special:{ cn:'精选系列', en:'Special', items:[
     {name:'布丁芭菲杯', en:'Pudding Parfait', price:19.8, desc:'香滑布丁配新鲜水果与奶油，层层堆叠的甜蜜芭菲杯。', flavors:['Original','Matcha','Peach Oolong','Black Sesame','Chocolate','Genmaicha']},
     {name:'香蕉布丁烧', en:'Banana Pudding Cake', price:11.0, desc:'焦糖香蕉搭配绵密布丁烧，香气十足的人气甜点。', flavors:['Original','Chocolate']},
@@ -831,6 +860,54 @@ const menu = {
     {name:'柠檬蜜', en:'Honey Lemon', price:5.0, desc:'新鲜柠檬蜂蜜调制，酸甜解腻。', flavors:['Original']},
   ]},
 };
+
+/* 分类的中英显示名（很少变，保留在代码里）；可编辑的是各分类下的「品项」 */
+var CAT_ORDER = ['special','classic','toast','boat','ice','drinks'];
+var CAT_META = {
+  special:{cn:'精选系列',en:'Special'}, classic:{cn:'经典系列',en:'Classic'},
+  toast:{cn:'吐司',en:'Toast'}, boat:{cn:'布丁船',en:'Pudding Boat'},
+  ice:{cn:'冰激凌布丁',en:'Ice Cream Pudding'}, drinks:{cn:'饮料',en:'Drinks'},
+};
+/* 当前生效的菜单（先用兜底，云端拉到后替换）*/
+var menu = MENU_FALLBACK;
+
+/* 把 menu_items 表的行组装成 menu 对象结构（已售罄的品项对顾客隐藏 = 下架）*/
+function buildMenuFromRows(rows){
+  var m = {};
+  CAT_ORDER.forEach(function(c){ if(CAT_META[c]) m[c] = {cn:CAT_META[c].cn, en:CAT_META[c].en, items:[]}; });
+  (rows||[]).slice().sort(function(a,b){ return (a.sort_order||0)-(b.sort_order||0); }).forEach(function(r){
+    if(r.sold_out) return;
+    var c = r.cat; if(!m[c]) m[c] = {cn:(CAT_META[c]?CAT_META[c].cn:c), en:(CAT_META[c]?CAT_META[c].en:c), items:[]};
+    m[c].items.push({ name:r.name, en:r.en||'', price:Number(r.price)||0, desc:r.descr||'',
+      flavors:(r.flavors && r.flavors.length)?r.flavors:['Original'] });
+  });
+  Object.keys(m).forEach(function(c){ if(!m[c].items.length) delete m[c]; });
+  return m;
+}
+function applyMenu(m){
+  if(!m || !Object.keys(m).length) return;
+  menu = m;
+  if(!menu[activeCat]) activeCat = Object.keys(menu)[0] || 'special';
+  try{ renderCats(); }catch(e){}
+  try{ renderItems(); }catch(e){}
+}
+function loadMenuCache(){
+  try{ var raw=localStorage.getItem('pm_menu_cache'); if(!raw) return null;
+    var m=buildMenuFromRows(JSON.parse(raw)); return Object.keys(m).length?m:null; }catch(e){ return null; }
+}
+/* 从云端拉菜单；失败则用缓存、再退到写死菜单 */
+async function loadMenu(){
+  if(!db){ applyMenu(loadMenuCache() || MENU_FALLBACK); return; }
+  try{
+    var res = await db.from('menu_items').select('*').order('sort_order');
+    if(res.error) throw res.error;
+    try{ localStorage.setItem('pm_menu_cache', JSON.stringify(res.data||[])); }catch(e){}
+    var m = buildMenuFromRows(res.data||[]);
+    applyMenu(Object.keys(m).length ? m : (loadMenuCache() || MENU_FALLBACK));
+  }catch(e){
+    applyMenu(loadMenuCache() || MENU_FALLBACK);
+  }
+}
 
 let activeCat = 'special';
 let cart = {}; // key: cat|idx|flavorIdx -> {name, en, price, qty, flavor}
@@ -954,9 +1031,11 @@ function confirmOrder(){
   };
   _orders.unshift(order);
 
-  // 存到 localStorage 并广播给 POS（打通两个系统）
+  // 存到 localStorage 并广播（离线 / 同机兜底）
   try{ var ex=JSON.parse(localStorage.getItem('pm_orders')||'[]'); ex.unshift(order); localStorage.setItem('pm_orders',JSON.stringify(ex)); }catch(e){}
   try{ pmBroadcastOrders(); }catch(e){}
+  // 写入云端（跨设备：店里 POS 实时收到）
+  if(db){ db.from('orders').insert(orderToRow(order)).then(function(res){ if(res && res.error) console.error('order insert', res.error); }).catch(function(e){ console.error('order insert', e); }); }
 
   document.getElementById('cartSheet').classList.remove('show');
   document.getElementById('cartOverlay').classList.remove('show');
@@ -1088,6 +1167,7 @@ function confirmAddToCart(){
 renderCats();
 renderItems();
 renderCartPanel();
+loadMenu();   // 从云端拉菜单（拉到后自动重绘；未配置/离线则保持写死菜单）
 
 /* =================== ORDERS =================== */
 
@@ -1144,6 +1224,36 @@ function pmOnOrdersChanged(){
 }
 if(_pmBC) _pmBC.onmessage = function(ev){ if(ev && ev.data && ev.data.t==='orders') pmOnOrdersChanged(); };
 window.addEventListener('storage', function(e){ if(e.key==='pm_orders') pmOnOrdersChanged(); });
+
+/* ===== 云端订单：跨设备读取 + Realtime 实时刷新（取代跨设备场景下的本地同步） ===== */
+function upsertOrderRow(r){
+  if(!r || !r.id) return;
+  var o = rowToOrder(r), found = false;
+  for(var i=0;i<_orders.length;i++){ if(_orders[i].id===o.id){ _orders[i]=o; found=true; break; } }
+  if(!found) _orders.unshift(o);
+  _orders.sort(function(a,b){ return new Date(b.createdAt)-new Date(a.createdAt); });
+}
+async function loadOrdersFromCloud(){
+  if(!db){ mergeOrdersFromStorage(); return; }
+  try{
+    var res = await db.from('orders').select('*').order('created_at',{ascending:false}).limit(50);
+    if(res.error) throw res.error;
+    (res.data||[]).forEach(upsertOrderRow);
+  }catch(e){ mergeOrdersFromStorage(); }
+}
+function subscribeOrders(){
+  if(!db) return;
+  db.channel('orders-app')
+    .on('postgres_changes', {event:'*', schema:'public', table:'orders'}, function(payload){
+      if(payload.new) upsertOrderRow(payload.new);
+      try{ renderOrdersList(); }catch(e){}
+      try{
+        var sheet = document.getElementById('orderDetailSheet');
+        if(_orderDetail && sheet && sheet.classList.contains('show')) openOrderDetail(_orderDetail.id);
+      }catch(e){}
+    })
+    .subscribe();
+}
 
 function fmtDate(ts){
   try{
@@ -1262,6 +1372,10 @@ function reorder(){
   closeOrderDetail();
   switchTab('menu');
 }
+
+/* ===== 云端订单初始化：拉一次 + 订阅实时（放在最后，确保 _orders 等已就绪）===== */
+loadOrdersFromCloud().then(function(){ try{ renderOrdersList(); }catch(e){} });
+subscribeOrders();
 </script>
 </body>
 </html>

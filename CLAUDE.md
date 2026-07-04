@@ -4,14 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**布丁喵 PUDDING MEOW** is an ordering system for a dessert shop in Melaka, Malaysia. It consists of two standalone HTML files — no build system, no package manager, no framework. Open either file directly in a browser to run it.
+**布丁喵 PUDDING MEOW** is an ordering system for a dessert shop in Melaka, Malaysia. It consists of two standalone HTML files + one SQL setup script — no build system, no package manager, no framework.
 
 | File | Audience | Device | Purpose |
 |------|----------|--------|---------|
 | `pudding-meow.html` | Customers | Mobile (390px) | Browse menu, build cart, place & track orders |
-| `pos.html` | Staff | Desktop (1366×768) | Point of sale, payment, pending-payment queue, admin dashboard |
+| `pos.html` | Staff | Desktop (1366×768) | Point of sale, payment, pending-payment queue, admin dashboard, menu management |
+| `supabase-setup.sql` | one-time | — | Creates DB tables, RLS, realtime, seeds the menu |
 
-Both apps are pure vanilla JS with inline `<style>`/`<script>` and share data through the browser's `localStorage`. There is **no backend** in the current version — everything runs client-side. (An earlier iteration used Supabase + Stripe; that has been replaced by the standalone localStorage design.)
+Both apps are pure vanilla JS with inline `<style>`/`<script>`. They share a **Supabase** cloud backend (`orders` + `menu_items` tables + Realtime) so a customer's phone and the shop's POS sync across devices. Payment is **TNG** (a fixed payment link) or **柜台/cash at counter** — no online card processor. If Supabase is unconfigured/unreachable, both apps fall back to a localStorage-only mode (single-device). See `DEPLOY.md` to go live.
 
 ## Mini-program: `pudding-meow.html`
 
@@ -43,31 +44,32 @@ Fixed 1366×768 layout. PIN-gated (`localStorage['pm_pin']`, default `'0000'`). 
 
 Helpers: `sg/ss` (string get/set), `gj/sj` (JSON get/set) wrap `localStorage`. `showN(msg)` shows a transient toast.
 
-## Shared data (localStorage keys)
+## Backend: Supabase (cloud, cross-device)
 
-| Key | Written by | Shape |
-|-----|-----------|-------|
-| `pm_orders` | both apps | `[{ id, orderNum, createdAt, items:[{name, qty, price, ...}], total, payMethod, status, source, tableName, taMode }]` |
-| `pm_members` | POS | member records |
-| `pm_pin` | POS | staff PIN |
-| `pm_ctr`, `pm_rm` | POS | order counter / reports config |
+Both files load `@supabase/supabase-js@2` from CDN and share **one config block** (`SUPABASE_URL` + `SUPABASE_KEY`, near the top of each `<script>` — **must be identical in both files**). `var db = window.supabase && configured ? createClient(...) : null`. When `db` is null (creds not filled, offline, or CDN blocked) both apps **degrade gracefully** to the local/offline path below.
 
-**Order `status` vocabulary** (shared, must stay compatible across both apps):
-`pending` (unpaid) → `paid`/`preparing` (paid, being made) → `ready` → `done`. The POS pending-payment queue filters strictly on `status === 'pending'`. The app's `STATUS` map treats `paid` as an alias of `preparing` (制作中) so POS-side payment reflects sensibly in the customer view.
+`supabase-setup.sql` (run once in the Supabase SQL Editor) creates the schema, RLS, realtime, and seeds the menu:
 
-`source` is `'app'` (from mini-program) or `'pos'` (created at the counter). App orders set `tableName` to `📱线上·{堂食|自取|外卖}` so they're distinguishable in the POS queue and transaction table.
+| Table | Columns | Purpose |
+|-------|---------|---------|
+| `orders` | `id, order_num, created_at, items(jsonb), total, pay_method, status, source, table_name, ta_mode` | all customer + counter orders |
+| `menu_items` | `id, cat, name, en, price, descr, flavors(jsonb), sold_out, sort_order` | the editable menu |
 
-## Integration: app ↔ POS real-time sync
+Field mapping between the JS order object (camelCase) and DB rows (snake_case) is done by **`orderToRow()` / `rowToOrder()`** — defined identically in both files. `orderToRow` only emits real columns, so POS-only fields (`tender`, `change`, `customerName`) are dropped on insert.
 
-The two apps are "connected" purely through `localStorage['pm_orders']` plus a live-notify layer. **Same origin is required** — serve both files from the same host/port (see Development) for cross-tab events to fire.
+**Menu** — the customer app (`loadMenu` → `buildMenuFromRows`) and the POS cashier grid (`loadMenu` → `buildPosMenuFromRows`) both read `menu_items`, so the POS admin **菜单管理** page (`renderMenuAdmin` + `menuAdd/menuEdit/menuToggleSold/menuDel`) is the single source of truth. `sold_out` items are hidden from customers ("下架"). The hardcoded `MENU_FALLBACK` / `MENU_FALLBACK`-style objects remain as offline fallback and seed reference. Category display names are a small hardcoded map (`CAT_META` / `POS_CATN`); only items are cloud-editable.
 
-The sync layer is symmetric and lives near the bottom of each script:
-- **`pmBroadcastOrders()`** — after any write to `pm_orders`, posts a message on `BroadcastChannel('pm_orders_sync')`.
-- **Listeners** — each app subscribes to both the `BroadcastChannel` *and* the `window 'storage'` event (fires in other tabs of the same origin). On either signal it reloads `pm_orders` and re-renders.
-  - POS: `pmRefreshOrders(true)` → refreshes the pending badge/list + admin dashboard, and toasts `🔔 新线上订单 #NNNN` for genuinely new `source:'app'` `pending` orders.
-  - App: `pmOnOrdersChanged()` → `mergeOrdersFromStorage()` then re-renders the orders list and any open order-detail sheet (so a POS "已付款" flips the customer's order to 制作中 live).
+**Orders realtime** — both apps `subscribeOrders()` via `db.channel(...).on('postgres_changes', {table:'orders'})`. App `confirmOrder()` and POS order-save `insert`; POS `markPaid()` `update`s status. A customer counter order INSERTs → POS `loadOrdersFromCloud(true)` refreshes the 待付款 queue and toasts `🔔 新线上订单`. POS `markPaid` on an app order sets it to `preparing` → the customer's order flips to 制作中 live.
 
-Net effect: a customer placing a **counter** order instantly appears in the POS **待付款** queue; when staff tap 已付款 the customer's app updates in real time. Prepaid **TNG** orders are intentionally excluded from the pending queue.
+## Order `status` vocabulary (shared)
+
+`pending` (unpaid) → `paid`/`preparing` (paid, being made) → `ready` → `done`. The POS pending-payment queue filters strictly on `status === 'pending'`. The app's `STATUS` map treats `paid` as an alias of `preparing` (制作中). `source` is `'app'` or `'pos'`; app orders set `tableName` to `📱线上·{堂食|自取|外卖}`. Prepaid **TNG** orders are `preparing` (not `pending`), so they're intentionally excluded from the pending queue. Known MVP limitation: the app's 订单 tab shows all recent orders (no per-customer identity yet).
+
+## Offline / local fallback layer (localStorage)
+
+When `db` is null, or as a same-device backup, the apps still use `localStorage['pm_orders']` + a live-notify layer that predates the cloud:
+- **`pmBroadcastOrders()`** posts on `BroadcastChannel('pm_orders_sync')`; each app also listens to the `window 'storage'` event. This only bridges **tabs of the same browser/origin** — it does NOT cross devices (that's what Supabase is for).
+- Other localStorage keys: `pm_members` (POS members), `pm_pin` (staff PIN), `pm_ctr`/`pm_rm` (counter/reports), `pm_menu_cache` (last-fetched menu, for offline).
 
 ## Rendering Pattern
 
@@ -92,12 +94,14 @@ Both apps print an 80mm receipt. The mini-program renders into `#pmPrintArea` an
 
 No build step. Edit the HTML file and refresh the browser.
 
-**To exercise the app ↔ POS integration you must use a server (not `file://`)** so both pages share an origin and `storage`/`BroadcastChannel` events fire:
+**Cloud config:** put the same `SUPABASE_URL` + `SUPABASE_KEY` in both `pudding-meow.html` and `pos.html`, and run `supabase-setup.sql` once in the Supabase SQL Editor. See `DEPLOY.md` for the full launch guide (hosting + table QR).
+
+**Local testing:** with real cloud, cross-device sync works over the internet — open the two files on two different devices. Without cloud (or to test the offline path), serve both from one origin so the localStorage/`BroadcastChannel` fallback bridges two tabs:
 
 ```bash
 python3 -m http.server 8000
-# open http://127.0.0.1:8000/pudding-meow.html  (phone view: DevTools device toolbar)
-# open http://127.0.0.1:8000/pos.html           (in another tab)
+# http://127.0.0.1:8000/pudding-meow.html  (phone view: DevTools device toolbar)
+# http://127.0.0.1:8000/pos.html           (another tab)
 ```
 
-Place a counter order in the mini-program and watch the POS pending-payment badge/list update live.
+**Automated checks** (this repo's dev container blocks Supabase, so cloud round-trips can't run here): `node --check` the extracted `<script>` blocks for syntax; the Playwright scripts in scratchpad cover (a) graceful degradation when `db` is null and (b) cloud code paths via a mock `window.supabase` (verifying table names + `orderToRow` snake_case mapping + realtime wiring). Real end-to-end cloud verification happens in a normal browser.
