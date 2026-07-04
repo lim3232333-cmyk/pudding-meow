@@ -774,26 +774,8 @@ function switchTab(tab){
   document.getElementById('screen-'+tab).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.toggle('active', n.dataset.tab===tab); });
   if(tab==='orders'){
-    // 尝试从localStorage补充订单
-    try{
-      var stored = JSON.parse(localStorage.getItem('pm_orders')||'[]');
-      stored.forEach(function(o){
-        if(!_orders.find(function(x){ return x.id===o.id; })){
-          // 转换字段名兼容
-          _orders.push({
-            id: o.id,
-            orderNum: o.order_number||o.orderNum||o.id.slice(-4),
-            createdAt: o.created_at||o.timestamp||o.createdAt,
-            items: o.items||[],
-            total: o.total||0,
-            payMethod: o.payment_method||o.payMethod||'counter',
-            status: o.status||'pending',
-            source: o.source||'app',
-          });
-        }
-      });
-      _orders.sort(function(a,b){ return new Date(b.createdAt)-new Date(a.createdAt); });
-    }catch(e){}
+    // 从 localStorage 补充订单（含 POS 端写入/更新的订单）
+    mergeOrdersFromStorage();
     renderOrdersList();
   }
   window.scrollTo(0,0);
@@ -956,6 +938,7 @@ function confirmOrder(){
   });
 
   var num = (_orders.length+1);
+  var modeLabel = {dinein:'堂食', pickup:'自取', delivery:'外卖'}[currentMode] || '自取';
   var order = {
     id: 'o'+Date.now(),
     orderNum: String(num).padStart(4,'0'),
@@ -966,11 +949,14 @@ function confirmOrder(){
     status: selectedPay==='tng' ? 'preparing' : 'pending',
     needs_print: true,
     source: 'app',
+    tableName: '📱线上·'+modeLabel,                       // POS 待付款/交易列表显示来源
+    taMode: currentMode==='delivery' ? 'takeaway' : 'dinein',
   };
   _orders.unshift(order);
 
-  // 尝试存到localStorage（失败不影响流程）
+  // 存到 localStorage 并广播给 POS（打通两个系统）
   try{ var ex=JSON.parse(localStorage.getItem('pm_orders')||'[]'); ex.unshift(order); localStorage.setItem('pm_orders',JSON.stringify(ex)); }catch(e){}
+  try{ pmBroadcastOrders(); }catch(e){}
 
   document.getElementById('cartSheet').classList.remove('show');
   document.getElementById('cartOverlay').classList.remove('show');
@@ -1114,9 +1100,50 @@ var _orderDetail = null;
 var STATUS = {
   pending:   { label:'待付款', cls:'status-pending' },
   preparing: { label:'制作中', cls:'status-preparing' },
+  paid:      { label:'制作中', cls:'status-preparing' },   // POS 标记已付款后 → 进入制作中
   ready:     { label:'待取餐', cls:'status-ready' },
   done:      { label:'已完成', cls:'status-done' },
 };
+
+/* ===== 跨系统订单同步：小程序 ↔ POS（共享 localStorage 键 'pm_orders'） =====
+   写入方在改动 pm_orders 后调用 pmBroadcastOrders()；
+   另一侧通过 BroadcastChannel + storage 事件实时刷新。 */
+var _pmBC = (function(){ try{ return new BroadcastChannel('pm_orders_sync'); }catch(e){ return null; } })();
+function pmBroadcastOrders(){ try{ if(_pmBC) _pmBC.postMessage({t:'orders', ts:Date.now()}); }catch(e){} }
+function mergeOrdersFromStorage(){
+  try{
+    var stored = JSON.parse(localStorage.getItem('pm_orders')||'[]');
+    stored.forEach(function(o){
+      var ex = null;
+      for(var i=0;i<_orders.length;i++){ if(_orders[i].id===o.id){ ex=_orders[i]; break; } }
+      if(!ex){
+        _orders.push({
+          id: o.id,
+          orderNum: o.order_number||o.orderNum||o.id.slice(-4),
+          createdAt: o.created_at||o.timestamp||o.createdAt,
+          items: o.items||[],
+          total: o.total||0,
+          payMethod: o.payment_method||o.payMethod||'counter',
+          status: o.status||'pending',
+          source: o.source||'app',
+        });
+      } else if(o.status && ex.status!==o.status){
+        ex.status = o.status;    // POS 改了状态（如标记已付款）→ 同步过来
+      }
+    });
+    _orders.sort(function(a,b){ return new Date(b.createdAt)-new Date(a.createdAt); });
+  }catch(e){}
+}
+function pmOnOrdersChanged(){
+  mergeOrdersFromStorage();
+  try{ renderOrdersList(); }catch(e){}
+  try{
+    var sheet = document.getElementById('orderDetailSheet');
+    if(_orderDetail && sheet && sheet.classList.contains('show')) openOrderDetail(_orderDetail.id);
+  }catch(e){}
+}
+if(_pmBC) _pmBC.onmessage = function(ev){ if(ev && ev.data && ev.data.t==='orders') pmOnOrdersChanged(); };
+window.addEventListener('storage', function(e){ if(e.key==='pm_orders') pmOnOrdersChanged(); });
 
 function fmtDate(ts){
   try{

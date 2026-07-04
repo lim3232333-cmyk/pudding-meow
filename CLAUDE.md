@@ -4,75 +4,100 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**布丁喵 PUDDING MEOW** is a mobile-first ordering web app for a dessert shop in Melaka, Malaysia. The entire application lives in a single file: `pudding-meow.html`. There is no build system, no package manager, and no framework — open the file directly in a browser to run it.
+**布丁喵 PUDDING MEOW** is an ordering system for a dessert shop in Melaka, Malaysia. It consists of two standalone HTML files — no build system, no package manager, no framework. Open either file directly in a browser to run it.
 
-## Architecture
+| File | Audience | Device | Purpose |
+|------|----------|--------|---------|
+| `pudding-meow.html` | Customers | Mobile (390px) | Browse menu, build cart, place & track orders |
+| `pos.html` | Staff | Desktop (1366×768) | Point of sale, payment, pending-payment queue, admin dashboard |
 
-The app is a single-page application structured as one HTML file with three sections:
+Both apps are pure vanilla JS with inline `<style>`/`<script>` and share data through the browser's `localStorage`. There is **no backend** in the current version — everything runs client-side. (An earlier iteration used Supabase + Stripe; that has been replaced by the standalone localStorage design.)
 
-1. **CSS** (lines 1–535) — All styling as inline `<style>`. Uses CSS custom properties defined in `:root` for the entire design system (colors, spacing). Mobile-first, capped at `max-width: 480px`.
+## Mini-program: `pudding-meow.html`
 
-2. **HTML** (lines 1–535 interleaved with CSS, then markup through ~535) — Four tab pages rendered simultaneously as `.page` divs, toggled via `display:none/flex`. Drawers and modals are also in the DOM at all times.
+Mobile-first, capped at a 390px `.phone` container. Four screens are all in the DOM at once and toggled by `switchTab()` (adds/removes `.active`); a fixed `.bottom-nav` switches between them.
 
-3. **JavaScript** (lines 536–1041) — Vanilla JS, no modules. All logic is in a single `<script>` block with global state variables and functions.
+| Screen | `id` | Notes |
+|--------|------|-------|
+| 首页 Home | `screen-home` | Pixel-precise absolute-positioned canvas (`.hc-*` classes) — brand logo, welcome bar, dine-in/pickup/delivery mode cards |
+| 点单 Menu | `screen-menu` | Category sidebar (`#catList`) + item list (`#itemList`) + product-detail sheet with flavor pills |
+| 订单 Orders | `screen-orders` | Customer's own order history with status filters + order-detail sheet (status stepper) |
+| 我的 Profile | `screen-profile` | Member registration, 联系店长 (WhatsApp), store hours & address |
 
-### Tab pages
-| Tab | `id` | Purpose |
-|-----|------|---------|
-| 首页 Home | `page-home` | Featured items, quick actions |
-| 点单 Order | `page-order` | Category sidebar + scrollable menu |
-| 订单 Orders | `page-orders` | Real-time order list for staff |
-| 我的 Profile | `page-mine` | Member card, store info |
+### Menu data
+`const menu` (near the bottom of the script) is a hardcoded object of 6 categories — `special, classic, toast, boat, ice, drinks` — each `{cn, en, items:[{name, en, price, desc, flavors[]}]}`.
 
-### Backend: Supabase
-Connected via the CDN-loaded `@supabase/supabase-js@2` library. The client is initialized at the top of the script with hardcoded public anon credentials:
+### Cart
+`let cart = {}` keyed by `"cat|idx|flavorIdx"` → `{name, en, price, flavor, qty}`. In-memory only, lost on refresh. After any change call `renderItems()` + `updateCartBadge()`.
 
-```js
-const SUPABASE_URL = 'https://vmdjsvapikfgcbthnapw.supabase.co';
-const SUPABASE_KEY = '...'; // anon/public key
-const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-```
+### Checkout — `confirmOrder()`
+Builds an order object, `unshift`es it into `_orders`, persists to `localStorage['pm_orders']`, then calls `pmBroadcastOrders()` (see Integration). Payment branches on `selectedPay`:
+- `tng` → opens the Touch'n Go payment link, order `status:'preparing'` (prepaid).
+- `counter` → order `status:'pending'` (unpaid; staff collect at counter).
 
-**Tables:**
-- `menu_items` — product catalog: `id, name, description, price, emoji, cat, tag, bg, stripe_link, sold_out, sort_order`
-- `orders` — customer orders: `id, type, items (JSONB array), total, status, note, created_at`
+## POS: `pos.html`
 
-Real-time new-order notifications use Supabase Realtime (`db.channel(...).on('postgres_changes', ...)`).
+Fixed 1366×768 layout. PIN-gated (`localStorage['pm_pin']`, default `'0000'`). Two top-level views toggled by display:
+- **`#posView`** — cart panel, T/A (dine-in/takeaway) toggle, menu grid, action bar, Cash + DuitNow numpad, **Pending Payment** modal (`showPending()`), change & print-ask overlays.
+- **`#adminView`** — dashboard KPIs + transaction table (`renderDash`), members grid (`renderMembers`), monthly reports (`renderReports`).
 
-### Payment: Stripe Payment Links
-Each `menu_item` has an optional `stripe_link` field pointing to a pre-created Stripe Payment Link. On checkout, the app saves the order to Supabase and then redirects (`window.open`) to the first cart item's Stripe link. The link is configured per-item via the admin drawer (⚙️ gear icon on the order page).
+Helpers: `sg/ss` (string get/set), `gj/sj` (JSON get/set) wrap `localStorage`. `showN(msg)` shows a transient toast.
 
-## Key State Variables
+## Shared data (localStorage keys)
 
-```js
-let menuItems = [];      // loaded from Supabase
-let cart = [];           // [{id, qty}] — in-memory only, lost on refresh
-let selectedPay = 'fpx'; // selected payment method display only
-let currentOType = '自取'; // order type: 自取 | 堂食 | 外卖
-let currentOrderTab = 'today'; // orders page: today | all
-let currentFilter = '全部'; // order type filter
-```
+| Key | Written by | Shape |
+|-----|-----------|-------|
+| `pm_orders` | both apps | `[{ id, orderNum, createdAt, items:[{name, qty, price, ...}], total, payMethod, status, source, tableName, taMode }]` |
+| `pm_members` | POS | member records |
+| `pm_pin` | POS | staff PIN |
+| `pm_ctr`, `pm_rm` | POS | order counter / reports config |
+
+**Order `status` vocabulary** (shared, must stay compatible across both apps):
+`pending` (unpaid) → `paid`/`preparing` (paid, being made) → `ready` → `done`. The POS pending-payment queue filters strictly on `status === 'pending'`. The app's `STATUS` map treats `paid` as an alias of `preparing` (制作中) so POS-side payment reflects sensibly in the customer view.
+
+`source` is `'app'` (from mini-program) or `'pos'` (created at the counter). App orders set `tableName` to `📱线上·{堂食|自取|外卖}` so they're distinguishable in the POS queue and transaction table.
+
+## Integration: app ↔ POS real-time sync
+
+The two apps are "connected" purely through `localStorage['pm_orders']` plus a live-notify layer. **Same origin is required** — serve both files from the same host/port (see Development) for cross-tab events to fire.
+
+The sync layer is symmetric and lives near the bottom of each script:
+- **`pmBroadcastOrders()`** — after any write to `pm_orders`, posts a message on `BroadcastChannel('pm_orders_sync')`.
+- **Listeners** — each app subscribes to both the `BroadcastChannel` *and* the `window 'storage'` event (fires in other tabs of the same origin). On either signal it reloads `pm_orders` and re-renders.
+  - POS: `pmRefreshOrders(true)` → refreshes the pending badge/list + admin dashboard, and toasts `🔔 新线上订单 #NNNN` for genuinely new `source:'app'` `pending` orders.
+  - App: `pmOnOrdersChanged()` → `mergeOrdersFromStorage()` then re-renders the orders list and any open order-detail sheet (so a POS "已付款" flips the customer's order to 制作中 live).
+
+Net effect: a customer placing a **counter** order instantly appears in the POS **待付款** queue; when staff tap 已付款 the customer's app updates in real time. Prepaid **TNG** orders are intentionally excluded from the pending queue.
 
 ## Rendering Pattern
 
-All UI updates are full re-renders of DOM subtrees via `innerHTML`. There is no virtual DOM or reactive state. After any cart change, call `updateCartBar()` and `renderMenu()` to keep the UI consistent. `renderFeatured()` should also be called when menu data changes.
-
-## Offline Fallback
-
-`loadMenu()` catches Supabase errors and falls back to `localStorage.getItem('pm_menu_cache')`. The cache is not explicitly written in the current code — if adding cache writes, use key `pm_menu_cache`.
-
-## Admin Access
-
-The ⚙️ admin drawer (opened from the order page topbar) lets staff add/edit/delete menu items and toggle `sold_out` status. All changes write directly to Supabase. No authentication is implemented — the admin UI is accessible to anyone who opens the page.
-
-## Print / Receipt
-
-`buildReceipt(order)` populates `#receipt-content` and `window.print()` is called with a 300ms delay. The print stylesheet is embedded in the CSS (look for `@media print`).
+Both apps use full `innerHTML` re-renders of DOM subtrees — no virtual DOM, no reactive state. State lives in module-level `var`/`let` globals; re-render functions read those globals and rebuild the relevant subtree.
 
 ## Design System
 
-Colors are defined as CSS variables in `:root`. The palette is pink-dominant (`--pink`, `--pink-deep`, `--pink-light`, `--pink-bg`) with mint and cream accents. Fonts (loaded from Google Fonts): Pacifico (headings/brand), Noto Sans SC (body), Noto Serif SC (Chinese brand name).
+CSS variables in `:root` (identical in both files):
+
+```css
+--cream:#FFFDD6;  --bg:rgba(255,255,213,.835);  --blue:#B6F3FF;
+--red:#8D0505;    --yellow:#FFDE5B;  --cream2:#FFFFD5;  --muted:#4A4848;
+```
+
+Cream/yellow background, deep-red (`--red`) text and accents, blue (`--blue`) for active/selected states. Fonts (Google Fonts): **Pattaya** for the brand wordmark, **Noto Sans SC** for everything else. The design mirrors a Figma file (mobile screens + POS); when adjusting layout, match the pixel values already encoded in the `.hc-*` / absolute-positioned rules.
+
+## Print / Receipt
+
+Both apps print an 80mm receipt. The mini-program renders into `#pmPrintArea` and the POS into its receipt builder (`printRec`); an `@media print` block hides everything except the receipt node, then `window.print()` is called.
 
 ## Development
 
-No build step. Edit `pudding-meow.html` and refresh the browser. To test Supabase integration, the existing Supabase project credentials are already in the file. To test orders and real-time, open the page in two browser tabs.
+No build step. Edit the HTML file and refresh the browser.
+
+**To exercise the app ↔ POS integration you must use a server (not `file://`)** so both pages share an origin and `storage`/`BroadcastChannel` events fire:
+
+```bash
+python3 -m http.server 8000
+# open http://127.0.0.1:8000/pudding-meow.html  (phone view: DevTools device toolbar)
+# open http://127.0.0.1:8000/pos.html           (in another tab)
+```
+
+Place a counter order in the mini-program and watch the POS pending-payment badge/list update live.
