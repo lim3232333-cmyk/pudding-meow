@@ -32,10 +32,21 @@ create table public.menu_items (
   price       numeric not null default 0,
   descr       text,
   flavors     jsonb   not null default '["Original"]'::jsonb,
+  specs       jsonb   not null default '[]'::jsonb, -- 该品项挂了哪些规格库条目 + 具体开放的选项，如 [{"defId":"...","name":"尺寸","options":["M","L"]}]
   sold_out    boolean not null default false,
   sort_order  int     not null default 0
 );
 create index if not exists menu_cat_idx on public.menu_items (cat, sort_order);
+
+-- ---------- 2b) 规格库 spec_defs（后台"规格管理"里维护，供加新品/改品项时下拉选用）----------
+drop table if exists public.spec_defs cascade;
+create table public.spec_defs (
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null,                    -- 规格名称，如 口味 / 尺寸 / 温度（自己输入，不限数量）
+  options     jsonb not null default '[]'::jsonb, -- 该规格的可选项，如 ["Original","Matcha","Chocolate"]（自己输入，不限数量）
+  sort_order  int not null default 0
+);
+create index if not exists spec_defs_sort_idx on public.spec_defs (sort_order);
 
 -- ---------- 3) Row Level Security（MVP 权限）----------
 -- 说明：anon key 是公开的。以下策略为“先能用”的最小方案：
@@ -44,6 +55,7 @@ create index if not exists menu_cat_idx on public.menu_items (cat, sort_order);
 --   ⚠️ POS 目前仅本机 PIN、无真实登录；上线稳定后应加“店员鉴权”收紧 menu 写权限。
 alter table public.orders     enable row level security;
 alter table public.menu_items enable row level security;
+alter table public.spec_defs  enable row level security;
 
 drop policy if exists orders_anon_all on public.orders;
 create policy orders_anon_all on public.orders
@@ -57,10 +69,19 @@ drop policy if exists menu_anon_write on public.menu_items;
 create policy menu_anon_write on public.menu_items
   for all to anon using (true) with check (true);
 
+drop policy if exists spec_defs_anon_read on public.spec_defs;
+create policy spec_defs_anon_read on public.spec_defs
+  for select to anon using (true);
+
+drop policy if exists spec_defs_anon_write on public.spec_defs;
+create policy spec_defs_anon_write on public.spec_defs
+  for all to anon using (true) with check (true);
+
 -- ---------- 4) 开启 Realtime（实时推送）----------
--- 让 orders / menu_items 的变化实时推到小程序和 POS
+-- 让 orders / menu_items / spec_defs 的变化实时推到小程序和 POS
 alter publication supabase_realtime add table public.orders;
 alter publication supabase_realtime add table public.menu_items;
+alter publication supabase_realtime add table public.spec_defs;
 
 -- ---------- 5) 灌入当前菜单 ----------
 insert into public.menu_items (cat, name, en, price, descr, flavors, sold_out, sort_order) values
@@ -78,4 +99,30 @@ insert into public.menu_items (cat, name, en, price, descr, flavors, sold_out, s
   ('drinks', '布丁喵奶茶', 'Meow Milk Tea', 6.0, '香浓奶茶加入布丁丁，喝得到惊喜。', '["Original"]'::jsonb, false, 120),
   ('drinks', '柠檬蜜', 'Honey Lemon', 5.0, '新鲜柠檬蜂蜜调制，酸甜解腻。', '["Original"]'::jsonb, false, 130);
 
+-- ---------- 6) 灌入规格库示例（后台"规格管理"里可继续加/改/删，数量不限）----------
+insert into public.spec_defs (name, options, sort_order) values
+  ('尺寸', '["M", "L"]'::jsonb, 10),
+  ('温度', '["热", "冰"]'::jsonb, 20);
+
 -- 完成。回到应用刷新即可看到菜单，下单会实时出现在 POS 待付款列表。
+
+-- ============================================================================
+--  增量迁移：规格字段 + 规格库
+--  如果你的 Supabase 项目是在本次更新前建的（缺 menu_items.specs 列 / 没有 spec_defs 表），
+--  只需单独执行下面这一小段（不会清空 orders / menu_items 现有数据）。
+--  已经是全新重跑过整份脚本的，可以跳过这一段（上面已经包含了）。
+-- ============================================================================
+alter table public.menu_items add column if not exists specs jsonb not null default '[]'::jsonb;
+
+create table if not exists public.spec_defs (
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null,
+  options     jsonb not null default '[]'::jsonb,
+  sort_order  int not null default 0
+);
+alter table public.spec_defs enable row level security;
+drop policy if exists spec_defs_anon_read on public.spec_defs;
+create policy spec_defs_anon_read on public.spec_defs for select to anon using (true);
+drop policy if exists spec_defs_anon_write on public.spec_defs;
+create policy spec_defs_anon_write on public.spec_defs for all to anon using (true) with check (true);
+alter publication supabase_realtime add table public.spec_defs;
