@@ -293,18 +293,11 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 
 /* ═══════ ADMIN VIEW ═══════ */
 #adminView{position:fixed;top:0;left:0;width:1366px;height:768px;background:#FFF8E7;display:none;flex-direction:column;}
-.a-hdr{height:91px;background:#8D0505;display:flex;align-items:center;padding:0 24px;gap:14px;flex-shrink:0;}
-.a-hdr-logo{font-size:44px;font-weight:700;color:#FFDE5B;cursor:pointer;}
-.a-hdr-pill{height:49px;border-radius:16px;border:none;font-weight:700;font-size:18px;cursor:pointer;padding:0 20px;background:#FFDE5B;color:#000;}
-.a-hdr-pill:active{opacity:.8;}
-.a-hdr-spacer{flex:1;}
-.a-hdr-exit{height:59px;padding:0 24px;background:rgba(217,217,217,.2);border-radius:12px;border:none;font-weight:700;font-size:22px;color:#fff;cursor:pointer;}
 .a-body{flex:1;display:flex;overflow:hidden;}
 /* Sidebar — Frame62: 208×678, bg #8D0505, column, no gap */
 .a-side{width:208px;background:#8D0505;display:flex;flex-direction:column;flex-shrink:0;}
-.a-side-logo{padding:18px;border-bottom:1px solid rgba(255,255,255,.1);}
-.a-side-title{font-size:22px;font-weight:700;color:#FFDE5B;}
-.a-side-sub{font-size:11px;color:rgba(255,255,213,.6);}
+.a-side-logo{padding:24px 0;text-align:center;cursor:pointer;}
+.a-side-title{font-size:64px;font-weight:700;color:#FFFFD5;}
 .a-side-nav{display:flex;flex-direction:column;}
 /* Nav item — 208×80, padding:10px 27px, 3-state variant */
 .asi{
@@ -329,8 +322,6 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
   content:'';position:absolute;left:0;top:0;width:7px;height:80px;background:#FFDE5B;
 }
 .asi.a:hover{background:rgba(255,222,91,.1);color:#FFDE5B;}
-.a-side-foot{padding:14px 18px;border-top:1px solid rgba(255,255,255,.1);}
-.a-logout{font-size:13px;color:rgba(255,255,213,.5);cursor:pointer;}
 .a-content{flex:1;overflow-y:auto;padding:24px 28px 40px;}
 .page-title{font-size:22px;font-weight:700;color:#8D0505;margin-bottom:18px;}
 .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;}
@@ -352,6 +343,20 @@ tr:hover td{background:rgba(141,5,5,.02);}
 .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;}
 .b-paid{background:#d4f7dc;color:#1a5c2a;}
 .b-pend{background:#FFDE5B;color:#8D0505;}
+.b-void{background:#e2e2e2;color:#777;}
+.tx-split{display:flex;gap:16px;align-items:flex-start;}
+.tx-left{flex:2;min-width:0;}
+.tx-right{flex:1;min-width:260px;}
+.tx-scroll{max-height:440px;overflow-y:auto;}
+.th-filter{border:none;background:transparent;font:inherit;font-size:11px;font-weight:700;color:#4A4848;cursor:pointer;margin-left:4px;}
+tr.tx-sel td{background:rgba(141,5,5,.06);}
+.tx-row{cursor:pointer;}
+.void-btn{border:none;background:#e2e2e2;color:#666;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:11px;font-weight:700;}
+.print-btn{border:none;background:#FFDE5B;color:#8D0505;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:11px;font-weight:700;}
+.void-btn-lg,.print-btn-lg{flex:1;padding:12px 0;font-size:14px;border-radius:8px;}
+.pd-item{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #F5E9D4;font-size:12px;}
+.pd-item:last-child{border-bottom:none;}
+.pd-empty{text-align:center;padding:30px;color:#4A4848;font-size:12px;}
 .mem-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-top:14px;}
 .mem-card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(141,5,5,.08);}
 .mem-name{font-weight:700;font-size:17px;color:#8D0505;}
@@ -498,25 +503,16 @@ tr:hover td{background:rgba(141,5,5,.02);}
 
 <!-- ══ ADMIN VIEW ══ -->
 <div id="adminView">
-  <div class="a-hdr">
-    <div class="a-hdr-logo" onclick="backToPOS()">POS</div>
-    <button class="a-hdr-pill" onclick="showAdmin('dashboard')">Transaction</button>
-    <button class="a-hdr-pill" onclick="showAdmin('members')">Member</button>
-    <button class="a-hdr-pill" onclick="showAdmin('reports')">Reports</button>
-    <div class="a-hdr-spacer"></div>
-    <button class="a-hdr-exit" onclick="backToPOS()">Exit</button>
-  </div>
   <div class="a-body">
     <div class="a-side">
-      <div class="a-side-logo"><div class="a-side-title">🍮 布丁喵</div><div class="a-side-sub">Admin Panel</div></div>
+      <div class="a-side-logo" onclick="backToPOS()"><div class="a-side-title">POS</div></div>
       <nav class="a-side-nav">
-        <div class="asi" id="asi-dashboard" onclick="showAdmin('dashboard')">📊 交易 / 仪表盘</div>
-        <div class="asi" onclick="backToPOS()">🖥️ 返回 POS</div>
-        <div class="asi" id="asi-menu" onclick="showAdmin('menu')">🍮 菜单管理</div>
-        <div class="asi" id="asi-members" onclick="showAdmin('members')">👤 会员管理</div>
-        <div class="asi" id="asi-reports" onclick="showAdmin('reports')">📈 月度报告</div>
+        <div class="asi" id="asi-dashboard" onclick="showAdmin('dashboard')">Transaction</div>
+        <div class="asi" id="asi-reports" onclick="showAdmin('reports')">Report</div>
+        <div class="asi" id="asi-menu" onclick="showAdmin('menu')">Menu</div>
+        <div class="asi" id="asi-members" onclick="showAdmin('members')">Member</div>
+        <div class="asi" onclick="doLogout()">Settings</div>
       </nav>
-      <div class="a-side-foot"><div class="a-logout" onclick="doLogout()">→ 登出 Logout</div></div>
     </div>
     <div class="a-content" id="adminContent"></div>
   </div>
@@ -1089,40 +1085,113 @@ function showAdmin(tab){
 
 /* ── DASHBOARD ── */
 var _vDate=null;
+var _txModeFilter='';
+var _txPayFilter='';
+var _txSelId=null;
+var _revMode='';
+function txMode(o){ return o.taMode==='takeaway'?'takeaway':'dinein'; }
+/* 三种模式（堂食/自取/外卖）：app 订单从 tableName 里带的中文关键字判断；POS 现场单没有"自取"概念，按 taMode 归入堂食/外卖 */
+function orderMode3(o){
+  var tn=o.tableName||'';
+  if(tn.indexOf('自取')>=0) return 'pickup';
+  if(tn.indexOf('外卖')>=0) return 'takeaway';
+  if(tn.indexOf('堂食')>=0) return 'dinein';
+  return txMode(o)==='takeaway' ? 'takeaway' : 'dinein';
+}
 function renderDash(){
   var today=new Date().toDateString();var dd=_vDate||today;
   var ords=_orders.filter(function(o){try{return new Date(o.createdAt).toDateString()===dd;}catch(e){return false;}});
-  var rev=ords.reduce(function(s,o){return s+o.total;},0);
-  var cash=ords.filter(function(o){return o.payMethod==='cash';}).reduce(function(s,o){return s+o.total;},0);
-  var tng=ords.filter(function(o){return o.payMethod==='tng';}).reduce(function(s,o){return s+o.total;},0);
+  var live=ords.filter(function(o){return o.status!=='void';});
+  var rev=live.reduce(function(s,o){return s+o.total;},0);
+  var cash=live.filter(function(o){return o.payMethod==='cash';}).reduce(function(s,o){return s+o.total;},0);
+  var tng=live.filter(function(o){return o.payMethod==='tng';}).reduce(function(s,o){return s+o.total;},0);
+  var revShown = _revMode ? live.filter(function(o){return orderMode3(o)===_revMode;}).reduce(function(s,o){return s+o.total;},0) : rev;
+  var revLabel = {'':'今日营业额',dinein:'堂食营业额',pickup:'自取营业额',takeaway:'外卖营业额'}[_revMode];
+
+  var filtered=ords.filter(function(o){
+    return (!_txModeFilter||txMode(o)===_txModeFilter) && (!_txPayFilter||o.payMethod===_txPayFilter);
+  });
+  if(!_txSelId && filtered.length) _txSelId=filtered[0].id;
+  var selOrder=filtered.find(function(o){return o.id===_txSelId;}) || filtered[0] || null;
+
   var el=document.getElementById('adminContent');
-  el.innerHTML='<div class="page-title">📊 仪表盘 · 交易记录</div>'
+  el.innerHTML='<div class="page-title">Transaction</div>'
     +'<div class="date-row"><div class="dpill'+(!_vDate||dd===today?' a':'')+'" onclick="setDD(null)">今天 Today</div>'
     +'<input type="date" value="'+new Date().toISOString().slice(0,10)+'" onchange="setDDv(this.value)"></div>'
     +'<div class="kpi-row">'
-    +'<div class="kpi"><div class="l">今日营业额</div><div class="v">RM '+rev.toFixed(1)+'</div></div>'
-    +'<div class="kpi"><div class="l">交易笔数</div><div class="v">'+ords.length+'</div></div>'
+    +'<div class="kpi"><div class="l">'+revLabel+'<select class="th-filter" onchange="setRevMode(this.value)">'
+      +'<option value=""'+(_revMode===''?' selected':'')+'>▼ 总营业额</option>'
+      +'<option value="dinein"'+(_revMode==='dinein'?' selected':'')+'>堂食</option>'
+      +'<option value="pickup"'+(_revMode==='pickup'?' selected':'')+'>自取</option>'
+      +'<option value="takeaway"'+(_revMode==='takeaway'?' selected':'')+'>外卖</option>'
+    +'</select></div><div class="v">RM '+revShown.toFixed(1)+'</div></div>'
+    +'<div class="kpi"><div class="l">交易笔数</div><div class="v">'+live.length+'</div></div>'
     +'<div class="kpi"><div class="l">现金 Cash</div><div class="v">RM '+cash.toFixed(1)+'</div></div>'
-    +'<div class="kpi"><div class="l">DuitNow / TNG</div><div class="v">RM '+tng.toFixed(1)+'</div></div>'
+    +'<div class="kpi"><div class="l">DuitNow</div><div class="v">RM '+tng.toFixed(1)+'</div></div>'
     +'</div>'
-    +'<div class="tx-card"><div class="tx-ch"><h3>交易明细</h3></div>'
-    +'<table><thead><tr><th>订单号</th><th>桌号</th><th>模式</th><th>商品</th><th>支付</th><th>金额</th><th>状态</th><th>时间</th><th></th></tr></thead>'
-    +'<tbody>'+(ords.length?ords.map(function(o){
-      var dt=new Date(o.createdAt);var p=function(n){return String(n).padStart(2,'0');};
-      var pm2={cash:'💵 现金',tng:'📱 TNG',card:'💳 刷卡',counter:'🏪 挂账'};
-      return '<tr><td><b style="color:#8D0505">#'+o.orderNum+'</b></td><td>'+o.tableName+'</td>'
-        +'<td><span style="font-size:11px;background:'+(o.taMode==='takeaway'?'#FFDE5B':'#d4f7dc')+';color:#000;border-radius:6px;padding:2px 8px">'+(o.taMode==='takeaway'?'外卖':'堂食')+'</span></td>'
-        +'<td style="font-size:12px">'+o.items.slice(0,2).map(function(i){return i.name+'×'+i.qty;}).join(', ')+(o.items.length>2?'...':'')+'</td>'
-        +'<td>'+(pm2[o.payMethod]||o.payMethod)+'</td>'
-        +'<td><b>RM '+o.total.toFixed(2)+'</b></td>'
-        +'<td><span class="badge b-'+(o.status==='pending'?'pend':'paid')+'">'+(o.status==='pending'?'待付款':'已付款')+'</span></td>'
-        +'<td style="color:#4A4848;font-size:11px">'+p(dt.getHours())+':'+p(dt.getMinutes())+'</td>'
-        +'<td><button onclick="reprO(\''+o.id+'\')" style="border:none;background:#FFDE5B;color:#8D0505;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:11px;font-weight:700">🖨️</button></td></tr>';
-    }).join(''):'<tr><td colspan="9" style="text-align:center;padding:30px;color:#4A4848">暂无交易记录</td></tr>')
-    +'</tbody></table></div>';
+    +'<div class="tx-split">'
+      +'<div class="tx-left tx-card"><div class="tx-ch"><h3>交易明细</h3></div>'
+      +'<div class="tx-scroll"><table><thead><tr>'
+      +'<th>订单号</th><th>时间</th>'
+      +'<th>模式<select class="th-filter" onchange="setTxModeFilter(this.value)">'
+        +'<option value=""'+(_txModeFilter===''?' selected':'')+'>▼ 全部</option>'
+        +'<option value="dinein"'+(_txModeFilter==='dinein'?' selected':'')+'>堂食</option>'
+        +'<option value="takeaway"'+(_txModeFilter==='takeaway'?' selected':'')+'>外卖</option>'
+      +'</select></th>'
+      +'<th>支付<select class="th-filter" onchange="setTxPayFilter(this.value)">'
+        +'<option value=""'+(_txPayFilter===''?' selected':'')+'>▼ 全部</option>'
+        +'<option value="cash"'+(_txPayFilter==='cash'?' selected':'')+'>Cash</option>'
+        +'<option value="tng"'+(_txPayFilter==='tng'?' selected':'')+'>DuitNow</option>'
+      +'</select></th>'
+      +'<th>金额</th><th>状态</th></tr></thead>'
+      +'<tbody>'+(filtered.length?filtered.map(function(o){
+        var dt=new Date(o.createdAt);var p=function(n){return String(n).padStart(2,'0');};
+        var pm2={cash:'Cash',tng:'DuitNow',card:'Card',counter:'Counter'};
+        var statusHtml=o.status==='void' ? '<span class="badge b-void">已作废</span>'
+          : o.status==='pending' ? '<span class="badge b-pend">待付款</span>'
+          : '<span class="badge b-paid">已付款</span>';
+        return '<tr class="tx-row'+(o.id===_txSelId?' tx-sel':'')+'" onclick="selectTx(\''+o.id+'\')">'
+          +'<td><b style="color:#8D0505">#'+o.orderNum+'</b></td>'
+          +'<td style="color:#4A4848;font-size:11px">'+p(dt.getHours())+':'+p(dt.getMinutes())+'</td>'
+          +'<td>'+(txMode(o)==='takeaway'?'外卖':'堂食')+'</td>'
+          +'<td>'+(pm2[o.payMethod]||o.payMethod)+'</td>'
+          +'<td><b>RM '+o.total.toFixed(2)+'</b></td>'
+          +'<td>'+statusHtml+'</td></tr>';
+      }).join(''):'<tr><td colspan="6" style="text-align:center;padding:30px;color:#4A4848">暂无交易记录</td></tr>')
+      +'</tbody></table></div></div>'
+      +'<div class="tx-right tx-card"><div class="tx-ch"><h3>商品</h3></div>'
+      +(selOrder ? '<div style="padding:14px 18px;display:flex;flex-direction:column;height:calc(100% - 20px)">'
+        +'<div style="flex:1">'
+        +'<div style="font-size:12px;color:#4A4848;margin-bottom:8px">订单 #'+selOrder.orderNum+'</div>'
+        +selOrder.items.map(function(i){return '<div class="pd-item"><span>'+i.name+' ×'+i.qty+'</span><span>RM '+((i.price||0)*i.qty).toFixed(2)+'</span></div>';}).join('')
+        +'<div class="pd-item" style="border-top:2px solid #F5E9D4;margin-top:6px;padding-top:10px"><b>总计</b><b>RM '+selOrder.total.toFixed(2)+'</b></div>'
+        +'</div>'
+        +'<div style="display:flex;gap:10px;margin-top:12px">'
+          +(selOrder.status==='void'?'':'<button class="void-btn void-btn-lg" onclick="voidOrder(\''+selOrder.id+'\')">Void</button>')
+          +'<button class="print-btn print-btn-lg" onclick="reprO(\''+selOrder.id+'\')">Print</button>'
+        +'</div>'
+        +'</div>'
+        : '<div class="pd-empty">点击左侧订单查看商品明细</div>')
+      +'</div>'
+    +'</div>';
 }
 function setDD(d){_vDate=d;renderDash();}
 function setDDv(v){_vDate=v?new Date(v).toDateString():null;renderDash();}
+function setRevMode(v){_revMode=v;renderDash();}
+function setTxModeFilter(v){_txModeFilter=v;renderDash();}
+function setTxPayFilter(v){_txPayFilter=v;renderDash();}
+function selectTx(id){_txSelId=id;renderDash();}
+function voidOrder(id){
+  if(!confirm('确定要作废这笔订单吗？作废后不计入营业额统计。'))return;
+  var o=_orders.find(function(x){return x.id===id;});
+  if(!o)return;
+  o.status='void';
+  sj('pm_orders',_orders);
+  try{pmBroadcastOrders();}catch(e){}
+  if(db) db.from('orders').update({status:'void'}).eq('id',id).then(function(res){if(res&&res.error)console.error('voidOrder',res.error);}).catch(function(e){console.error('voidOrder',e);});
+  showN('已作废订单 #'+o.orderNum);
+  renderDash();
+}
 
 /* ── MEMBERS ── */
 function renderMembers(){
