@@ -415,6 +415,8 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
 .mi-spec-rm:hover{opacity:1;}
 .mi-add-wrap{display:flex;justify-content:center;margin-bottom:18px;}
 .mi-add-round{background:#F5E9D4;border:none;border-radius:1000px;color:#8D0505;font-weight:700;font-size:16px;width:59px;height:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;}
+.sd-opt-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.sd-opt-row .mfi{margin-bottom:0;flex:1;}
 .mi-spec-hint{font-size:11px;color:#4A4848;margin-top:-8px;margin-bottom:14px;}
 /* 菜单管理页签（商品 / 规格库） */
 .ma-tabs{display:flex;gap:8px;margin-bottom:14px;}
@@ -671,8 +673,8 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
     <div class="mm-body">
       <label class="mfl">规格名称 *</label><input class="mfi" id="sdName" placeholder="如：尺寸 / 温度 / 口味">
       <label class="mfl">选项</label>
-      <div class="mfh">用逗号分隔，数量不限，如：M, L, XL</div>
-      <input class="mfi" id="sdOptions" placeholder="M, L, XL">
+      <div id="sdOptRows"></div>
+      <div class="mi-add-wrap"><button type="button" class="mi-add-round" onclick="sdAddOptRow()">＋</button></div>
       <button class="mfs" onclick="saveSD()">保存 Save</button>
     </div>
   </div>
@@ -1402,12 +1404,24 @@ function specDefsAdminHtml(){
   return html;
 }
 var _sdEditId=null;
+function _sdOptRowHtml(value){
+  return '<div class="sd-opt-row"><input class="mfi" value="'+esc(value||'')+'" placeholder="选项，如 M / L / XL">'
+    +'<button type="button" class="mi-spec-rm" onclick="this.parentElement.remove()">✕</button></div>';
+}
+function sdAddOptRow(value){
+  document.getElementById('sdOptRows').insertAdjacentHTML('beforeend',_sdOptRowHtml(value));
+}
+function _sdCollectOptions(){
+  var inputs=document.querySelectorAll('#sdOptRows .sd-opt-row input'), out=[];
+  for(var i=0;i<inputs.length;i++){ var v=inputs[i].value.trim(); if(v) out.push(v); }
+  return out;
+}
 function sdAdd(){
   if(!db){showN('未连接云端');return;}
   _sdEditId=null;
   document.getElementById('sdTitle').textContent='新增规格';
   document.getElementById('sdName').value='';
-  document.getElementById('sdOptions').value='';
+  document.getElementById('sdOptRows').innerHTML='';
   document.getElementById('sdBg').classList.add('show');
 }
 function sdEdit(id){
@@ -1416,7 +1430,8 @@ function sdEdit(id){
   _sdEditId=id;
   document.getElementById('sdTitle').textContent='编辑规格';
   document.getElementById('sdName').value=r.name||'';
-  document.getElementById('sdOptions').value=(r.options||[]).join(', ');
+  document.getElementById('sdOptRows').innerHTML='';
+  (r.options||[]).forEach(function(o){ sdAddOptRow(o); });
   document.getElementById('sdBg').classList.add('show');
 }
 function closeSD(){document.getElementById('sdBg').classList.remove('show');}
@@ -1424,7 +1439,8 @@ function saveSD(){
   if(!db){showN('未连接云端');return;}
   var name=document.getElementById('sdName').value.trim();
   if(!name){showN('请填写规格名称');return;}
-  var options=_miParseList(document.getElementById('sdOptions').value);
+  var options=_sdCollectOptions();
+  if(!options.length){showN('请至少填写一个选项');return;}
   var payload={name:name,options:options};
   if(_sdEditId){
     db.from('spec_defs').update(payload).eq('id',_sdEditId)
