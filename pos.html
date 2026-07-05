@@ -10,14 +10,14 @@
 *{box-sizing:border-box;margin:0;padding:0;touch-action:manipulation;}
 html,body{width:1366px;height:768px;overflow:hidden;font-family:"Noto Sans SC",sans-serif;background:#fff;}
 button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
-@media print{body>*{display:none!important;}#pa{display:block!important;}}
+@media print{body>*{display:none!important;}#pa{display:block!important;}@page{size:80mm auto;margin:0;}}
 #pa{display:none;}
-.rc{font-family:monospace;font-size:12px;}
-.rc .rt{font-size:14px;font-weight:bold;text-align:center;}
+.rc{font-family:monospace;font-size:15px;width:80mm;box-sizing:border-box;padding:4mm;}
+.rc .rt{font-size:18px;font-weight:bold;text-align:center;}
 .rc .rd{border-top:1px dashed #000;margin:5px 0;}
 .rc .rr{display:flex;justify-content:space-between;}
-.rc .rb{font-weight:bold;}
-.rc .rc2{text-align:center;font-size:11px;}
+.rc .rb{font-weight:bold;font-size:16px;}
+.rc .rc2{text-align:center;font-size:13px;}
 
 /* ── NOTIF ── */
 .notif{position:fixed;top:96px;right:20px;background:#8D0505;color:#FFDE5B;padding:10px 18px;border-radius:10px;font-size:14px;font-weight:700;z-index:9998;display:none;box-shadow:0 4px 16px rgba(0,0,0,.25);}
