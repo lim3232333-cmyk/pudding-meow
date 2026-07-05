@@ -8,7 +8,10 @@
 <script src="./supabase.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;touch-action:manipulation;}
-html,body{width:1366px;height:768px;overflow:hidden;font-family:"Noto Sans SC",sans-serif;background:#fff;}
+html,body{width:100%;height:100%;overflow:hidden;font-family:"Noto Sans SC",sans-serif;background:#000;}
+body{display:flex;align-items:center;justify-content:center;}
+/* 响应式：把 1366x768 的像素级设计整体等比缩放贴合任意屏幕/平板分辨率，居中显示（黑边留白） */
+#posScale{width:1366px;height:768px;position:relative;transform-origin:center center;background:#fff;flex-shrink:0;}
 button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 @media print{body>*{display:none!important;}#pa{display:block!important;}@page{size:80mm auto;margin:0;}}
 #pa{display:none;}
@@ -389,6 +392,7 @@ tr:hover td{background:rgba(141,5,5,.02);}
 </head>
 <body>
 <div id="pa"><div class="rc" id="rcc"></div></div>
+<div id="posScale">
 <div class="notif" id="notif"></div>
 
 <!-- ══ LOGIN ══ -->
@@ -605,6 +609,8 @@ tr:hover td{background:rgba(141,5,5,.02);}
     </div>
   </div>
 </div>
+
+</div><!-- /posScale -->
 
 <script>
 /* ── STORAGE ── */
@@ -1301,6 +1307,18 @@ loadMenu();
 loadOrdersFromCloud(false);
 subscribeOrders();
 subscribeMenu();
+
+/* 响应式：把 1366x768 的设计等比缩放贴合实际屏幕/平板分辨率 */
+(function(){
+  var W=1366, H=768;
+  function fit(){
+    var s=Math.min(window.innerWidth/W, window.innerHeight/H);
+    var el=document.getElementById('posScale');
+    if(el) el.style.transform='scale('+s+')';
+  }
+  fit();
+  window.addEventListener('resize', fit);
+})();
 </script>
 </body>
 </html>

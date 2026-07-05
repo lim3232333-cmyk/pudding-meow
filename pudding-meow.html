@@ -2,7 +2,25 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" id="pmViewport" content="width=390, initial-scale=1.0">
+<script>
+/* 响应式：把 390px 的像素级设计等比缩放贴合任意手机屏幕宽度，避免窄屏（如 iPhone SE 375px）裁切走样 */
+(function(){
+  var DESIGN_WIDTH = 390;
+  function fit(){
+    /* 用 screen.width 而不是 window.innerWidth：一旦 viewport meta 声明了 width=390，
+       innerWidth 在设备实际更窄时会被浏览器"钳"成 390（布局视口的声明值），screen.width 才是设备真实宽度 */
+    var deviceWidth = screen.width || window.innerWidth;
+    var scale = deviceWidth / DESIGN_WIDTH;
+    var vp = document.getElementById('pmViewport');
+    if(vp) vp.setAttribute('content', 'width='+DESIGN_WIDTH+', initial-scale='+scale+', maximum-scale='+scale+', minimum-scale='+scale+', user-scalable=no');
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', fit); } else { fit(); }
+  window.addEventListener('load', fit);
+  window.addEventListener('resize', fit);
+  window.addEventListener('orientationchange', fit);
+})();
+</script>
 <title>布丁喵 Pudding Meow</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Pattaya&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
