@@ -506,7 +506,10 @@
   .sheet-info .en{ font-weight:500; font-size:12px; line-height:14px; color:var(--red); margin-top:5px; }
   .sheet-info .desc{ font-weight:400; font-size:10px; line-height:12px; color:var(--muted); margin-top:14px; }
   .sheet-tag{ display:inline-block; margin-top:18px; font-size:12px; font-weight:500; color:var(--red); text-decoration:underline; cursor:pointer; }
-  .sheet-flavors{ display:flex; flex-wrap:wrap; row-gap:10px; column-gap:21px; margin-top:18px; }
+  .sheet-flavors{ margin-top:18px; }
+  .sheet-spec-group + .sheet-spec-group{ margin-top:14px; }
+  .sheet-spec-label{ font-size:11px; font-weight:700; color:var(--red); margin-bottom:6px; }
+  .sheet-pill-row{ display:flex; flex-wrap:wrap; row-gap:10px; column-gap:21px; }
   .flavor-pill{
     width:76px; height:28px; border-radius:12px; background:var(--red); color:var(--cream2);
     font-size:12px; font-weight:500; border:none; cursor:pointer; font-family:"Noto Sans SC",sans-serif;
@@ -910,10 +913,23 @@ function buildMenuFromRows(rows){
     if(r.sold_out) return;
     var c = r.cat; if(!m[c]) m[c] = {cn:(CAT_META[c]?CAT_META[c].cn:c), en:(CAT_META[c]?CAT_META[c].en:c), items:[]};
     m[c].items.push({ name:r.name, en:r.en||'', price:Number(r.price)||0, desc:r.descr||'',
-      flavors:(r.flavors && r.flavors.length)?r.flavors:['Original'] });
+      flavors:(r.flavors && r.flavors.length)?r.flavors:['Original'], specs:r.specs||[] });
   });
   Object.keys(m).forEach(function(c){ if(!m[c].items.length) delete m[c]; });
   return m;
+}
+/* 统一读取规格入口：有 specs 就用 specs（后台规格库配置，顺序=规格1/规格2/...）；
+   否则把旧的 flavors 包成一个无名字的单组，保持未迁移品项跟改动前一样 */
+function _itemSpecs(it){
+  if(it && it.specs && it.specs.length) return it.specs;
+  var flavors = (it && it.flavors && it.flavors.length) ? it.flavors : ['Original'];
+  return [{ defId:null, name:'', options:flavors }];
+}
+var SPEC_SEP = ' · ';
+/* 购物车/订单条目展示用：新的 specs 数组只显示值；兼容历史订单里的旧 flavor 字符串字段 */
+function specsDisplay(it){
+  if(it && it.specs && it.specs.length) return it.specs.map(function(s){ return s.value; }).filter(Boolean).join(SPEC_SEP);
+  return (it && it.flavor) || '';
 }
 function applyMenu(m){
   if(!m || !Object.keys(m).length) return;
@@ -943,7 +959,7 @@ async function loadMenu(){
 }
 
 let activeCat = 'special';
-let cart = {}; // key: cat|idx|flavorIdx -> {name, en, price, qty, flavor}
+let cart = {}; // key: cat|idx|specSel(逗号分隔的各组选项下标) -> {name, en, price, qty, specs:[{defId,name,value}]}
 
 function itemQtyTotal(cat, idx){
   let total = 0;
@@ -1044,7 +1060,7 @@ function confirmOrder(){
   var items = entries.map(function(e){
     var c = e[1];
     total += c.qty * c.price;
-    return {name:c.name, en:c.en||'', price:c.price, qty:c.qty, flavor:c.flavor||''};
+    return {name:c.name, en:c.en||'', price:c.price, qty:c.qty, specs:c.specs||[]};
   });
 
   var num = (_orders.length+1);
@@ -1106,7 +1122,7 @@ function renderCartSheet(){
         <div class="cart-item-thumb"></div>
         <div class="cart-item-info">
           <div class="cart-item-name">${c.name}</div>
-          <div class="cart-item-en">${c.en} · ${c.flavor}</div>
+          <div class="cart-item-en">${c.en} · ${specsDisplay(c)}</div>
           <div class="cart-item-price">RM ${c.price.toFixed(1)}</div>
         </div>
         <div class="cart-item-qty">
@@ -1141,20 +1157,28 @@ function renderCartPanel(){ updateCartBadge(); }
 
 
 /* ---------- product detail sheet ---------- */
-let sheetCat=null, sheetIdx=null, sheetFlavorIdx=0, sheetQty=1;
+let sheetCat=null, sheetIdx=null, sheetSpecSel=[], sheetQty=1; // sheetSpecSel[gi] = 该规格组选中的选项下标
+
+function _sheetSpecGroupHtml(group, gi){
+  const label = group.name ? `<div class="sheet-spec-label">${group.name}</div>` : '';
+  const pills = (group.options||[]).map((o,oi)=>
+    `<button class="flavor-pill${oi===0?' active':''}${o.length>9?' small':''}" data-gi="${gi}" data-oi="${oi}" onclick="selectSpecOption(${gi},${oi})">${o}</button>`
+  ).join('');
+  return `<div class="sheet-spec-group" data-gi="${gi}">${label}<div class="sheet-pill-row">${pills}</div></div>`;
+}
 
 function openSheet(cat, idx){
-  sheetCat = cat; sheetIdx = idx; sheetFlavorIdx = 0; sheetQty = 1;
+  sheetCat = cat; sheetIdx = idx; sheetQty = 1;
   const it = menu[cat].items[idx];
+  const specs = _itemSpecs(it);
+  sheetSpecSel = specs.map(()=>0);
   document.getElementById('sheetName').textContent = it.name;
   document.getElementById('sheetEn').textContent = it.en;
   document.getElementById('sheetDesc').textContent = it.desc || '';
   document.getElementById('sheetTag').textContent = menu[cat].cn + ' ' + menu[cat].en;
 
   const flavorsBox = document.getElementById('sheetFlavors');
-  flavorsBox.innerHTML = it.flavors.map((f,i)=>
-    `<button class="flavor-pill${i===0?' active':''}${f.length>9?' small':''}" data-i="${i}" onclick="selectFlavor(${i})">${f}</button>`
-  ).join('');
+  flavorsBox.innerHTML = specs.map((g,gi)=>_sheetSpecGroupHtml(g,gi)).join('');
 
   refreshSheetFooter();
   document.getElementById('productSheet').classList.add('show');
@@ -1167,9 +1191,11 @@ function closeSheet(){
   document.getElementById('sheetOverlay').classList.remove('show');
 }
 
-function selectFlavor(i){
-  sheetFlavorIdx = i;
-  document.querySelectorAll('.flavor-pill').forEach(b=>b.classList.toggle('active', +b.dataset.i===i));
+function selectSpecOption(gi, oi){
+  sheetSpecSel[gi] = oi;
+  document.querySelectorAll('.sheet-spec-group[data-gi="'+gi+'"] .flavor-pill').forEach(b=>{
+    b.classList.toggle('active', +b.dataset.oi === oi);
+  });
   refreshSheetFooter();
 }
 
@@ -1180,18 +1206,20 @@ function changeSheetQty(delta){
 
 function refreshSheetFooter(){
   const it = menu[sheetCat].items[sheetIdx];
-  const flavor = it.flavors[sheetFlavorIdx];
+  const specs = _itemSpecs(it);
+  const label = specs.map((g,gi)=>g.options[sheetSpecSel[gi]]).filter(Boolean).join(SPEC_SEP);
   document.getElementById('sheetPrice').textContent = 'RM ' + it.price.toFixed(1);
-  document.getElementById('sheetFlavorLabel').textContent = flavor + '，';
+  document.getElementById('sheetFlavorLabel').textContent = label + '，';
   document.getElementById('sheetQty').textContent = sheetQty;
 }
 
 function confirmAddToCart(){
   const it = menu[sheetCat].items[sheetIdx];
-  const flavor = it.flavors[sheetFlavorIdx];
-  const key = sheetCat + '|' + sheetIdx + '|' + sheetFlavorIdx;
+  const specs = _itemSpecs(it);
+  const chosen = specs.map((g,gi)=>({ defId: g.defId||null, name:g.name, value:g.options[sheetSpecSel[gi]] }));
+  const key = sheetCat + '|' + sheetIdx + '|' + sheetSpecSel.join(',');
   const cur = cart[key]?.qty || 0;
-  cart[key] = { name: it.name, en: it.en, price: it.price, flavor, qty: cur + sheetQty };
+  cart[key] = { name: it.name, en: it.en, price: it.price, specs: chosen, qty: cur + sheetQty };
   renderItems();
   renderCartPanel();
   closeSheet();
@@ -1329,7 +1357,7 @@ function renderOrdersList(){
     var preview = '';
     for(var j=0;j<Math.min(2,o.items.length);j++){
       var it = o.items[j];
-      preview += '<div class="order-item-line"><div><div class="order-item-name">'+it.name+'</div><div class="order-item-sub">'+(it.flavor||'')+'</div></div><div class="order-item-qty">×'+it.qty+'</div></div>';
+      preview += '<div class="order-item-line"><div><div class="order-item-name">'+it.name+'</div><div class="order-item-sub">'+specsDisplay(it)+'</div></div><div class="order-item-qty">×'+it.qty+'</div></div>';
     }
     if(o.items.length>2) preview += '<div class="order-more">+ '+(o.items.length-2)+' 件更多商品</div>';
     html += '<div class="order-card">'
@@ -1367,7 +1395,7 @@ function openOrderDetail(id){
   var itemsHtml = '';
   for(var i=0;i<o.items.length;i++){
     var it = o.items[i];
-    itemsHtml += '<div class="od-item-row"><div class="od-item-thumb"></div><div class="od-item-info"><div class="od-item-name">'+it.name+'</div><div class="od-item-en">'+(it.en||'')+'</div><div class="od-item-flavor">'+(it.flavor||'')+'</div></div><div class="od-item-price-qty"><div class="od-item-price">RM '+(it.price*it.qty).toFixed(1)+'</div><div class="od-item-qty">×'+it.qty+' @ RM '+it.price.toFixed(1)+'</div></div></div>';
+    itemsHtml += '<div class="od-item-row"><div class="od-item-thumb"></div><div class="od-item-info"><div class="od-item-name">'+it.name+'</div><div class="od-item-en">'+(it.en||'')+'</div><div class="od-item-flavor">'+specsDisplay(it)+'</div></div><div class="od-item-price-qty"><div class="od-item-price">RM '+(it.price*it.qty).toFixed(1)+'</div><div class="od-item-qty">×'+it.qty+' @ RM '+it.price.toFixed(1)+'</div></div></div>';
   }
   document.getElementById('odItems').innerHTML = itemsHtml;
   document.getElementById('odPayMethod').textContent = o.payMethod==='tng'?'Touch n Go':'柜台支付';
@@ -1385,17 +1413,31 @@ function closeOrderDetail(){
   _orderDetail = null;
 }
 
+/* 按当前商品的每个规格组，从历史订单里找回对应的选择：
+   优先按 defId 匹配，其次按规格名匹配，选项如果已经不存在了就兜底选第一个 */
+function _matchSpecValue(group, storedSpecs, storedFlavor){
+  if(storedSpecs && storedSpecs.length){
+    var m = null;
+    if(group.defId!=null) m = storedSpecs.find(function(s){ return s.defId!=null && String(s.defId)===String(group.defId); });
+    if(!m) m = storedSpecs.find(function(s){ return s.name===group.name; });
+    if(m && group.options.indexOf(m.value)>=0) return m.value;
+  }else if(storedFlavor && group.options.indexOf(storedFlavor)>=0){
+    return storedFlavor;
+  }
+  return group.options[0];
+}
 function reorder(){
   if(!_orderDetail) return;
   _orderDetail.items.forEach(function(it){
     Object.keys(menu).forEach(function(cat){
       menu[cat].items.forEach(function(item, idx){
         if(item.name===it.name){
-          var fi = (item.flavors||['Original']).indexOf(it.flavor);
-          if(fi<0) fi=0;
-          var key = cat+'|'+idx+'|'+fi;
+          var specs = _itemSpecs(item);
+          var sel = specs.map(function(g){ return g.options.indexOf(_matchSpecValue(g, it.specs, it.flavor)); });
+          var key = cat+'|'+idx+'|'+sel.join(',');
           var cur = cart[key]?cart[key].qty:0;
-          cart[key] = {name:item.name, en:item.en, price:item.price, flavor:item.flavors[fi], qty:cur+it.qty};
+          var chosen = specs.map(function(g,gi){ return {defId:g.defId||null, name:g.name, value:g.options[sel[gi]]}; });
+          cart[key] = {name:item.name, en:item.en, price:item.price, specs:chosen, qty:cur+it.qty};
         }
       });
     });
