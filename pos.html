@@ -1811,6 +1811,7 @@ function _miApplyUploadBg(url){
 }
 /* ── 图片裁剪：拖动+缩放，裁成 380×310（跟小程序详情页大图一致比例），列表/购物车/订单缩略图共用同一张裁剪图 ── */
 var MI_CROP_W=380, MI_CROP_H=310;
+var MI_CROP_OUT_W=760, MI_CROP_OUT_H=620; /* 实际导出分辨率是裁剪框的 2 倍，手机高清屏看着才不糊 */
 var _miCropNatural=null, _miCropBaseScale=1, _miCropScale=1, _miCropPos={x:0,y:0}, _miCropDrag=null;
 function miPickImage(ev){
   var file=ev.target.files&&ev.target.files[0]; if(!file) return;
@@ -1877,13 +1878,30 @@ function miCropCancel(){
   document.getElementById('miCropBg').classList.remove('show');
   document.getElementById('miImgFile').value='';
 }
+/* 手机拍的原图往往比 380×310 大很多倍，canvas drawImage 一步缩到位会模糊发蒙——
+   分多步、每步最多缩一半，一路保持高质量平滑，缩出来才清晰 */
+function _miHQDownscale(imgEl, sx, sy, sw, sh, dw, dh){
+  var srcW=Math.max(1,Math.round(sw)), srcH=Math.max(1,Math.round(sh));
+  var cur=document.createElement('canvas'); cur.width=srcW; cur.height=srcH;
+  var cctx=cur.getContext('2d'); cctx.imageSmoothingEnabled=true; cctx.imageSmoothingQuality='high';
+  cctx.drawImage(imgEl, sx, sy, sw, sh, 0, 0, srcW, srcH);
+  var curW=srcW, curH=srcH;
+  while(curW>dw*2 && curH>dh*2){
+    var nextW=Math.max(dw, Math.round(curW/2)), nextH=Math.max(dh, Math.round(curH/2));
+    var next=document.createElement('canvas'); next.width=nextW; next.height=nextH;
+    var nctx=next.getContext('2d'); nctx.imageSmoothingEnabled=true; nctx.imageSmoothingQuality='high';
+    nctx.drawImage(cur, 0, 0, curW, curH, 0, 0, nextW, nextH);
+    cur=next; curW=nextW; curH=nextH;
+  }
+  var out=document.createElement('canvas'); out.width=dw; out.height=dh;
+  var octx=out.getContext('2d'); octx.imageSmoothingEnabled=true; octx.imageSmoothingQuality='high';
+  octx.drawImage(cur, 0, 0, curW, curH, 0, 0, dw, dh);
+  return out;
+}
 function miCropConfirm(){
-  var canvas=document.createElement('canvas');
-  canvas.width=MI_CROP_W; canvas.height=MI_CROP_H;
-  var ctx=canvas.getContext('2d');
   var sx=-_miCropPos.x/_miCropScale, sy=-_miCropPos.y/_miCropScale;
   var sw=MI_CROP_W/_miCropScale, sh=MI_CROP_H/_miCropScale;
-  ctx.drawImage(document.getElementById('miCropImg'), sx, sy, sw, sh, 0, 0, MI_CROP_W, MI_CROP_H);
+  var canvas=_miHQDownscale(document.getElementById('miCropImg'), sx, sy, sw, sh, MI_CROP_OUT_W, MI_CROP_OUT_H);
   canvas.toBlob(function(blob){
     if(!blob){ showN('❌ 裁剪失败'); return; }
     var file=new File([blob], 'menu-'+Date.now()+'.jpg', {type:'image/jpeg'});

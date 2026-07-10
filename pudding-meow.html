@@ -516,7 +516,6 @@
     display:flex; align-items:center; justify-content:center; text-align:center; white-space:nowrap;
     padding:0 14px; box-sizing:border-box; flex-shrink:0;
   }
-  .flavor-pill.small{ font-size:10.5px; }
   .flavor-pill.active{ background:var(--blue); color:var(--red); }
 
   .sheet-footer{
@@ -1247,7 +1246,7 @@ let sheetCat=null, sheetIdx=null, sheetSpecSel=[], sheetQty=1; // sheetSpecSel[g
 function _sheetSpecGroupHtml(group, gi){
   const label = group.name ? `<div class="sheet-spec-label">${group.name}</div>` : '';
   const pills = (group.options||[]).map((o,oi)=>
-    `<button class="flavor-pill${oi===0?' active':''}${o.length>9?' small':''}" data-gi="${gi}" data-oi="${oi}" onclick="selectSpecOption(${gi},${oi})">${o}</button>`
+    `<button class="flavor-pill${oi===0?' active':''}" data-gi="${gi}" data-oi="${oi}" onclick="selectSpecOption(${gi},${oi})">${o}</button>`
   ).join('');
   return `<div class="sheet-spec-group" data-gi="${gi}">${label}<div class="sheet-pill-row">${pills}</div></div>`;
 }
