@@ -1811,6 +1811,7 @@ function _miApplyUploadBg(url){
 }
 /* ── 图片裁剪：拖动+缩放，裁成 380×310（跟小程序详情页大图一致比例），列表/购物车/订单缩略图共用同一张裁剪图 ── */
 var MI_CROP_W=380, MI_CROP_H=310;
+var MI_CROP_OUT_W=760, MI_CROP_OUT_H=620; /* 实际导出分辨率是裁剪框的 2 倍，手机高清屏看着才不糊 */
 var _miCropNatural=null, _miCropBaseScale=1, _miCropScale=1, _miCropPos={x:0,y:0}, _miCropDrag=null;
 function miPickImage(ev){
   var file=ev.target.files&&ev.target.files[0]; if(!file) return;
@@ -1900,7 +1901,7 @@ function _miHQDownscale(imgEl, sx, sy, sw, sh, dw, dh){
 function miCropConfirm(){
   var sx=-_miCropPos.x/_miCropScale, sy=-_miCropPos.y/_miCropScale;
   var sw=MI_CROP_W/_miCropScale, sh=MI_CROP_H/_miCropScale;
-  var canvas=_miHQDownscale(document.getElementById('miCropImg'), sx, sy, sw, sh, MI_CROP_W, MI_CROP_H);
+  var canvas=_miHQDownscale(document.getElementById('miCropImg'), sx, sy, sw, sh, MI_CROP_OUT_W, MI_CROP_OUT_H);
   canvas.toBlob(function(blob){
     if(!blob){ showN('❌ 裁剪失败'); return; }
     var file=new File([blob], 'menu-'+Date.now()+'.jpg', {type:'image/jpeg'});
