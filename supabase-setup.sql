@@ -33,6 +33,7 @@ create table public.menu_items (
   descr       text,
   flavors     jsonb   not null default '["Original"]'::jsonb,
   specs       jsonb   not null default '[]'::jsonb, -- 该品项挂了哪些规格库条目 + 具体开放的选项，如 [{"defId":"...","name":"尺寸","options":["M","L"]}]
+  image_url   text,                             -- 商品图片（存在 menu-images 这个 Storage bucket 里），后台上传时已经裁剪好比例，回填公开 URL
   sold_out    boolean not null default false,
   sort_order  int     not null default 0
 );
@@ -76,6 +77,27 @@ create policy spec_defs_anon_read on public.spec_defs
 drop policy if exists spec_defs_anon_write on public.spec_defs;
 create policy spec_defs_anon_write on public.spec_defs
   for all to anon using (true) with check (true);
+
+-- ---------- 3b) 商品图片 Storage bucket（后台上传的图，小程序用同一个 bucket 读）----------
+insert into storage.buckets (id, name, public)
+  values ('menu-images', 'menu-images', true)
+  on conflict (id) do nothing;
+
+drop policy if exists menu_images_public_read on storage.objects;
+create policy menu_images_public_read on storage.objects
+  for select using (bucket_id = 'menu-images');
+
+drop policy if exists menu_images_anon_write on storage.objects;
+create policy menu_images_anon_write on storage.objects
+  for insert to anon with check (bucket_id = 'menu-images');
+
+drop policy if exists menu_images_anon_update on storage.objects;
+create policy menu_images_anon_update on storage.objects
+  for update to anon using (bucket_id = 'menu-images');
+
+drop policy if exists menu_images_anon_delete on storage.objects;
+create policy menu_images_anon_delete on storage.objects
+  for delete to anon using (bucket_id = 'menu-images');
 
 -- ---------- 4) 开启 Realtime（实时推送）----------
 -- 让 orders / menu_items / spec_defs 的变化实时推到小程序和 POS
@@ -126,3 +148,23 @@ create policy spec_defs_anon_read on public.spec_defs for select to anon using (
 drop policy if exists spec_defs_anon_write on public.spec_defs;
 create policy spec_defs_anon_write on public.spec_defs for all to anon using (true) with check (true);
 alter publication supabase_realtime add table public.spec_defs;
+
+-- ============================================================================
+--  增量迁移：商品图片（menu_items.image_url 列 + menu-images 存储桶）
+--  如果你的 Supabase 项目是在本次更新前建的，只需单独执行下面这一小段
+--  （不会清空 orders / menu_items 现有数据）。已经全新重跑过整份脚本的可以跳过。
+-- ============================================================================
+alter table public.menu_items add column if not exists image_url text;
+
+insert into storage.buckets (id, name, public)
+  values ('menu-images', 'menu-images', true)
+  on conflict (id) do nothing;
+
+drop policy if exists menu_images_public_read on storage.objects;
+create policy menu_images_public_read on storage.objects for select using (bucket_id = 'menu-images');
+drop policy if exists menu_images_anon_write on storage.objects;
+create policy menu_images_anon_write on storage.objects for insert to anon with check (bucket_id = 'menu-images');
+drop policy if exists menu_images_anon_update on storage.objects;
+create policy menu_images_anon_update on storage.objects for update to anon using (bucket_id = 'menu-images');
+drop policy if exists menu_images_anon_delete on storage.objects;
+create policy menu_images_anon_delete on storage.objects for delete to anon using (bucket_id = 'menu-images');

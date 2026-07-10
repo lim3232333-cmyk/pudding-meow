@@ -396,9 +396,17 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
 /* MENU ITEM PANEL — 1:1 还原后台加新品/编辑设计 */
 .mi-box{background:#fff;border-radius:16px;width:480px;max-height:88vh;overflow-y:auto;box-shadow:0 0 20px rgba(141,5,5,.5);}
 .mi-body{padding:19px;}
-.mi-upload{background:#F5E9D4;border-radius:8px;height:121px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:18px;overflow:hidden;}
+.mi-upload{background:#F5E9D4;border-radius:8px;height:121px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:18px;overflow:hidden;position:relative;background-size:cover;background-position:center;}
 .mi-upload span{font-weight:700;color:#8D0505;font-size:16px;}
-.mi-upload img{width:100%;height:100%;object-fit:cover;}
+.mi-upload-chg{position:absolute;right:8px;bottom:8px;border:none;background:rgba(141,5,5,.75);color:#FFFFD5;border-radius:999px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
+/* 图片裁剪弹窗（裁成 380×310，跟小程序商品详情页大图区域一致，列表/购物车/订单缩略图也用同一张图裁切显示）*/
+.mi-crop-stage{width:380px;height:310px;overflow:hidden;border-radius:8px;background:#000;position:relative;margin:0 auto 14px;touch-action:none;cursor:grab;}
+.mi-crop-stage:active{cursor:grabbing;}
+.mi-crop-stage img{position:absolute;left:0;top:0;transform-origin:0 0;user-select:none;-webkit-user-drag:none;pointer-events:none;}
+.mi-crop-hint{font-size:11px;color:#4A4848;margin:-8px 0 14px;text-align:center;}
+.mi-crop-zoom-row{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
+.mi-crop-zoom-lbl{font-size:12px;font-weight:700;color:#8D0505;flex-shrink:0;}
+.mi-crop-zoom-row input[type=range]{flex:1;}
 .mi-row2{display:flex;gap:16px;margin-bottom:18px;}
 .mi-col{flex:1;display:flex;flex-direction:column;gap:5px;min-width:0;}
 .mi-lbl{font-weight:700;color:#8D0505;font-size:16px;}
@@ -549,6 +557,7 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
         <div class="asi" id="asi-reports" onclick="showAdmin('reports')">Report</div>
         <div class="asi" id="asi-menu" onclick="showAdmin('menu')">Menu</div>
         <div class="asi" id="asi-members" onclick="showAdmin('members')">Member</div>
+        <div class="asi" id="asi-loyalty" onclick="showAdmin('loyalty')">Loyalty</div>
         <div class="asi" onclick="doLogout()">Settings</div>
       </nav>
     </div>
@@ -649,7 +658,7 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
   <div class="mi-box">
     <div class="mm-hd"><h3 id="miTitle">新增品项</h3><button class="mm-cl" onclick="closeMI()">✕</button></div>
     <div class="mi-body">
-      <div class="mi-upload" id="miUpload" onclick="document.getElementById('miImgFile').click()"><span>上传图片</span></div>
+      <div class="mi-upload" id="miUpload"><span onclick="document.getElementById('miImgFile').click()">上传图片</span></div>
       <input type="file" id="miImgFile" accept="image/*" style="display:none" onchange="miPickImage(event)">
       <div class="mi-row2">
         <div class="mi-col"><label class="mi-lbl">中文名*</label><input class="mi-input" id="miName" placeholder="如：布丁芭菲杯"></div>
@@ -666,6 +675,22 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
   </div>
 </div>
 
+<!-- IMAGE CROP MODAL — 裁成 380×310（跟小程序商品详情页大图一致比例），列表/购物车/订单缩略图共用同一张裁剪图 -->
+<div class="modal-bg" id="miCropBg">
+  <div class="mm-box">
+    <div class="mm-hd"><h3>裁剪图片</h3><button class="mm-cl" onclick="miCropCancel()">✕</button></div>
+    <div class="mm-body">
+      <div class="mi-crop-stage" id="miCropStage"><img id="miCropImg" alt=""></div>
+      <div class="mi-crop-hint">拖动图片调整位置，用下面的滑块缩放</div>
+      <div class="mi-crop-zoom-row">
+        <span class="mi-crop-zoom-lbl">缩放</span>
+        <input type="range" id="miCropZoom" min="100" max="300" value="100" oninput="miCropOnZoom()">
+      </div>
+      <button class="mfs" onclick="miCropConfirm()">确定裁剪 Crop</button>
+    </div>
+  </div>
+</div>
+
 <!-- SPEC DEF MODAL — 规格库：新增/编辑一条可复用的规格（名称 + 选项，数量不限，自己输入）-->
 <div class="modal-bg" id="sdBg" onclick="if(event.target===this)closeSD()">
   <div class="mm-box">
@@ -676,6 +701,73 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
       <div id="sdOptRows"></div>
       <div class="mi-add-wrap"><button type="button" class="mi-add-round" onclick="sdAddOptRow()">＋</button></div>
       <button class="mfs" onclick="saveSD()">保存 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- LEVEL MODAL — 会员等级：新增/编辑 -->
+<div class="modal-bg" id="lvlBg" onclick="if(event.target===this)closeLvl()">
+  <div class="mm-box">
+    <div class="mm-hd"><h3 id="lvlTitle">新增等级</h3><button class="mm-cl" onclick="closeLvl()">✕</button></div>
+    <div class="mm-body">
+      <label class="mfl">中文名 *</label><input class="mfi" id="lvlNameCn" placeholder="如：布丁VIP">
+      <label class="mfl">English</label><input class="mfi" id="lvlNameEn" placeholder="如：Vintage Regular">
+      <label class="mfl">排序（数字越小越低级）*</label><input class="mfi" id="lvlSort" type="number" step="1" placeholder="0,1,2...">
+      <label class="mfl">升级所需 XP *</label><input class="mfi" id="lvlXp" type="number" step="1" placeholder="0">
+      <label class="mfl">专属颜色</label><input class="mfi" id="lvlColor" type="color" value="#8D0505" style="height:44px;padding:4px;">
+      <label class="mfl">徽章图标（emoji）</label><input class="mfi" id="lvlIcon" placeholder="🥄">
+      <label class="mfl">权益</label>
+      <div class="mfh">用逗号分隔，如：生日月双倍金币, 每月8折券</div>
+      <input class="mfi" id="lvlPerks" placeholder="生日月双倍金币, 每月8折券">
+      <button class="mfs" onclick="saveLvl()">保存 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- RULE MODAL — 成长值/金币规则：共用一个弹窗，_ruleTable 记录当前是哪张表 -->
+<div class="modal-bg" id="ruleBg" onclick="if(event.target===this)closeRule()">
+  <div class="mm-box">
+    <div class="mm-hd"><h3 id="ruleTitle">新增规则</h3><button class="mm-cl" onclick="closeRule()">✕</button></div>
+    <div class="mm-body">
+      <label class="mfl">行为标识 *</label>
+      <div class="mfh">英文/下划线，如 purchase_per_rm、checkin——用于代码里识别这条规则，新增后不建议再改</div>
+      <input class="mfi" id="ruleActionKey" placeholder="action_key">
+      <label class="mfl">名称 *</label><input class="mfi" id="ruleName" placeholder="如：每日签到">
+      <label class="mfl" id="ruleValueLbl">数值 *</label><input class="mfi" id="ruleValue" type="number" step="0.1" placeholder="0">
+      <label class="mfl">每日上限</label>
+      <div class="mfh">留空 = 不限</div>
+      <input class="mfi" id="ruleDailyCap" type="number" step="1" placeholder="不限">
+      <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="ruleEnabled" checked style="width:auto;margin:0;"> 启用</label>
+      <button class="mfs" onclick="saveRule()">保存 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHECKIN MILESTONE MODAL — 签到里程碑：新增/编辑 -->
+<div class="modal-bg" id="msBg" onclick="if(event.target===this)closeMs()">
+  <div class="mm-box">
+    <div class="mm-hd"><h3 id="msTitle">新增签到里程碑</h3><button class="mm-cl" onclick="closeMs()">✕</button></div>
+    <div class="mm-body">
+      <label class="mfl">连续签到天数 *</label><input class="mfi" id="msDays" type="number" step="1" placeholder="7">
+      <label class="mfl">额外奖励 Meow Coin</label><input class="mfi" id="msCoin" type="number" step="1" placeholder="0">
+      <label class="mfl">额外奖励成长值 XP</label><input class="mfi" id="msXp" type="number" step="1" placeholder="0">
+      <button class="mfs" onclick="saveMs()">保存 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADJUST BALANCE MODAL — 人工调整会员余额 -->
+<div class="modal-bg" id="adjBg" onclick="if(event.target===this)closeAdj()">
+  <div class="mm-box">
+    <div class="mm-hd"><h3>调整余额</h3><button class="mm-cl" onclick="closeAdj()">✕</button></div>
+    <div class="mm-body">
+      <div class="mfh" id="adjWho" style="margin-top:0;"></div>
+      <label class="mfl">成长值 XP 增减</label>
+      <div class="mfh">正数增加，负数扣减，留空/0 表示不调整</div>
+      <input class="mfi" id="adjXp" type="number" step="1" placeholder="0">
+      <label class="mfl">Meow Coin 增减</label><input class="mfi" id="adjCoin" type="number" step="1" placeholder="0">
+      <label class="mfl">原因</label><input class="mfi" id="adjReason" placeholder="如：客诉补偿">
+      <button class="mfs" onclick="saveAdj()">确认调整</button>
     </div>
   </div>
 </div>
@@ -706,10 +798,10 @@ function setCloudStatus(s){
 setTimeout(function(){ setCloudStatus(db?'connecting':'offline'); },0);
 /* 订单对象 <-> 数据库行（只映射数据库已有的列，tender/change/customerName 等不入库）*/
 function orderToRow(o){return{id:o.id,order_num:o.orderNum,created_at:o.createdAt,items:o.items||[],
-  total:o.total||0,pay_method:o.payMethod,status:o.status,source:o.source,table_name:o.tableName,ta_mode:o.taMode};}
+  total:o.total||0,pay_method:o.payMethod,status:o.status,source:o.source,table_name:o.tableName,ta_mode:o.taMode,member_id:o.memberId||null};}
 function rowToOrder(r){return{id:r.id,orderNum:r.order_num||(r.id?String(r.id).slice(-4):''),createdAt:r.created_at,
   items:r.items||[],total:Number(r.total)||0,payMethod:r.pay_method||'counter',status:r.status||'pending',
-  source:r.source||'app',tableName:r.table_name||'',taMode:r.ta_mode||''};}
+  source:r.source||'app',tableName:r.table_name||'',taMode:r.ta_mode||'',memberId:r.member_id||null};}
 
 /* ── MENU DATA (from Figma item panels) ── */
 var MENU_FALLBACK={
@@ -1157,7 +1249,7 @@ function showPending(){
   document.getElementById('pendBg').classList.add('show');
 }
 function closePending(){document.getElementById('pendBg').classList.remove('show');}
-function markPaid(id){var o=_orders.find(function(x){return x.id===id;});if(o){o.status=(o.source==='app'?'preparing':'paid');sj('pm_orders',_orders);pmBroadcastOrders();if(db)db.from('orders').update({status:o.status}).eq('id',id).then(function(res){if(res&&res.error)console.error('markPaid',res.error);}).catch(function(e){console.error('markPaid',e);});updPend();showPending();}}
+function markPaid(id){var o=_orders.find(function(x){return x.id===id;});if(o){o.status=(o.source==='app'?'preparing':'paid');sj('pm_orders',_orders);pmBroadcastOrders();if(db){db.from('orders').update({status:o.status}).eq('id',id).then(function(res){if(res&&res.error)console.error('markPaid',res.error);}).catch(function(e){console.error('markPaid',e);});if(o.memberId)db.rpc('rpc_on_order_completed',{p_member_id:o.memberId,p_order_id:o.id,p_amount:o.total}).catch(function(e){console.error('rpc_on_order_completed',e);});}updPend();showPending();}}
 function reprO(id){var o=_orders.find(function(x){return x.id===id;});if(o)printRec(o);}
 
 /* ── ADMIN ── */
@@ -1165,11 +1257,12 @@ function backToPOS(){document.getElementById('adminView').style.display='none';d
 function showAdmin(tab){
   document.getElementById('posView').style.display='none';
   document.getElementById('adminView').style.display='flex';
-  ['dashboard','menu','members','reports'].forEach(function(t){var el=document.getElementById('asi-'+t);if(el)el.classList.toggle('a',t===tab);});
+  ['dashboard','menu','members','reports','loyalty'].forEach(function(t){var el=document.getElementById('asi-'+t);if(el)el.classList.toggle('a',t===tab);});
   if(tab==='dashboard') renderDash();
   if(tab==='menu') renderMenuAdmin();
   if(tab==='members') renderMembers();
   if(tab==='reports') renderReports();
+  if(tab==='loyalty') renderLoyaltyAdmin();
 }
 
 /* ── DASHBOARD ── */
@@ -1309,6 +1402,240 @@ function saveMember(){
   sj('pm_members',_members);closeMM();renderMembers();showN('✅ 已新增：'+n);
 }
 function delMem(i){if(!confirm('确定删除？'))return;_members.splice(i,1);sj('pm_members',_members);renderMembers();}
+
+/* ══════════ 会员系统 Meow Club · 后台「Loyalty」页 (Phase 1) ══════════ */
+var _loyaltyTab='members';
+var _loyaltyLevels=[], _loyaltyXpRules=[], _loyaltyCoinRules=[], _loyaltyMilestones=[], _loyaltyMembers=[];
+function setLoyaltyTab(t){_loyaltyTab=t;renderLoyaltyAdmin();}
+function renderLoyaltyAdmin(){
+  var el=document.getElementById('adminContent');
+  if(!db){el.innerHTML='<div class="page-title">🐱 会员运营 Loyalty</div><div style="padding:30px;color:#8D0505">未连接云端（Supabase 未配置或离线），无法管理会员系统。</div>';return;}
+  var tabs=[['members','会员列表'],['levels','等级设置'],['xp','成长值规则'],['coin','金币规则'],['checkin','签到奖励']];
+  var html='<div class="page-title">🐱 会员运营 · Loyalty</div>'
+    +'<div class="ma-tabs">'+tabs.map(function(t){return '<button class="ma-tab'+(_loyaltyTab===t[0]?' a':'')+'" onclick="setLoyaltyTab(\''+t[0]+'\')">'+t[1]+'</button>';}).join('')+'</div>';
+  el.innerHTML=html+'<div id="loyaltyBody">加载中…</div>';
+  if(_loyaltyTab==='members') loadLoyaltyMembers();
+  else if(_loyaltyTab==='levels') loadLoyaltyLevels();
+  else if(_loyaltyTab==='xp') loadLoyaltyRules('xp');
+  else if(_loyaltyTab==='coin') loadLoyaltyRules('coin');
+  else if(_loyaltyTab==='checkin') loadLoyaltyMilestones();
+}
+
+/* ---- 会员列表 ---- */
+function loadLoyaltyMembers(kw){
+  var need=(_loyaltyLevels.length?Promise.resolve():db.from('member_levels').select('*').order('sort_order').then(function(res){if(!res.error)_loyaltyLevels=res.data||[];}));
+  need.then(function(){
+    return db.rpc('rpc_admin_list_members',{p_search:kw||null});
+  }).then(function(res){
+    if(res.error){showN('❌ 读取会员失败');return;}
+    _loyaltyMembers=res.data||[];
+    renderLoyaltyMembersBody();
+  }).catch(function(e){showN('❌ 网络错误');});
+}
+function renderLoyaltyMembersBody(){
+  var body=document.getElementById('loyaltyBody'); if(!body) return;
+  var html='<div style="margin-bottom:14px"><input class="mfi" style="max-width:280px;display:inline-block" id="loyaltySearchBox" placeholder="搜索手机号/昵称，回车查询" onkeydown="if(event.key===\'Enter\')loyaltySearch()"></div>';
+  html+='<div class="tx-card"><table><thead><tr><th>昵称</th><th>手机号</th><th>等级</th><th>XP</th><th>Meow Coin</th><th>注册时间</th><th>操作</th></tr></thead><tbody>';
+  if(!_loyaltyMembers.length){
+    html+='<tr><td colspan="7" style="text-align:center;padding:30px;color:#4A4848">暂无会员</td></tr>';
+  }else{
+    _loyaltyMembers.forEach(function(m){
+      var lvl=_loyaltyLevels.find(function(l){return l.id===m.level_id;});
+      html+='<tr><td><b>'+esc(m.nickname||'—')+'</b></td><td>'+esc(m.phone)+'</td>'
+        +'<td>'+(lvl?('<span style="color:'+lvl.color_hex+';font-weight:700">'+(lvl.badge_icon||'')+' '+esc(lvl.name_cn)+'</span>'):'—')+'</td>'
+        +'<td>'+(m.xp||0)+'</td><td>'+(m.coins||0)+'</td>'
+        +'<td style="font-size:12px;color:#4A4848">'+new Date(m.created_at).toLocaleDateString()+'</td>'
+        +'<td><button onclick="openAdj(\''+m.id+'\',\''+esc(m.nickname||m.phone)+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">调整余额</button></td></tr>';
+    });
+  }
+  html+='</tbody></table></div>';
+  body.innerHTML=html;
+}
+function loyaltySearch(){loadLoyaltyMembers(document.getElementById('loyaltySearchBox').value.trim());}
+var _adjMemberId=null;
+function openAdj(id,label){_adjMemberId=id;document.getElementById('adjWho').textContent='正在调整：'+label;document.getElementById('adjXp').value='';document.getElementById('adjCoin').value='';document.getElementById('adjReason').value='';document.getElementById('adjBg').classList.add('show');}
+function closeAdj(){document.getElementById('adjBg').classList.remove('show');}
+function saveAdj(){
+  var xpD=parseInt(document.getElementById('adjXp').value)||0;
+  var coinD=parseInt(document.getElementById('adjCoin').value)||0;
+  var reason=document.getElementById('adjReason').value.trim();
+  if(!xpD && !coinD){showN('请至少填写一项调整数值');return;}
+  db.rpc('rpc_admin_adjust_balance',{p_member_id:_adjMemberId,p_xp_delta:xpD,p_coin_delta:coinD,p_reason:reason||null})
+    .then(function(res){if(res.error){showN('❌ '+res.error.message);return;}showN('✅ 已调整');closeAdj();loadLoyaltyMembers();})
+    .catch(function(e){showN('❌ 网络错误');});
+}
+
+/* ---- 等级设置 ---- */
+function loadLoyaltyLevels(){
+  db.from('member_levels').select('*').order('sort_order').then(function(res){
+    if(!res.error) _loyaltyLevels=res.data||[];
+    renderLoyaltyLevelsBody();
+  }).catch(function(e){});
+}
+function renderLoyaltyLevelsBody(){
+  var body=document.getElementById('loyaltyBody'); if(!body) return;
+  var html='<div style="display:flex;justify-content:flex-end;margin-bottom:14px"><button onclick="openLvl()" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:700;font-size:13px">＋ 新增等级</button></div>';
+  html+='<div class="tx-card"><table><thead><tr><th>排序</th><th>名称</th><th>所需 XP</th><th>颜色</th><th>权益</th><th>操作</th></tr></thead><tbody>';
+  if(!_loyaltyLevels.length){ html+='<tr><td colspan="6" style="text-align:center;padding:30px;color:#4A4848">暂无等级</td></tr>'; }
+  else{
+    _loyaltyLevels.forEach(function(l){
+      html+='<tr><td>'+l.sort_order+'</td>'
+        +'<td><b style="color:'+l.color_hex+'">'+(l.badge_icon||'')+' '+esc(l.name_cn)+'</b><div style="font-size:11px;color:#4A4848">'+esc(l.name_en||'')+'</div></td>'
+        +'<td>'+l.xp_required+'</td>'
+        +'<td><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:'+l.color_hex+';vertical-align:middle"></span></td>'
+        +'<td style="font-size:12px;color:#4A4848">'+(l.perks||[]).join('、')+'</td>'
+        +'<td><button onclick="openLvl(\''+l.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">改</button>'
+        +'<button onclick="delLvl(\''+l.id+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">删</button></td></tr>';
+    });
+  }
+  html+='</tbody></table></div>';
+  body.innerHTML=html;
+}
+var _lvlEditId=null;
+function openLvl(id){
+  _lvlEditId=id||null;
+  var l=id?_loyaltyLevels.find(function(x){return x.id===id;}):null;
+  document.getElementById('lvlTitle').textContent=id?'编辑等级':'新增等级';
+  document.getElementById('lvlNameCn').value=l?l.name_cn:'';
+  document.getElementById('lvlNameEn').value=l?(l.name_en||''):'';
+  document.getElementById('lvlSort').value=l?l.sort_order:(_loyaltyLevels.length?Math.max.apply(null,_loyaltyLevels.map(function(x){return x.sort_order;}))+1:0);
+  document.getElementById('lvlXp').value=l?l.xp_required:0;
+  document.getElementById('lvlColor').value=l?l.color_hex:'#8D0505';
+  document.getElementById('lvlIcon').value=l?(l.badge_icon||''):'';
+  document.getElementById('lvlPerks').value=l&&l.perks?l.perks.join(', '):'';
+  document.getElementById('lvlBg').classList.add('show');
+}
+function closeLvl(){document.getElementById('lvlBg').classList.remove('show');}
+function saveLvl(){
+  var nameCn=document.getElementById('lvlNameCn').value.trim();
+  if(!nameCn){showN('请填写中文名');return;}
+  var payload={
+    name_cn:nameCn, name_en:document.getElementById('lvlNameEn').value.trim(),
+    sort_order:parseInt(document.getElementById('lvlSort').value)||0,
+    xp_required:parseInt(document.getElementById('lvlXp').value)||0,
+    color_hex:document.getElementById('lvlColor').value||'#8D0505',
+    badge_icon:document.getElementById('lvlIcon').value.trim(),
+    perks:_miParseList(document.getElementById('lvlPerks').value)
+  };
+  var q=_lvlEditId?db.from('member_levels').update(payload).eq('id',_lvlEditId):db.from('member_levels').insert(payload);
+  q.then(function(res){if(res.error){showN('❌ '+res.error.message);return;}showN('✅ 已保存');closeLvl();loadLoyaltyLevels();}).catch(function(e){showN('❌ 网络错误');});
+}
+function delLvl(id){
+  if(!confirm('确定删除该等级？已在此等级的会员不会自动变更等级。'))return;
+  db.from('member_levels').delete().eq('id',id).then(function(res){if(res.error){showN('❌ '+res.error.message);return;}showN('🗑️ 已删除');loadLoyaltyLevels();}).catch(function(e){showN('❌ 网络错误');});
+}
+
+/* ---- 成长值 / 金币规则（共用逻辑，_ruleTable 记录当前表）---- */
+var _ruleTable=null, _ruleEditId=null;
+function loadLoyaltyRules(kind){
+  _ruleTable=kind==='xp'?'xp_rules':'coin_rules';
+  db.from(_ruleTable).select('*').then(function(res){
+    if(!res.error){ if(kind==='xp') _loyaltyXpRules=res.data||[]; else _loyaltyCoinRules=res.data||[]; }
+    renderLoyaltyRulesBody(kind);
+  }).catch(function(e){});
+}
+function renderLoyaltyRulesBody(kind){
+  var body=document.getElementById('loyaltyBody'); if(!body) return;
+  var rows=kind==='xp'?_loyaltyXpRules:_loyaltyCoinRules;
+  var unit=kind==='xp'?'XP':'Coin';
+  var html='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">改这里的数值，小程序里对应行为获得的'+unit+'会立即变化。</div>';
+  html+='<div style="display:flex;justify-content:flex-end;margin-bottom:14px"><button onclick="openRule()" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:700;font-size:13px">＋ 新增规则</button></div>';
+  html+='<div class="tx-card"><table><thead><tr><th>名称</th><th>行为标识</th><th>数值</th><th>每日上限</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+  if(!rows.length){ html+='<tr><td colspan="6" style="text-align:center;padding:30px;color:#4A4848">暂无规则</td></tr>'; }
+  else{
+    rows.forEach(function(r){
+      var val=kind==='xp'?r.xp_value:r.coin_value;
+      html+='<tr'+(r.enabled?'':' style="opacity:.5"')+'><td><b>'+esc(r.name)+'</b></td><td style="font-size:12px;color:#4A4848">'+esc(r.action_key)+'</td>'
+        +'<td>'+val+' '+unit+'</td><td>'+(r.daily_cap==null?'不限':r.daily_cap)+'</td>'
+        +'<td>'+(r.enabled?'<span style="color:#1D7715">启用</span>':'<span style="color:#8D0505">停用</span>')+'</td>'
+        +'<td><button onclick="openRule(\''+r.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">改</button>'
+        +'<button onclick="delRule(\''+r.id+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">删</button></td></tr>';
+    });
+  }
+  html+='</tbody></table></div>';
+  body.innerHTML=html;
+}
+function openRule(id){
+  _ruleEditId=id||null;
+  var kind=_ruleTable==='xp_rules'?'xp':'coin';
+  var rows=kind==='xp'?_loyaltyXpRules:_loyaltyCoinRules;
+  var r=id?rows.find(function(x){return x.id===id;}):null;
+  document.getElementById('ruleTitle').textContent=id?'编辑规则':'新增规则';
+  document.getElementById('ruleValueLbl').textContent='数值（'+(kind==='xp'?'XP':'Meow Coin')+'）*';
+  document.getElementById('ruleActionKey').value=r?r.action_key:'';
+  document.getElementById('ruleActionKey').disabled=!!id;
+  document.getElementById('ruleName').value=r?r.name:'';
+  document.getElementById('ruleValue').value=r?(kind==='xp'?r.xp_value:r.coin_value):'';
+  document.getElementById('ruleDailyCap').value=r&&r.daily_cap!=null?r.daily_cap:'';
+  document.getElementById('ruleEnabled').checked=r?r.enabled:true;
+  document.getElementById('ruleBg').classList.add('show');
+}
+function closeRule(){document.getElementById('ruleBg').classList.remove('show');}
+function saveRule(){
+  var kind=_ruleTable==='xp_rules'?'xp':'coin';
+  var actionKey=document.getElementById('ruleActionKey').value.trim();
+  var name=document.getElementById('ruleName').value.trim();
+  var value=parseFloat(document.getElementById('ruleValue').value);
+  if(!actionKey||!name){showN('请填写行为标识和名称');return;}
+  if(isNaN(value)){showN('数值无效');return;}
+  var capStr=document.getElementById('ruleDailyCap').value.trim();
+  var payload={action_key:actionKey,name:name,daily_cap:capStr?parseInt(capStr):null,enabled:document.getElementById('ruleEnabled').checked};
+  payload[kind==='xp'?'xp_value':'coin_value']=value;
+  var q=_ruleEditId?db.from(_ruleTable).update(payload).eq('id',_ruleEditId):db.from(_ruleTable).insert(payload);
+  q.then(function(res){if(res.error){showN('❌ '+res.error.message);return;}showN('✅ 已保存');closeRule();loadLoyaltyRules(kind);}).catch(function(e){showN('❌ 网络错误');});
+}
+function delRule(id){
+  var kind=_ruleTable==='xp_rules'?'xp':'coin';
+  if(!confirm('确定删除该规则？'))return;
+  db.from(_ruleTable).delete().eq('id',id).then(function(res){if(res.error){showN('❌ '+res.error.message);return;}showN('🗑️ 已删除');loadLoyaltyRules(kind);}).catch(function(e){showN('❌ 网络错误');});
+}
+
+/* ---- 签到里程碑 ---- */
+function loadLoyaltyMilestones(){
+  db.from('checkin_milestones').select('*').order('streak_days').then(function(res){
+    if(!res.error) _loyaltyMilestones=res.data||[];
+    renderLoyaltyMilestonesBody();
+  }).catch(function(e){});
+}
+function renderLoyaltyMilestonesBody(){
+  var body=document.getElementById('loyaltyBody'); if(!body) return;
+  var html='<div style="display:flex;justify-content:flex-end;margin-bottom:14px"><button onclick="openMs()" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:700;font-size:13px">＋ 新增里程碑</button></div>';
+  html+='<div class="tx-card"><table><thead><tr><th>连续签到天数</th><th>额外奖励</th><th>操作</th></tr></thead><tbody>';
+  if(!_loyaltyMilestones.length){ html+='<tr><td colspan="3" style="text-align:center;padding:30px;color:#4A4848">暂无里程碑</td></tr>'; }
+  else{
+    _loyaltyMilestones.forEach(function(m){
+      var r=m.reward||{};
+      html+='<tr><td><b>第 '+m.streak_days+' 天</b></td>'
+        +'<td>'+(r.coin?('+'+r.coin+' Coin '):'')+(r.xp?('+'+r.xp+' XP'):'')+'</td>'
+        +'<td><button onclick="openMs(\''+m.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">改</button>'
+        +'<button onclick="delMs(\''+m.id+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">删</button></td></tr>';
+    });
+  }
+  html+='</tbody></table></div>';
+  body.innerHTML=html;
+}
+var _msEditId=null;
+function openMs(id){
+  _msEditId=id||null;
+  var m=id?_loyaltyMilestones.find(function(x){return x.id===id;}):null;
+  document.getElementById('msTitle').textContent=id?'编辑里程碑':'新增签到里程碑';
+  document.getElementById('msDays').value=m?m.streak_days:'';
+  document.getElementById('msCoin').value=m&&m.reward?(m.reward.coin||0):0;
+  document.getElementById('msXp').value=m&&m.reward?(m.reward.xp||0):0;
+  document.getElementById('msBg').classList.add('show');
+}
+function closeMs(){document.getElementById('msBg').classList.remove('show');}
+function saveMs(){
+  var days=parseInt(document.getElementById('msDays').value);
+  if(!days||days<1){showN('请填写有效的天数');return;}
+  var payload={streak_days:days,reward:{coin:parseInt(document.getElementById('msCoin').value)||0,xp:parseInt(document.getElementById('msXp').value)||0}};
+  var q=_msEditId?db.from('checkin_milestones').update(payload).eq('id',_msEditId):db.from('checkin_milestones').insert(payload);
+  q.then(function(res){if(res.error){showN('❌ '+res.error.message);return;}showN('✅ 已保存');closeMs();loadLoyaltyMilestones();}).catch(function(e){showN('❌ 网络错误');});
+}
+function delMs(id){
+  if(!confirm('确定删除该里程碑？'))return;
+  db.from('checkin_milestones').delete().eq('id',id).then(function(res){if(res.error){showN('❌ '+res.error.message);return;}showN('🗑️ 已删除');loadLoyaltyMilestones();}).catch(function(e){showN('❌ 网络错误');});
+}
 
 /* ── REPORTS ── */
 function renderReports(){
@@ -1461,16 +1788,115 @@ function sdDel(id){
 }
 
 /* ── 商品面板（新增/编辑）：规格行做成 Slot（下拉选规格库 + 多选该规格要开放的选项）── */
-var _miEditId=null, _miCat=null, _miImageData=null;
+var _miEditId=null, _miCat=null, _miImageUrl=null, _miImageUploading=null;
+var MENU_IMG_BUCKET='menu-images';
 function _miParseList(str){return String(str||'').split(',').map(function(s){return s.trim();}).filter(function(s){return s;});}
+function _miUploadImage(file){
+  var ext=(file.name&&file.name.split('.').pop()||'jpg').toLowerCase();
+  var path=Date.now()+'-'+Math.random().toString(36).slice(2)+'.'+ext;
+  return db.storage.from(MENU_IMG_BUCKET).upload(path,file,{upsert:true,cacheControl:'3600'}).then(function(res){
+    if(res.error) throw res.error;
+    return db.storage.from(MENU_IMG_BUCKET).getPublicUrl(path).data.publicUrl;
+  });
+}
+function _miApplyUploadBg(url){
+  var box=document.getElementById('miUpload');
+  if(url){
+    box.style.backgroundImage="url('"+url+"')";
+    box.innerHTML='<button type="button" class="mi-upload-chg" onclick="event.stopPropagation();document.getElementById(\'miImgFile\').click()">更换图片</button>';
+  }else{
+    box.style.backgroundImage='';
+    box.innerHTML='<span onclick="document.getElementById(\'miImgFile\').click()">上传图片</span>';
+  }
+}
+/* ── 图片裁剪：拖动+缩放，裁成 380×310（跟小程序详情页大图一致比例），列表/购物车/订单缩略图共用同一张裁剪图 ── */
+var MI_CROP_W=380, MI_CROP_H=310;
+var _miCropNatural=null, _miCropBaseScale=1, _miCropScale=1, _miCropPos={x:0,y:0}, _miCropDrag=null;
 function miPickImage(ev){
   var file=ev.target.files&&ev.target.files[0]; if(!file) return;
   var reader=new FileReader();
   reader.onload=function(e){
-    _miImageData=e.target.result;
-    document.getElementById('miUpload').innerHTML='<img src="'+e.target.result+'" alt="">';
+    var img=new Image();
+    img.onload=function(){
+      _miCropNatural={w:img.naturalWidth,h:img.naturalHeight};
+      _miCropBaseScale=Math.max(MI_CROP_W/img.naturalWidth, MI_CROP_H/img.naturalHeight);
+      _miCropScale=_miCropBaseScale;
+      document.getElementById('miCropZoom').value='100';
+      var w=img.naturalWidth*_miCropScale, h=img.naturalHeight*_miCropScale;
+      _miCropPos={x:(MI_CROP_W-w)/2, y:(MI_CROP_H-h)/2};
+      var cropImg=document.getElementById('miCropImg');
+      cropImg.src=e.target.result;
+      cropImg.style.width=w+'px'; cropImg.style.height=h+'px';
+      cropImg.style.transform='translate('+_miCropPos.x+'px,'+_miCropPos.y+'px)';
+      document.getElementById('miCropBg').classList.add('show');
+    };
+    img.src=e.target.result;
   };
   reader.readAsDataURL(file);
+}
+function _miCropClamp(){
+  var w=_miCropNatural.w*_miCropScale, h=_miCropNatural.h*_miCropScale;
+  _miCropPos.x=Math.min(0, Math.max(MI_CROP_W-w, _miCropPos.x));
+  _miCropPos.y=Math.min(0, Math.max(MI_CROP_H-h, _miCropPos.y));
+}
+function _miCropApply(){
+  var w=_miCropNatural.w*_miCropScale, h=_miCropNatural.h*_miCropScale;
+  var img=document.getElementById('miCropImg');
+  img.style.width=w+'px'; img.style.height=h+'px';
+  img.style.transform='translate('+_miCropPos.x+'px,'+_miCropPos.y+'px)';
+}
+function miCropOnZoom(){
+  var pct=parseFloat(document.getElementById('miCropZoom').value)||100;
+  var newScale=_miCropBaseScale*(pct/100);
+  var r=newScale/_miCropScale;
+  var cx=MI_CROP_W/2, cy=MI_CROP_H/2;
+  _miCropPos.x=cx-(cx-_miCropPos.x)*r;
+  _miCropPos.y=cy-(cy-_miCropPos.y)*r;
+  _miCropScale=newScale;
+  _miCropClamp();
+  _miCropApply();
+}
+(function(){
+  var stage=document.getElementById('miCropStage');
+  if(!stage) return;
+  stage.addEventListener('pointerdown', function(ev){
+    _miCropDrag={x:ev.clientX,y:ev.clientY,ox:_miCropPos.x,oy:_miCropPos.y};
+    if(stage.setPointerCapture) stage.setPointerCapture(ev.pointerId);
+  });
+  stage.addEventListener('pointermove', function(ev){
+    if(!_miCropDrag) return;
+    _miCropPos.x=_miCropDrag.ox+(ev.clientX-_miCropDrag.x);
+    _miCropPos.y=_miCropDrag.oy+(ev.clientY-_miCropDrag.y);
+    _miCropClamp();
+    _miCropApply();
+  });
+  stage.addEventListener('pointerup', function(){ _miCropDrag=null; });
+  stage.addEventListener('pointerleave', function(){ _miCropDrag=null; });
+})();
+function miCropCancel(){
+  document.getElementById('miCropBg').classList.remove('show');
+  document.getElementById('miImgFile').value='';
+}
+function miCropConfirm(){
+  var canvas=document.createElement('canvas');
+  canvas.width=MI_CROP_W; canvas.height=MI_CROP_H;
+  var ctx=canvas.getContext('2d');
+  var sx=-_miCropPos.x/_miCropScale, sy=-_miCropPos.y/_miCropScale;
+  var sw=MI_CROP_W/_miCropScale, sh=MI_CROP_H/_miCropScale;
+  ctx.drawImage(document.getElementById('miCropImg'), sx, sy, sw, sh, 0, 0, MI_CROP_W, MI_CROP_H);
+  canvas.toBlob(function(blob){
+    if(!blob){ showN('❌ 裁剪失败'); return; }
+    var file=new File([blob], 'menu-'+Date.now()+'.jpg', {type:'image/jpeg'});
+    var reader=new FileReader();
+    reader.onload=function(e){ _miApplyUploadBg(e.target.result); };
+    reader.readAsDataURL(blob);
+    document.getElementById('miCropBg').classList.remove('show');
+    document.getElementById('miImgFile').value='';
+    if(!db){ showN('未连接云端，图片无法上传'); return; }
+    _miImageUploading=_miUploadImage(file).then(function(url){
+      _miImageUrl=url; _miImageUploading=null; return url;
+    }).catch(function(e){ showN('❌ 图片上传失败'); _miImageUploading=null; });
+  }, 'image/jpeg', 0.9);
 }
 function _miSpecDefOptionsHtml(selectedDefId){
   return (_specDefs||[]).map(function(d){
@@ -1520,9 +1946,10 @@ function _miCollectSpecGroups(){
 }
 function menuAdd(cat){
   if(!db){showN('未连接云端');return;}
-  _miEditId=null; _miCat=cat; _miImageData=null;
+  _miEditId=null; _miCat=cat; _miImageUrl=null; _miImageUploading=null;
   document.getElementById('miTitle').textContent='新增品项 · '+(POS_CATN[cat]?POS_CATN[cat][0]:cat);
-  document.getElementById('miUpload').innerHTML='<span>上传图片</span>';
+  _miApplyUploadBg(null);
+  document.getElementById('miImgFile').value='';
   document.getElementById('miName').value='';
   document.getElementById('miEn').value='';
   document.getElementById('miPrice').value='';
@@ -1533,9 +1960,10 @@ function menuAdd(cat){
 function menuEdit(id){
   if(!db){showN('未连接云端');return;}
   var r=(_menuRows||[]).find(function(x){return String(x.id)===String(id);});if(!r)return;
-  _miEditId=id; _miCat=r.cat; _miImageData=null;
+  _miEditId=id; _miCat=r.cat; _miImageUrl=r.image_url||null; _miImageUploading=null;
   document.getElementById('miTitle').textContent='编辑品项';
-  document.getElementById('miUpload').innerHTML='<span>上传图片</span>';
+  _miApplyUploadBg(_miImageUrl);
+  document.getElementById('miImgFile').value='';
   document.getElementById('miName').value=r.name||'';
   document.getElementById('miEn').value=r.en||'';
   document.getElementById('miPrice').value=r.price!=null?r.price:'';
@@ -1554,18 +1982,22 @@ function saveMI(){
   var en=document.getElementById('miEn').value.trim();
   var desc=document.getElementById('miDesc').value.trim();
   var specGroups=_miCollectSpecGroups();
-  var payload={name:name,en:en,price:price,descr:desc,specs:specGroups,
-    flavors:(specGroups.length&&specGroups[0].options.length)?specGroups[0].options:['Original']};
-  if(_miEditId){
-    db.from('menu_items').update(payload).eq('id',_miEditId)
-      .then(function(res){_menuAfterWrite(res,'✅ 已保存');}).catch(function(e){showN('❌ 网络错误');});
-  }else{
-    var maxSo=(_menuRows||[]).reduce(function(m,r){return Math.max(m,r.sort_order||0);},0);
-    payload.cat=_miCat; payload.sold_out=false; payload.sort_order=maxSo+10;
-    db.from('menu_items').insert(payload)
-      .then(function(res){_menuAfterWrite(res,'✅ 已添加：'+name);}).catch(function(e){showN('❌ 网络错误');});
-  }
-  closeMI();
+  var doSave=function(){
+    var payload={name:name,en:en,price:price,descr:desc,specs:specGroups,image_url:_miImageUrl||null,
+      flavors:(specGroups.length&&specGroups[0].options.length)?specGroups[0].options:['Original']};
+    if(_miEditId){
+      db.from('menu_items').update(payload).eq('id',_miEditId)
+        .then(function(res){_menuAfterWrite(res,'✅ 已保存');}).catch(function(e){showN('❌ 网络错误');});
+    }else{
+      var maxSo=(_menuRows||[]).reduce(function(m,r){return Math.max(m,r.sort_order||0);},0);
+      payload.cat=_miCat; payload.sold_out=false; payload.sort_order=maxSo+10;
+      db.from('menu_items').insert(payload)
+        .then(function(res){_menuAfterWrite(res,'✅ 已添加：'+name);}).catch(function(e){showN('❌ 网络错误');});
+    }
+    closeMI();
+  };
+  if(_miImageUploading){ showN('图片上传中，请稍候…'); _miImageUploading.then(doSave); }
+  else{ doSave(); }
 }
 function menuToggleSold(id,cur){
   if(!db){showN('未连接云端');return;}
