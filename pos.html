@@ -425,6 +425,8 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
 .mi-add-round{background:#F5E9D4;border:none;border-radius:1000px;color:#8D0505;font-weight:700;font-size:16px;width:59px;height:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;}
 .sd-opt-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
 .sd-opt-row .mfi{margin-bottom:0;flex:1;}
+.sd-opt-toggle{flex-shrink:0;border:1px solid #8D0505;background:#fff;color:#8D0505;border-radius:6px;padding:0 10px;height:32px;font-size:11px;font-weight:700;cursor:pointer;font-family:"Noto Sans SC",sans-serif;white-space:nowrap;}
+.sd-opt-toggle.is-soldout{background:#8D0505;color:#fff;}
 .mi-spec-hint{font-size:11px;color:#4A4848;margin-top:-8px;margin-bottom:14px;}
 /* 菜单管理页签（商品 / 规格库） */
 .ma-tabs{display:flex;gap:8px;margin-bottom:14px;}
@@ -436,6 +438,7 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
 .sd-name{font-weight:700;color:#8D0505;font-size:15px;min-width:90px;}
 .sd-opts{flex:1;display:flex;flex-wrap:wrap;gap:6px;padding:0 12px;}
 .mi-pill{background:#FFDE5B;color:#8D0505;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;}
+.mi-pill.soldout{background:#D9D9D9;color:#8A8A8A;text-decoration:line-through;}
 
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-thumb{background:rgba(141,5,5,.15);border-radius:3px;}
@@ -1719,8 +1722,12 @@ function specDefsAdminHtml(){
     html+='<div style="text-align:center;padding:30px;color:#4A4848">（暂无规格，点「＋ 新增规格」）</div>';
   }else{
     rows.forEach(function(r){
+      var soldSet=r.sold_out_options||[];
       html+='<div class="sd-row"><div class="sd-name">'+esc(r.name)+'</div>'
-        +'<div class="sd-opts">'+(r.options||[]).map(function(o){return '<span class="mi-pill">'+esc(o)+'</span>';}).join('')+'</div>'
+        +'<div class="sd-opts">'+(r.options||[]).map(function(o){
+          var isSold=soldSet.indexOf(o)>=0;
+          return '<span class="mi-pill'+(isSold?' soldout':'')+'">'+esc(o)+(isSold?' 下架':'')+'</span>';
+        }).join('')+'</div>'
         +'<div style="white-space:nowrap">'
         +'<button onclick="sdEdit(\''+r.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">改</button>'
         +'<button onclick="sdDel(\''+r.id+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">删</button>'
@@ -1731,17 +1738,31 @@ function specDefsAdminHtml(){
   return html;
 }
 var _sdEditId=null;
-function _sdOptRowHtml(value){
-  return '<div class="sd-opt-row"><input class="mfi" value="'+esc(value||'')+'" placeholder="选项，如 M / L / XL">'
+function _sdOptRowHtml(value, soldOut){
+  soldOut=!!soldOut;
+  return '<div class="sd-opt-row" data-soldout="'+(soldOut?'1':'0')+'"><input class="mfi" value="'+esc(value||'')+'" placeholder="选项，如 M / L / XL">'
+    +'<button type="button" class="sd-opt-toggle'+(soldOut?' is-soldout':'')+'" onclick="_sdToggleOptRow(this)">'+(soldOut?'已下架':'下架')+'</button>'
     +'<button type="button" class="mi-spec-rm" onclick="this.parentElement.remove()">✕</button></div>';
 }
-function sdAddOptRow(value){
-  document.getElementById('sdOptRows').insertAdjacentHTML('beforeend',_sdOptRowHtml(value));
+function sdAddOptRow(value, soldOut){
+  document.getElementById('sdOptRows').insertAdjacentHTML('beforeend',_sdOptRowHtml(value, soldOut));
+}
+function _sdToggleOptRow(btn){
+  var row=btn.closest('.sd-opt-row');
+  var soldOut=row.getAttribute('data-soldout')!=='1';
+  row.setAttribute('data-soldout', soldOut?'1':'0');
+  btn.textContent=soldOut?'已下架':'下架';
+  btn.classList.toggle('is-soldout', soldOut);
 }
 function _sdCollectOptions(){
-  var inputs=document.querySelectorAll('#sdOptRows .sd-opt-row input'), out=[];
-  for(var i=0;i<inputs.length;i++){ var v=inputs[i].value.trim(); if(v) out.push(v); }
-  return out;
+  var rows=document.querySelectorAll('#sdOptRows .sd-opt-row'), options=[], soldOut=[];
+  for(var i=0;i<rows.length;i++){
+    var v=rows[i].querySelector('input').value.trim();
+    if(!v) continue;
+    options.push(v);
+    if(rows[i].getAttribute('data-soldout')==='1') soldOut.push(v);
+  }
+  return {options:options, soldOut:soldOut};
 }
 function sdAdd(){
   if(!db){showN('未连接云端');return;}
@@ -1758,7 +1779,9 @@ function sdEdit(id){
   document.getElementById('sdTitle').textContent='编辑规格';
   document.getElementById('sdName').value=r.name||'';
   document.getElementById('sdOptRows').innerHTML='';
-  (r.options||[]).forEach(function(o){ sdAddOptRow(o); });
+  var soldSet={};
+  (r.sold_out_options||[]).forEach(function(v){ soldSet[v]=true; });
+  (r.options||[]).forEach(function(o){ sdAddOptRow(o, !!soldSet[o]); });
   document.getElementById('sdBg').classList.add('show');
 }
 function closeSD(){document.getElementById('sdBg').classList.remove('show');}
@@ -1766,9 +1789,9 @@ function saveSD(){
   if(!db){showN('未连接云端');return;}
   var name=document.getElementById('sdName').value.trim();
   if(!name){showN('请填写规格名称');return;}
-  var options=_sdCollectOptions();
-  if(!options.length){showN('请至少填写一个选项');return;}
-  var payload={name:name,options:options};
+  var collected=_sdCollectOptions();
+  if(!collected.options.length){showN('请至少填写一个选项');return;}
+  var payload={name:name,options:collected.options,sold_out_options:collected.soldOut};
   if(_sdEditId){
     db.from('spec_defs').update(payload).eq('id',_sdEditId)
       .then(function(res){_sdAfterWrite(res,'✅ 已保存');}).catch(function(e){showN('❌ 网络错误');});
@@ -1925,7 +1948,8 @@ function _miSpecRowHtml(defId,selectedOptions){
   selectedOptions=selectedOptions||[];
   var def=(_specDefs||[]).find(function(d){return String(d.id)===String(defId);});
   var opts=def?(def.options||[]):[];
-  var optsHtml=opts.map(function(o){return '<option value="'+esc(o)+'"'+(selectedOptions.indexOf(o)>=0?' selected':'')+'>'+esc(o)+'</option>';}).join('');
+  var soldSet=def?(def.sold_out_options||[]):[];
+  var optsHtml=opts.map(function(o){return '<option value="'+esc(o)+'"'+(selectedOptions.indexOf(o)>=0?' selected':'')+'>'+esc(o)+(soldSet.indexOf(o)>=0?'（下架中）':'')+'</option>';}).join('');
   return '<div class="mi-spec-row">'
     +'<div class="mi-spec-col"><label class="mi-lbl mi-spec-lbl">规格</label>'
       +'<select class="mi-spec-select" onchange="_miOnSpecDefChange(this)"><option value="">选择规格…</option>'+_miSpecDefOptionsHtml(defId)+'</select></div>'
@@ -1940,7 +1964,8 @@ function _miOnSpecDefChange(sel){
   var optsSel=row.querySelector('.mi-spec-opts');
   var def=(_specDefs||[]).find(function(d){return String(d.id)===String(sel.value);});
   var opts=def?(def.options||[]):[];
-  optsSel.innerHTML=opts.map(function(o){return '<option value="'+esc(o)+'" selected>'+esc(o)+'</option>';}).join('');
+  var soldSet=def?(def.sold_out_options||[]):[];
+  optsSel.innerHTML=opts.map(function(o){return '<option value="'+esc(o)+'" selected>'+esc(o)+(soldSet.indexOf(o)>=0?'（下架中）':'')+'</option>';}).join('');
 }
 function _miRelabelSpecRows(){
   var lbls=document.querySelectorAll('#miSpecGroups .mi-spec-lbl');

@@ -45,6 +45,7 @@ create table public.spec_defs (
   id          uuid primary key default gen_random_uuid(),
   name        text not null,                    -- 规格名称，如 口味 / 尺寸 / 温度（自己输入，不限数量）
   options     jsonb not null default '[]'::jsonb, -- 该规格的可选项，如 ["Original","Matcha","Chocolate"]（自己输入，不限数量）
+  sold_out_options jsonb not null default '[]'::jsonb, -- 当前售罄/下架的选项值子集，如 ["Matcha"]（小程序对应选项会变灰不可选）
   sort_order  int not null default 0
 );
 create index if not exists spec_defs_sort_idx on public.spec_defs (sort_order);
@@ -168,3 +169,9 @@ drop policy if exists menu_images_anon_update on storage.objects;
 create policy menu_images_anon_update on storage.objects for update to anon using (bucket_id = 'menu-images');
 drop policy if exists menu_images_anon_delete on storage.objects;
 create policy menu_images_anon_delete on storage.objects for delete to anon using (bucket_id = 'menu-images');
+
+-- ============================================================================
+--  增量迁移：规格选项下架（spec_defs.sold_out_options 列）
+--  如果你的 Supabase 项目是在本次更新前建的，只需单独执行下面这一行。
+-- ============================================================================
+alter table public.spec_defs add column if not exists sold_out_options jsonb not null default '[]'::jsonb;
