@@ -569,6 +569,32 @@
   .mem-checkin-btn:disabled{ opacity:.5; cursor:default; }
   .mem-logout{ display:block; margin:24px auto 0; background:none; border:none; color:var(--muted); font-size:12px; text-decoration:underline; cursor:pointer; }
 
+  .mem-ref-card, .mem-coupon-card{ background:#fff; border-radius:16px; padding:18px; margin-top:16px; box-shadow:0 2px 10px rgba(141,5,5,.08); }
+  .mem-ref-head, .mem-coupon-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .mem-ref-head h4, .mem-coupon-head h4{ font-size:14px; color:var(--red); margin:0; }
+  .mem-ref-count{ font-size:11px; color:var(--muted); }
+  .mem-ref-code-row{ display:flex; align-items:center; gap:10px; background:var(--cream2); border-radius:10px; padding:10px 14px; }
+  .mem-ref-code{ flex:1; font-size:20px; font-weight:700; color:var(--red); letter-spacing:2px; }
+  .mem-ref-copy{ flex-shrink:0; background:var(--red); color:var(--cream2); border:none; border-radius:999px; padding:8px 14px; font-size:12px; font-weight:700; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }
+  .mem-ref-hint{ font-size:11px; color:var(--muted); margin-top:10px; line-height:1.5; }
+  .mem-ref-friends{ margin-top:8px; }
+  .mem-ref-friend-row{ display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-top:1px solid var(--cream2); font-size:12px; }
+  .mem-ref-friend-name{ color:var(--muted); font-weight:700; }
+  .mem-ref-friend-status{ font-size:10.5px; padding:2px 8px; border-radius:999px; flex-shrink:0; }
+  .mem-ref-friend-status.done{ background:var(--red); color:var(--cream2); }
+  .mem-ref-friend-status.pending{ background:var(--cream2); color:var(--muted); }
+  .mem-ref-empty, .mem-coupon-empty{ font-size:12px; color:var(--muted); text-align:center; padding:10px 0; }
+
+  .mem-coupon-ticket{ display:flex; border-radius:12px; overflow:hidden; margin-bottom:10px; background:var(--red); }
+  .mem-coupon-ticket.used{ background:#B9B9B9; }
+  .mem-coupon-value{ width:78px; flex-shrink:0; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--yellow); font-weight:700; border-right:2px dashed rgba(255,255,255,.5); padding:10px 4px; text-align:center; }
+  .mem-coupon-value b{ font-size:18px; line-height:1.2; }
+  .mem-coupon-value span{ font-size:9.5px; opacity:.85; }
+  .mem-coupon-info{ flex:1; padding:10px 14px; color:var(--cream2); }
+  .mem-coupon-name{ font-weight:700; font-size:13px; }
+  .mem-coupon-cond{ font-size:10.5px; opacity:.85; margin-top:3px; }
+  .mem-coupon-exp{ font-size:10px; opacity:.7; margin-top:5px; }
+
   /* ===== PRINT ===== */
   @media print{
     body>*:not(#pmPrintArea){ display:none!important; }
@@ -732,6 +758,7 @@
         <div class="mem-field"><label>昵称</label><input type="text" id="memRegNickname" placeholder="给自己取个名字"></div>
         <div class="mem-field"><label>手机号</label><input type="tel" id="memRegPhone" placeholder="0123456789"></div>
         <div class="mem-field"><label>设置 PIN 密码</label><input type="password" id="memRegPin" placeholder="4-6 位数字，之后登录要用" inputmode="numeric"></div>
+        <div class="mem-field"><label>邀请码（选填）</label><input type="text" id="memRegReferral" placeholder="好友的邀请码"></div>
         <div class="mem-err" id="memRegErr"></div>
         <button class="mem-submit" onclick="memberRegister()">注册成为会员</button>
       </div>
@@ -758,6 +785,19 @@
         <div class="mem-checkin-head"><h4>每日签到</h4><span id="memStreakLbl" style="font-size:12px;color:var(--muted)"></span></div>
         <div class="mem-checkin-days" id="memCheckinDays"></div>
         <button class="mem-checkin-btn" id="memCheckinBtn" onclick="memberCheckin()">签到</button>
+      </div>
+      <div class="mem-ref-card">
+        <div class="mem-ref-head"><h4>邀请好友</h4><span class="mem-ref-count" id="memRefCount">已邀请 0 位</span></div>
+        <div class="mem-ref-code-row">
+          <div class="mem-ref-code" id="memRefCode">——</div>
+          <button class="mem-ref-copy" onclick="copyReferralCode()">复制邀请码</button>
+        </div>
+        <div class="mem-ref-hint">好友用你的邀请码注册，你得 20 Coin；好友完成首单，你再得 50 Coin + 30 XP</div>
+        <div class="mem-ref-friends" id="memRefFriends"></div>
+      </div>
+      <div class="mem-coupon-card">
+        <div class="mem-coupon-head"><h4>我的优惠券</h4></div>
+        <div class="mem-coupon-list" id="memCouponList"></div>
       </div>
       <button class="mem-logout" onclick="memberLogout()">退出登录</button>
     </div>
@@ -1597,9 +1637,10 @@ function memberRegister(){
   var nickname = document.getElementById('memRegNickname').value.trim();
   var phone = document.getElementById('memRegPhone').value.trim();
   var pin = document.getElementById('memRegPin').value.trim();
+  var referralCode = document.getElementById('memRegReferral').value.trim();
   if(!phone){ errEl.textContent='请填写手机号'; return; }
   if(pin.length < 4){ errEl.textContent='PIN 至少 4 位'; return; }
-  db.rpc('rpc_member_register', {p_phone:phone, p_pin:pin, p_nickname:nickname||null, p_referral_code:null}).then(function(res){
+  db.rpc('rpc_member_register', {p_phone:phone, p_pin:pin, p_nickname:nickname||null, p_referral_code:referralCode||null}).then(function(res){
     if(res.error){ errEl.textContent = res.error.message || '注册失败'; return; }
     var row = res.data && res.data[0];
     _memSaveSession(row.member_id, row.session_token);
@@ -1660,7 +1701,7 @@ function renderProfileScreen(){
     } else {
       bar.style.width='100%'; nextLbl.textContent='已是最高等级';
     }
-    return renderCheckinStatus();
+    return Promise.all([renderCheckinStatus(), loadMyReferrals(), loadMyCoupons()]);
   });
 }
 function renderCheckinStatus(){
@@ -1691,6 +1732,62 @@ function memberCheckin(){
       alert(msg);
     });
   }).catch(function(e){ alert('签到失败，请重试'); });
+}
+
+/* ===== 邀请好友 ===== */
+function copyReferralCode(){
+  var code = document.getElementById('memRefCode').textContent;
+  if(!code || code==='——') return;
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(code).then(function(){ alert('邀请码已复制：'+code); }).catch(function(){ alert('邀请码：'+code); });
+  }else{
+    alert('邀请码：'+code);
+  }
+}
+function loadMyReferrals(){
+  if(!db || !_memberId || !_memberToken) return Promise.resolve();
+  return db.rpc('rpc_get_my_referrals', {p_member_id:_memberId, p_session_token:_memberToken}).then(function(res){
+    if(res.error) return;
+    var row = res.data && res.data[0];
+    if(!row) return;
+    document.getElementById('memRefCode').textContent = row.referral_code || '——';
+    document.getElementById('memRefCount').textContent = '已邀请 '+(row.total_referred||0)+' 位';
+    var friends = row.friends || [];
+    var box = document.getElementById('memRefFriends');
+    if(!friends.length){
+      box.innerHTML = '<div class="mem-ref-empty">还没有邀请记录，分享邀请码给朋友吧</div>';
+    }else{
+      box.innerHTML = friends.map(function(f){
+        return '<div class="mem-ref-friend-row"><span class="mem-ref-friend-name">'+(f.nickname||'喵星人')+'</span>'
+          +'<span class="mem-ref-friend-status '+(f.firstOrderDone?'done':'pending')+'">'+(f.firstOrderDone?'已首单':'待首单')+'</span></div>';
+      }).join('');
+    }
+  }).catch(function(e){});
+}
+
+/* ===== 优惠券钱包 ===== */
+function loadMyCoupons(){
+  if(!db || !_memberId || !_memberToken) return Promise.resolve();
+  return db.rpc('rpc_get_my_coupons', {p_member_id:_memberId, p_session_token:_memberToken}).then(function(res){
+    if(res.error) return;
+    var list = res.data || [];
+    var box = document.getElementById('memCouponList');
+    if(!list.length){
+      box.innerHTML = '<div class="mem-coupon-empty">暂无优惠券</div>';
+      return;
+    }
+    box.innerHTML = list.map(function(c){
+      var valTxt = c.type==='percent_off' ? (c.value+'% OFF') : ('RM'+c.value);
+      var condTxt = c.min_spend>0 ? ('满 RM'+c.min_spend+' 可用') : '无门槛';
+      var expTxt = '有效期至 '+new Date(c.expires_at).toLocaleDateString();
+      var usedCls = c.status!=='unused' ? ' used' : '';
+      var statusTxt = c.status==='used' ? '（已使用）' : (c.status==='expired' ? '（已过期）' : '');
+      return '<div class="mem-coupon-ticket'+usedCls+'">'
+        +'<div class="mem-coupon-value"><b>'+valTxt+'</b><span>'+condTxt+'</span></div>'
+        +'<div class="mem-coupon-info"><div class="mem-coupon-name">'+c.name+statusTxt+'</div><div class="mem-coupon-cond">'+condTxt+'</div><div class="mem-coupon-exp">'+expTxt+'</div></div>'
+        +'</div>';
+    }).join('');
+  }).catch(function(e){});
 }
 
 /* ===== 云端订单初始化：拉一次 + 订阅实时（放在最后，确保 _orders 等已就绪）===== */
