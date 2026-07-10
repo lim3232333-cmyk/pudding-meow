@@ -517,6 +517,7 @@
     padding:0 14px; box-sizing:border-box; flex-shrink:0;
   }
   .flavor-pill.active{ background:var(--blue); color:var(--red); }
+  .flavor-pill.soldout, .flavor-pill.soldout.active{ background:#D9D9D9; color:#9A9A9A; cursor:not-allowed; text-decoration:line-through; }
 
   .sheet-footer{
     flex-shrink:0; background:var(--cream2); box-shadow:0 -4px 2.5px rgba(0,0,0,.1); border-radius:16px;
@@ -1005,6 +1006,22 @@ function _itemSpecs(it){
   return [{ defId:null, name:'', options:flavors }];
 }
 var SPEC_SEP = ' · ';
+/* 规格库（spec_defs）：只用来查某个规格组下哪些选项当前售罄/下架，跟 menu_items.specs 里存的
+   options 快照分开——售罄状态要实时生效，不能靠下单/编辑时留下的旧快照判断 */
+var _specDefsById = {};
+function loadSpecDefs(){
+  if(!db) return Promise.resolve();
+  return db.from('spec_defs').select('*').then(function(res){
+    if(res.error) return;
+    _specDefsById = {};
+    (res.data||[]).forEach(function(d){ _specDefsById[d.id] = d; });
+  }).catch(function(e){});
+}
+function _isOptionSoldOut(defId, value){
+  if(!defId) return false;
+  var def = _specDefsById[defId];
+  return !!(def && (def.sold_out_options||[]).indexOf(value) >= 0);
+}
 /* 购物车/订单条目展示用：新的 specs 数组只显示值；兼容历史订单里的旧 flavor 字符串字段 */
 function specsDisplay(it){
   if(it && it.specs && it.specs.length) return it.specs.map(function(s){ return s.value; }).filter(Boolean).join(SPEC_SEP);
@@ -1245,9 +1262,11 @@ let sheetCat=null, sheetIdx=null, sheetSpecSel=[], sheetQty=1; // sheetSpecSel[g
 
 function _sheetSpecGroupHtml(group, gi){
   const label = group.name ? `<div class="sheet-spec-label">${group.name}</div>` : '';
-  const pills = (group.options||[]).map((o,oi)=>
-    `<button class="flavor-pill${oi===0?' active':''}" data-gi="${gi}" data-oi="${oi}" onclick="selectSpecOption(${gi},${oi})">${o}</button>`
-  ).join('');
+  const selIdx = sheetSpecSel[gi];
+  const pills = (group.options||[]).map((o,oi)=>{
+    const soldOut = _isOptionSoldOut(group.defId, o);
+    return `<button class="flavor-pill${oi===selIdx?' active':''}${soldOut?' soldout':''}" data-gi="${gi}" data-oi="${oi}"${soldOut?' disabled':''} onclick="selectSpecOption(${gi},${oi})">${o}</button>`;
+  }).join('');
   return `<div class="sheet-spec-group" data-gi="${gi}">${label}<div class="sheet-pill-row">${pills}</div></div>`;
 }
 
@@ -1255,7 +1274,10 @@ function openSheet(cat, idx){
   sheetCat = cat; sheetIdx = idx; sheetQty = 1;
   const it = menu[cat].items[idx];
   const specs = _itemSpecs(it);
-  sheetSpecSel = specs.map(()=>0);
+  sheetSpecSel = specs.map(g=>{
+    const idx = (g.options||[]).findIndex(o=>!_isOptionSoldOut(g.defId, o));
+    return idx>=0 ? idx : 0;
+  });
   document.getElementById('sheetName').textContent = it.name;
   document.getElementById('sheetEn').textContent = it.en;
   document.getElementById('sheetDesc').textContent = it.desc || '';
@@ -1279,6 +1301,9 @@ function closeSheet(){
 }
 
 function selectSpecOption(gi, oi){
+  const it = menu[sheetCat].items[sheetIdx];
+  const group = _itemSpecs(it)[gi];
+  if(group && _isOptionSoldOut(group.defId, group.options[oi])) return;
   sheetSpecSel[gi] = oi;
   document.querySelectorAll('.sheet-spec-group[data-gi="'+gi+'"] .flavor-pill').forEach(b=>{
     b.classList.toggle('active', +b.dataset.oi === oi);
@@ -1316,6 +1341,7 @@ renderCats();
 renderItems();
 renderCartPanel();
 loadMenu();   // 从云端拉菜单（拉到后自动重绘；未配置/离线则保持写死菜单）
+loadSpecDefs();   // 拉规格库，用于判断哪些规格选项当前售罄
 
 /* =================== ORDERS =================== */
 
