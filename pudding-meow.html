@@ -506,7 +506,6 @@
   .sheet-info .name{ font-weight:700; font-size:20px; line-height:24px; color:var(--red); }
   .sheet-info .en{ font-weight:500; font-size:12px; line-height:14px; color:var(--red); margin-top:5px; }
   .sheet-info .desc{ font-weight:400; font-size:10px; line-height:12px; color:var(--muted); margin-top:14px; }
-  .sheet-tag{ display:inline-block; margin-top:14px; font-size:12px; font-weight:500; color:var(--red); text-decoration:underline; cursor:pointer; }
   .sheet-flavors{ margin-top:24px; }
   .sheet-spec-group + .sheet-spec-group{ margin-top:20px; }
   .sheet-spec-label{ font-size:11px; font-weight:700; color:var(--red); margin-bottom:8px; }
@@ -846,7 +845,6 @@
         <div class="en" id="sheetEn">Name</div>
         <div class="desc" id="sheetDesc">产品描述</div>
       </div>
-      <a class="sheet-tag" id="sheetTag">布丁 Pudding</a>
       <div class="sheet-flavors" id="sheetFlavors"></div>
     </div>
     <div class="sheet-footer">
@@ -1262,7 +1260,6 @@ function openSheet(cat, idx){
   document.getElementById('sheetName').textContent = it.name;
   document.getElementById('sheetEn').textContent = it.en;
   document.getElementById('sheetDesc').textContent = it.desc || '';
-  document.getElementById('sheetTag').textContent = menu[cat].cn + ' ' + menu[cat].en;
   document.querySelector('.sheet-thumb').style.backgroundImage = it.image ? `url('${it.image}')` : '';
   document.querySelector('.sheet-thumb').style.backgroundSize = 'cover';
   document.querySelector('.sheet-thumb').style.backgroundRepeat = 'no-repeat';
