@@ -775,6 +775,54 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
   </div>
 </div>
 
+<!-- REFERRAL RULE MODAL — 邀请裂变：两个固定阶段（注册/首单）各自的奖励数值 -->
+<div class="modal-bg" id="refBg" onclick="if(event.target===this)closeRef()">
+  <div class="mm-box">
+    <div class="mm-hd"><h3 id="refTitle">编辑邀请奖励</h3><button class="mm-cl" onclick="closeRef()">✕</button></div>
+    <div class="mm-body">
+      <div class="mfh" id="refStageLbl" style="margin-top:0;"></div>
+      <label class="mfl">名称 *</label><input class="mfi" id="refName" placeholder="如：好友注册成功">
+      <label class="mfl">奖励成长值 XP</label><input class="mfi" id="refXp" type="number" step="1" placeholder="0">
+      <label class="mfl">奖励 Meow Coin</label><input class="mfi" id="refCoin" type="number" step="1" placeholder="0">
+      <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="refEnabled" checked style="width:auto;margin:0;"> 启用</label>
+      <button class="mfs" onclick="saveRef()">保存 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- COUPON TEMPLATE MODAL — 优惠券模板：新增/编辑 -->
+<div class="modal-bg" id="cpnBg" onclick="if(event.target===this)closeCpn()">
+  <div class="mm-box">
+    <div class="mm-hd"><h3 id="cpnTitle">新增优惠券</h3><button class="mm-cl" onclick="closeCpn()">✕</button></div>
+    <div class="mm-body">
+      <label class="mfl">优惠券名称 *</label><input class="mfi" id="cpnName" placeholder="如：新人优惠券">
+      <label class="mfl">类型 *</label>
+      <select class="mfi" id="cpnType"><option value="fixed_off">减固定金额 RM</option><option value="percent_off">打折（百分比）</option></select>
+      <label class="mfl" id="cpnValueLbl">优惠数值 *</label><input class="mfi" id="cpnValue" type="number" step="0.1" placeholder="0">
+      <label class="mfl">最低消费门槛</label>
+      <div class="mfh">留空/0 = 无门槛</div>
+      <input class="mfi" id="cpnMinSpend" type="number" step="0.1" placeholder="0">
+      <label class="mfl">有效天数（发放后多少天内有效）*</label><input class="mfi" id="cpnValidDays" type="number" step="1" placeholder="30">
+      <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="cpnEnabled" checked style="width:auto;margin:0;"> 启用（停用后不能再发放）</label>
+      <button class="mfs" onclick="saveCpn()">保存 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- COUPON ISSUE MODAL — 发放优惠券给指定会员，或广播给全体会员 -->
+<div class="modal-bg" id="cpnIssueBg" onclick="if(event.target===this)closeCpnIssue()">
+  <div class="mm-box">
+    <div class="mm-hd"><h3>发放优惠券</h3><button class="mm-cl" onclick="closeCpnIssue()">✕</button></div>
+    <div class="mm-body">
+      <div class="mfh" id="cpnIssueWho" style="margin-top:0;"></div>
+      <label class="mfl">会员手机号</label>
+      <div class="mfh">留空 = 发给全体会员（广播）</div>
+      <input class="mfi" id="cpnIssuePhone" placeholder="留空发给全体会员">
+      <button class="mfs" onclick="doCpnIssue()">确认发放</button>
+    </div>
+  </div>
+</div>
+
 </div><!-- /posScale -->
 
 <script>
@@ -1413,7 +1461,7 @@ function setLoyaltyTab(t){_loyaltyTab=t;renderLoyaltyAdmin();}
 function renderLoyaltyAdmin(){
   var el=document.getElementById('adminContent');
   if(!db){el.innerHTML='<div class="page-title">🐱 会员运营 Loyalty</div><div style="padding:30px;color:#8D0505">未连接云端（Supabase 未配置或离线），无法管理会员系统。</div>';return;}
-  var tabs=[['members','会员列表'],['levels','等级设置'],['xp','成长值规则'],['coin','金币规则'],['checkin','签到奖励']];
+  var tabs=[['members','会员列表'],['levels','等级设置'],['xp','成长值规则'],['coin','金币规则'],['checkin','签到奖励'],['referrals','邀请规则'],['coupons','优惠券管理']];
   var html='<div class="page-title">🐱 会员运营 · Loyalty</div>'
     +'<div class="ma-tabs">'+tabs.map(function(t){return '<button class="ma-tab'+(_loyaltyTab===t[0]?' a':'')+'" onclick="setLoyaltyTab(\''+t[0]+'\')">'+t[1]+'</button>';}).join('')+'</div>';
   el.innerHTML=html+'<div id="loyaltyBody">加载中…</div>';
@@ -1422,6 +1470,8 @@ function renderLoyaltyAdmin(){
   else if(_loyaltyTab==='xp') loadLoyaltyRules('xp');
   else if(_loyaltyTab==='coin') loadLoyaltyRules('coin');
   else if(_loyaltyTab==='checkin') loadLoyaltyMilestones();
+  else if(_loyaltyTab==='referrals') loadLoyaltyReferralRules();
+  else if(_loyaltyTab==='coupons') loadLoyaltyCoupons();
 }
 
 /* ---- 会员列表 ---- */
@@ -1638,6 +1688,169 @@ function saveMs(){
 function delMs(id){
   if(!confirm('确定删除该里程碑？'))return;
   db.from('checkin_milestones').delete().eq('id',id).then(function(res){if(res.error){showN('❌ '+res.error.message);return;}showN('🗑️ 已删除');loadLoyaltyMilestones();}).catch(function(e){showN('❌ 网络错误');});
+}
+
+/* ---- 邀请裂变规则（固定两个阶段：注册成功 / 完成首单，不可增删，只能改数值）---- */
+var _loyaltyReferralRules=[];
+function loadLoyaltyReferralRules(){
+  db.from('referral_rules').select('*').then(function(res){
+    if(!res.error) _loyaltyReferralRules=res.data||[];
+    renderLoyaltyReferralRulesBody();
+  }).catch(function(e){});
+}
+var REF_STAGE_LABEL={register:'好友注册成功时',first_order:'好友完成首单时'};
+function renderLoyaltyReferralRulesBody(){
+  var body=document.getElementById('loyaltyBody'); if(!body) return;
+  var html='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">会员分享邀请码给朋友，朋友用邀请码注册、下单，邀请人分阶段获得奖励。</div>';
+  html+='<div class="tx-card"><table><thead><tr><th>触发时机</th><th>名称</th><th>奖励</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+  if(!_loyaltyReferralRules.length){ html+='<tr><td colspan="5" style="text-align:center;padding:30px;color:#4A4848">暂无规则</td></tr>'; }
+  else{
+    _loyaltyReferralRules.forEach(function(r){
+      html+='<tr'+(r.enabled?'':' style="opacity:.5"')+'><td><b>'+(REF_STAGE_LABEL[r.stage]||r.stage)+'</b></td><td>'+esc(r.name)+'</td>'
+        +'<td>'+(r.coin_value?('+'+r.coin_value+' Coin '):'')+(r.xp_value?('+'+r.xp_value+' XP'):'')+'</td>'
+        +'<td>'+(r.enabled?'<span style="color:#1D7715">启用</span>':'<span style="color:#8D0505">停用</span>')+'</td>'
+        +'<td><button onclick="openRef(\''+r.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">改</button></td></tr>';
+    });
+  }
+  html+='</tbody></table></div>';
+  body.innerHTML=html;
+}
+var _refEditId=null;
+function openRef(id){
+  var r=_loyaltyReferralRules.find(function(x){return x.id===id;}); if(!r) return;
+  _refEditId=id;
+  document.getElementById('refTitle').textContent='编辑邀请奖励';
+  document.getElementById('refStageLbl').textContent='触发时机：'+(REF_STAGE_LABEL[r.stage]||r.stage)+'（固定，不可改）';
+  document.getElementById('refName').value=r.name;
+  document.getElementById('refXp').value=r.xp_value||0;
+  document.getElementById('refCoin').value=r.coin_value||0;
+  document.getElementById('refEnabled').checked=r.enabled;
+  document.getElementById('refBg').classList.add('show');
+}
+function closeRef(){document.getElementById('refBg').classList.remove('show');}
+function saveRef(){
+  var name=document.getElementById('refName').value.trim();
+  if(!name){showN('请填写名称');return;}
+  var payload={name:name, xp_value:parseInt(document.getElementById('refXp').value)||0, coin_value:parseInt(document.getElementById('refCoin').value)||0, enabled:document.getElementById('refEnabled').checked};
+  db.from('referral_rules').update(payload).eq('id',_refEditId)
+    .then(function(res){if(res.error){showN('❌ '+res.error.message);return;}showN('✅ 已保存');closeRef();loadLoyaltyReferralRules();}).catch(function(e){showN('❌ 网络错误');});
+}
+
+/* ---- 优惠券管理：模板 CRUD + 发放 + 已发放列表（核销）---- */
+var _loyaltyCoupons=[], _loyaltyMemberCoupons=[], _cpnEditId=null, _cpnIssueId=null;
+function loadLoyaltyCoupons(){
+  Promise.all([
+    db.from('coupons').select('*').then(function(res){ if(!res.error) _loyaltyCoupons=res.data||[]; }),
+    db.rpc('rpc_admin_list_member_coupons',{p_search:null}).then(function(res){ if(!res.error) _loyaltyMemberCoupons=res.data||[]; })
+  ]).then(function(){ renderLoyaltyCouponsBody(); }).catch(function(e){});
+}
+function _cpnValTxt(c){ return c.type==='percent_off' ? (c.value+'% OFF') : ('RM'+c.value+' OFF'); }
+function renderLoyaltyCouponsBody(){
+  var body=document.getElementById('loyaltyBody'); if(!body) return;
+  var html='<div style="display:flex;justify-content:flex-end;margin-bottom:14px"><button onclick="openCpn()" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:700;font-size:13px">＋ 新增优惠券</button></div>';
+  html+='<div class="tx-card" style="margin-bottom:18px"><div class="tx-ch"><h3>优惠券模板</h3></div><table><thead><tr><th>名称</th><th>优惠</th><th>门槛</th><th>有效期</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+  if(!_loyaltyCoupons.length){ html+='<tr><td colspan="6" style="text-align:center;padding:30px;color:#4A4848">暂无优惠券</td></tr>'; }
+  else{
+    _loyaltyCoupons.forEach(function(c){
+      html+='<tr'+(c.enabled?'':' style="opacity:.5"')+'><td><b>'+esc(c.name)+'</b></td><td>'+_cpnValTxt(c)+'</td>'
+        +'<td>'+(c.min_spend>0?('满 RM'+c.min_spend):'无门槛')+'</td><td>'+c.valid_days+' 天</td>'
+        +'<td>'+(c.enabled?'<span style="color:#1D7715">启用</span>':'<span style="color:#8D0505">停用</span>')+'</td>'
+        +'<td style="white-space:nowrap">'
+        +'<button onclick="openCpnIssue(\''+c.id+'\',\''+esc(c.name)+'\')" style="border:none;background:#FFDE5B;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">发放</button>'
+        +'<button onclick="openCpn(\''+c.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">改</button>'
+        +'<button onclick="delCpn(\''+c.id+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">删</button>'
+        +'</td></tr>';
+    });
+  }
+  html+='</tbody></table></div>';
+  html+='<div style="margin-bottom:14px"><input class="mfi" style="max-width:280px;display:inline-block" id="cpnSearchBox" placeholder="搜索手机号/昵称，回车查询" onkeydown="if(event.key===\'Enter\')cpnSearch()"></div>';
+  html+='<div class="tx-card"><div class="tx-ch"><h3>已发放优惠券</h3></div><table><thead><tr><th>会员</th><th>手机号</th><th>优惠券</th><th>状态</th><th>发放时间</th><th>操作</th></tr></thead><tbody>';
+  if(!_loyaltyMemberCoupons.length){ html+='<tr><td colspan="6" style="text-align:center;padding:30px;color:#4A4848">暂无已发放的优惠券</td></tr>'; }
+  else{
+    var stLbl={unused:'<span style="color:#1D7715">未使用</span>',used:'<span style="color:#4A4848">已使用</span>',expired:'<span style="color:#8D0505">已过期</span>'};
+    _loyaltyMemberCoupons.forEach(function(mc){
+      html+='<tr><td><b>'+esc(mc.member_nickname||'—')+'</b></td><td>'+esc(mc.member_phone)+'</td><td>'+esc(mc.coupon_name)+'</td>'
+        +'<td>'+(stLbl[mc.status]||mc.status)+'</td>'
+        +'<td style="font-size:12px;color:#4A4848">'+new Date(mc.issued_at).toLocaleDateString()+'</td>'
+        +'<td>'+(mc.status==='unused'?('<button onclick="cpnRedeem(\''+mc.id+'\')" style="border:none;background:#FFDE5B;color:#8D0505;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">核销</button>'):'—')+'</td></tr>';
+    });
+  }
+  html+='</tbody></table></div>';
+  body.innerHTML=html;
+}
+function cpnSearch(){
+  var kw=document.getElementById('cpnSearchBox').value.trim();
+  db.rpc('rpc_admin_list_member_coupons',{p_search:kw||null}).then(function(res){
+    if(res.error){showN('❌ 查询失败');return;}
+    _loyaltyMemberCoupons=res.data||[];
+    renderLoyaltyCouponsBody();
+  }).catch(function(e){showN('❌ 网络错误');});
+}
+function openCpn(id){
+  _cpnEditId=id||null;
+  var c=id?_loyaltyCoupons.find(function(x){return x.id===id;}):null;
+  document.getElementById('cpnTitle').textContent=id?'编辑优惠券':'新增优惠券';
+  document.getElementById('cpnName').value=c?c.name:'';
+  document.getElementById('cpnType').value=c?c.type:'fixed_off';
+  document.getElementById('cpnValue').value=c?c.value:'';
+  document.getElementById('cpnMinSpend').value=c?c.min_spend:0;
+  document.getElementById('cpnValidDays').value=c?c.valid_days:30;
+  document.getElementById('cpnEnabled').checked=c?c.enabled:true;
+  document.getElementById('cpnBg').classList.add('show');
+}
+function closeCpn(){document.getElementById('cpnBg').classList.remove('show');}
+function saveCpn(){
+  var name=document.getElementById('cpnName').value.trim();
+  if(!name){showN('请填写优惠券名称');return;}
+  var value=parseFloat(document.getElementById('cpnValue').value);
+  if(isNaN(value)||value<=0){showN('优惠数值无效');return;}
+  var validDays=parseInt(document.getElementById('cpnValidDays').value);
+  if(!validDays||validDays<1){showN('请填写有效天数');return;}
+  var payload={
+    name:name, type:document.getElementById('cpnType').value, value:value,
+    min_spend:parseFloat(document.getElementById('cpnMinSpend').value)||0,
+    valid_days:validDays, enabled:document.getElementById('cpnEnabled').checked
+  };
+  var q=_cpnEditId?db.from('coupons').update(payload).eq('id',_cpnEditId):db.from('coupons').insert(payload);
+  q.then(function(res){if(res.error){showN('❌ '+res.error.message);return;}showN('✅ 已保存');closeCpn();loadLoyaltyCoupons();}).catch(function(e){showN('❌ 网络错误');});
+}
+function delCpn(id){
+  if(!confirm('确定删除该优惠券模板？已发出去的券不受影响。'))return;
+  db.from('coupons').delete().eq('id',id).then(function(res){if(res.error){showN('❌ '+res.error.message);return;}showN('🗑️ 已删除');loadLoyaltyCoupons();}).catch(function(e){showN('❌ 网络错误');});
+}
+function openCpnIssue(id,name){
+  _cpnIssueId=id;
+  document.getElementById('cpnIssueWho').textContent='正在发放："'+name+'"';
+  document.getElementById('cpnIssuePhone').value='';
+  document.getElementById('cpnIssueBg').classList.add('show');
+}
+function closeCpnIssue(){document.getElementById('cpnIssueBg').classList.remove('show');}
+function doCpnIssue(){
+  var phone=document.getElementById('cpnIssuePhone').value.trim();
+  var doIssue=function(memberId){
+    db.rpc('rpc_admin_issue_coupon',{p_coupon_id:_cpnIssueId,p_member_id:memberId||null}).then(function(res){
+      if(res.error){showN('❌ '+res.error.message);return;}
+      showN('✅ 已发放给 '+(res.data||0)+' 位会员');
+      closeCpnIssue();loadLoyaltyCoupons();
+    }).catch(function(e){showN('❌ 网络错误');});
+  };
+  if(!phone){
+    if(!confirm('确定要发放给全体会员吗？')) return;
+    doIssue(null);
+    return;
+  }
+  db.rpc('rpc_admin_list_members',{p_search:phone}).then(function(res){
+    if(res.error||!res.data||!res.data.length){showN('❌ 找不到该手机号的会员');return;}
+    var m=res.data.find(function(x){return x.phone===phone;})||res.data[0];
+    doIssue(m.id);
+  }).catch(function(e){showN('❌ 网络错误');});
+}
+function cpnRedeem(memberCouponId){
+  if(!confirm('确定要核销这张优惠券吗？核销后不可撤销。'))return;
+  db.rpc('rpc_pos_use_coupon',{p_member_coupon_id:memberCouponId,p_order_id:null}).then(function(res){
+    if(res.error){showN('❌ '+res.error.message);return;}
+    showN('✅ 已核销');loadLoyaltyCoupons();
+  }).catch(function(e){showN('❌ 网络错误');});
 }
 
 /* ── REPORTS ── */
