@@ -23,6 +23,8 @@ alter table public.member_wallet_ledger enable row level security;
 -- 有意不建 anon policy：跟 xp/coin 流水一样，不给 anon 直接读写权限，只能走下面的 RPC。
 
 -- ---------- 3) 改写 Phase 1 的资料读取函数：把钱包余额也带上 ----------
+-- 返回的列变了（多了 wallet_balance），Postgres 不允许 create or replace 直接改列结构，要先 drop 掉旧的
+drop function if exists public.rpc_get_my_profile(uuid, text);
 create or replace function public.rpc_get_my_profile(p_member_id uuid, p_session_token text)
 returns table(id uuid, phone text, nickname text, avatar_url text, level_id uuid, xp int, coins int,
               draw_tickets int, referral_code text, birthday date, created_at timestamptz, wallet_balance numeric)
@@ -45,6 +47,7 @@ begin
 end; $$;
 
 -- ---------- 5) 改写 Phase 1 的后台会员列表函数：把钱包余额也带上 ----------
+drop function if exists public.rpc_admin_list_members(text);
 create or replace function public.rpc_admin_list_members(p_search text default null)
 returns table(id uuid, phone text, nickname text, level_id uuid, xp int, coins int, created_at timestamptz, last_active_at timestamptz, wallet_balance numeric)
 language plpgsql security definer as $$
