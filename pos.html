@@ -452,12 +452,12 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
 <!-- ══ LOGIN ══ -->
 <div id="loginScreen">
   <div class="lb">
-    <div class="lb-logo">🍮 布丁喵 POS</div>
+    <div class="lb-logo">布丁喵 POS</div>
     <div class="lb-sub">请输入 PIN 码</div>
     <div class="pin-dots">
       <div class="pd" id="d0"></div><div class="pd" id="d1"></div>
       <div class="pd" id="d2"></div><div class="pd" id="d3"></div>
-    </div>
+</div>
     <div class="numpad">
       <button class="nb" onclick="ep(1)">1</button><button class="nb" onclick="ep(2)">2</button><button class="nb" onclick="ep(3)">3</button>
       <button class="nb" onclick="ep(4)">4</button><button class="nb" onclick="ep(5)">5</button><button class="nb" onclick="ep(6)">6</button>
@@ -465,9 +465,9 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
       <button class="nb" style="opacity:0;pointer-events:none"></button>
       <button class="nb" onclick="ep(0)">0</button>
       <button class="nb del" onclick="dp()">⌫</button>
-    </div>
+</div>
     <div class="lerr" id="lerr">&nbsp;</div>
-  </div>
+</div>
 </div>
 
 <!-- ══ POS VIEW ══ -->
@@ -481,44 +481,44 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
     <button class="hdr-pend" onclick="showPending()">
       <span class="pend-num" id="pendNum">0</span>
       Pending Payment
-    </button>
+</button>
     <button class="hdr-exit" onclick="doLogout()">Exit</button>
-  </div>
+</div>
 
   <!-- CART -->
   <div class="cart">
     <div class="cart-top">
       <input class="cart-top-box" id="ctTable" placeholder="桌号 Table" style="border:none;text-align:center;">
       <input class="cart-top-box" id="ctCustomer" placeholder="顾客 Customer" style="border:none;text-align:center;background:#eee;color:#666;">
-    </div>
+</div>
     <div class="cart-cols">
       <span class="col-qty">Qty</span>
       <span class="col-item">Item</span>
       <span class="col-amt">Amount</span>
-    </div>
-    <div class="cart-empty" id="cartEmpty"><span style="font-size:38px">🍮</span>选择商品开始点单</div>
+</div>
+    <div class="cart-empty" id="cartEmpty"><span style="font-size:38px"></span>选择商品开始点单</div>
     <div class="cart-items-wrap" id="cartItems" style="display:none"></div>
     <div class="cart-footer">
       <div class="cf-row1">
         <div class="cf-total-lbl">Total</div>
         <div class="cf-total-rm" id="cartRM">RM 0</div>
-      </div>
+</div>
       <div class="cf-count" id="cartCnt">0 Items</div>
-    </div>
-  </div>
+</div>
+</div>
 
   <!-- T/A CONTROL PANEL -->
   <div class="ta">
     <div class="ta-toggle-row">
       <span class="ta-label">T\A</span>
       <button class="ta-switch" id="taSwitch" onclick="toggleTA()"></button>
-    </div>
+</div>
     <div class="ta-controls">
       <button class="ta-plus" onclick="qtyAdjust(1)"></button>
       <button class="ta-num" id="taNum" onclick="openQtySlot()">0</button>
       <button class="ta-minus" onclick="qtyAdjust(-1)"></button>
-    </div>
-  </div>
+</div>
+</div>
 
   <!-- MENU CATEGORIES -->
   <div class="menu" id="menuArea">
@@ -534,11 +534,11 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
     <div class="item-view" id="itemView">
       <div class="item-view-head">
         <span class="item-cat-name" id="itemCatName"></span>
-      </div>
+</div>
       <div class="item-grid-wrap"><div class="item-grid" id="itemGrid"></div></div>
       <div class="item-view-foot"><button class="item-back-btn" onclick="hideitems()">Back</button></div>
-    </div>
-  </div>
+</div>
+</div>
 
   <!-- ACTION BAR -->
   <div class="action-bar">
@@ -546,7 +546,7 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
     <button class="ab ab2" onclick="printCurrent()">Print Receipt</button>
     <button class="ab ab3" onclick="openItem()">Open Item</button>
     <button class="ab ab4" onclick="deleteItem()">Delete</button>
-  </div>
+</div>
 
 </div><!-- /posView -->
 
@@ -563,9 +563,9 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
         <div class="asi" id="asi-loyalty" onclick="showAdmin('loyalty')">Loyalty</div>
         <div class="asi" onclick="doLogout()">Settings</div>
       </nav>
-    </div>
+</div>
     <div class="a-content" id="adminContent"></div>
-  </div>
+</div>
 </div>
 
 <!-- PAYMENT MODAL — pixel-perfect Figma 570×722 -->
@@ -589,7 +589,7 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
     <button class="pay-cancel-btn" onclick="closePayment()">Cancel</button>
     <!-- Done: left:392, top:610, 150×85, #1D7715 -->
     <button class="pay-done-btn" onclick="confirmPayment()">Done</button>
-  </div>
+</div>
 </div>
 
 <!-- CHANGE OVERLAY (找零) -->
@@ -600,22 +600,22 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
       <div class="change-line"><span class="change-line-lbl">应付 Amount</span><span class="change-line-val" id="chgAmount">RM 0.00</span></div>
       <div class="change-line"><span class="change-line-lbl">实收 Tender</span><span class="change-line-val" id="chgTender">RM 0.00</span></div>
       <div class="change-line big"><span class="change-line-lbl">找零 Change</span><span class="change-line-val" id="chgChange">RM 0.00</span></div>
-    </div>
+</div>
     <button class="change-done" onclick="changeDone()">Done</button>
-  </div>
+</div>
 </div>
 
 <!-- PRINT ASK OVERLAY -->
 <div class="modal-bg" id="askBg">
   <div class="ask-panel">
-    <div class="ask-icon">🧾</div>
+    <div class="ask-icon"></div>
     <div class="ask-title" id="askTitle">打印收据？</div>
     <div class="ask-sub">Print receipt?</div>
     <div class="ask-btns">
       <button class="ask-btn ask-no" onclick="askPrint(false)">No</button>
       <button class="ask-btn ask-yes" onclick="askPrint(true)">Yes</button>
-    </div>
-  </div>
+</div>
+</div>
 </div>
 
 <!-- QTY SLOT PICKER -->
@@ -624,12 +624,12 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
     <div class="slot-title">选择数量 Qty</div>
     <div class="slot-wheel-wrap" id="slotWrap">
       <div class="slot-wheel" id="slotWheel"></div>
-    </div>
+</div>
     <div class="slot-btns">
       <button class="slot-btn slot-cancel" onclick="closeQtySlot()">Cancel</button>
       <button class="slot-btn slot-ok" onclick="confirmQtySlot()">OK</button>
-    </div>
-  </div>
+</div>
+</div>
 </div>
 
 <!-- PENDING MODAL -->
@@ -638,9 +638,9 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
     <div style="background:#8D0505;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
       <span style="font-size:22px;font-weight:700;color:#FFDE5B">待付款订单</span>
       <button onclick="closePending()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:18px;cursor:pointer">✕</button>
-    </div>
+</div>
     <div id="pendList" style="flex:1;overflow-y:auto;padding:16px;"></div>
-  </div>
+</div>
 </div>
 
 <!-- MEMBER MODAL -->
@@ -652,8 +652,8 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
       <label class="mfl">电话 Phone</label><input class="mfi" id="mmPhone" placeholder="0123456789">
       <label class="mfl">备注 Notes</label><input class="mfi" id="mmNotes" placeholder="备注（可选）">
       <button class="mfs" onclick="saveMember()">保存 Save Member</button>
-    </div>
-  </div>
+</div>
+</div>
 </div>
 
 <!-- MENU ITEM MODAL — 1:1 还原后台加新品/编辑设计 -->
@@ -666,7 +666,7 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
       <div class="mi-row2">
         <div class="mi-col"><label class="mi-lbl">中文名*</label><input class="mi-input" id="miName" placeholder="如：布丁芭菲杯"></div>
         <div class="mi-col"><label class="mi-lbl">English Name*</label><input class="mi-input" id="miEn" placeholder="如：Pudding Parfait"></div>
-      </div>
+</div>
       <label class="mi-lbl">产品描述*</label>
       <textarea class="mi-desc" id="miDesc" placeholder="产品简介"></textarea>
       <div id="miSpecGroups"></div>
@@ -674,8 +674,8 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
       <label class="mi-lbl">金额*</label>
       <input class="mi-input" id="miPrice" type="number" step="0.1" style="margin-bottom:18px">
       <button class="mfs" onclick="saveMI()">保存 Save</button>
-    </div>
-  </div>
+</div>
+</div>
 </div>
 
 <!-- IMAGE CROP MODAL — 裁成 380×310（跟小程序商品详情页大图一致比例），列表/购物车/订单缩略图共用同一张裁剪图 -->
@@ -688,10 +688,10 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
       <div class="mi-crop-zoom-row">
         <span class="mi-crop-zoom-lbl">缩放</span>
         <input type="range" id="miCropZoom" min="100" max="300" value="100" oninput="miCropOnZoom()">
-      </div>
+</div>
       <button class="mfs" onclick="miCropConfirm()">确定裁剪 Crop</button>
-    </div>
-  </div>
+</div>
+</div>
 </div>
 
 <!-- SPEC DEF MODAL — 规格库：新增/编辑一条可复用的规格（名称 + 选项，数量不限，自己输入）-->
@@ -704,8 +704,8 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
       <div id="sdOptRows"></div>
       <div class="mi-add-wrap"><button type="button" class="mi-add-round" onclick="sdAddOptRow()">＋</button></div>
       <button class="mfs" onclick="saveSD()">保存 Save</button>
-    </div>
-  </div>
+</div>
+</div>
 </div>
 
 <!-- LEVEL MODAL — 会员等级：新增/编辑 -->
@@ -718,13 +718,13 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
       <label class="mfl">排序（数字越小越低级）*</label><input class="mfi" id="lvlSort" type="number" step="1" placeholder="0,1,2...">
       <label class="mfl">升级所需 XP *</label><input class="mfi" id="lvlXp" type="number" step="1" placeholder="0">
       <label class="mfl">专属颜色</label><input class="mfi" id="lvlColor" type="color" value="#8D0505" style="height:44px;padding:4px;">
-      <label class="mfl">徽章图标（emoji）</label><input class="mfi" id="lvlIcon" placeholder="🥄">
+      <label class="mfl">徽章图标（emoji）</label><input class="mfi" id="lvlIcon" placeholder="">
       <label class="mfl">权益</label>
       <div class="mfh">用逗号分隔，如：生日月双倍金币, 每月8折券</div>
       <input class="mfi" id="lvlPerks" placeholder="生日月双倍金币, 每月8折券">
       <button class="mfs" onclick="saveLvl()">保存 Save</button>
-    </div>
-  </div>
+</div>
+</div>
 </div>
 
 <!-- RULE MODAL — 成长值/金币规则：共用一个弹窗，_ruleTable 记录当前是哪张表 -->
@@ -742,8 +742,8 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
       <input class="mfi" id="ruleDailyCap" type="number" step="1" placeholder="不限">
       <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="ruleEnabled" checked style="width:auto;margin:0;"> 启用</label>
       <button class="mfs" onclick="saveRule()">保存 Save</button>
-    </div>
-  </div>
+</div>
+</div>
 </div>
 
 <!-- CHECKIN MILESTONE MODAL — 签到里程碑：新增/编辑 -->
@@ -755,8 +755,8 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
       <label class="mfl">额外奖励 Meow Coin</label><input class="mfi" id="msCoin" type="number" step="1" placeholder="0">
       <label class="mfl">额外奖励成长值 XP</label><input class="mfi" id="msXp" type="number" step="1" placeholder="0">
       <button class="mfs" onclick="saveMs()">保存 Save</button>
-    </div>
-  </div>
+</div>
+</div>
 </div>
 
 <!-- ADJUST BALANCE MODAL — 人工调整会员余额 -->
@@ -769,10 +769,13 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
       <div class="mfh">正数增加，负数扣减，留空/0 表示不调整</div>
       <input class="mfi" id="adjXp" type="number" step="1" placeholder="0">
       <label class="mfl">Meow Coin 增减</label><input class="mfi" id="adjCoin" type="number" step="1" placeholder="0">
+      <label class="mfl">Meow Wallet 充值/扣款 RM</label>
+      <div class="mfh">柜台收到现金/TnG 后在这里手动充值；正数=充值，负数=扣款</div>
+      <input class="mfi" id="adjWallet" type="number" step="0.1" placeholder="0">
       <label class="mfl">原因</label><input class="mfi" id="adjReason" placeholder="如：客诉补偿">
       <button class="mfs" onclick="saveAdj()">确认调整</button>
-    </div>
-  </div>
+</div>
+</div>
 </div>
 
 <!-- REFERRAL RULE MODAL — 邀请裂变：两个固定阶段（注册/首单）各自的奖励数值 -->
@@ -786,8 +789,8 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
       <label class="mfl">奖励 Meow Coin</label><input class="mfi" id="refCoin" type="number" step="1" placeholder="0">
       <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="refEnabled" checked style="width:auto;margin:0;"> 启用</label>
       <button class="mfs" onclick="saveRef()">保存 Save</button>
-    </div>
-  </div>
+</div>
+</div>
 </div>
 
 <!-- COUPON TEMPLATE MODAL — 优惠券模板：新增/编辑 -->
@@ -805,8 +808,8 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
       <label class="mfl">有效天数（发放后多少天内有效）*</label><input class="mfi" id="cpnValidDays" type="number" step="1" placeholder="30">
       <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="cpnEnabled" checked style="width:auto;margin:0;"> 启用（停用后不能再发放）</label>
       <button class="mfs" onclick="saveCpn()">保存 Save</button>
-    </div>
-  </div>
+</div>
+</div>
 </div>
 
 <!-- COUPON ISSUE MODAL — 发放优惠券给指定会员，或广播给全体会员 -->
@@ -819,8 +822,8 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
       <div class="mfh">留空 = 发给全体会员（广播）</div>
       <input class="mfi" id="cpnIssuePhone" placeholder="留空发给全体会员">
       <button class="mfs" onclick="doCpnIssue()">确认发放</button>
-    </div>
-  </div>
+</div>
+</div>
 </div>
 
 </div><!-- /posScale -->
@@ -842,8 +845,8 @@ function setCloudStatus(s){
   if(!el){ el=document.createElement('div'); el.id='cloudStatus';
     el.style.cssText='position:fixed;right:10px;top:8px;z-index:99999;font-size:12px;padding:4px 10px;border-radius:10px;font-family:sans-serif;box-shadow:0 2px 6px rgba(0,0,0,.25)';
     (document.body||document.documentElement).appendChild(el); }
-  if(s==='online'){ el.textContent='☁ 已连云端'; el.style.background='#1D7715'; el.style.color='#fff'; }
-  else if(s==='offline'){ el.textContent='⚠ 离线·未连云端'; el.style.background='#8D0505'; el.style.color='#fff'; }
+  if(s==='online'){ el.textContent='已连云端'; el.style.background='#1D7715'; el.style.color='#fff'; }
+  else if(s==='offline'){ el.textContent='离线·未连云端'; el.style.background='#8D0505'; el.style.color='#fff'; }
   else { el.textContent='… 连接云端中'; el.style.background='#4A4848'; el.style.color='#fff'; }
 }
 setTimeout(function(){ setCloudStatus(db?'connecting':'offline'); },0);
@@ -995,7 +998,7 @@ function toggleTA(){
   var sw=document.getElementById('taSwitch');
   // taMode=true 堂食(dine-in) 红点在左; false 外卖(take-away) 红点在右
   sw.className='ta-switch'+(taMode?'':' on');
-  showN(taMode?'🍽️ 堂食 Dine-in':'🥡 外卖 Take-away');
+  showN(taMode?'堂食 Dine-in':'外卖 Take-away');
 }
 
 /* ── QTY ADJUSTER (+/- 联动购物车选中项) ── */
@@ -1075,9 +1078,9 @@ function confirmQtySlot(){
 /* ── MENU ── */
 function showItems(cat){
   var it=MENU[cat].items;
-  document.getElementById('itemCatName').textContent=MENU[cat].cn+' '+MENU[cat].en;
+  document.getElementById('itemCatName').textContent=MENU[cat].cn+''+MENU[cat].en;
   document.getElementById('itemGrid').innerHTML=it.map(function(item,i){
-    return '<div class="item-card" onclick="addItem(\''+cat+'\','+i+')">'
+    return'<div class="item-card" onclick="addItem(\''+cat+'\','+i+')">'
       +'<div class="ic-name">'+item.name+'</div>'
       +'</div>';
   }).join('');
@@ -1091,7 +1094,7 @@ function addItem(cat,i){
     if(cart[j].name===it.name){cart[j].qty++;found=true;break;}
   }
   if(!found) cart.push({name:it.name,name_cn:it.name_cn,price:it.price,qty:1});
-  hideitems();renderCart();showN('✅ 已加入：'+it.name);
+  hideitems();renderCart();showN('已加入：'+it.name);
 }
 
 /* ── CART ── */
@@ -1110,7 +1113,7 @@ function renderCart(){
   }
   empty.style.display='none';el.style.display='block';
   el.innerHTML=cart.map(function(it,i){
-    return '<div class="cart-row'+(i===selIdx?' sel':'')+'" onclick="selCart('+i+')">'
+    return'<div class="cart-row'+(i===selIdx?' sel':'')+'" onclick="selCart('+i+')">'
       +'<div class="cr-qty">'+it.qty+'</div>'
       +'<div class="cr-info"><div class="cr-name">'+it.name+'</div><div class="cr-fl">'+it.name_cn+'</div></div>'
       +'<div class="cr-amt">'+(it.qty*it.price).toFixed(2)+'</div>'
@@ -1152,7 +1155,7 @@ function buildNumpad(){
   var np=document.getElementById('payNumpad');
   np.innerHTML=nums.map(function(n){
     var cls=n==='⌫'?'pnb pnb-del':'pnb';
-    return '<button class="'+cls+'" data-key="'+n+'">'+(n==='⌫'?'✕':n)+'</button>';
+    return'<button class="'+cls+'" data-key="'+n+'">'+(n==='⌫'?'✕':n)+'</button>';
   }).join('');
   // 用 pointerdown 事件委托 — 触屏零延迟
   np.addEventListener('pointerdown',function(e){
@@ -1207,7 +1210,7 @@ function confirmPayment(){
   var tender=parseFloat(tenderInput)||0;
   if(payMethod==='cash'){
     if(tender<payTotalAmount){
-      showN('⚠️ 收款金额不足！还差 RM '+(payTotalAmount-tender).toFixed(2));
+      showN('收款金额不足！还差 RM '+(payTotalAmount-tender).toFixed(2));
       return;
     }
   } else {
@@ -1251,14 +1254,14 @@ function askPrint(yes){
   document.getElementById('ctTable').value='';
   document.getElementById('ctCustomer').value='';
   renderCart();updPend();
-  showN('✅ 付款完成！#'+o.orderNum);
+  showN('付款完成！#'+o.orderNum);
   _pendingOrder=null;
 }
 
 /* ── PRINT ── */
 function printRec(o){
   var dt=new Date(o.createdAt);var p=function(n){return String(n).padStart(2,'0');};
-  var ds=dt.getFullYear()+'-'+p(dt.getMonth()+1)+'-'+p(dt.getDate())+' '+p(dt.getHours())+':'+p(dt.getMinutes());
+  var ds=dt.getFullYear()+'-'+p(dt.getMonth()+1)+'-'+p(dt.getDate())+''+p(dt.getHours())+':'+p(dt.getMinutes());
   var pm={cash:'现金 Cash',tng:'DuitNow/TNG',card:'刷卡 Card',counter:'挂账'};
   document.getElementById('rcc').innerHTML='<div class="rc">'
     +'<div class="rt">Pudding Meow 布丁喵</div>'
@@ -1268,13 +1271,13 @@ function printRec(o){
     +'<div class="rr"><span>#'+o.orderNum+'</span><span>'+o.tableName+(o.taMode==='takeaway'?' (外卖)':'')+'</span></div>'
     +'<div class="rc2">'+ds+'</div>'
     +'<div class="rd"></div>'
-    +(o.items||[]).map(function(it){return '<div class="rb">'+it.name+'</div><div class="rr"><span>  '+it.name_cn+' ×'+it.qty+'</span><span>RM '+(it.qty*it.price).toFixed(2)+'</span></div>';}).join('')
+    +(o.items||[]).map(function(it){return'<div class="rb">'+it.name+'</div><div class="rr"><span>'+it.name_cn+' ×'+it.qty+'</span><span>RM '+(it.qty*it.price).toFixed(2)+'</span></div>';}).join('')
     +'<div class="rd"></div>'
     +'<div class="rr rb" style="font-size:14px"><span>TOTAL</span><span>RM '+(o.total||0).toFixed(2)+'</span></div>'
-    +'<div>Payment: '+(pm[o.payMethod]||o.payMethod)+'</div>'
+    +'<div>Payment:'+(pm[o.payMethod]||o.payMethod)+'</div>'
     +'<div class="rd"></div>'
     +'<div class="rc2">谢谢光临！Thank you!</div>'
-    +'<div class="rc2">欢迎下次再来 🍮</div>'
+    +'<div class="rc2">欢迎下次再来</div>'
     +'<div style="margin-top:14px">&nbsp;</div></div>';
   window.print();
 }
@@ -1287,14 +1290,14 @@ function updPend(){
 function showPending(){
   var pend=_orders.filter(function(o){return o.status==='pending';});
   var el=document.getElementById('pendList');
-  if(!pend.length){el.innerHTML='<div style="text-align:center;padding:30px;color:#4A4848">暂无待付款订单 🍮</div>';}
+  if(!pend.length){el.innerHTML='<div style="text-align:center;padding:30px;color:#4A4848">暂无待付款订单</div>';}
   else{el.innerHTML=pend.map(function(o){
-    return '<div style="background:#FFFFD5;border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px">'
-      +'<div><div style="font-weight:700;font-size:15px;color:#8D0505">#'+o.orderNum+' '+o.tableName+'</div>'
+    return'<div style="background:#FFFFD5;border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px">'
+      +'<div><div style="font-weight:700;font-size:15px;color:#8D0505">#'+o.orderNum+''+o.tableName+'</div>'
       +'<div style="font-size:11px;color:#4A4848;margin-top:3px">'+o.items.map(function(i){return i.name+'×'+i.qty;}).join('、')+' · RM '+o.total.toFixed(2)+'</div></div>'
       +'<div style="display:flex;gap:8px">'
       +'<button onclick="markPaid(\''+o.id+'\')" style="height:32px;border-radius:8px;border:none;background:#B6F3FF;color:#8D0505;font-size:12px;font-weight:700;cursor:pointer;padding:0 12px;font-family:Noto Sans SC,sans-serif">已付款</button>'
-      +'<button onclick="reprO(\''+o.id+'\')" style="height:32px;border-radius:8px;border:none;background:#FFDE5B;color:#8D0505;font-size:12px;font-weight:700;cursor:pointer;padding:0 10px">🖨️</button>'
+      +'<button onclick="reprO(\''+o.id+'\')" style="height:32px;border-radius:8px;border:none;background:#FFDE5B;color:#8D0505;font-size:12px;font-weight:700;cursor:pointer;padding:0 10px"></button>'
       +'</div></div>';
   }).join('');}
   document.getElementById('pendBg').classList.add('show');
@@ -1326,10 +1329,10 @@ function txMode(o){ return o.taMode==='takeaway'?'takeaway':'dinein'; }
 /* 三种模式（堂食/自取/外卖）：app 订单从 tableName 里带的中文关键字判断；POS 现场单没有"自取"概念，按 taMode 归入堂食/外卖 */
 function orderMode3(o){
   var tn=o.tableName||'';
-  if(tn.indexOf('自取')>=0) return 'pickup';
-  if(tn.indexOf('外卖')>=0) return 'takeaway';
-  if(tn.indexOf('堂食')>=0) return 'dinein';
-  return txMode(o)==='takeaway' ? 'takeaway' : 'dinein';
+  if(tn.indexOf('自取')>=0) return'pickup';
+  if(tn.indexOf('外卖')>=0) return'takeaway';
+  if(tn.indexOf('堂食')>=0) return'dinein';
+  return txMode(o)==='takeaway' ?'takeaway' :'dinein';
 }
 function renderDash(){
   var today=new Date().toDateString();var dd=_vDate||today;
@@ -1380,10 +1383,10 @@ function renderDash(){
       +'<tbody>'+(filtered.length?filtered.map(function(o){
         var dt=new Date(o.createdAt);var p=function(n){return String(n).padStart(2,'0');};
         var pm2={cash:'Cash',tng:'DuitNow',card:'Card',counter:'Counter'};
-        var statusHtml=o.status==='void' ? '<span class="badge b-void">已作废</span>'
-          : o.status==='pending' ? '<span class="badge b-pend">待付款</span>'
-          : '<span class="badge b-paid">已付款</span>';
-        return '<tr class="tx-row'+(o.id===_txSelId?' tx-sel':'')+'" onclick="selectTx(\''+o.id+'\')">'
+        var statusHtml=o.status==='void' ?'<span class="badge b-void">已作废</span>'
+          : o.status==='pending' ?'<span class="badge b-pend">待付款</span>'
+          :'<span class="badge b-paid">已付款</span>';
+        return'<tr class="tx-row'+(o.id===_txSelId?' tx-sel':'')+'" onclick="selectTx(\''+o.id+'\')">'
           +'<td><b style="color:#8D0505">#'+o.orderNum+'</b></td>'
           +'<td style="color:#4A4848;font-size:11px">'+p(dt.getHours())+':'+p(dt.getMinutes())+'</td>'
           +'<td>'+(txMode(o)==='takeaway'?'外卖':'堂食')+'</td>'
@@ -1393,10 +1396,10 @@ function renderDash(){
       }).join(''):'<tr><td colspan="6" style="text-align:center;padding:30px;color:#4A4848">暂无交易记录</td></tr>')
       +'</tbody></table></div></div>'
       +'<div class="tx-right tx-card"><div class="tx-ch"><h3>商品</h3></div>'
-      +(selOrder ? '<div style="padding:14px 18px;display:flex;flex-direction:column;height:calc(100% - 20px)">'
+      +(selOrder ?'<div style="padding:14px 18px;display:flex;flex-direction:column;height:calc(100% - 20px)">'
         +'<div style="flex:1">'
         +'<div style="font-size:12px;color:#4A4848;margin-bottom:8px">订单 #'+selOrder.orderNum+'</div>'
-        +selOrder.items.map(function(i){return '<div class="pd-item"><span>'+i.name+' ×'+i.qty+'</span><span>RM '+((i.price||0)*i.qty).toFixed(2)+'</span></div>';}).join('')
+        +selOrder.items.map(function(i){return'<div class="pd-item"><span>'+i.name+' ×'+i.qty+'</span><span>RM '+((i.price||0)*i.qty).toFixed(2)+'</span></div>';}).join('')
         +'<div class="pd-item" style="border-top:2px solid #F5E9D4;margin-top:6px;padding-top:10px"><b>总计</b><b>RM '+selOrder.total.toFixed(2)+'</b></div>'
         +'</div>'
         +'<div style="display:flex;gap:10px;margin-top:12px">'
@@ -1404,7 +1407,7 @@ function renderDash(){
           +'<button class="print-btn print-btn-lg" onclick="reprO(\''+selOrder.id+'\')">Print</button>'
         +'</div>'
         +'</div>'
-        : '<div class="pd-empty">点击左侧订单查看商品明细</div>')
+        :'<div class="pd-empty">点击左侧订单查看商品明细</div>')
       +'</div>'
     +'</div>';
 }
@@ -1430,14 +1433,14 @@ function voidOrder(id){
 function renderMembers(){
   var el=document.getElementById('adminContent');
   el.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
-    +'<div class="page-title" style="margin:0">👤 会员管理 Members</div>'
+    +'<div class="page-title" style="margin:0">会员管理 Members</div>'
     +'<button class="add-btn" onclick="openMM()">+ 新增会员</button></div>'
-    +(!_members.length?'<div style="text-align:center;padding:60px;color:#4A4848">暂无会员 🍮</div>'
+    +(!_members.length?'<div style="text-align:center;padding:60px;color:#4A4848">暂无会员</div>'
     :'<div class="mem-grid">'+_members.map(function(m,i){
       var v=_orders.filter(function(o){return o.memberId===m.id;}).length;
       var s=_orders.filter(function(o){return o.memberId===m.id;}).reduce(function(t,o){return t+o.total;},0);
-      return '<div class="mem-card"><div style="display:flex;justify-content:space-between">'
-        +'<div><div class="mem-name">'+m.name+'</div><div class="mem-ph">📞 '+(m.phone||'-')+'</div>'+(m.notes?'<div class="mem-ph">'+m.notes+'</div>':'')+'</div>'
+      return'<div class="mem-card"><div style="display:flex;justify-content:space-between">'
+        +'<div><div class="mem-name">'+m.name+'</div><div class="mem-ph">'+(m.phone||'-')+'</div>'+(m.notes?'<div class="mem-ph">'+m.notes+'</div>':'')+'</div>'
         +'<button onclick="delMem('+i+')" style="border:none;background:transparent;color:#ccc;font-size:20px;cursor:pointer">×</button></div>'
         +'<div class="mem-stat"><div class="msi"><div class="v">'+v+'</div><div class="l">次消费</div></div>'
         +'<div class="msi"><div class="v">RM '+s.toFixed(0)+'</div><div class="l">总消费额</div></div></div>'
@@ -1450,7 +1453,7 @@ function saveMember(){
   var n=document.getElementById('mmName').value.trim();
   if(!n){showN('请输入会员姓名');return;}
   _members.push({id:'m'+Date.now(),name:n,phone:document.getElementById('mmPhone').value.trim(),notes:document.getElementById('mmNotes').value.trim(),joinedAt:new Date().toISOString()});
-  sj('pm_members',_members);closeMM();renderMembers();showN('✅ 已新增：'+n);
+  sj('pm_members',_members);closeMM();renderMembers();showN('已新增：'+n);
 }
 function delMem(i){if(!confirm('确定删除？'))return;_members.splice(i,1);sj('pm_members',_members);renderMembers();}
 
@@ -1460,10 +1463,10 @@ var _loyaltyLevels=[], _loyaltyXpRules=[], _loyaltyCoinRules=[], _loyaltyMilesto
 function setLoyaltyTab(t){_loyaltyTab=t;renderLoyaltyAdmin();}
 function renderLoyaltyAdmin(){
   var el=document.getElementById('adminContent');
-  if(!db){el.innerHTML='<div class="page-title">🐱 会员运营 Loyalty</div><div style="padding:30px;color:#8D0505">未连接云端（Supabase 未配置或离线），无法管理会员系统。</div>';return;}
+  if(!db){el.innerHTML='<div class="page-title">会员运营 Loyalty</div><div style="padding:30px;color:#8D0505">未连接云端（Supabase 未配置或离线），无法管理会员系统。</div>';return;}
   var tabs=[['members','会员列表'],['levels','等级设置'],['xp','成长值规则'],['coin','金币规则'],['checkin','签到奖励'],['referrals','邀请规则'],['coupons','优惠券管理']];
-  var html='<div class="page-title">🐱 会员运营 · Loyalty</div>'
-    +'<div class="ma-tabs">'+tabs.map(function(t){return '<button class="ma-tab'+(_loyaltyTab===t[0]?' a':'')+'" onclick="setLoyaltyTab(\''+t[0]+'\')">'+t[1]+'</button>';}).join('')+'</div>';
+  var html='<div class="page-title">会员运营 · Loyalty</div>'
+    +'<div class="ma-tabs">'+tabs.map(function(t){return'<button class="ma-tab'+(_loyaltyTab===t[0]?' a':'')+'" onclick="setLoyaltyTab(\''+t[0]+'\')">'+t[1]+'</button>';}).join('')+'</div>';
   el.innerHTML=html+'<div id="loyaltyBody">加载中…</div>';
   if(_loyaltyTab==='members') loadLoyaltyMembers();
   else if(_loyaltyTab==='levels') loadLoyaltyLevels();
@@ -1480,23 +1483,23 @@ function loadLoyaltyMembers(kw){
   need.then(function(){
     return db.rpc('rpc_admin_list_members',{p_search:kw||null});
   }).then(function(res){
-    if(res.error){showN('❌ 读取会员失败');return;}
+    if(res.error){showN('读取会员失败');return;}
     _loyaltyMembers=res.data||[];
     renderLoyaltyMembersBody();
-  }).catch(function(e){showN('❌ 网络错误');});
+  }).catch(function(e){showN('网络错误');});
 }
 function renderLoyaltyMembersBody(){
   var body=document.getElementById('loyaltyBody'); if(!body) return;
   var html='<div style="margin-bottom:14px"><input class="mfi" style="max-width:280px;display:inline-block" id="loyaltySearchBox" placeholder="搜索手机号/昵称，回车查询" onkeydown="if(event.key===\'Enter\')loyaltySearch()"></div>';
-  html+='<div class="tx-card"><table><thead><tr><th>昵称</th><th>手机号</th><th>等级</th><th>XP</th><th>Meow Coin</th><th>注册时间</th><th>操作</th></tr></thead><tbody>';
+  html+='<div class="tx-card"><table><thead><tr><th>昵称</th><th>手机号</th><th>等级</th><th>XP</th><th>Meow Coin</th><th>Meow Wallet</th><th>注册时间</th><th>操作</th></tr></thead><tbody>';
   if(!_loyaltyMembers.length){
-    html+='<tr><td colspan="7" style="text-align:center;padding:30px;color:#4A4848">暂无会员</td></tr>';
+    html+='<tr><td colspan="8" style="text-align:center;padding:30px;color:#4A4848">暂无会员</td></tr>';
   }else{
     _loyaltyMembers.forEach(function(m){
       var lvl=_loyaltyLevels.find(function(l){return l.id===m.level_id;});
       html+='<tr><td><b>'+esc(m.nickname||'—')+'</b></td><td>'+esc(m.phone)+'</td>'
-        +'<td>'+(lvl?('<span style="color:'+lvl.color_hex+';font-weight:700">'+(lvl.badge_icon||'')+' '+esc(lvl.name_cn)+'</span>'):'—')+'</td>'
-        +'<td>'+(m.xp||0)+'</td><td>'+(m.coins||0)+'</td>'
+        +'<td>'+(lvl?('<span style="color:'+lvl.color_hex+';font-weight:700">'+(lvl.badge_icon||'')+''+esc(lvl.name_cn)+'</span>'):'—')+'</td>'
+        +'<td>'+(m.xp||0)+'</td><td>'+(m.coins||0)+'</td><td>RM '+Number(m.wallet_balance||0).toFixed(1)+'</td>'
         +'<td style="font-size:12px;color:#4A4848">'+new Date(m.created_at).toLocaleDateString()+'</td>'
         +'<td><button onclick="openAdj(\''+m.id+'\',\''+esc(m.nickname||m.phone)+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">调整余额</button></td></tr>';
     });
@@ -1506,16 +1509,22 @@ function renderLoyaltyMembersBody(){
 }
 function loyaltySearch(){loadLoyaltyMembers(document.getElementById('loyaltySearchBox').value.trim());}
 var _adjMemberId=null;
-function openAdj(id,label){_adjMemberId=id;document.getElementById('adjWho').textContent='正在调整：'+label;document.getElementById('adjXp').value='';document.getElementById('adjCoin').value='';document.getElementById('adjReason').value='';document.getElementById('adjBg').classList.add('show');}
+function openAdj(id,label){_adjMemberId=id;document.getElementById('adjWho').textContent='正在调整：'+label;document.getElementById('adjXp').value='';document.getElementById('adjCoin').value='';document.getElementById('adjWallet').value='';document.getElementById('adjReason').value='';document.getElementById('adjBg').classList.add('show');}
 function closeAdj(){document.getElementById('adjBg').classList.remove('show');}
 function saveAdj(){
   var xpD=parseInt(document.getElementById('adjXp').value)||0;
   var coinD=parseInt(document.getElementById('adjCoin').value)||0;
+  var walletD=parseFloat(document.getElementById('adjWallet').value)||0;
   var reason=document.getElementById('adjReason').value.trim();
-  if(!xpD && !coinD){showN('请至少填写一项调整数值');return;}
-  db.rpc('rpc_admin_adjust_balance',{p_member_id:_adjMemberId,p_xp_delta:xpD,p_coin_delta:coinD,p_reason:reason||null})
-    .then(function(res){if(res.error){showN('❌ '+res.error.message);return;}showN('✅ 已调整');closeAdj();loadLoyaltyMembers();})
-    .catch(function(e){showN('❌ 网络错误');});
+  if(!xpD && !coinD && !walletD){showN('请至少填写一项调整数值');return;}
+  var tasks=[];
+  if(xpD||coinD) tasks.push(db.rpc('rpc_admin_adjust_balance',{p_member_id:_adjMemberId,p_xp_delta:xpD,p_coin_delta:coinD,p_reason:reason||null}));
+  if(walletD) tasks.push(db.rpc('rpc_admin_topup_wallet',{p_member_id:_adjMemberId,p_amount:walletD,p_reason:reason||null}));
+  Promise.all(tasks).then(function(results){
+    var err=results.find(function(res){return res&&res.error;});
+    if(err){showN(''+err.error.message);return;}
+    showN('已调整');closeAdj();loadLoyaltyMembers();
+  }).catch(function(e){showN('网络错误');});
 }
 
 /* ---- 等级设置 ---- */
@@ -1533,7 +1542,7 @@ function renderLoyaltyLevelsBody(){
   else{
     _loyaltyLevels.forEach(function(l){
       html+='<tr><td>'+l.sort_order+'</td>'
-        +'<td><b style="color:'+l.color_hex+'">'+(l.badge_icon||'')+' '+esc(l.name_cn)+'</b><div style="font-size:11px;color:#4A4848">'+esc(l.name_en||'')+'</div></td>'
+        +'<td><b style="color:'+l.color_hex+'">'+(l.badge_icon||'')+''+esc(l.name_cn)+'</b><div style="font-size:11px;color:#4A4848">'+esc(l.name_en||'')+'</div></td>'
         +'<td>'+l.xp_required+'</td>'
         +'<td><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:'+l.color_hex+';vertical-align:middle"></span></td>'
         +'<td style="font-size:12px;color:#4A4848">'+(l.perks||[]).join('、')+'</td>'
@@ -1555,7 +1564,7 @@ function openLvl(id){
   document.getElementById('lvlXp').value=l?l.xp_required:0;
   document.getElementById('lvlColor').value=l?l.color_hex:'#8D0505';
   document.getElementById('lvlIcon').value=l?(l.badge_icon||''):'';
-  document.getElementById('lvlPerks').value=l&&l.perks?l.perks.join(', '):'';
+  document.getElementById('lvlPerks').value=l&&l.perks?l.perks.join(','):'';
   document.getElementById('lvlBg').classList.add('show');
 }
 function closeLvl(){document.getElementById('lvlBg').classList.remove('show');}
@@ -1571,11 +1580,11 @@ function saveLvl(){
     perks:_miParseList(document.getElementById('lvlPerks').value)
   };
   var q=_lvlEditId?db.from('member_levels').update(payload).eq('id',_lvlEditId):db.from('member_levels').insert(payload);
-  q.then(function(res){if(res.error){showN('❌ '+res.error.message);return;}showN('✅ 已保存');closeLvl();loadLoyaltyLevels();}).catch(function(e){showN('❌ 网络错误');});
+  q.then(function(res){if(res.error){showN(''+res.error.message);return;}showN('已保存');closeLvl();loadLoyaltyLevels();}).catch(function(e){showN('网络错误');});
 }
 function delLvl(id){
   if(!confirm('确定删除该等级？已在此等级的会员不会自动变更等级。'))return;
-  db.from('member_levels').delete().eq('id',id).then(function(res){if(res.error){showN('❌ '+res.error.message);return;}showN('🗑️ 已删除');loadLoyaltyLevels();}).catch(function(e){showN('❌ 网络错误');});
+  db.from('member_levels').delete().eq('id',id).then(function(res){if(res.error){showN(''+res.error.message);return;}showN('已删除');loadLoyaltyLevels();}).catch(function(e){showN('网络错误');});
 }
 
 /* ---- 成长值 / 金币规则（共用逻辑，_ruleTable 记录当前表）---- */
@@ -1591,7 +1600,7 @@ function renderLoyaltyRulesBody(kind){
   var body=document.getElementById('loyaltyBody'); if(!body) return;
   var rows=kind==='xp'?_loyaltyXpRules:_loyaltyCoinRules;
   var unit=kind==='xp'?'XP':'Coin';
-  var html='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">改这里的数值，小程序里对应行为获得的'+unit+'会立即变化。</div>';
+  var html='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">改这里的数值，小程序里对应行为获得的 '+unit+' 会立即变化。</div>';
   html+='<div style="display:flex;justify-content:flex-end;margin-bottom:14px"><button onclick="openRule()" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:700;font-size:13px">＋ 新增规则</button></div>';
   html+='<div class="tx-card"><table><thead><tr><th>名称</th><th>行为标识</th><th>数值</th><th>每日上限</th><th>状态</th><th>操作</th></tr></thead><tbody>';
   if(!rows.length){ html+='<tr><td colspan="6" style="text-align:center;padding:30px;color:#4A4848">暂无规则</td></tr>'; }
@@ -1599,7 +1608,7 @@ function renderLoyaltyRulesBody(kind){
     rows.forEach(function(r){
       var val=kind==='xp'?r.xp_value:r.coin_value;
       html+='<tr'+(r.enabled?'':' style="opacity:.5"')+'><td><b>'+esc(r.name)+'</b></td><td style="font-size:12px;color:#4A4848">'+esc(r.action_key)+'</td>'
-        +'<td>'+val+' '+unit+'</td><td>'+(r.daily_cap==null?'不限':r.daily_cap)+'</td>'
+        +'<td>'+val+''+unit+'</td><td>'+(r.daily_cap==null?'不限':r.daily_cap)+'</td>'
         +'<td>'+(r.enabled?'<span style="color:#1D7715">启用</span>':'<span style="color:#8D0505">停用</span>')+'</td>'
         +'<td><button onclick="openRule(\''+r.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">改</button>'
         +'<button onclick="delRule(\''+r.id+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">删</button></td></tr>';
@@ -1635,12 +1644,12 @@ function saveRule(){
   var payload={action_key:actionKey,name:name,daily_cap:capStr?parseInt(capStr):null,enabled:document.getElementById('ruleEnabled').checked};
   payload[kind==='xp'?'xp_value':'coin_value']=value;
   var q=_ruleEditId?db.from(_ruleTable).update(payload).eq('id',_ruleEditId):db.from(_ruleTable).insert(payload);
-  q.then(function(res){if(res.error){showN('❌ '+res.error.message);return;}showN('✅ 已保存');closeRule();loadLoyaltyRules(kind);}).catch(function(e){showN('❌ 网络错误');});
+  q.then(function(res){if(res.error){showN(''+res.error.message);return;}showN('已保存');closeRule();loadLoyaltyRules(kind);}).catch(function(e){showN('网络错误');});
 }
 function delRule(id){
   var kind=_ruleTable==='xp_rules'?'xp':'coin';
   if(!confirm('确定删除该规则？'))return;
-  db.from(_ruleTable).delete().eq('id',id).then(function(res){if(res.error){showN('❌ '+res.error.message);return;}showN('🗑️ 已删除');loadLoyaltyRules(kind);}).catch(function(e){showN('❌ 网络错误');});
+  db.from(_ruleTable).delete().eq('id',id).then(function(res){if(res.error){showN(''+res.error.message);return;}showN('已删除');loadLoyaltyRules(kind);}).catch(function(e){showN('网络错误');});
 }
 
 /* ---- 签到里程碑 ---- */
@@ -1658,7 +1667,7 @@ function renderLoyaltyMilestonesBody(){
   else{
     _loyaltyMilestones.forEach(function(m){
       var r=m.reward||{};
-      html+='<tr><td><b>第 '+m.streak_days+' 天</b></td>'
+      html+='<tr><td><b>第'+m.streak_days+' 天</b></td>'
         +'<td>'+(r.coin?('+'+r.coin+' Coin '):'')+(r.xp?('+'+r.xp+' XP'):'')+'</td>'
         +'<td><button onclick="openMs(\''+m.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">改</button>'
         +'<button onclick="delMs(\''+m.id+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">删</button></td></tr>';
@@ -1683,11 +1692,11 @@ function saveMs(){
   if(!days||days<1){showN('请填写有效的天数');return;}
   var payload={streak_days:days,reward:{coin:parseInt(document.getElementById('msCoin').value)||0,xp:parseInt(document.getElementById('msXp').value)||0}};
   var q=_msEditId?db.from('checkin_milestones').update(payload).eq('id',_msEditId):db.from('checkin_milestones').insert(payload);
-  q.then(function(res){if(res.error){showN('❌ '+res.error.message);return;}showN('✅ 已保存');closeMs();loadLoyaltyMilestones();}).catch(function(e){showN('❌ 网络错误');});
+  q.then(function(res){if(res.error){showN(''+res.error.message);return;}showN('已保存');closeMs();loadLoyaltyMilestones();}).catch(function(e){showN('网络错误');});
 }
 function delMs(id){
   if(!confirm('确定删除该里程碑？'))return;
-  db.from('checkin_milestones').delete().eq('id',id).then(function(res){if(res.error){showN('❌ '+res.error.message);return;}showN('🗑️ 已删除');loadLoyaltyMilestones();}).catch(function(e){showN('❌ 网络错误');});
+  db.from('checkin_milestones').delete().eq('id',id).then(function(res){if(res.error){showN(''+res.error.message);return;}showN('已删除');loadLoyaltyMilestones();}).catch(function(e){showN('网络错误');});
 }
 
 /* ---- 邀请裂变规则（固定两个阶段：注册成功 / 完成首单，不可增删，只能改数值）---- */
@@ -1733,7 +1742,7 @@ function saveRef(){
   if(!name){showN('请填写名称');return;}
   var payload={name:name, xp_value:parseInt(document.getElementById('refXp').value)||0, coin_value:parseInt(document.getElementById('refCoin').value)||0, enabled:document.getElementById('refEnabled').checked};
   db.from('referral_rules').update(payload).eq('id',_refEditId)
-    .then(function(res){if(res.error){showN('❌ '+res.error.message);return;}showN('✅ 已保存');closeRef();loadLoyaltyReferralRules();}).catch(function(e){showN('❌ 网络错误');});
+    .then(function(res){if(res.error){showN(''+res.error.message);return;}showN('已保存');closeRef();loadLoyaltyReferralRules();}).catch(function(e){showN('网络错误');});
 }
 
 /* ---- 优惠券管理：模板 CRUD + 发放 + 已发放列表（核销）---- */
@@ -1781,10 +1790,10 @@ function renderLoyaltyCouponsBody(){
 function cpnSearch(){
   var kw=document.getElementById('cpnSearchBox').value.trim();
   db.rpc('rpc_admin_list_member_coupons',{p_search:kw||null}).then(function(res){
-    if(res.error){showN('❌ 查询失败');return;}
+    if(res.error){showN('查询失败');return;}
     _loyaltyMemberCoupons=res.data||[];
     renderLoyaltyCouponsBody();
-  }).catch(function(e){showN('❌ 网络错误');});
+  }).catch(function(e){showN('网络错误');});
 }
 function openCpn(id){
   _cpnEditId=id||null;
@@ -1812,11 +1821,11 @@ function saveCpn(){
     valid_days:validDays, enabled:document.getElementById('cpnEnabled').checked
   };
   var q=_cpnEditId?db.from('coupons').update(payload).eq('id',_cpnEditId):db.from('coupons').insert(payload);
-  q.then(function(res){if(res.error){showN('❌ '+res.error.message);return;}showN('✅ 已保存');closeCpn();loadLoyaltyCoupons();}).catch(function(e){showN('❌ 网络错误');});
+  q.then(function(res){if(res.error){showN(''+res.error.message);return;}showN('已保存');closeCpn();loadLoyaltyCoupons();}).catch(function(e){showN('网络错误');});
 }
 function delCpn(id){
   if(!confirm('确定删除该优惠券模板？已发出去的券不受影响。'))return;
-  db.from('coupons').delete().eq('id',id).then(function(res){if(res.error){showN('❌ '+res.error.message);return;}showN('🗑️ 已删除');loadLoyaltyCoupons();}).catch(function(e){showN('❌ 网络错误');});
+  db.from('coupons').delete().eq('id',id).then(function(res){if(res.error){showN(''+res.error.message);return;}showN('已删除');loadLoyaltyCoupons();}).catch(function(e){showN('网络错误');});
 }
 function openCpnIssue(id,name){
   _cpnIssueId=id;
@@ -1829,10 +1838,10 @@ function doCpnIssue(){
   var phone=document.getElementById('cpnIssuePhone').value.trim();
   var doIssue=function(memberId){
     db.rpc('rpc_admin_issue_coupon',{p_coupon_id:_cpnIssueId,p_member_id:memberId||null}).then(function(res){
-      if(res.error){showN('❌ '+res.error.message);return;}
-      showN('✅ 已发放给 '+(res.data||0)+' 位会员');
+      if(res.error){showN(''+res.error.message);return;}
+      showN('已发放给 '+(res.data||0)+' 位会员');
       closeCpnIssue();loadLoyaltyCoupons();
-    }).catch(function(e){showN('❌ 网络错误');});
+    }).catch(function(e){showN('网络错误');});
   };
   if(!phone){
     if(!confirm('确定要发放给全体会员吗？')) return;
@@ -1840,17 +1849,17 @@ function doCpnIssue(){
     return;
   }
   db.rpc('rpc_admin_list_members',{p_search:phone}).then(function(res){
-    if(res.error||!res.data||!res.data.length){showN('❌ 找不到该手机号的会员');return;}
+    if(res.error||!res.data||!res.data.length){showN('找不到该手机号的会员');return;}
     var m=res.data.find(function(x){return x.phone===phone;})||res.data[0];
     doIssue(m.id);
-  }).catch(function(e){showN('❌ 网络错误');});
+  }).catch(function(e){showN('网络错误');});
 }
 function cpnRedeem(memberCouponId){
   if(!confirm('确定要核销这张优惠券吗？核销后不可撤销。'))return;
   db.rpc('rpc_pos_use_coupon',{p_member_coupon_id:memberCouponId,p_order_id:null}).then(function(res){
-    if(res.error){showN('❌ '+res.error.message);return;}
-    showN('✅ 已核销');loadLoyaltyCoupons();
-  }).catch(function(e){showN('❌ 网络错误');});
+    if(res.error){showN(''+res.error.message);return;}
+    showN('已核销');loadLoyaltyCoupons();
+  }).catch(function(e){showN('网络错误');});
 }
 
 /* ── REPORTS ── */
@@ -1864,7 +1873,7 @@ function renderReports(){
   var days={};mords.forEach(function(o){var d=o.createdAt.slice(0,10);days[d]=(days[d]||0)+o.total;});
   var maxD=Math.max.apply(null,Object.values(days).concat([1]));
   var el=document.getElementById('adminContent');
-  el.innerHTML='<div class="page-title">📈 月度报告 Monthly Report</div>'
+  el.innerHTML='<div class="page-title">月度报告 Monthly Report</div>'
     +'<div style="display:flex;gap:12px;align-items:center;margin-bottom:18px">'
     +'<input type="month" value="'+selM+'" onchange="setRM(this.value)"><span style="font-size:14px;color:#4A4848">选择月份</span></div>'
     +'<div class="kpi-row">'
@@ -1875,13 +1884,13 @@ function renderReports(){
     +'</div>'
     +'<div class="rpt-grid">'
     +'<div class="rpt-card"><h3>支付方式分布 Payment Breakdown</h3>'
-    +'<div class="pie-row"><div class="pie-dot" style="background:#8D0505"></div><div class="pie-lbl">💵 现金 Cash</div><div class="pie-right"><div class="pie-val">RM '+cash.toFixed(0)+'</div><div class="pie-pct">'+(tot?Math.round(cash/tot*100):0)+'%</div></div></div>'
-    +'<div class="pie-row"><div class="pie-dot" style="background:#202055"></div><div class="pie-lbl">📱 DuitNow / TNG</div><div class="pie-right"><div class="pie-val">RM '+tng.toFixed(0)+'</div><div class="pie-pct">'+(tot?Math.round(tng/tot*100):0)+'%</div></div></div>'
-    +'<div class="pie-row"><div class="pie-dot" style="background:#555"></div><div class="pie-lbl">💳 刷卡 Card</div><div class="pie-right"><div class="pie-val">RM '+card.toFixed(0)+'</div><div class="pie-pct">'+(tot?Math.round(card/tot*100):0)+'%</div></div></div>'
+    +'<div class="pie-row"><div class="pie-dot" style="background:#8D0505"></div><div class="pie-lbl">现金 Cash</div><div class="pie-right"><div class="pie-val">RM '+cash.toFixed(0)+'</div><div class="pie-pct">'+(tot?Math.round(cash/tot*100):0)+'%</div></div></div>'
+    +'<div class="pie-row"><div class="pie-dot" style="background:#202055"></div><div class="pie-lbl">DuitNow / TNG</div><div class="pie-right"><div class="pie-val">RM '+tng.toFixed(0)+'</div><div class="pie-pct">'+(tot?Math.round(tng/tot*100):0)+'%</div></div></div>'
+    +'<div class="pie-row"><div class="pie-dot" style="background:#555"></div><div class="pie-lbl">刷卡 Card</div><div class="pie-right"><div class="pie-val">RM '+card.toFixed(0)+'</div><div class="pie-pct">'+(tot?Math.round(card/tot*100):0)+'%</div></div></div>'
     +'</div>'
     +'<div class="rpt-card"><h3>每日营业额 Daily Revenue</h3>'
     +'<div style="max-height:260px;overflow-y:auto">'
-    +(Object.keys(days).sort().map(function(d){var pct=days[d]/maxD*100;return '<div class="bar-row"><div class="bar-lbl">'+d.slice(5)+'</div><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:#8D0505">'+days[d].toFixed(0)+'</div></div><div class="bar-val">RM '+days[d].toFixed(0)+'</div></div>';}).join('')||'<div style="text-align:center;padding:30px;color:#4A4848">暂无数据</div>')
+    +(Object.keys(days).sort().map(function(d){var pct=days[d]/maxD*100;return'<div class="bar-row"><div class="bar-lbl">'+d.slice(5)+'</div><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:#8D0505">'+days[d].toFixed(0)+'</div></div><div class="bar-val">RM '+days[d].toFixed(0)+'</div></div>';}).join('')||'<div style="text-align:center;padding:30px;color:#4A4848">暂无数据</div>')
     +'</div></div></div>';
 }
 function setRM(v){ss('pm_rm',v);renderReports();}
@@ -1891,12 +1900,12 @@ var _menuAdminTab='items';
 function setMenuAdminTab(t){_menuAdminTab=t; renderMenuAdmin();}
 function renderMenuAdmin(){
   var el=document.getElementById('adminContent');
-  if(!db){ el.innerHTML='<div class="page-title">🍮 菜单管理</div><div style="padding:30px;color:#8D0505">未连接云端（Supabase 未配置或离线），无法编辑菜单。</div>'; return; }
+  if(!db){ el.innerHTML='<div class="page-title">菜单管理</div><div style="padding:30px;color:#8D0505">未连接云端（Supabase 未配置或离线），无法编辑菜单。</div>'; return; }
   var tabsHtml='<div class="ma-tabs">'
     +'<button class="ma-tab'+(_menuAdminTab==='items'?' a':'')+'" onclick="setMenuAdminTab(\'items\')">商品管理</button>'
     +'<button class="ma-tab'+(_menuAdminTab==='specs'?' a':'')+'" onclick="setMenuAdminTab(\'specs\')">规格管理</button>'
     +'</div>';
-  var html='<div class="page-title">🍮 菜单管理 · Menu</div>'+tabsHtml;
+  var html='<div class="page-title">菜单管理 · Menu</div>'+tabsHtml;
   if(_menuAdminTab==='specs'){ el.innerHTML=html+specDefsAdminHtml(); return; }
   var rows=(_menuRows||[]).slice().sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
   html+='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">改价 / 上下架 / 加新品 / 删除——保存后<b>顾客小程序实时更新</b>。「下架」的品项顾客端不显示。</div>';
@@ -1907,7 +1916,7 @@ function renderMenuAdmin(){
       +'<button onclick="menuAdd(\''+c+'\')" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px">＋ 加新品</button></div>'
       +'<table><thead><tr><th>中文名</th><th>English</th><th>价格 RM</th><th>状态</th><th>操作</th></tr></thead><tbody>'
       +(items.length?items.map(function(r){
-        return '<tr'+(r.sold_out?' style="opacity:.5"':'')+'>'
+        return'<tr'+(r.sold_out?' style="opacity:.5"':'')+'>'
           +'<td><b>'+esc(r.name)+'</b></td><td style="font-size:12px;color:#4A4848">'+esc(r.en||'')+'</td>'
           +'<td>'+Number(r.price).toFixed(1)+'</td>'
           +'<td>'+(r.sold_out?'<span style="color:#8D0505">已下架</span>':'<span style="color:#1D7715">在售</span>')+'</td>'
@@ -1922,10 +1931,10 @@ function renderMenuAdmin(){
   el.innerHTML=html;
 }
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function _menuAfterWrite(res,msg){ if(res&&res.error){showN('❌ '+(res.error.message||'操作失败'));return;} showN(msg); loadMenu().then(function(){renderMenuAdmin();}); }
+function _menuAfterWrite(res,msg){ if(res&&res.error){showN(''+(res.error.message||'操作失败'));return;} showN(msg); loadMenu().then(function(){renderMenuAdmin();}); }
 
 /* ── 规格管理（菜单管理页签之一）：维护可复用的规格库，数量不限，名称/选项都自己输入 ── */
-function _sdAfterWrite(res,msg){ if(res&&res.error){showN('❌ '+(res.error.message||'操作失败'));return;} showN(msg); loadSpecDefs().then(function(){renderMenuAdmin();}); }
+function _sdAfterWrite(res,msg){ if(res&&res.error){showN(''+(res.error.message||'操作失败'));return;} showN(msg); loadSpecDefs().then(function(){renderMenuAdmin();}); }
 function specDefsAdminHtml(){
   var rows=(_specDefs||[]).slice().sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
   var html='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">维护可复用的规格库（如 尺寸、温度、口味），加新品/编辑时直接从下拉选用，不用每次重打字；数量不限，随时可以再加。</div>'
@@ -1939,7 +1948,7 @@ function specDefsAdminHtml(){
       html+='<div class="sd-row"><div class="sd-name">'+esc(r.name)+'</div>'
         +'<div class="sd-opts">'+(r.options||[]).map(function(o){
           var isSold=soldSet.indexOf(o)>=0;
-          return '<span class="mi-pill'+(isSold?' soldout':'')+'">'+esc(o)+(isSold?' 下架':'')+'</span>';
+          return'<span class="mi-pill'+(isSold?' soldout':'')+'">'+esc(o)+(isSold?' 下架':'')+'</span>';
         }).join('')+'</div>'
         +'<div style="white-space:nowrap">'
         +'<button onclick="sdEdit(\''+r.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">改</button>'
@@ -1953,7 +1962,7 @@ function specDefsAdminHtml(){
 var _sdEditId=null;
 function _sdOptRowHtml(value, soldOut){
   soldOut=!!soldOut;
-  return '<div class="sd-opt-row" data-soldout="'+(soldOut?'1':'0')+'"><input class="mfi" value="'+esc(value||'')+'" placeholder="选项，如 M / L / XL">'
+  return'<div class="sd-opt-row" data-soldout="'+(soldOut?'1':'0')+'"><input class="mfi" value="'+esc(value||'')+'" placeholder="选项，如 M / L / XL">'
     +'<button type="button" class="sd-opt-toggle'+(soldOut?' is-soldout':'')+'" onclick="_sdToggleOptRow(this)">'+(soldOut?'已下架':'下架')+'</button>'
     +'<button type="button" class="mi-spec-rm" onclick="this.parentElement.remove()">✕</button></div>';
 }
@@ -2007,12 +2016,12 @@ function saveSD(){
   var payload={name:name,options:collected.options,sold_out_options:collected.soldOut};
   if(_sdEditId){
     db.from('spec_defs').update(payload).eq('id',_sdEditId)
-      .then(function(res){_sdAfterWrite(res,'✅ 已保存');}).catch(function(e){showN('❌ 网络错误');});
+      .then(function(res){_sdAfterWrite(res,'已保存');}).catch(function(e){showN('网络错误');});
   }else{
     var maxSo=(_specDefs||[]).reduce(function(m,r){return Math.max(m,r.sort_order||0);},0);
     payload.sort_order=maxSo+10;
     db.from('spec_defs').insert(payload)
-      .then(function(res){_sdAfterWrite(res,'✅ 已添加：'+name);}).catch(function(e){showN('❌ 网络错误');});
+      .then(function(res){_sdAfterWrite(res,'已添加：'+name);}).catch(function(e){showN('网络错误');});
   }
   closeSD();
 }
@@ -2020,7 +2029,7 @@ function sdDel(id){
   if(!db){showN('未连接云端');return;}
   if(!confirm('确定删除该规格？已挂在品项上的选择不会自动清除。'))return;
   db.from('spec_defs').delete().eq('id',id)
-    .then(function(res){_sdAfterWrite(res,'🗑️ 已删除');}).catch(function(e){showN('❌ 网络错误');});
+    .then(function(res){_sdAfterWrite(res,'已删除');}).catch(function(e){showN('网络错误');});
 }
 
 /* ── 商品面板（新增/编辑）：规格行做成 Slot（下拉选规格库 + 多选该规格要开放的选项）── */
@@ -2139,8 +2148,8 @@ function miCropConfirm(){
   var sw=MI_CROP_W/_miCropScale, sh=MI_CROP_H/_miCropScale;
   var canvas=_miHQDownscale(document.getElementById('miCropImg'), sx, sy, sw, sh, MI_CROP_OUT_W, MI_CROP_OUT_H);
   canvas.toBlob(function(blob){
-    if(!blob){ showN('❌ 裁剪失败'); return; }
-    var file=new File([blob], 'menu-'+Date.now()+'.jpg', {type:'image/jpeg'});
+    if(!blob){ showN('裁剪失败'); return; }
+    var file=new File([blob],'menu-'+Date.now()+'.jpg', {type:'image/jpeg'});
     var reader=new FileReader();
     reader.onload=function(e){ _miApplyUploadBg(e.target.result); };
     reader.readAsDataURL(blob);
@@ -2149,12 +2158,12 @@ function miCropConfirm(){
     if(!db){ showN('未连接云端，图片无法上传'); return; }
     _miImageUploading=_miUploadImage(file).then(function(url){
       _miImageUrl=url; _miImageUploading=null; return url;
-    }).catch(function(e){ showN('❌ 图片上传失败'); _miImageUploading=null; });
-  }, 'image/jpeg', 0.9);
+    }).catch(function(e){ showN('图片上传失败'); _miImageUploading=null; });
+  },'image/jpeg', 0.9);
 }
 function _miSpecDefOptionsHtml(selectedDefId){
   return (_specDefs||[]).map(function(d){
-    return '<option value="'+esc(d.id)+'"'+(String(d.id)===String(selectedDefId)?' selected':'')+'>'+esc(d.name)+'</option>';
+    return'<option value="'+esc(d.id)+'"'+(String(d.id)===String(selectedDefId)?' selected':'')+'>'+esc(d.name)+'</option>';
   }).join('');
 }
 function _miSpecRowHtml(defId,selectedOptions){
@@ -2162,8 +2171,8 @@ function _miSpecRowHtml(defId,selectedOptions){
   var def=(_specDefs||[]).find(function(d){return String(d.id)===String(defId);});
   var opts=def?(def.options||[]):[];
   var soldSet=def?(def.sold_out_options||[]):[];
-  var optsHtml=opts.map(function(o){return '<option value="'+esc(o)+'"'+(selectedOptions.indexOf(o)>=0?' selected':'')+'>'+esc(o)+(soldSet.indexOf(o)>=0?'（下架中）':'')+'</option>';}).join('');
-  return '<div class="mi-spec-row">'
+  var optsHtml=opts.map(function(o){return'<option value="'+esc(o)+'"'+(selectedOptions.indexOf(o)>=0?' selected':'')+'>'+esc(o)+(soldSet.indexOf(o)>=0?'（下架中）':'')+'</option>';}).join('');
+  return'<div class="mi-spec-row">'
     +'<div class="mi-spec-col"><label class="mi-lbl mi-spec-lbl">规格</label>'
       +'<select class="mi-spec-select" onchange="_miOnSpecDefChange(this)"><option value="">选择规格…</option>'+_miSpecDefOptionsHtml(defId)+'</select></div>'
     +'<div class="mi-spec-dash">—</div>'
@@ -2178,7 +2187,7 @@ function _miOnSpecDefChange(sel){
   var def=(_specDefs||[]).find(function(d){return String(d.id)===String(sel.value);});
   var opts=def?(def.options||[]):[];
   var soldSet=def?(def.sold_out_options||[]):[];
-  optsSel.innerHTML=opts.map(function(o){return '<option value="'+esc(o)+'" selected>'+esc(o)+(soldSet.indexOf(o)>=0?'（下架中）':'')+'</option>';}).join('');
+  optsSel.innerHTML=opts.map(function(o){return'<option value="'+esc(o)+'" selected>'+esc(o)+(soldSet.indexOf(o)>=0?'（下架中）':'')+'</option>';}).join('');
 }
 function _miRelabelSpecRows(){
   var lbls=document.querySelectorAll('#miSpecGroups .mi-spec-lbl');
@@ -2203,7 +2212,7 @@ function _miCollectSpecGroups(){
 function menuAdd(cat){
   if(!db){showN('未连接云端');return;}
   _miEditId=null; _miCat=cat; _miImageUrl=null; _miImageUploading=null;
-  document.getElementById('miTitle').textContent='新增品项 · '+(POS_CATN[cat]?POS_CATN[cat][0]:cat);
+  document.getElementById('miTitle').textContent='新增品项 ·'+(POS_CATN[cat]?POS_CATN[cat][0]:cat);
   _miApplyUploadBg(null);
   document.getElementById('miImgFile').value='';
   document.getElementById('miName').value='';
@@ -2243,12 +2252,12 @@ function saveMI(){
       flavors:(specGroups.length&&specGroups[0].options.length)?specGroups[0].options:['Original']};
     if(_miEditId){
       db.from('menu_items').update(payload).eq('id',_miEditId)
-        .then(function(res){_menuAfterWrite(res,'✅ 已保存');}).catch(function(e){showN('❌ 网络错误');});
+        .then(function(res){_menuAfterWrite(res,'已保存');}).catch(function(e){showN('网络错误');});
     }else{
       var maxSo=(_menuRows||[]).reduce(function(m,r){return Math.max(m,r.sort_order||0);},0);
       payload.cat=_miCat; payload.sold_out=false; payload.sort_order=maxSo+10;
       db.from('menu_items').insert(payload)
-        .then(function(res){_menuAfterWrite(res,'✅ 已添加：'+name);}).catch(function(e){showN('❌ 网络错误');});
+        .then(function(res){_menuAfterWrite(res,'已添加：'+name);}).catch(function(e){showN('网络错误');});
     }
     closeMI();
   };
@@ -2258,13 +2267,13 @@ function saveMI(){
 function menuToggleSold(id,cur){
   if(!db){showN('未连接云端');return;}
   db.from('menu_items').update({sold_out:!cur}).eq('id',id)
-    .then(function(res){_menuAfterWrite(res,cur?'✅ 已上架':'✅ 已下架');}).catch(function(e){showN('❌ 网络错误');});
+    .then(function(res){_menuAfterWrite(res,cur?'已上架':'已下架');}).catch(function(e){showN('网络错误');});
 }
 function menuDel(id){
   if(!db){showN('未连接云端');return;}
   if(!confirm('确定删除该品项？此操作不可撤销。'))return;
   db.from('menu_items').delete().eq('id',id)
-    .then(function(res){_menuAfterWrite(res,'🗑️ 已删除');}).catch(function(e){showN('❌ 网络错误');});
+    .then(function(res){_menuAfterWrite(res,'已删除');}).catch(function(e){showN('网络错误');});
 }
 
 /* ── NOTIF ── */
@@ -2274,7 +2283,7 @@ function showN(m){var n=document.getElementById('notif');n.textContent=m;n.style
 try{_orders=gj('pm_orders',[]);}catch(e){_orders=[];}
 try{_members=gj('pm_members',[]);}catch(e){_members=[];}
 
-/* ── 跨系统订单同步：POS ↔ 小程序（共享 localStorage 键 'pm_orders'） ──
+/* ── 跨系统订单同步：POS ↔ 小程序（共享 localStorage 键'pm_orders'） ──
    小程序下单后写入 pm_orders 并广播；POS 实时刷新待付款列表 + 弹提示。 */
 var _pmBC=(function(){try{return new BroadcastChannel('pm_orders_sync');}catch(e){return null;}})();
 function pmBroadcastOrders(){try{if(_pmBC)_pmBC.postMessage({t:'orders',ts:Date.now()});}catch(e){}}
@@ -2295,7 +2304,7 @@ function pmRefreshOrders(announce){
        && document.getElementById('asi-dashboard')
        && document.getElementById('asi-dashboard').classList.contains('a')) renderDash();
   }catch(e){}
-  if(newN){ try{ showN('🔔 新线上订单 #'+last.orderNum+(newN>1?(' 等 '+newN+' 单'):'')); }catch(e){} }
+  if(newN){ try{ showN('新线上订单 #'+last.orderNum+(newN>1?(' 等'+newN+' 单'):'')); }catch(e){} }
 }
 if(_pmBC)_pmBC.onmessage=function(ev){if(ev&&ev.data&&ev.data.t==='orders')pmRefreshOrders(true);};
 window.addEventListener('storage',function(e){if(e.key==='pm_orders')pmRefreshOrders(true);});
@@ -2316,7 +2325,7 @@ async function loadOrdersFromCloud(announce){
     try{ updPend(); }catch(e){}
     try{ if(document.getElementById('pendBg').classList.contains('show')) showPending(); }catch(e){}
     try{ if(document.getElementById('adminView').style.display==='flex' && document.getElementById('asi-dashboard') && document.getElementById('asi-dashboard').classList.contains('a')) renderDash(); }catch(e){}
-    if(newN){ try{ showN('🔔 新线上订单 #'+last.orderNum+(newN>1?(' 等 '+newN+' 单'):'')); }catch(e){} }
+    if(newN){ try{ showN('新线上订单 #'+last.orderNum+(newN>1?(' 等'+newN+' 单'):'')); }catch(e){} }
   }catch(e){}
 }
 function subscribeOrders(){
