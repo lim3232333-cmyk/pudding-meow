@@ -1046,13 +1046,13 @@ if(!db) setTimeout(function(){ setCloudStatus('offline'); },0); else setTimeout(
 function orderToRow(o){
   return { id:o.id, order_num:o.orderNum, created_at:o.createdAt, items:o.items||[],
     total:o.total||0, pay_method:o.payMethod, status:o.status,
-    source:o.source, table_name:o.tableName, ta_mode:o.taMode, member_id:o.memberId||null };
+    source:o.source, table_name:o.tableName, ta_mode:o.taMode, member_id:o.memberId||null, device_id:o.deviceId||null };
 }
 function rowToOrder(r){
   return { id:r.id, orderNum:r.order_num||(r.id?String(r.id).slice(-4):''), createdAt:r.created_at,
     items:r.items||[], total:Number(r.total)||0, payMethod:r.pay_method||'counter',
     status:r.status||'pending', source:r.source||'app', tableName:r.table_name||'', taMode:r.ta_mode||'',
-    memberId:r.member_id||null };
+    memberId:r.member_id||null, deviceId:r.device_id||null };
 }
 
 /* ---------- tab switching ---------- */
@@ -1325,6 +1325,7 @@ function confirmOrder(){
     tableName:'线上·'+modeLabel,                       // POS 待付款/交易列表显示来源
     taMode: currentMode==='delivery' ?'takeaway' :'dinein',
     memberId: _memberId || null,
+    deviceId: _deviceId,
   };
   _orders.unshift(order);
 
@@ -1495,6 +1496,19 @@ loadSpecDefs();   // 拉规格库，用于判断哪些规格选项当前售罄
 
 /* =================== ORDERS =================== */
 
+// 匿名访客身份：同一台设备/浏览器首次访问生成一次，之后一直复用，用来把"订单"页
+// 限定成只看自己的单——否则大家共用同一个 orders 表，谁扫码进来都会看到全部人的历史订单。
+var _deviceId = (function(){
+  try{
+    var id = localStorage.getItem('pm_device_id');
+    if(!id){
+      id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('dev_'+Date.now()+'_'+Math.random().toString(36).slice(2));
+      localStorage.setItem('pm_device_id', id);
+    }
+    return id;
+  }catch(e){ return'dev_'+Date.now(); }
+})();
+
 // 单一订单存储：全部用这个数组
 var _orders = [];
 
@@ -1560,15 +1574,23 @@ function upsertOrderRow(r){
 async function loadOrdersFromCloud(){
   if(!db){ mergeOrdersFromStorage(); return; }
   try{
-    var res = await db.from('orders').select('*').order('created_at',{ascending:false}).limit(50);
+    // 只看"自己的"：登录会员按 member_id 查（跨设备也能看到），访客按本机 device_id 查——
+    // 绝不能不带条件地拉全表，否则谁扫码进来都会看到别人（包括店家自己）的历史订单。
+    var q = db.from('orders').select('*').order('created_at',{ascending:false}).limit(50);
+    q = _memberId ? q.eq('member_id', _memberId) : q.eq('device_id', _deviceId);
+    var res = await q;
     if(res.error) throw res.error;
+    _orders = [];
     (res.data||[]).forEach(upsertOrderRow);
   }catch(e){ mergeOrdersFromStorage(); }
 }
+var _ordersChannel = null;
 function subscribeOrders(){
   if(!db) return;
-  db.channel('orders-app')
-    .on('postgres_changes', {event:'*', schema:'public', table:'orders'}, function(payload){
+  if(_ordersChannel){ try{ db.removeChannel(_ordersChannel); }catch(e){} _ordersChannel = null; }
+  var filter = _memberId ?'member_id=eq.'+_memberId :'device_id=eq.'+_deviceId;
+  _ordersChannel = db.channel('orders-app')
+    .on('postgres_changes', {event:'*', schema:'public', table:'orders', filter: filter}, function(payload){
       if(payload.new) upsertOrderRow(payload.new);
       try{ renderOrdersList(); }catch(e){}
       try{
@@ -1721,10 +1743,12 @@ var _memberLevels = [];
 function _memSaveSession(id, token){
   _memberId = id; _memberToken = token;
   try{ localStorage.setItem('pm_member_id', id); localStorage.setItem('pm_member_token', token); }catch(e){}
+  _orders = []; try{ subscribeOrders(); }catch(e){}
 }
 function _memClearSession(){
   _memberId = null; _memberToken = null; _memberProfile = null;
   try{ localStorage.removeItem('pm_member_id'); localStorage.removeItem('pm_member_token'); }catch(e){}
+  _orders = []; try{ subscribeOrders(); }catch(e){}
 }
 function memSwitchAuthTab(tab){
   document.getElementById('memTabLogin').classList.toggle('active', tab==='login');

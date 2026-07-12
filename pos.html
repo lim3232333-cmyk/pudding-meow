@@ -852,10 +852,10 @@ function setCloudStatus(s){
 setTimeout(function(){ setCloudStatus(db?'connecting':'offline'); },0);
 /* 订单对象 <-> 数据库行（只映射数据库已有的列，tender/change/customerName 等不入库）*/
 function orderToRow(o){return{id:o.id,order_num:o.orderNum,created_at:o.createdAt,items:o.items||[],
-  total:o.total||0,pay_method:o.payMethod,status:o.status,source:o.source,table_name:o.tableName,ta_mode:o.taMode,member_id:o.memberId||null};}
+  total:o.total||0,pay_method:o.payMethod,status:o.status,source:o.source,table_name:o.tableName,ta_mode:o.taMode,member_id:o.memberId||null,device_id:o.deviceId||null};}
 function rowToOrder(r){return{id:r.id,orderNum:r.order_num||(r.id?String(r.id).slice(-4):''),createdAt:r.created_at,
   items:r.items||[],total:Number(r.total)||0,payMethod:r.pay_method||'counter',status:r.status||'pending',
-  source:r.source||'app',tableName:r.table_name||'',taMode:r.ta_mode||'',memberId:r.member_id||null};}
+  source:r.source||'app',tableName:r.table_name||'',taMode:r.ta_mode||'',memberId:r.member_id||null,deviceId:r.device_id||null};}
 
 /* ── MENU DATA (from Figma item panels) ── */
 var MENU_FALLBACK={
