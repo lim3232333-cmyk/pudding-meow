@@ -584,11 +584,10 @@
   .mem-mini-checkin-btn:disabled{ opacity:.5; cursor:default; }
 
   /* ---- 积分商城 / 幸运抽奖 图标格 ---- */
-  .mem-icon-grid{ display:grid; grid-template-columns:repeat(4,1fr); grid-template-rows:repeat(2,70px); column-gap:36px; row-gap:8px; margin-top:12px; }
+  .mem-icon-grid{ display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,70px); column-gap:36px; row-gap:8px; margin-top:12px; }
   .mem-icon-item{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; cursor:pointer; }
   .mem-icon-circle{ width:40px; height:40px; border-radius:50%; background:var(--yellow); display:flex; align-items:center; justify-content:center; font-size:18px; }
   .mem-icon-item span{ font-size:12px; color:var(--red); text-align:center; }
-  .mem-lucky-card{ background:#FFFFEA; border:1px solid #F5E9D4; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:500; color:var(--red); cursor:pointer; }
 
   /* ---- 会员专属礼 横幅 ---- */
   .mem-promo-banner{ background:var(--red); border-radius:16px; padding:16px; margin-top:12px; text-align:center; }
@@ -619,6 +618,43 @@
   .mem-coupon-name{ font-weight:700; font-size:13px; }
   .mem-coupon-cond{ font-size:10.5px; opacity:.85; margin-top:3px; }
   .mem-coupon-exp{ font-size:10px; opacity:.7; margin-top:5px; }
+
+  /* ===== 会员：充值页 Meow Wallet Recharge ===== */
+  .rc-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:var(--cream2); z-index:300; display:none; flex-direction:column; overflow-y:auto; }
+  .rc-screen.show{ display:flex; }
+  .rc-hero{ position:relative; width:100%; height:196px; background:var(--red); flex-shrink:0; }
+  .rc-back{ position:absolute; left:16px; top:19px; width:10px; height:15px; cursor:pointer; }
+  .rc-back svg{ width:100%; height:100%; }
+  .rc-hero-title{ position:absolute; left:0; right:0; top:14px; text-align:center; font-weight:700; font-size:20px; color:var(--cream2); }
+  .rc-balance{ position:absolute; left:26px; top:97px; width:110px; text-align:center; }
+  .rc-balance-label{ font-size:14px; color:#fff; }
+  .rc-balance-value{ font-weight:700; font-size:32px; color:#fff; margin-top:4px; }
+
+  .rc-body{ position:relative; margin-top:-27px; z-index:2; padding-bottom:32px; }
+  .rc-pkg-grid{ margin-left:16px; width:360px; height:158px; box-sizing:border-box; background:#FFFFEA; border-radius:12px; box-shadow:0 0 10px rgba(0,0,0,.25); padding:8px; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,1fr); gap:8px; }
+  .rc-pkg{ position:relative; border:1px solid var(--yellow); border-radius:8px; background:#fff; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; }
+  .rc-pkg.selected{ border:2px solid var(--red); }
+  .rc-pkg-badge{ position:absolute; top:0; right:1.5px; width:43px; height:10px; background:var(--yellow); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:8px; color:var(--red); line-height:1; }
+  .rc-pkg-inner{ display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .rc-pkg-special .rc-pkg-inner{ margin-top:10px; }
+  .rc-pkg-top{ display:flex; align-items:center; justify-content:center; gap:4px; }
+  .rc-coin{ width:25px; height:25px; border-radius:50%; background:var(--yellow); flex-shrink:0; }
+  .rc-pkg-num{ font-weight:700; font-size:24px; color:var(--red); }
+  .rc-pkg-rm{ font-size:14px; color:var(--muted); text-align:center; width:100%; }
+  .rc-cta{ display:block; margin:18px 17px 0; width:360px; height:29px; background:var(--yellow); border:none; border-radius:8px; box-shadow:0 4px 4px rgba(0,0,0,.25); color:var(--red); font-size:16px; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
+  .rc-tx-title{ margin:36px 0 8px 31px; font-weight:500; font-size:16px; color:var(--red); }
+  .rc-tx-card{ margin:0 17px; width:360px; box-sizing:border-box; background:#fff; border-radius:12px; padding:0 13.5px; }
+  .rc-tx-row{ display:flex; align-items:center; justify-content:space-between; padding:16px 0; border-bottom:1px solid #F0EEDD; }
+  .rc-tx-row:last-child{ border-bottom:none; }
+  .rc-tx-left{ display:flex; flex-direction:column; gap:7px; }
+  .rc-tx-name{ font-size:14px; font-weight:500; }
+  .rc-tx-name.in{ color:#0D9700; }
+  .rc-tx-name.out{ color:var(--red); }
+  .rc-tx-date{ font-size:12px; font-weight:350; color:#726F6F; }
+  .rc-tx-amt{ font-size:14px; font-weight:700; }
+  .rc-tx-amt.in{ color:#0D9700; }
+  .rc-tx-amt.out{ color:var(--red); }
+  .rc-tx-empty{ padding:32px 0; text-align:center; color:var(--muted); font-size:12px; }
 
   /* ===== PRINT ===== */
   @media print{
@@ -830,13 +866,12 @@
 </div>
 
         <div class="mem-icon-grid">
-          <div class="mem-icon-item" style="grid-column:1;grid-row:1" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
-          <div class="mem-lucky-card" style="grid-column:2 / span 2;grid-row:1" onclick="memComingSoon()">幸运抽奖</div>
-          <div class="mem-icon-item" style="grid-column:4;grid-row:1" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
+          <div class="mem-icon-item" style="grid-column:1;grid-row:1" onclick="openRecharge()"><div class="mem-icon-circle"></div><span>充值</span></div>
+          <div class="mem-icon-item" style="grid-column:2;grid-row:1" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>幸运抽奖</span></div>
+          <div class="mem-icon-item" style="grid-column:3;grid-row:1" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
           <div class="mem-icon-item" style="grid-column:1;grid-row:2" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
-          <div class="mem-icon-item" style="grid-column:2;grid-row:2" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
-          <div class="mem-icon-item" style="grid-column:3;grid-row:2" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
-          <div class="mem-icon-item" style="grid-column:4;grid-row:2" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
+          <div class="mem-icon-item" style="grid-column:2;grid-row:2" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>预约</span></div>
+          <div class="mem-icon-item" style="grid-column:3;grid-row:2" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>设置</span></div>
 </div>
 
         <div class="mem-promo-banner">
@@ -865,6 +900,26 @@
     <div class="nav-item" data-tab="orders" onclick="switchTab('orders')">订单</div>
     <div class="nav-item" data-tab="profile" onclick="switchTab('profile')">我的</div>
   </nav>
+
+  <!-- ============ Meow Wallet 充值页 ============ -->
+  <div class="rc-screen" id="rcScreen">
+    <div class="rc-hero">
+      <div class="rc-back" onclick="closeRecharge()">
+        <svg viewBox="0 0 10 15" fill="none"><path d="M9 1L2 7.5L9 14" stroke="#FFFFD5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</div>
+      <div class="rc-hero-title">充值</div>
+      <div class="rc-balance">
+        <div class="rc-balance-label">我的余额 (RM)</div>
+        <div class="rc-balance-value" id="rcBalance">0.00</div>
+</div>
+</div>
+    <div class="rc-body">
+      <div class="rc-pkg-grid" id="rcPkgGrid"></div>
+      <button class="rc-cta" onclick="doRecharge()">充值</button>
+      <div class="rc-tx-title">交易明细</div>
+      <div class="rc-tx-card" id="rcTxList"></div>
+</div>
+</div>
 
   <!-- ============ cart sheet ============ -->
   <div class="cart-overlay" id="cartOverlay" onclick="toggleCart()"></div>
@@ -991,13 +1046,13 @@ if(!db) setTimeout(function(){ setCloudStatus('offline'); },0); else setTimeout(
 function orderToRow(o){
   return { id:o.id, order_num:o.orderNum, created_at:o.createdAt, items:o.items||[],
     total:o.total||0, pay_method:o.payMethod, status:o.status,
-    source:o.source, table_name:o.tableName, ta_mode:o.taMode, member_id:o.memberId||null };
+    source:o.source, table_name:o.tableName, ta_mode:o.taMode, member_id:o.memberId||null, device_id:o.deviceId||null };
 }
 function rowToOrder(r){
   return { id:r.id, orderNum:r.order_num||(r.id?String(r.id).slice(-4):''), createdAt:r.created_at,
     items:r.items||[], total:Number(r.total)||0, payMethod:r.pay_method||'counter',
     status:r.status||'pending', source:r.source||'app', tableName:r.table_name||'', taMode:r.ta_mode||'',
-    memberId:r.member_id||null };
+    memberId:r.member_id||null, deviceId:r.device_id||null };
 }
 
 /* ---------- tab switching ---------- */
@@ -1270,6 +1325,7 @@ function confirmOrder(){
     tableName:'线上·'+modeLabel,                       // POS 待付款/交易列表显示来源
     taMode: currentMode==='delivery' ?'takeaway' :'dinein',
     memberId: _memberId || null,
+    deviceId: _deviceId,
   };
   _orders.unshift(order);
 
@@ -1440,6 +1496,19 @@ loadSpecDefs();   // 拉规格库，用于判断哪些规格选项当前售罄
 
 /* =================== ORDERS =================== */
 
+// 匿名访客身份：同一台设备/浏览器首次访问生成一次，之后一直复用，用来把"订单"页
+// 限定成只看自己的单——否则大家共用同一个 orders 表，谁扫码进来都会看到全部人的历史订单。
+var _deviceId = (function(){
+  try{
+    var id = localStorage.getItem('pm_device_id');
+    if(!id){
+      id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('dev_'+Date.now()+'_'+Math.random().toString(36).slice(2));
+      localStorage.setItem('pm_device_id', id);
+    }
+    return id;
+  }catch(e){ return'dev_'+Date.now(); }
+})();
+
 // 单一订单存储：全部用这个数组
 var _orders = [];
 
@@ -1505,15 +1574,23 @@ function upsertOrderRow(r){
 async function loadOrdersFromCloud(){
   if(!db){ mergeOrdersFromStorage(); return; }
   try{
-    var res = await db.from('orders').select('*').order('created_at',{ascending:false}).limit(50);
+    // 只看"自己的"：登录会员按 member_id 查（跨设备也能看到），访客按本机 device_id 查——
+    // 绝不能不带条件地拉全表，否则谁扫码进来都会看到别人（包括店家自己）的历史订单。
+    var q = db.from('orders').select('*').order('created_at',{ascending:false}).limit(50);
+    q = _memberId ? q.eq('member_id', _memberId) : q.eq('device_id', _deviceId);
+    var res = await q;
     if(res.error) throw res.error;
+    _orders = [];
     (res.data||[]).forEach(upsertOrderRow);
   }catch(e){ mergeOrdersFromStorage(); }
 }
+var _ordersChannel = null;
 function subscribeOrders(){
   if(!db) return;
-  db.channel('orders-app')
-    .on('postgres_changes', {event:'*', schema:'public', table:'orders'}, function(payload){
+  if(_ordersChannel){ try{ db.removeChannel(_ordersChannel); }catch(e){} _ordersChannel = null; }
+  var filter = _memberId ?'member_id=eq.'+_memberId :'device_id=eq.'+_deviceId;
+  _ordersChannel = db.channel('orders-app')
+    .on('postgres_changes', {event:'*', schema:'public', table:'orders', filter: filter}, function(payload){
       if(payload.new) upsertOrderRow(payload.new);
       try{ renderOrdersList(); }catch(e){}
       try{
@@ -1666,10 +1743,12 @@ var _memberLevels = [];
 function _memSaveSession(id, token){
   _memberId = id; _memberToken = token;
   try{ localStorage.setItem('pm_member_id', id); localStorage.setItem('pm_member_token', token); }catch(e){}
+  _orders = []; try{ subscribeOrders(); }catch(e){}
 }
 function _memClearSession(){
   _memberId = null; _memberToken = null; _memberProfile = null;
   try{ localStorage.removeItem('pm_member_id'); localStorage.removeItem('pm_member_token'); }catch(e){}
+  _orders = []; try{ subscribeOrders(); }catch(e){}
 }
 function memSwitchAuthTab(tab){
   document.getElementById('memTabLogin').classList.toggle('active', tab==='login');
@@ -1848,6 +1927,67 @@ function loadMyCoupons(){
         +'</div>';
     }).join('');
   }).catch(function(e){});
+}
+
+/* ===== Meow Wallet 充值 ===== */
+var RECHARGE_PACKAGES = [
+  {credit:50, price:50, special:true},
+  {credit:120, price:100},
+  {credit:200, price:150},
+  {credit:300, price:200},
+  {credit:450, price:250},
+  {credit:600, price:300}
+];
+var _rcSelected = 0;
+function _rcPkgHtml(p, idx){
+  var cls ='rc-pkg'+(p.special?' rc-pkg-special':'')+(idx===_rcSelected?' selected':'');
+  var badge = p.special ?'<div class="rc-pkg-badge">首充双倍</div>' :'';
+  return'<div class="'+cls+'" onclick="selectRecharge('+idx+')">'+badge
+    +'<div class="rc-pkg-inner"><div class="rc-pkg-top"><span class="rc-coin"></span><span class="rc-pkg-num">'+p.credit+'</span></div>'
+    +'<div class="rc-pkg-rm">RM '+p.price+'</div></div></div>';
+}
+function renderRechargePackages(){
+  document.getElementById('rcPkgGrid').innerHTML = RECHARGE_PACKAGES.map(_rcPkgHtml).join('');
+}
+function selectRecharge(idx){
+  _rcSelected = idx;
+  renderRechargePackages();
+}
+function openRecharge(){
+  if(!_memberId || !_memberToken){ alert('请先登录会员'); return; }
+  _rcSelected = 0;
+  renderRechargePackages();
+  document.getElementById('rcBalance').textContent = (_memberProfile ? (_memberProfile.wallet_balance||0) : 0).toFixed(2);
+  document.getElementById('rcScreen').classList.add('show');
+  loadWalletLedger();
+}
+function closeRecharge(){
+  document.getElementById('rcScreen').classList.remove('show');
+}
+function doRecharge(){
+  var p = RECHARGE_PACKAGES[_rcSelected];
+  window.open('https://payment.tngdigital.com.my/sc/bDLn6uNZxm','_blank');
+  alert('请通过 TNG 完成 RM'+p.price+' 付款，工作人员确认收款后会为您的 Meow Wallet 充值 '+p.credit+' 元，请留意店内通知。');
+}
+function loadWalletLedger(){
+  var box = document.getElementById('rcTxList');
+  if(!db || !_memberId || !_memberToken){ box.innerHTML ='<div class="rc-tx-empty">暂无交易记录</div>'; return Promise.resolve(); }
+  return db.rpc('rpc_get_my_wallet_ledger', {p_member_id:_memberId, p_session_token:_memberToken}).then(function(res){
+    if(res.error){ box.innerHTML ='<div class="rc-tx-empty">暂无交易记录</div>'; return; }
+    var list = res.data || [];
+    if(!list.length){ box.innerHTML ='<div class="rc-tx-empty">暂无交易记录</div>'; return; }
+    box.innerHTML = list.map(function(r){
+      var isIn = Number(r.delta) >= 0;
+      var name = isIn ?'充值' :'消费';
+      var dt = new Date(r.created_at);
+      var pad = function(n){ return n<10 ?'0'+n : ''+n; };
+      var dateTxt = pad(dt.getDate())+'-'+pad(dt.getMonth()+1)+'-'+dt.getFullYear()+'  '+pad(dt.getHours())+':'+pad(dt.getMinutes());
+      var amtTxt = (isIn ?'+' :'-')+Math.abs(Number(r.delta)).toFixed(2);
+      var cls = isIn ?'in' :'out';
+      return'<div class="rc-tx-row"><div class="rc-tx-left"><div class="rc-tx-name '+cls+'">'+name+'</div><div class="rc-tx-date">'+dateTxt+'</div></div>'
+        +'<div class="rc-tx-amt '+cls+'">'+amtTxt+'</div></div>';
+    }).join('');
+  }).catch(function(e){ box.innerHTML ='<div class="rc-tx-empty">暂无交易记录</div>'; });
 }
 
 /* ===== 云端订单初始化：拉一次 + 订阅实时（放在最后，确保 _orders 等已就绪）===== */

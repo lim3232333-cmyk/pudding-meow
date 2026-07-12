@@ -2,12 +2,12 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=1366, user-scalable=no">
+<meta name="viewport" content="width=1366, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
 <title>布丁喵 · POS 管理系统</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
 <script src="./supabase.min.js"></script>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;touch-action:manipulation;}
+*{box-sizing:border-box;margin:0;padding:0;touch-action:pan-x pan-y;}
 html,body{width:100%;height:100%;overflow:hidden;font-family:"Noto Sans SC",sans-serif;background:#000;}
 body{display:flex;align-items:center;justify-content:center;}
 /* 响应式：把 1366x768 的像素级设计整体等比缩放贴合任意屏幕/平板分辨率，居中显示（黑边留白） */
@@ -852,10 +852,10 @@ function setCloudStatus(s){
 setTimeout(function(){ setCloudStatus(db?'connecting':'offline'); },0);
 /* 订单对象 <-> 数据库行（只映射数据库已有的列，tender/change/customerName 等不入库）*/
 function orderToRow(o){return{id:o.id,order_num:o.orderNum,created_at:o.createdAt,items:o.items||[],
-  total:o.total||0,pay_method:o.payMethod,status:o.status,source:o.source,table_name:o.tableName,ta_mode:o.taMode,member_id:o.memberId||null};}
+  total:o.total||0,pay_method:o.payMethod,status:o.status,source:o.source,table_name:o.tableName,ta_mode:o.taMode,member_id:o.memberId||null,device_id:o.deviceId||null};}
 function rowToOrder(r){return{id:r.id,orderNum:r.order_num||(r.id?String(r.id).slice(-4):''),createdAt:r.created_at,
   items:r.items||[],total:Number(r.total)||0,payMethod:r.pay_method||'counter',status:r.status||'pending',
-  source:r.source||'app',tableName:r.table_name||'',taMode:r.ta_mode||'',memberId:r.member_id||null};}
+  source:r.source||'app',tableName:r.table_name||'',taMode:r.ta_mode||'',memberId:r.member_id||null,deviceId:r.device_id||null};}
 
 /* ── MENU DATA (from Figma item panels) ── */
 var MENU_FALLBACK={
@@ -2351,6 +2351,12 @@ subscribeSpecDefs();
   }
   fit();
   window.addEventListener('resize', fit);
+
+  /* 防止误触双指缩放/触控板缩放/Ctrl+滚轮缩放把真实浏览器画面放大（放大后 fit() 的 CSS 缩放救不回来） */
+  document.addEventListener('gesturestart', function(e){ e.preventDefault(); });
+  document.addEventListener('gesturechange', function(e){ e.preventDefault(); });
+  document.addEventListener('touchmove', function(e){ if(e.touches.length>1) e.preventDefault(); }, {passive:false});
+  window.addEventListener('wheel', function(e){ if(e.ctrlKey) e.preventDefault(); }, {passive:false});
 })();
 </script>
 </body>
