@@ -584,11 +584,10 @@
   .mem-mini-checkin-btn:disabled{ opacity:.5; cursor:default; }
 
   /* ---- 积分商城 / 幸运抽奖 图标格 ---- */
-  .mem-icon-grid{ display:grid; grid-template-columns:repeat(4,1fr); grid-template-rows:repeat(2,70px); column-gap:36px; row-gap:8px; margin-top:12px; }
+  .mem-icon-grid{ display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,70px); column-gap:36px; row-gap:8px; margin-top:12px; }
   .mem-icon-item{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; cursor:pointer; }
   .mem-icon-circle{ width:40px; height:40px; border-radius:50%; background:var(--yellow); display:flex; align-items:center; justify-content:center; font-size:18px; }
   .mem-icon-item span{ font-size:12px; color:var(--red); text-align:center; }
-  .mem-lucky-card{ background:#FFFFEA; border:1px solid #F5E9D4; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:500; color:var(--red); cursor:pointer; }
 
   /* ---- 会员专属礼 横幅 ---- */
   .mem-promo-banner{ background:var(--red); border-radius:16px; padding:16px; margin-top:12px; text-align:center; }
@@ -830,13 +829,12 @@
 </div>
 
         <div class="mem-icon-grid">
-          <div class="mem-icon-item" style="grid-column:1;grid-row:1" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
-          <div class="mem-lucky-card" style="grid-column:2 / span 2;grid-row:1" onclick="memComingSoon()">幸运抽奖</div>
-          <div class="mem-icon-item" style="grid-column:4;grid-row:1" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
+          <div class="mem-icon-item" style="grid-column:1;grid-row:1" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>充值</span></div>
+          <div class="mem-icon-item" style="grid-column:2;grid-row:1" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>幸运抽奖</span></div>
+          <div class="mem-icon-item" style="grid-column:3;grid-row:1" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
           <div class="mem-icon-item" style="grid-column:1;grid-row:2" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
-          <div class="mem-icon-item" style="grid-column:2;grid-row:2" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
-          <div class="mem-icon-item" style="grid-column:3;grid-row:2" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
-          <div class="mem-icon-item" style="grid-column:4;grid-row:2" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
+          <div class="mem-icon-item" style="grid-column:2;grid-row:2" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>预约</span></div>
+          <div class="mem-icon-item" style="grid-column:3;grid-row:2" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>设置</span></div>
 </div>
 
         <div class="mem-promo-banner">
