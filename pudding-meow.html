@@ -714,14 +714,14 @@
   .ld-rim-dot.lit{ box-shadow:0 0 6px 2px rgba(255,222,91,.9); background:var(--yellow); }
   .ld-wheel{ position:absolute; left:22px; top:22px; width:240px; height:240px; border-radius:50%; overflow:hidden; transition:transform 4s cubic-bezier(.12,.67,.1,.99); }
   .ld-spoke{ position:absolute; left:50%; top:50%; width:0; height:0; }
-  .ld-seg-label{ position:absolute; width:58px; margin-left:-29px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:2px; transform:translateY(-88px); }
+  .ld-seg-label{ position:absolute; width:58px; margin-left:-29px; text-align:center; transform:translateY(-100px); }
   .ld-seg-label span{ font-size:10.5px; font-weight:500; white-space:nowrap; }
   .ld-seg-label.on-red span{ color:var(--cream2); }
   .ld-seg-label.on-cream span{ color:var(--red); }
-  .ld-seg-dot{ width:9px; height:9px; border-radius:50%; background:var(--yellow); }
+  .ld-seg-dot{ position:absolute; left:-4.5px; top:0; width:9px; height:9px; border-radius:50%; background:var(--yellow); transform:translateY(-72px); }
   .ld-seg-label.winning{ animation:ldWinBlink .3s ease-in-out 6; }
   @keyframes ldWinBlink{ 0%,100%{ filter:brightness(1); transform:scale(1); } 50%{ filter:brightness(1.7); transform:scale(1.15); } }
-  .ld-center{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:4; display:flex; flex-direction:column; align-items:center; }
+  .ld-center{ position:absolute; left:50%; top:50%; transform:translate(calc(-50% - 3px),-50%); z-index:4; display:flex; flex-direction:column; align-items:center; }
   .ld-center-hat{ width:0; height:0; border-left:7px solid transparent; border-right:7px solid transparent; border-bottom:34px solid var(--blue); margin-bottom:-60px; position:relative; z-index:0; }
   .ld-center img{ width:106px; height:auto; object-fit:contain; position:relative; z-index:1; }
   .ld-stand{ width:0; height:0; margin:-70px auto 0; border-left:137px solid transparent; border-right:137px solid transparent; border-bottom:140px solid var(--red); flex-shrink:0; position:relative; z-index:0; }
@@ -2264,7 +2264,7 @@ function _ldBuildWheel(){
   wheel.style.background ='conic-gradient(from '+(-seg/2)+'deg, '+stops.join(',')+')';
   wheel.innerHTML = LD_SEGMENTS.map(function(s, i){
     return'<div class="ld-spoke" style="transform:rotate('+(i*seg)+'deg)">'
-      +'<div class="ld-seg-label '+s.cls+'" data-idx="'+i+'"><span>'+s.label+'</span><span class="ld-seg-dot"></span></div>'
+      +'<div class="ld-seg-dot"></div><div class="ld-seg-label '+s.cls+'" data-idx="'+i+'"><span>'+s.label+'</span></div>'
       +'</div>';
   }).join('');
 
