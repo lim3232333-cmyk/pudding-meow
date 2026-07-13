@@ -724,7 +724,7 @@
   .ld-center{ position:absolute; left:50%; top:50%; transform:translate(calc(-50% - 3px),-50%); z-index:4; display:flex; flex-direction:column; align-items:center; }
   .ld-center-hat{ width:0; height:0; border-left:7px solid transparent; border-right:7px solid transparent; border-bottom:34px solid var(--blue); margin-bottom:-60px; margin-left:5px; position:relative; z-index:0; }
   .ld-center img{ width:106px; height:auto; object-fit:contain; position:relative; z-index:1; }
-  .ld-stand{ width:0; height:0; margin:-70px auto 0; border-left:137px solid transparent; border-right:137px solid transparent; border-bottom:140px solid var(--red); flex-shrink:0; position:relative; z-index:0; }
+  .ld-stand{ width:0; height:0; margin:-100px auto 0; border-left:137px solid transparent; border-right:137px solid transparent; border-bottom:140px solid var(--red); flex-shrink:0; position:relative; z-index:0; }
 
   .ld-footer{ margin-top:24px; padding:0 16px 32px; display:flex; flex-direction:column; align-items:center; gap:22px; }
   .ld-tickets{ font-size:12px; color:var(--red); font-weight:500; }
@@ -2255,13 +2255,18 @@ function _ldBuildWheel(){
   if(_ldBuilt) return;
   _ldBuilt = true;
   var seg = 360/LD_SEGMENTS.length;
+  var gap = 2.4; // 每个扇形边界留出的细缝（度），透出后面的红色当分隔线
   var stops = [];
   for(var i=0;i<LD_SEGMENTS.length;i++){
     var color = (i%2===0) ?'var(--red)' :'var(--cream2)';
-    stops.push(color+' '+(i*seg)+'deg '+((i+1)*seg)+'deg');
+    var s = i*seg + gap/2, e = (i+1)*seg - gap/2;
+    stops.push('transparent '+(i*seg)+'deg '+s+'deg');
+    stops.push(color+' '+s+'deg '+e+'deg');
+    stops.push('transparent '+e+'deg '+((i+1)*seg)+'deg');
   }
   var wheel = document.getElementById('ldWheel');
-  wheel.style.background ='conic-gradient(from '+(-seg/2)+'deg, '+stops.join(',')+')';
+  // 底层铺一张红色圆盘，上层的锥形渐变在每个扇形边界留透明细缝，红色透上来充当分隔线
+  wheel.style.background ='conic-gradient(from '+(-seg/2)+'deg, '+stops.join(',')+'), var(--red)';
   wheel.innerHTML = LD_SEGMENTS.map(function(s, i){
     return'<div class="ld-spoke" style="transform:rotate('+(i*seg)+'deg)">'
       +'<div class="ld-seg-dot"></div><div class="ld-seg-label '+s.cls+'" data-idx="'+i+'"><span>'+s.label+'</span></div>'
