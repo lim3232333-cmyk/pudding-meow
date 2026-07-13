@@ -669,6 +669,35 @@
   .rc-tx-amt.out{ color:var(--red); }
   .rc-tx-empty{ padding:32px 0; text-align:center; color:var(--muted); font-size:12px; }
 
+  /* ===== 会员：积分商城 Points Mall ===== */
+  .pm-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:var(--cream2); z-index:300; display:none; flex-direction:column; overflow-y:auto; }
+  .pm-screen.show{ display:flex; }
+  .pm-hero{ position:relative; width:100%; height:196px; background:var(--red); flex-shrink:0; }
+  .pm-back{ position:absolute; left:16px; top:19px; width:10px; height:15px; cursor:pointer; }
+  .pm-back svg{ width:100%; height:100%; }
+  .pm-hero-title{ position:absolute; left:0; right:0; top:14px; text-align:center; font-weight:700; font-size:20px; color:var(--cream2); pointer-events:none; }
+  .pm-balance{ position:absolute; left:26px; top:97px; width:110px; height:59px; box-sizing:border-box; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; gap:4px; }
+  .pm-balance-label{ font-size:14px; line-height:17px; color:#fff; }
+  .pm-balance-row{ display:flex; align-items:center; gap:4px; }
+  .pm-coin{ width:25px; height:25px; border-radius:50%; background:var(--yellow); flex-shrink:0; }
+  .pm-balance-value{ font-weight:700; font-size:32px; line-height:38px; color:#fff; }
+  .pm-tabs{ position:absolute; left:0; top:176px; width:100%; box-sizing:border-box; padding:0 24px; display:flex; align-items:center; justify-content:space-between; }
+  .pm-tab{ position:relative; flex:1; text-align:center; font-size:12px; font-weight:500; color:var(--cream2); cursor:pointer; padding-bottom:8px; }
+  .pm-tab.active{ color:var(--yellow); }
+  .pm-tab.active::after{ content:''; position:absolute; left:50%; bottom:0; transform:translateX(-50%); width:80px; height:2px; background:var(--yellow); }
+  .pm-body{ position:relative; z-index:2; margin-top:22px; padding:0 16px 32px; display:flex; flex-direction:column; gap:12px; }
+  .pm-item-card{ background:#fff; border-radius:12px; padding:16px; display:flex; align-items:center; justify-content:space-between; box-sizing:border-box; }
+  .pm-item-img{ width:100px; height:100px; border-radius:16px; background:#D9D9D9; flex-shrink:0; }
+  .pm-item-img-logo{ background:var(--red); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; }
+  .pm-item-img-logo img{ width:60px; height:auto; object-fit:contain; }
+  .pm-item-img-logo span{ font-size:12px; color:var(--cream2); font-weight:500; }
+  .pm-item-info{ display:flex; flex-direction:column; gap:20px; width:142px; flex-shrink:0; }
+  .pm-item-name{ font-size:18px; font-weight:500; color:var(--red); }
+  .pm-item-coin-row{ display:flex; align-items:center; gap:8px; }
+  .pm-item-coin-dot{ width:20px; height:20px; border-radius:50%; background:var(--yellow); flex-shrink:0; }
+  .pm-item-coin-txt{ font-size:16px; font-weight:500; color:var(--red); }
+  .pm-item-redeem{ background:var(--red); color:var(--cream2); border:none; border-radius:999px; width:52px; height:25px; font-size:14px; font-weight:500; font-family:"Noto Sans SC",sans-serif; cursor:pointer; flex-shrink:0; }
+
   /* ===== PRINT ===== */
   @media print{
     body>*:not(#pmPrintArea){ display:none!important; }
@@ -881,8 +910,8 @@
         <div class="mem-icon-grid">
           <div class="mem-icon-item" style="grid-column:1;grid-row:1" onclick="openRecharge()"><div class="mem-icon-circle"></div><span>充值</span></div>
           <div class="mem-icon-item" style="grid-column:2;grid-row:1" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>幸运抽奖</span></div>
-          <div class="mem-icon-item" style="grid-column:3;grid-row:1" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
-          <div class="mem-icon-item" style="grid-column:1;grid-row:2" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
+          <div class="mem-icon-item" style="grid-column:3;grid-row:1" onclick="openPointsMall()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
+          <div class="mem-icon-item" style="grid-column:1;grid-row:2" onclick="openPointsMall()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
           <div class="mem-icon-item" style="grid-column:2;grid-row:2" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>预约</span></div>
           <div class="mem-icon-item" style="grid-column:3;grid-row:2" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>设置</span></div>
 </div>
@@ -936,6 +965,26 @@
       <div class="rc-tx-title">交易明细</div>
       <div class="rc-tx-card" id="rcTxList"></div>
 </div>
+</div>
+
+  <!-- ============ Meow Club 积分商城 ============ -->
+  <div class="pm-screen" id="pmScreen">
+    <div class="pm-hero">
+      <div class="pm-back" onclick="closePointsMall()">
+        <svg viewBox="0 0 10 15" fill="none"><path d="M9 1L2 7.5L9 14" stroke="#FFFFD5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</div>
+      <div class="pm-hero-title">积分商城</div>
+      <div class="pm-balance">
+        <div class="pm-balance-label">我的 Paw Coin</div>
+        <div class="pm-balance-row"><span class="pm-coin"></span><span class="pm-balance-value" id="pmCoinBalance">0</span></div>
+</div>
+      <div class="pm-tabs" id="pmTabs">
+        <div class="pm-tab active" data-cat="all" onclick="selectPmTab('all',this)">全部</div>
+        <div class="pm-tab" data-cat="coupon" onclick="selectPmTab('coupon',this)">优惠卷</div>
+        <div class="pm-tab" data-cat="dessert" onclick="selectPmTab('dessert',this)">甜品兑换</div>
+</div>
+</div>
+    <div class="pm-body" id="pmList"></div>
 </div>
 
   <!-- ============ cart sheet ============ -->
@@ -2039,6 +2088,62 @@ function loadWalletLedger(){
     }).join('');
   }).catch(function(e){ box.innerHTML ='<div class="rc-tx-empty">暂无交易记录</div>'; });
 }
+
+/* ===== 积分商城 Points Mall ===== */
+var POINTS_MALL_ITEMS = [
+  { name:'布蕾曲奇', coin:600, cat:'dessert', img:null },
+  { name:'RM 5 优惠卷', coin:500, cat:'coupon', img:'logo' },
+  { name:'香蕉布丁烧', coin:1100, cat:'dessert', img:null }
+];
+var _pmTab ='all';
+function _pmItemHtml(it){
+  var imgHtml = it.img==='logo'
+    ?'<div class="pm-item-img pm-item-img-logo"><img alt=""><span>Total Price</span></div>'
+    :'<div class="pm-item-img"></div>';
+  return'<div class="pm-item-card">'+imgHtml
+    +'<div class="pm-item-info"><div class="pm-item-name">'+it.name+'</div>'
+    +'<div class="pm-item-coin-row"><span class="pm-item-coin-dot"></span><span class="pm-item-coin-txt">'+it.coin+' Coin</span></div></div>'
+    +'<button class="pm-item-redeem" onclick="memComingSoon()">兑换</button></div>';
+}
+function renderPointsMallList(){
+  var list = POINTS_MALL_ITEMS.filter(function(it){ return _pmTab==='all' || it.cat===_pmTab; });
+  document.getElementById('pmList').innerHTML = list.map(_pmItemHtml).join('');
+  var brandLogo = document.getElementById('brandLogoImg');
+  if(brandLogo && brandLogo.src){
+    document.querySelectorAll('.pm-item-img-logo img').forEach(function(img){ if(!img.src) img.src = brandLogo.src; });
+  }
+}
+function selectPmTab(cat, el){
+  _pmTab = cat;
+  document.querySelectorAll('#pmTabs .pm-tab').forEach(function(t){ t.classList.toggle('active', t===el); });
+  renderPointsMallList();
+}
+function openPointsMall(){
+  if(!_memberId || !_memberToken){ alert('请先登录会员'); return; }
+  _pmTab ='all';
+  document.querySelectorAll('#pmTabs .pm-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.cat==='all'); });
+  document.getElementById('pmCoinBalance').textContent = _memberProfile ? (_memberProfile.coins||0) :0;
+  renderPointsMallList();
+  document.getElementById('pmScreen').classList.add('show');
+}
+function closePointsMall(){
+  document.getElementById('pmScreen').classList.remove('show');
+}
+(function(){
+  var startX=0, startY=0, tracking=false;
+  var el = document.getElementById('pmScreen');
+  if(!el) return;
+  el.addEventListener('touchstart', function(e){
+    if(e.touches.length!==1) return;
+    startX = e.touches[0].clientX; startY = e.touches[0].clientY; tracking = true;
+  }, {passive:true});
+  el.addEventListener('touchend', function(e){
+    if(!tracking) return; tracking = false;
+    var dx = e.changedTouches[0].clientX - startX;
+    var dy = Math.abs(e.changedTouches[0].clientY - startY);
+    if(dx > 80 && dy < 60) closePointsMall();
+  }, {passive:true});
+})();
 
 /* ===== 云端订单初始化：拉一次 + 订阅实时（放在最后，确保 _orders 等已就绪）===== */
 loadOrdersFromCloud().then(function(){ try{ renderOrdersList(); }catch(e){} });
