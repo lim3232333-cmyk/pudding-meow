@@ -625,7 +625,7 @@
   .rc-hero{ position:relative; width:100%; height:196px; background:var(--red); flex-shrink:0; }
   .rc-back{ position:absolute; left:16px; top:19px; width:10px; height:15px; cursor:pointer; }
   .rc-back svg{ width:100%; height:100%; }
-  .rc-hero-title{ position:absolute; left:0; right:0; top:14px; text-align:center; font-weight:700; font-size:20px; color:var(--cream2); }
+  .rc-hero-title{ position:absolute; left:0; right:0; top:14px; text-align:center; font-weight:700; font-size:20px; color:var(--cream2); pointer-events:none; }
   .rc-balance{ position:absolute; left:26px; top:97px; width:110px; text-align:center; }
   .rc-balance-label{ font-size:14px; color:#fff; }
   .rc-balance-value{ font-weight:700; font-size:32px; color:#fff; margin-top:4px; }
@@ -1973,6 +1973,22 @@ function openRecharge(){
 function closeRecharge(){
   document.getElementById('rcScreen').classList.remove('show');
 }
+// 除了左上角返回按钮，整页支持右滑手势返回（横向滑动明显大于纵向才触发，避免跟滚动冲突）
+(function(){
+  var startX=0, startY=0, tracking=false;
+  var el = document.getElementById('rcScreen');
+  if(!el) return;
+  el.addEventListener('touchstart', function(e){
+    if(e.touches.length!==1) return;
+    startX = e.touches[0].clientX; startY = e.touches[0].clientY; tracking = true;
+  }, {passive:true});
+  el.addEventListener('touchend', function(e){
+    if(!tracking) return; tracking = false;
+    var dx = e.changedTouches[0].clientX - startX;
+    var dy = Math.abs(e.changedTouches[0].clientY - startY);
+    if(dx > 80 && dy < 60) closeRecharge();
+  }, {passive:true});
+})();
 function doRecharge(){
   var p = RECHARGE_PACKAGES[_rcSelected];
   window.open('https://payment.tngdigital.com.my/sc/bDLn6uNZxm','_blank');
