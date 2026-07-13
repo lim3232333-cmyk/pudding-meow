@@ -2266,7 +2266,7 @@ function _ldBuildWheel(){
   wheel.style.background ='conic-gradient(from '+(-seg/2)+'deg, '+stops.join(',')+')';
   wheel.innerHTML = LD_SEGMENTS.map(function(s, i){
     return'<div class="ld-spoke" style="transform:rotate('+(i*seg)+'deg)">'
-      +'<div class="ld-seg-label '+s.cls+'" data-idx="'+i+'"><span class="ld-seg-dot"></span><span>'+s.label+'</span></div>'
+      +'<div class="ld-seg-label '+s.cls+'" data-idx="'+i+'"><span>'+s.label+'</span><span class="ld-seg-dot"></span></div>'
       +'</div>';
   }).join('');
 
