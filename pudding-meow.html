@@ -649,7 +649,12 @@
   .rc-coin{ width:25px; height:25px; border-radius:50%; background:var(--yellow); flex-shrink:0; }
   .rc-pkg-num{ font-weight:700; font-size:24px; color:var(--red); }
   .rc-pkg-rm{ font-size:14px; color:var(--muted); text-align:center; width:100%; }
-  .rc-cta{ display:block; margin:18px 17px 0; width:360px; height:29px; background:var(--yellow); border:none; border-radius:8px; box-shadow:0 4px 4px rgba(0,0,0,.25); color:var(--red); font-size:16px; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
+  .rc-pay-methods{ display:flex; flex-direction:column; gap:8px; margin:12px 0 0 36px; }
+  .rc-pay-row{ display:flex; align-items:center; gap:7px; cursor:pointer; }
+  .rc-pay-dot{ width:12px; height:12px; border-radius:50%; border:1.5px solid var(--red); box-sizing:border-box; flex-shrink:0; }
+  .rc-pay-dot.selected{ background:var(--yellow); }
+  .rc-pay-label{ font-size:12px; color:#000; }
+  .rc-cta{ display:block; margin:12px 17px 0; width:360px; height:29px; background:var(--yellow); border:none; border-radius:8px; box-shadow:0 4px 4px rgba(0,0,0,.25); color:var(--red); font-size:16px; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
   .rc-tx-title{ margin:36px 0 8px 31px; font-weight:500; font-size:16px; color:var(--red); }
   .rc-tx-card{ margin:0 17px; width:360px; box-sizing:border-box; background:#fff; border-radius:12px; padding:0 13.5px; }
   .rc-tx-row{ display:flex; align-items:center; justify-content:space-between; padding:16px 0; border-bottom:1px solid #F0EEDD; }
@@ -923,6 +928,10 @@
 </div>
     <div class="rc-body">
       <div class="rc-pkg-grid" id="rcPkgGrid"></div>
+      <div class="rc-pay-methods">
+        <div class="rc-pay-row" onclick="selectRcPay('tng')"><span class="rc-pay-dot" id="rcPayDotTng"></span><span class="rc-pay-label">Touch n Go</span></div>
+        <div class="rc-pay-row" onclick="selectRcPay('counter')"><span class="rc-pay-dot" id="rcPayDotCounter"></span><span class="rc-pay-label">柜台支付 (Cash/Duitnow)</span></div>
+</div>
       <button class="rc-cta" onclick="doRecharge()">充值</button>
       <div class="rc-tx-title">交易明细</div>
       <div class="rc-tx-card" id="rcTxList"></div>
@@ -1948,6 +1957,15 @@ var RECHARGE_PACKAGES = [
 ];
 var _rcSelected = 0;
 var _rcAlreadyRecharged = false; // 已经充值过一次了：首充双倍徽章就不该再显示
+var _rcPayMethod ='tng';
+function renderRcPayMethods(){
+  document.getElementById('rcPayDotTng').classList.toggle('selected', _rcPayMethod==='tng');
+  document.getElementById('rcPayDotCounter').classList.toggle('selected', _rcPayMethod==='counter');
+}
+function selectRcPay(method){
+  _rcPayMethod = method;
+  renderRcPayMethods();
+}
 function _rcPkgHtml(p, idx){
   var cls ='rc-pkg'+(p.special?' rc-pkg-special':'')+(idx===_rcSelected?' selected':'');
   var badge = (p.special && !_rcAlreadyRecharged) ?'<div class="rc-pkg-badge">首充双倍</div>' :'';
@@ -1965,7 +1983,9 @@ function selectRecharge(idx){
 function openRecharge(){
   if(!_memberId || !_memberToken){ alert('请先登录会员'); return; }
   _rcSelected = 0;
+  _rcPayMethod ='tng';
   renderRechargePackages();
+  renderRcPayMethods();
   document.getElementById('rcBalance').textContent = (_memberProfile ? (_memberProfile.wallet_balance||0) : 0).toFixed(2);
   document.getElementById('rcScreen').classList.add('show');
   loadWalletLedger().then(renderRechargePackages);
@@ -1991,6 +2011,10 @@ function closeRecharge(){
 })();
 function doRecharge(){
   var p = RECHARGE_PACKAGES[_rcSelected];
+  if(_rcPayMethod==='counter'){
+    alert('请到柜台以现金或 DuitNow 支付 RM'+p.price+'，工作人员确认收款后会为您的 Meow Wallet 充值 '+p.credit+' 元。');
+    return;
+  }
   window.open('https://payment.tngdigital.com.my/sc/bDLn6uNZxm','_blank');
   alert('请通过 TNG 完成 RM'+p.price+' 付款，工作人员确认收款后会为您的 Meow Wallet 充值 '+p.credit+' 元，请留意店内通知。');
 }
