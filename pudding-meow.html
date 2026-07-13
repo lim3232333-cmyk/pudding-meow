@@ -634,6 +634,14 @@
   .rc-pkg-grid{ margin-left:16px; width:360px; height:158px; box-sizing:border-box; background:#FFFFEA; border-radius:12px; box-shadow:0 0 10px rgba(0,0,0,.25); padding:8px; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,1fr); gap:8px; }
   .rc-pkg{ position:relative; border:1px solid var(--yellow); border-radius:8px; background:#fff; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; }
   .rc-pkg.selected{ border:2px solid var(--red); }
+  .rc-pkg.selected::after{
+    content:''; position:absolute; right:-2px; bottom:-2px; width:0; height:0;
+    border-style:solid; border-width:0 0 18px 18px; border-color:transparent transparent var(--red) transparent;
+    border-bottom-right-radius:8px;
+  }
+  .rc-pkg.selected::before{
+    content:'\2713'; position:absolute; right:1px; bottom:-1px; color:#fff; font-size:9px; font-weight:700; line-height:1; z-index:1;
+  }
   .rc-pkg-badge{ position:absolute; top:0; right:1.5px; width:43px; height:10px; background:var(--yellow); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:8px; color:var(--red); line-height:1; }
   .rc-pkg-inner{ display:flex; flex-direction:column; align-items:center; justify-content:center; }
   .rc-pkg-special .rc-pkg-inner{ margin-top:10px; }
@@ -1939,9 +1947,10 @@ var RECHARGE_PACKAGES = [
   {credit:600, price:300}
 ];
 var _rcSelected = 0;
+var _rcAlreadyRecharged = false; // 已经充值过一次了：首充双倍徽章就不该再显示
 function _rcPkgHtml(p, idx){
   var cls ='rc-pkg'+(p.special?' rc-pkg-special':'')+(idx===_rcSelected?' selected':'');
-  var badge = p.special ?'<div class="rc-pkg-badge">首充双倍</div>' :'';
+  var badge = (p.special && !_rcAlreadyRecharged) ?'<div class="rc-pkg-badge">首充双倍</div>' :'';
   return'<div class="'+cls+'" onclick="selectRecharge('+idx+')">'+badge
     +'<div class="rc-pkg-inner"><div class="rc-pkg-top"><span class="rc-coin"></span><span class="rc-pkg-num">'+p.credit+'</span></div>'
     +'<div class="rc-pkg-rm">RM '+p.price+'</div></div></div>';
@@ -1959,7 +1968,7 @@ function openRecharge(){
   renderRechargePackages();
   document.getElementById('rcBalance').textContent = (_memberProfile ? (_memberProfile.wallet_balance||0) : 0).toFixed(2);
   document.getElementById('rcScreen').classList.add('show');
-  loadWalletLedger();
+  loadWalletLedger().then(renderRechargePackages);
 }
 function closeRecharge(){
   document.getElementById('rcScreen').classList.remove('show');
@@ -1975,6 +1984,7 @@ function loadWalletLedger(){
   return db.rpc('rpc_get_my_wallet_ledger', {p_member_id:_memberId, p_session_token:_memberToken}).then(function(res){
     if(res.error){ box.innerHTML ='<div class="rc-tx-empty">暂无交易记录</div>'; return; }
     var list = res.data || [];
+    _rcAlreadyRecharged = list.some(function(r){ return Number(r.delta) > 0; });
     if(!list.length){ box.innerHTML ='<div class="rc-tx-empty">暂无交易记录</div>'; return; }
     box.innerHTML = list.map(function(r){
       var isIn = Number(r.delta) >= 0;
