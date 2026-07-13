@@ -699,6 +699,59 @@
   .pm-item-coin-txt{ font-size:14px; font-weight:500; color:var(--red); }
   .pm-item-redeem{ background:var(--red); color:var(--cream2); border:none; border-radius:999px; width:52px; height:25px; font-size:14px; font-weight:500; font-family:"Noto Sans SC",sans-serif; cursor:pointer; flex-shrink:0; }
 
+  /* ===== 会员：幸运抽奖 Lucky Draw ===== */
+  .ld-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:var(--cream2); z-index:300; display:none; flex-direction:column; overflow-y:auto; }
+  .ld-screen.show{ display:flex; }
+  .ld-topbar{ position:relative; height:60px; flex-shrink:0; }
+  .ld-back{ position:absolute; left:16px; top:19px; width:10px; height:15px; cursor:pointer; }
+  .ld-back svg{ width:100%; height:100%; }
+  .ld-title{ position:absolute; left:0; right:0; top:14px; text-align:center; font-weight:700; font-size:20px; color:var(--red); pointer-events:none; }
+  .ld-history-btn{ position:absolute; right:16px; top:15px; background:var(--cream2); border:1px solid var(--red); border-radius:999px; padding:4px 8px; font-size:12px; color:var(--red); font-weight:500; cursor:pointer; }
+
+  .ld-wheel-wrap{ position:relative; width:284px; height:284px; margin:24px auto 0; flex-shrink:0; }
+  .ld-rim{ position:absolute; inset:0; border-radius:50%; background:var(--yellow); box-shadow:0 4px 16px rgba(0,0,0,.25); }
+  .ld-rim-dot{ position:absolute; width:8px; height:8px; border-radius:50%; background:#A0522D; left:50%; top:50%; margin:-4px; transform-origin:4px 4px; transition:background .15s, box-shadow .15s; }
+  .ld-rim-dot.lit{ box-shadow:0 0 6px 2px rgba(255,222,91,.9); background:var(--yellow); }
+  .ld-wheel{ position:absolute; left:22px; top:22px; width:240px; height:240px; border-radius:50%; overflow:hidden; transition:transform 4s cubic-bezier(.12,.67,.1,.99); }
+  .ld-spoke{ position:absolute; left:50%; top:50%; width:0; height:0; }
+  .ld-seg-label{ position:absolute; width:58px; margin-left:-29px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:2px; transform:translateY(-88px); }
+  .ld-seg-label span{ font-size:10.5px; font-weight:500; white-space:nowrap; }
+  .ld-seg-label.on-red span{ color:var(--cream2); }
+  .ld-seg-label.on-cream span{ color:var(--red); }
+  .ld-seg-dot{ width:9px; height:9px; border-radius:50%; background:var(--yellow); }
+  .ld-seg-label.winning{ animation:ldWinBlink .3s ease-in-out 6; }
+  @keyframes ldWinBlink{ 0%,100%{ filter:brightness(1); transform:scale(1); } 50%{ filter:brightness(1.7); transform:scale(1.15); } }
+  .ld-pointer{ position:absolute; left:50%; top:-6px; width:0; height:0; margin-left:-9px; border-left:9px solid transparent; border-right:9px solid transparent; border-top:16px solid var(--red); z-index:5; }
+  .ld-center{ position:absolute; left:50%; top:50%; width:78px; height:78px; margin:-39px; border-radius:50%; background:var(--cream2); box-shadow:0 2px 8px rgba(0,0,0,.25); z-index:4; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; }
+  .ld-center img{ width:44px; height:44px; object-fit:contain; }
+  .ld-center span{ font-family:'Pattaya',cursive; font-size:12px; color:var(--red); }
+  .ld-stand{ width:0; height:0; margin:-2px auto 0; border-left:34px solid transparent; border-right:34px solid transparent; border-top:44px solid var(--red); flex-shrink:0; }
+
+  .ld-footer{ margin-top:24px; padding:0 16px 32px; display:flex; flex-direction:column; align-items:center; gap:22px; }
+  .ld-tickets{ font-size:12px; color:var(--red); font-weight:500; }
+  .ld-tickets b{ font-size:14px; }
+  .ld-spin-btn{ width:100%; height:40px; background:var(--red); color:var(--cream2); border:none; border-radius:999px; font-size:16px; font-weight:500; font-family:"Noto Sans SC",sans-serif; cursor:pointer; box-shadow:0 4px 4px rgba(0,0,0,.25); }
+  .ld-spin-btn:disabled{ opacity:.5; cursor:not-allowed; }
+
+  .ld-result-overlay, .ld-history-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:349; display:none; }
+  .ld-result-overlay.show, .ld-history-overlay.show{ display:block; }
+  .ld-result-modal{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:300px; background:var(--cream2); border-radius:16px; padding:28px 20px; z-index:350; display:none; flex-direction:column; align-items:center; gap:12px; text-align:center; }
+  .ld-result-modal.show{ display:flex; }
+  .ld-result-title{ font-size:14px; color:var(--muted); }
+  .ld-result-prize{ font-size:22px; font-weight:700; color:var(--red); }
+  .ld-result-close{ margin-top:8px; width:100%; height:38px; background:var(--red); color:var(--cream2); border:none; border-radius:999px; font-size:15px; font-weight:500; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
+
+  .ld-history-modal{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:340px; max-height:70vh; background:var(--cream2); border-radius:16px; z-index:350; display:none; flex-direction:column; overflow:hidden; }
+  .ld-history-modal.show{ display:flex; }
+  .ld-history-head{ display:flex; align-items:center; justify-content:space-between; padding:16px; font-size:16px; font-weight:500; color:var(--red); flex-shrink:0; }
+  .ld-history-head button{ background:none; border:none; font-size:16px; color:var(--muted); cursor:pointer; }
+  .ld-history-list{ overflow-y:auto; padding:0 16px 16px; }
+  .ld-history-row{ display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(141,5,5,.1); font-size:13px; }
+  .ld-history-row:last-child{ border-bottom:none; }
+  .ld-history-prize{ color:var(--red); font-weight:500; }
+  .ld-history-date{ color:var(--muted); }
+  .ld-history-empty{ padding:32px 0; text-align:center; color:var(--muted); font-size:12px; }
+
   /* ===== PRINT ===== */
   @media print{
     body>*:not(#pmPrintArea){ display:none!important; }
@@ -910,7 +963,7 @@
 
         <div class="mem-icon-grid">
           <div class="mem-icon-item" style="grid-column:1;grid-row:1" onclick="openRecharge()"><div class="mem-icon-circle"></div><span>充值</span></div>
-          <div class="mem-icon-item" style="grid-column:2;grid-row:1" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>幸运抽奖</span></div>
+          <div class="mem-icon-item" style="grid-column:2;grid-row:1" onclick="openLuckyDraw()"><div class="mem-icon-circle"></div><span>幸运抽奖</span></div>
           <div class="mem-icon-item" style="grid-column:3;grid-row:1" onclick="openPointsMall()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
           <div class="mem-icon-item" style="grid-column:1;grid-row:2" onclick="openPointsMall()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
           <div class="mem-icon-item" style="grid-column:2;grid-row:2" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>预约</span></div>
@@ -987,6 +1040,41 @@
 </div>
 </div>
     <div class="pm-body" id="pmList"></div>
+</div>
+
+  <!-- ============ Meow Club 幸运抽奖 ============ -->
+  <div class="ld-screen" id="ldScreen">
+    <div class="ld-topbar">
+      <div class="ld-back" onclick="closeLuckyDraw()">
+        <svg viewBox="0 0 10 15" fill="none"><path d="M9 1L2 7.5L9 14" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</div>
+      <div class="ld-title">幸运抽奖</div>
+      <div class="ld-history-btn" onclick="openDrawHistory()">抽奖纪录</div>
+</div>
+    <div class="ld-wheel-wrap">
+      <div class="ld-rim" id="ldRim"></div>
+      <div class="ld-pointer"></div>
+      <div class="ld-wheel" id="ldWheel"></div>
+      <div class="ld-center"><img id="ldCenterLogo" alt=""><span>布丁喵</span></div>
+</div>
+    <div class="ld-stand"></div>
+    <div class="ld-footer">
+      <div class="ld-tickets">剩余抽奖次数：<b id="ldTicketsNum">0</b> 次</div>
+      <button class="ld-spin-btn" id="ldSpinBtn" onclick="doLuckyDraw()">立即抽奖</button>
+</div>
+</div>
+
+  <div class="ld-result-overlay" id="ldResultOverlay" onclick="closeLdResult()"></div>
+  <div class="ld-result-modal" id="ldResultModal">
+    <div class="ld-result-title">恭喜获得</div>
+    <div class="ld-result-prize" id="ldResultPrize">--</div>
+    <button class="ld-result-close" onclick="closeLdResult()">开心收下</button>
+</div>
+
+  <div class="ld-history-overlay" id="ldHistoryOverlay" onclick="closeDrawHistory()"></div>
+  <div class="ld-history-modal" id="ldHistoryModal">
+    <div class="ld-history-head"><span>抽奖纪录</span><button onclick="closeDrawHistory()">✕</button></div>
+    <div class="ld-history-list" id="ldHistoryList"></div>
 </div>
 
   <!-- ============ cart sheet ============ -->
@@ -2143,6 +2231,179 @@ function closePointsMall(){
     var dx = e.changedTouches[0].clientX - startX;
     var dy = Math.abs(e.changedTouches[0].clientY - startY);
     if(dx > 80 && dy < 60) closePointsMall();
+  }, {passive:true});
+})();
+
+/* ===== 幸运抽奖 Lucky Draw =====
+   转盘格子的文案/颜色/位置是写死在前端的（保证跟 Figma 1:1），后端
+   lucky_draw_prizes 表按同样的 sort_order (0-7) 决定权重和奖励数值——
+   抽奖结果由服务器算好返回 sort_order，前端只负责把转盘转到那一格。 */
+var LD_SEGMENTS = [
+  {label:'100 Coin', cls:'on-red'},
+  {label:'100 XP',   cls:'on-cream'},
+  {label:'50 Coin',  cls:'on-red'},
+  {label:'任意商品', cls:'on-cream'},
+  {label:'20 Coin',  cls:'on-red'},
+  {label:'再来一次', cls:'on-cream'},
+  {label:'经典布丁', cls:'on-red'},
+  {label:'50 XP',    cls:'on-cream'}
+];
+var _ldBuilt = false;
+var _ldSpinning = false;
+var _ldCurrentRotation = 0;
+var _ldBlinkTimer = null;
+
+function _ldBuildWheel(){
+  if(_ldBuilt) return;
+  _ldBuilt = true;
+  var seg = 360/LD_SEGMENTS.length;
+  var stops = [];
+  for(var i=0;i<LD_SEGMENTS.length;i++){
+    var color = (i%2===0) ?'var(--red)' :'var(--cream2)';
+    stops.push(color+' '+(i*seg)+'deg '+((i+1)*seg)+'deg');
+  }
+  var wheel = document.getElementById('ldWheel');
+  wheel.style.background ='conic-gradient(from '+(-seg/2)+'deg, '+stops.join(',')+')';
+  wheel.innerHTML = LD_SEGMENTS.map(function(s, i){
+    return'<div class="ld-spoke" style="transform:rotate('+(i*seg)+'deg)">'
+      +'<div class="ld-seg-label '+s.cls+'" data-idx="'+i+'"><span class="ld-seg-dot"></span><span>'+s.label+'</span></div>'
+      +'</div>';
+  }).join('');
+
+  var rim = document.getElementById('ldRim'), dotCount = 16, dotHtml ='';
+  for(var d=0; d<dotCount; d++){
+    var ang = d*(360/dotCount);
+    dotHtml +='<div class="ld-rim-dot" style="transform:rotate('+ang+'deg) translateY(-130px)"></div>';
+  }
+  rim.innerHTML = dotHtml;
+}
+function _ldSyncCenterLogo(){
+  var logo = document.getElementById('ldCenterLogo'), brand = document.getElementById('brandLogoImg');
+  if(logo && brand && brand.src && !logo.src) logo.src = brand.src;
+}
+function _ldStartBlink(){
+  var dots = document.querySelectorAll('#ldRim .ld-rim-dot');
+  var phase = 0;
+  _ldBlinkTimer = setInterval(function(){
+    dots.forEach(function(d, i){ d.classList.toggle('lit', (i+phase)%4 < 2); });
+    phase++;
+  }, 90);
+}
+function _ldStopBlink(){
+  if(_ldBlinkTimer){ clearInterval(_ldBlinkTimer); _ldBlinkTimer = null; }
+  document.querySelectorAll('#ldRim .ld-rim-dot').forEach(function(d){ d.classList.remove('lit'); });
+}
+function openLuckyDraw(){
+  if(!_memberId || !_memberToken){ alert('请先登录会员'); return; }
+  _ldBuildWheel();
+  _ldSyncCenterLogo();
+  document.getElementById('ldScreen').classList.add('show');
+  if(!db) return;
+  db.rpc('rpc_get_my_draw_status', {p_member_id:_memberId, p_session_token:_memberToken}).then(function(res){
+    if(res.error) return;
+    var row = res.data && res.data[0];
+    document.getElementById('ldTicketsNum').textContent = row ? (row.draw_tickets||0) :0;
+  }).catch(function(e){});
+}
+function closeLuckyDraw(){
+  document.getElementById('ldScreen').classList.remove('show');
+}
+function doLuckyDraw(){
+  if(_ldSpinning) return;
+  var ticketsNow = Number(document.getElementById('ldTicketsNum').textContent||0);
+  if(ticketsNow <= 0){ alert('抽奖次数不足'); return; }
+  if(!db){ alert('未连接云端，暂时无法抽奖'); return; }
+  _ldSpinning = true;
+  document.getElementById('ldSpinBtn').disabled = true;
+  _ldStartBlink();
+  db.rpc('rpc_lucky_draw', {p_member_id:_memberId, p_session_token:_memberToken}).then(function(res){
+    if(res.error){
+      _ldStopBlink(); _ldSpinning = false;
+      document.getElementById('ldSpinBtn').disabled = false;
+      alert(res.error.message ||'抽奖失败');
+      return;
+    }
+    _ldPlaySpin(res.data && res.data[0]);
+  }).catch(function(e){
+    _ldStopBlink(); _ldSpinning = false;
+    document.getElementById('ldSpinBtn').disabled = false;
+    alert('网络错误，请重试');
+  });
+}
+function _ldPlaySpin(prize){
+  if(!prize){ _ldStopBlink(); _ldSpinning = false; document.getElementById('ldSpinBtn').disabled = false; return; }
+  var seg = 360/LD_SEGMENTS.length;
+  var idx = prize.sort_order;
+  var spins = 5;
+  var desiredMod = (360 - idx*seg) % 360;
+  var baseMod = ((_ldCurrentRotation % 360) + 360) % 360;
+  var deltaToAlign = ((desiredMod - baseMod) % 360 + 360) % 360;
+  var jitter = (Math.random()*seg*0.6) - seg*0.3;
+  var target = _ldCurrentRotation + spins*360 + deltaToAlign + jitter;
+  _ldCurrentRotation = target;
+  var wheel = document.getElementById('ldWheel');
+  wheel.style.transform ='rotate('+target+'deg)';
+  var onEnd = function(){
+    wheel.removeEventListener('transitionend', onEnd);
+    _ldStopBlink();
+    document.getElementById('ldTicketsNum').textContent = prize.draw_tickets_left;
+    var label = document.querySelector('.ld-seg-label[data-idx="'+idx+'"]');
+    if(label){
+      label.classList.add('winning');
+      setTimeout(function(){ label.classList.remove('winning'); _ldShowResult(prize); }, 1900);
+    } else {
+      _ldShowResult(prize);
+    }
+  };
+  wheel.addEventListener('transitionend', onEnd);
+}
+function _ldShowResult(prize){
+  document.getElementById('ldResultPrize').textContent = prize.prize_label;
+  document.getElementById('ldResultOverlay').classList.add('show');
+  document.getElementById('ldResultModal').classList.add('show');
+  _ldSpinning = false;
+  document.getElementById('ldSpinBtn').disabled = false;
+}
+function closeLdResult(){
+  document.getElementById('ldResultOverlay').classList.remove('show');
+  document.getElementById('ldResultModal').classList.remove('show');
+}
+function openDrawHistory(){
+  if(!_memberId || !_memberToken){ alert('请先登录会员'); return; }
+  document.getElementById('ldHistoryOverlay').classList.add('show');
+  document.getElementById('ldHistoryModal').classList.add('show');
+  var box = document.getElementById('ldHistoryList');
+  box.innerHTML ='<div class="ld-history-empty">加载中...</div>';
+  if(!db) return;
+  db.rpc('rpc_get_my_draw_history', {p_member_id:_memberId, p_session_token:_memberToken}).then(function(res){
+    if(res.error){ box.innerHTML ='<div class="ld-history-empty">暂无抽奖纪录</div>'; return; }
+    var list = res.data || [];
+    if(!list.length){ box.innerHTML ='<div class="ld-history-empty">暂无抽奖纪录</div>'; return; }
+    box.innerHTML = list.map(function(r){
+      var dt = new Date(r.created_at);
+      var pad = function(n){ return n<10 ?'0'+n : ''+n; };
+      var dateTxt = pad(dt.getDate())+'-'+pad(dt.getMonth()+1)+'-'+dt.getFullYear()+'  '+pad(dt.getHours())+':'+pad(dt.getMinutes());
+      return'<div class="ld-history-row"><span class="ld-history-prize">'+r.prize_label+'</span><span class="ld-history-date">'+dateTxt+'</span></div>';
+    }).join('');
+  }).catch(function(e){ box.innerHTML ='<div class="ld-history-empty">暂无抽奖纪录</div>'; });
+}
+function closeDrawHistory(){
+  document.getElementById('ldHistoryOverlay').classList.remove('show');
+  document.getElementById('ldHistoryModal').classList.remove('show');
+}
+(function(){
+  var startX=0, startY=0, tracking=false;
+  var el = document.getElementById('ldScreen');
+  if(!el) return;
+  el.addEventListener('touchstart', function(e){
+    if(e.touches.length!==1) return;
+    startX = e.touches[0].clientX; startY = e.touches[0].clientY; tracking = true;
+  }, {passive:true});
+  el.addEventListener('touchend', function(e){
+    if(!tracking) return; tracking = false;
+    var dx = e.changedTouches[0].clientX - startX;
+    var dy = Math.abs(e.changedTouches[0].clientY - startY);
+    if(dx > 80 && dy < 60) closeLuckyDraw();
   }, {passive:true});
 })();
 
