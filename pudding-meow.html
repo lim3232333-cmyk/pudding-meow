@@ -2275,7 +2275,7 @@ function _ldBuildWheel(){
       +'</div>';
   }).join('');
 
-  var rim = document.getElementById('ldRim'), dotCount = 16, dotHtml ='';
+  var rim = document.getElementById('ldRim'), dotCount = 12, dotHtml ='';
   for(var d=0; d<dotCount; d++){
     var ang = d*(360/dotCount);
     dotHtml +='<div class="ld-rim-dot" style="transform:rotate('+ang+'deg) translateY(-125.5px)"></div>';
