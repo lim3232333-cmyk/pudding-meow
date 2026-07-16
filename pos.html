@@ -15,32 +15,41 @@ body{display:flex;align-items:center;justify-content:center;}
 button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 @media print{body>*{display:none!important;}#pa{display:block!important;}@page{size:80mm auto;margin:0;}}
 #pa{display:none;}
-/* 收据版式 1:1 还原 Figma 326-187（302px 框 ≈ 80mm，内容 270px） */
-.rc{font-family:"Inter","Noto Sans SC",sans-serif;font-size:12px;color:#000;background:#fff;width:80mm;box-sizing:border-box;padding:27px 16px;display:flex;flex-direction:column;align-items:center;gap:13px;}
-.rc .rlogo{width:94px;height:94px;object-fit:contain;}
-.rc .rtitle{font-family:"Jua","Noto Sans SC",sans-serif;font-size:22px;text-align:center;}
-.rc .rline{border-top:1px solid #000;width:100%;}
-.rc .rline2{border-top:2px solid #000;width:100%;}
-.rc .rdash{border-top:1px dashed #000;width:100%;}
-.rc .rrow{display:flex;justify-content:space-between;width:100%;}
-.rc .rmeta{display:flex;flex-direction:column;gap:4px;width:100%;}
-.rc .rhead{font-weight:600;}
-.rc .rcol3{display:flex;gap:8px;width:100%;align-items:flex-start;}
-.rc .rcol3 .rname{flex:1 0 0;min-width:1px;font-weight:500;}
-.rc .rcol3 .rqty{width:61px;text-align:right;flex-shrink:0;}
-.rc .rcol3 .ramt{width:60px;text-align:right;flex-shrink:0;}
-.rc .rflav{font-size:10px;font-weight:400;padding-left:18px;margin-top:2px;}
-.rc .ritems{display:flex;flex-direction:column;gap:12px;width:100%;}
-.rc .rsec{display:flex;flex-direction:column;gap:12px;width:100%;}
+/* 收据版式 1:1 还原 Figma 326-187（302px 框 ≈ 80mm，内容 270px）
+   字体/字号/字重/行高/间距全部按 Figma auto-layout 数值 */
+.rc{font-family:"Inter","Noto Sans SC",sans-serif;font-size:12px;line-height:15px;font-weight:400;color:#000;background:#fff;width:80mm;box-sizing:border-box;padding:27px 16px;display:flex;flex-direction:column;align-items:center;gap:13px;}
+.rc *{box-sizing:border-box;}
+.rc .rlogo{width:94px;height:94px;object-fit:contain;flex:none;}
+.rc .rtitle{font-family:"Jua","Noto Sans SC",sans-serif;font-weight:400;font-size:22px;line-height:28px;text-align:center;width:100%;}
+.rc .rline{width:100%;border-top:1px solid #000;}
+.rc .rline2{width:100%;border-top:2px solid #000;}
+.rc .rdash{width:100%;border-top:1px dashed #000;}
+.rc .rmeta{width:100%;display:flex;flex-direction:column;gap:4px;}
+.rc .rrow{width:100%;display:flex;justify-content:space-between;align-items:center;}
+/* 三栏商品行：名称 flex + QTY 61px + RM 60px，列间 8px */
+.rc .rcol3{width:100%;display:flex;gap:8px;align-items:flex-start;}
+.rc .rcol3 .rname{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:2px;font-weight:500;}
+.rc .rcol3 .rqty{width:61px;flex:none;text-align:right;font-weight:400;}
+.rc .rcol3 .ramt{width:60px;flex:none;text-align:right;font-weight:400;}
+.rc .rhead .rname,.rc .rhead .rqty,.rc .rhead .ramt{font-weight:600;}
+.rc .rflavs{display:flex;flex-direction:column;gap:2px;padding-left:18px;}
+.rc .rflav{font-weight:400;font-size:10px;line-height:12px;}
+.rc .rtotals{width:100%;display:flex;flex-direction:column;gap:8px;}
+.rc .rgroup{width:100%;display:flex;flex-direction:column;gap:12px;}
 .rc .rlbl{font-weight:500;}
+.rc .rdisc{width:100%;display:flex;gap:8px;align-items:flex-start;}
+.rc .rdisc .rname{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.rc .rdisc .rval{width:59px;flex:none;text-align:right;font-weight:400;}
 .rc .rtot{font-weight:800;}
-.rc .rcenter{text-align:center;width:100%;font-weight:500;}
-.rc .rmember{display:flex;justify-content:space-between;width:100%;align-items:flex-start;}
-.rc .rmember .rml{display:flex;flex-direction:column;gap:8px;}
+/* MEMBER 区块：整体左对齐，标签在上、明细左右分栏 */
+.rc .rmemblock{width:100%;display:flex;flex-direction:column;gap:4px;}
+.rc .rmemlabel{width:100%;font-weight:500;text-align:left;}
+.rc .rmember{width:100%;display:flex;justify-content:space-between;align-items:flex-start;gap:49px;}
+.rc .rmember .rml{display:flex;flex-direction:column;gap:8px;align-items:flex-start;font-weight:400;}
 .rc .rmember .rml .rmgain{display:flex;flex-direction:column;gap:2px;}
-.rc .rmember .rmr{display:flex;flex-direction:column;gap:8px;align-items:flex-end;}
-.rc .rstars{width:100%;text-align:center;font-size:12px;letter-spacing:2px;overflow:hidden;white-space:nowrap;}
-.rc .rthanks{font-size:10px;text-align:center;}
+.rc .rmember .rmr{display:flex;flex-direction:column;gap:8px;align-items:flex-end;font-weight:400;}
+.rc .rstars{width:100%;text-align:center;font-size:12px;line-height:1;letter-spacing:2px;overflow:hidden;white-space:nowrap;}
+.rc .rthanks{width:100%;font-weight:400;font-size:10px;line-height:12px;text-align:center;}
 
 /* ── NOTIF ── */
 .notif{position:fixed;top:96px;right:20px;background:#8D0505;color:#FFDE5B;padding:10px 18px;border-radius:10px;font-size:14px;font-weight:700;z-index:9998;display:none;box-shadow:0 4px 16px rgba(0,0,0,.25);}
@@ -1306,27 +1315,43 @@ function _renderReceipt(o, mem){
       .map(function(x){return '<div class="rflav">-'+esc(x.trim())+'</div>';}).join('');
   };
   var itemsHtml=(o.items||[]).map(function(it){
-    return '<div class="rcol3"><div class="rname">'+esc(it.name)+flavHtml(it)+'</div>'
+    var fl=flavHtml(it);
+    return '<div class="rcol3"><div class="rname"><span>'+esc(it.name)+'</span>'+(fl?'<div class="rflavs">'+fl+'</div>':'')+'</div>'
       +'<span class="rqty">'+it.qty+'</span>'
       +'<span class="ramt">'+(it.qty*it.price).toFixed(2)+'</span></div>';
   }).join('');
   var subtotal=(o.items||[]).reduce(function(s,it){return s+it.qty*it.price;},0)||o.total||0;
   var discount=o.discount||0;
-  // 有折扣才显示 SUBTOTAL/DISCOUNT 那一段（没折扣时 subtotal 和 total 一样，显示重复）
-  var subHtml=discount>0
-    ? '<div class="rdash"></div>'
-      +'<div class="rsec">'
+  // 商品组（Frame200）：商品行，有折扣时末尾接一条虚线（Line26）
+  var itemsGroup='<div class="rgroup">'+itemsHtml+(discount>0?'<div class="rdash"></div>':'')+'</div>';
+  // SUBTOTAL/DISCOUNT 段（Frame207）：仅有折扣时显示；没折扣时 subtotal 与 total 相同、省略。
+  // 段内含 2px 粗线（Line25）；没折扣时用独立粗线兜底分隔。
+  var subGroup, sepLine;
+  if(discount>0){
+    subGroup='<div class="rgroup">'
       +'<div class="rrow"><span class="rlbl">SUBTOTAL</span><span>'+subtotal.toFixed(2)+'</span></div>'
-      +'<div class="rrow"><span class="rlbl">DISCOUNT'+(o.discountLabel?'<div class="rflav" style="padding-left:0">'+esc(o.discountLabel)+'</div>':'')+'</span><span>-'+discount.toFixed(2)+'</span></div>'
-      +'</div>'
-    : '';
+      +'<div class="rdisc"><div class="rname"><span class="rlbl">DISCOUNT</span>'
+      +(o.discountLabel?'<div class="rflavs" style="padding-left:0"><div class="rflav">'+esc(o.discountLabel)+'</div></div>':'')
+      +'</div><span class="rval">-'+discount.toFixed(2)+'</span></div>'
+      +'<div class="rline2"></div>'
+      +'</div>';
+    sepLine='';
+  } else {
+    subGroup='';
+    sepLine='<div class="rline2"></div>';
+  }
   var payHtml=o.payMethod==='cash'
     ? '<div class="rrow"><span class="rlbl">Cash</span><span>'+(o.tender!=null?o.tender.toFixed(2):(o.total||0).toFixed(2))+'</span></div>'
       +'<div class="rrow"><span class="rlbl">Change</span><span>'+(o.change!=null?o.change.toFixed(2):'0.00')+'</span></div>'
     : '<div class="rrow"><span class="rlbl">'+(pm[o.payMethod]||esc(o.payMethod||''))+'</span><span>'+(o.total||0).toFixed(2)+'</span></div>';
+  var totalsGroup='<div class="rgroup">'
+    +'<div class="rrow rtot"><span>TOTAL</span><span>'+(o.total||0).toFixed(2)+'</span></div>'
+    +payHtml
+    +'</div>';
   var memHtml='';
   if(mem){
-    memHtml='<div class="rcenter">MEMBER</div>'
+    memHtml='<div class="rmemblock">'
+      +'<div class="rmemlabel">MEMBER</div>'
       +'<div class="rmember"><div class="rml">'
       +'<span>'+esc(mem.nickname||'')+(mem.level_name?' ('+esc(mem.level_name)+')':'')+'</span>'
       +'<div class="rmgain">'
@@ -1335,7 +1360,7 @@ function _renderReceipt(o, mem){
       +'</div></div><div class="rmr">'
       +'<span>Coins: '+(mem.coins!=null?mem.coins:0)+'</span>'
       +(mem.next_level_xp_gap!=null?'<span>Next Lv: '+mem.next_level_xp_gap+' XP</span>':'')
-      +'</div></div>';
+      +'</div></div></div>';
   }
   document.getElementById('rcc').innerHTML='<div class="rc">'
     +'<img class="rlogo" src="./receipt-logo.png" onerror="this.style.display=\'none\'">'
@@ -1347,14 +1372,13 @@ function _renderReceipt(o, mem){
     +'</div>'
     +'<div class="rcol3 rhead"><span class="rname">ITEM</span><span class="rqty">QTY</span><span class="ramt">RM</span></div>'
     +'<div class="rdash"></div>'
-    +'<div class="ritems">'+itemsHtml+'</div>'
-    +subHtml
-    +'<div class="rline2"></div>'
-    +'<div class="rsec">'
-    +'<div class="rrow rtot"><span>TOTAL</span><span>'+(o.total||0).toFixed(2)+'</span></div>'
-    +payHtml
-    +'</div>'
+    +'<div class="rtotals">'
+    +itemsGroup
+    +subGroup
+    +sepLine
+    +totalsGroup
     +'<div class="rline"></div>'
+    +'</div>'
     +memHtml
     +'<div class="rstars">* * * * * * * * * * * * * * * * * * * * * * * * * * * *</div>'
     +'<div class="rthanks">Thank you</div>'
