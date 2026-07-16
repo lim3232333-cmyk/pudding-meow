@@ -1312,8 +1312,13 @@ function _renderReceipt(o, mem){
   }).join('');
   var subtotal=(o.items||[]).reduce(function(s,it){return s+it.qty*it.price;},0)||o.total||0;
   var discount=o.discount||0;
-  var discHtml=discount>0
-    ? '<div class="rrow"><span class="rlbl">DISCOUNT'+(o.discountLabel?'<div class="rflav" style="padding-left:0">'+esc(o.discountLabel)+'</div>':'')+'</span><span>-'+discount.toFixed(2)+'</span></div>'
+  // 有折扣才显示 SUBTOTAL/DISCOUNT 那一段（没折扣时 subtotal 和 total 一样，显示重复）
+  var subHtml=discount>0
+    ? '<div class="rdash"></div>'
+      +'<div class="rsec">'
+      +'<div class="rrow"><span class="rlbl">SUBTOTAL</span><span>'+subtotal.toFixed(2)+'</span></div>'
+      +'<div class="rrow"><span class="rlbl">DISCOUNT'+(o.discountLabel?'<div class="rflav" style="padding-left:0">'+esc(o.discountLabel)+'</div>':'')+'</span><span>-'+discount.toFixed(2)+'</span></div>'
+      +'</div>'
     : '';
   var payHtml=o.payMethod==='cash'
     ? '<div class="rrow"><span class="rlbl">Cash</span><span>'+(o.tender!=null?o.tender.toFixed(2):(o.total||0).toFixed(2))+'</span></div>'
@@ -1343,11 +1348,7 @@ function _renderReceipt(o, mem){
     +'<div class="rcol3 rhead"><span class="rname">ITEM</span><span class="rqty">QTY</span><span class="ramt">RM</span></div>'
     +'<div class="rdash"></div>'
     +'<div class="ritems">'+itemsHtml+'</div>'
-    +'<div class="rdash"></div>'
-    +'<div class="rsec">'
-    +'<div class="rrow"><span class="rlbl">SUBTOTAL</span><span>'+subtotal.toFixed(2)+'</span></div>'
-    +discHtml
-    +'</div>'
+    +subHtml
     +'<div class="rline2"></div>'
     +'<div class="rsec">'
     +'<div class="rrow rtot"><span>TOTAL</span><span>'+(o.total||0).toFixed(2)+'</span></div>'
