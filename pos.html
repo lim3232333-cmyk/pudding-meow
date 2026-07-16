@@ -19,7 +19,8 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
   html,body{margin:0!important;padding:0!important;width:auto!important;height:auto!important;min-height:0!important;overflow:visible!important;display:block!important;background:#fff!important;}
   body>*{display:none!important;}
   #pa{display:block!important;position:static!important;margin:0!important;padding:0!important;}
-  #pa .rc{margin:0!important;}
+  /* 打印整体缩放到 90%（相当于打印对话框里的「缩放 90%」，免得每次手动设） */
+  #pa .rc{margin:0!important;zoom:0.9;}
   @page{size:80mm auto;margin:0;}
 }
 #pa{display:none;}
