@@ -13,7 +13,15 @@ body{display:flex;align-items:center;justify-content:center;}
 /* 响应式：把 1366x768 的像素级设计整体等比缩放贴合任意屏幕/平板分辨率，居中显示（黑边留白） */
 #posScale{width:1366px;height:768px;position:relative;transform-origin:center center;background:#fff;flex-shrink:0;}
 button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
-@media print{html,body{margin:0!important;padding:0!important;}body>*{display:none!important;}#pa{display:block!important;margin:0!important;padding:0!important;}@page{size:80mm auto;margin:0;}}
+/* 打印：body 平时是 flex 垂直居中+满高（POS 界面居中用），打印时必须改回
+   block/自动高度/顶对齐，否则收据会被推到页面正中、上方留出一大截空白 */
+@media print{
+  html,body{margin:0!important;padding:0!important;width:auto!important;height:auto!important;min-height:0!important;overflow:visible!important;display:block!important;background:#fff!important;}
+  body>*{display:none!important;}
+  #pa{display:block!important;position:static!important;margin:0!important;padding:0!important;}
+  #pa .rc{margin:0!important;}
+  @page{size:80mm auto;margin:0;}
+}
 #pa{display:none;}
 /* 收据版式 1:1 还原 Figma 326-187（302px 框 ≈ 80mm，内容 270px）
    字体/字号/字重/行高/间距全部按 Figma auto-layout 数值。
