@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1366, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
 <title>布丁喵 · POS 管理系统</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Jua&family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Pattaya&family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
 <script src="./supabase.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;touch-action:pan-x pan-y;}
@@ -26,13 +26,19 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 /* 收据版式 1:1 还原 Figma 326-187（302px 框 ≈ 80mm，内容 270px）
    字体/字号/字重/行高/间距全部按 Figma auto-layout 数值。
    顶部内边距压到 10px（热敏纸本来就会走纸，27px 会印出一大截空白） */
-.rc{font-family:"Inter","Noto Sans SC",sans-serif;font-size:12px;line-height:15px;font-weight:400;color:#000;background:#fff;width:80mm;box-sizing:border-box;padding:10px 16px 16px;display:flex;flex-direction:column;align-items:center;gap:13px;}
+.rc{font-family:"Inter","Noto Sans SC",sans-serif;font-size:12px;line-height:15px;font-weight:400;color:#000;background:#fff;width:80mm;box-sizing:border-box;padding:10px 16px 16px;display:flex;flex-direction:column;align-items:center;gap:12px;}
 .rc *{box-sizing:border-box;}
+.rc .rheadgrp{width:100%;display:flex;flex-direction:column;align-items:center;gap:9px;}
 .rc .rlogo{width:94px;height:auto;object-fit:contain;flex:none;image-rendering:crisp-edges;}
-.rc .rtitle{font-family:"Jua","Noto Sans SC",sans-serif;font-weight:400;font-size:22px;line-height:28px;text-align:center;width:100%;}
+.rc .rtitle{font-family:'Pattaya',cursive;font-weight:400;font-size:22px;line-height:31px;text-align:center;width:100%;}
+/* 公司抬头：注册名/注册号/地址（自动换行）/电话/收据号，左对齐，电话+收据号右对齐 */
+.rc .rcompany{width:100%;display:flex;flex-direction:column;align-items:flex-start;gap:4px;}
+.rc .rcompany>div{width:100%;}
+.rc .rcompany .rright{text-align:right;}
 .rc .rline{width:100%;border-top:1px solid #000;}
 .rc .rline2{width:100%;border-top:2px solid #000;}
 .rc .rdash{width:100%;border-top:1px dashed #000;}
+.rc .ritemsblock{width:100%;display:flex;flex-direction:column;gap:8px;}
 .rc .rmeta{width:100%;display:flex;flex-direction:column;gap:4px;}
 .rc .rrow{width:100%;display:flex;justify-content:space-between;align-items:center;}
 /* 三栏商品行：名称 flex + QTY 61px + RM 60px，列间 8px */
@@ -1372,6 +1378,7 @@ function _renderReceipt(o, mem){
   var memHtml='';
   if(mem){
     memHtml='<div class="rmemblock">'
+      +'<div class="rline"></div>'
       +'<div class="rmemlabel">MEMBER</div>'
       +'<div class="rmember"><div class="rml">'
       +'<span>'+esc(mem.nickname||'')+(mem.level_name?' ('+esc(mem.level_name)+')':'')+'</span>'
@@ -1383,22 +1390,33 @@ function _renderReceipt(o, mem){
       +(mem.next_level_xp_gap!=null?'<span>Next Lv: '+mem.next_level_xp_gap+' XP</span>':'')
       +'</div></div></div>';
   }
+  var receiptNo='RC'+esc(o.orderNum);
   document.getElementById('rcc').innerHTML='<div class="rc">'
+    +'<div class="rheadgrp">'
     +'<img class="rlogo" src="'+RECEIPT_LOGO+'" onerror="this.style.display=\'none\'">'
     +'<div class="rtitle">Pudding Meow</div>'
-    +'<div class="rline"></div>'
-    +'<div class="rmeta">'
-    +'<div class="rrow"><span>DATE</span><span>'+ds+'</span></div>'
-    +'<div class="rrow"><span>BILL NO</span><span>'+esc(o.orderNum)+'</span></div>'
     +'</div>'
+    +'<div class="rcompany">'
+    +'<div>MEOW PUDDING ENTERPRISE</div>'
+    +'<div>202403329966 (003678649-X)</div>'
+    +'<div class="raddr">NO K5, JALAN KPKS 1, KOMPLEKS PRENIAGAAN KOTA SHAYBANDAR , 75200 MELAKA.</div>'
+    +'<div class="rright">TEL: 017-5221811</div>'
+    +'<div class="rright">RECEIPT NO: '+receiptNo+'</div>'
+    +'</div>'
+    +'<div class="rmeta">'
+    +'<div class="rline"></div>'
+    +'<div class="rrow"><span>DATE</span><span>'+ds+'</span></div>'
+    +'<div class="rrow"><span>ORDER NO</span><span>'+esc(o.orderNum)+'</span></div>'
+    +'</div>'
+    +'<div class="ritemsblock">'
     +'<div class="rcol3 rhead"><span class="rname">ITEM</span><span class="rqty">QTY</span><span class="ramt">RM</span></div>'
-    +'<div class="rdash"></div>'
     +'<div class="rtotals">'
+    +'<div class="rdash"></div>'
     +itemsGroup
     +subGroup
     +sepLine
     +totalsGroup
-    +'<div class="rline"></div>'
+    +'</div>'
     +'</div>'
     +memHtml
     +'<div class="rstars">* * * * * * * * * * * * * * * * * * * * * * * * * * * *</div>'
