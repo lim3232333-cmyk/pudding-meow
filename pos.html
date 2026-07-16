@@ -47,7 +47,11 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 .rc .rcol3 .rname{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:2px;font-weight:500;}
 .rc .rcol3 .rqty{width:61px;flex:none;text-align:right;font-weight:400;}
 .rc .rcol3 .ramt{width:60px;flex:none;text-align:right;font-weight:400;}
-.rc .rhead .rname,.rc .rhead .rqty,.rc .rhead .ramt{font-weight:600;}
+.rc .rhead .rname,.rc .rhead .rqty,.rc .rhead .ramt{font-weight:700;}
+/* ORDER NO 大号粗体块：小标签 + 粗体单号 */
+.rc .rordno{width:100%;display:flex;flex-direction:column;align-items:flex-start;gap:2px;}
+.rc .rordno .lbl{font-weight:400;font-size:12px;line-height:16px;}
+.rc .rordno .num{font-weight:700;font-size:20px;line-height:26px;}
 .rc .rflavs{display:flex;flex-direction:column;gap:2px;padding-left:18px;}
 .rc .rflav{font-weight:400;font-size:10px;line-height:12px;}
 .rc .rtotals{width:100%;display:flex;flex-direction:column;gap:8px;}
@@ -56,7 +60,7 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 .rc .rdisc{width:100%;display:flex;gap:8px;align-items:flex-start;}
 .rc .rdisc .rname{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:2px;}
 .rc .rdisc .rval{width:59px;flex:none;text-align:right;font-weight:400;}
-.rc .rtot{font-weight:800;}
+.rc .rtot{font-weight:700;}
 /* MEMBER 区块：整体左对齐，标签在上、明细左右分栏 */
 .rc .rmemblock{width:100%;display:flex;flex-direction:column;gap:4px;}
 .rc .rmemlabel{width:100%;font-weight:500;text-align:left;}
@@ -66,6 +70,18 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 .rc .rmember .rmr{display:flex;flex-direction:column;gap:8px;align-items:flex-end;font-weight:400;}
 .rc .rstars{width:100%;text-align:center;font-size:12px;line-height:1;letter-spacing:2px;overflow:hidden;white-space:nowrap;}
 .rc .rthanks{width:100%;font-weight:400;font-size:10px;line-height:12px;text-align:center;}
+
+/* ── 制作单 / KITCHEN TICKET（Figma 375-495）：Table + 单号/时间 + 大字商品和规格，无价格 ── */
+.kc{font-family:"Inter","Noto Sans SC",sans-serif;font-size:14px;line-height:17px;color:#000;background:#fff;width:80mm;box-sizing:border-box;padding:24px 16px;display:flex;flex-direction:column;align-items:center;gap:12px;}
+.kc *{box-sizing:border-box;}
+.kc .ktable{font-weight:600;font-size:20px;line-height:26px;text-align:center;}
+.kc .kmeta{width:100%;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;font-size:14px;line-height:18px;}
+.kc .kdash{width:100%;border-top:1px dashed #000;}
+.kc .kitem{width:100%;display:flex;align-items:flex-start;gap:12px;}
+.kc .kqty{flex:none;width:38px;text-align:center;font-weight:600;font-size:20px;line-height:24px;}
+.kc .kbody{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:4px;}
+.kc .kname{font-weight:600;font-size:20px;line-height:26px;}
+.kc .kspec{font-weight:500;font-size:14px;line-height:18px;}
 
 /* ── NOTIF ── */
 .notif{position:fixed;top:96px;right:20px;background:#8D0505;color:#FFDE5B;padding:10px 18px;border-radius:10px;font-size:14px;font-weight:700;z-index:9998;display:none;box-shadow:0 4px 16px rgba(0,0,0,.25);}
@@ -1284,9 +1300,10 @@ function confirmPayment(){
 }
 
 function changeDone(){
-  // 找零 overlay 的 Done → 关找零，弹打印询问
+  // 找零 overlay 的 Done → 关找零。付款完成：制作单直接打印给厨房，再弹"打印收据？"（顾客收据每次都问）
   document.getElementById('changeBg').classList.remove('show');
-  document.getElementById('askBg').classList.add('show');
+  if(_pendingOrder) printKitchen(_pendingOrder);
+  setTimeout(function(){ document.getElementById('askBg').classList.add('show'); }, 500);
 }
 
 function askPrint(yes){
@@ -1325,6 +1342,37 @@ function _printWhenReady(){
   else { img.addEventListener('load', waitFonts); img.addEventListener('error', waitFonts); }
   setTimeout(fire, 1500);
 }
+// 订单类型标签：外卖→Takeaway；堂食→Table N（桌号是纯数字时加 Table 前缀），无桌号→Dine-in
+function _orderTypeLabel(o){
+  var t=String(o.tableName==null?'':o.tableName).trim().replace(/^📱[^·]*·?/,'');
+  if(o.taMode==='takeaway') return 'Takeaway';
+  if(!t||t==='-') return 'Dine-in';
+  return /^\d+$/.test(t)?'Table '+t:t;
+}
+// 制作单（厨房单）：Table + 单号/时间 + 大字商品和规格，无价格。付款后自动打印给厨房。
+function _renderKitchen(o){
+  var dt=new Date(o.createdAt);var p=function(n){return String(n).padStart(2,'0');};
+  var ds=p(dt.getHours())+':'+p(dt.getMinutes())+' '+p(dt.getDate())+'/'+p(dt.getMonth()+1)+'/'+dt.getFullYear();
+  var esc=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+  var ticketNo=parseInt(o.orderNum,10); if(!ticketNo&&ticketNo!==0) ticketNo=o.orderNum;
+  var specHtml=function(it){
+    var f=it.flavor||it.spec||it.specs||'';
+    if(!f) return '';
+    return String(f).split(/[、,，/]+/).filter(function(x){return x.trim();})
+      .map(function(x){return '<div class="kspec">'+esc(x.trim())+'</div>';}).join('');
+  };
+  var items=(o.items||[]).map(function(it){
+    return '<div class="kdash"></div>'
+      +'<div class="kitem"><div class="kqty">'+it.qty+'x</div>'
+      +'<div class="kbody"><div class="kname">'+esc(it.name)+'</div>'+specHtml(it)+'</div></div>';
+  }).join('');
+  document.getElementById('rcc').innerHTML='<div class="kc">'
+    +'<div class="ktable">'+esc(_orderTypeLabel(o))+'</div>'
+    +'<div class="kmeta"><span>Ticket No: '+esc(ticketNo)+'</span><span>'+ds+'</span></div>'
+    +items
+    +'</div>';
+}
+function printKitchen(o){ _renderKitchen(o); _printWhenReady(); }
 function printRec(o){
   // 带会员的订单先拉会员区块数据（昵称/等级/本单积分/余额），拉不到就直接打印
   if(o.memberId && db){
@@ -1402,6 +1450,7 @@ function _renderReceipt(o, mem){
       +'</div></div></div>';
   }
   var receiptNo='RC'+esc(o.orderNum);
+  var orderType=_orderTypeLabel(o);
   document.getElementById('rcc').innerHTML='<div class="rc">'
     +'<div class="rheadgrp">'
     +'<img class="rlogo" src="'+RECEIPT_LOGO+'" onerror="this.style.display=\'none\'">'
@@ -1414,10 +1463,11 @@ function _renderReceipt(o, mem){
     +'<div class="rright">TEL: 017-5221811</div>'
     +'<div class="rright">RECEIPT NO: '+receiptNo+'</div>'
     +'</div>'
+    +'<div class="rordno"><span class="lbl">ORDER NO</span><span class="num">#'+esc(o.orderNum)+'</span></div>'
     +'<div class="rmeta">'
     +'<div class="rline"></div>'
     +'<div class="rrow"><span>DATE</span><span>'+ds+'</span></div>'
-    +'<div class="rrow"><span>ORDER NO</span><span>'+esc(o.orderNum)+'</span></div>'
+    +'<div class="rrow"><span>ORDER TYPE</span><span>'+esc(orderType)+'</span></div>'
     +'</div>'
     +'<div class="ritemsblock">'
     +'<div class="rcol3 rhead"><span class="rname">ITEM</span><span class="rqty">QTY</span><span class="ramt">RM</span></div>'
