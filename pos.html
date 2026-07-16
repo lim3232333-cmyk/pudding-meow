@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1366, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
 <title>布丁喵 · POS 管理系统</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Jua&family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
 <script src="./supabase.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;touch-action:pan-x pan-y;}
@@ -15,12 +15,32 @@ body{display:flex;align-items:center;justify-content:center;}
 button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 @media print{body>*{display:none!important;}#pa{display:block!important;}@page{size:80mm auto;margin:0;}}
 #pa{display:none;}
-.rc{font-family:monospace;font-size:15px;width:80mm;box-sizing:border-box;padding:4mm;}
-.rc .rt{font-size:18px;font-weight:bold;text-align:center;}
-.rc .rd{border-top:1px dashed #000;margin:5px 0;}
-.rc .rr{display:flex;justify-content:space-between;}
-.rc .rb{font-weight:bold;font-size:16px;}
-.rc .rc2{text-align:center;font-size:13px;}
+/* 收据版式 1:1 还原 Figma 326-187（302px 框 ≈ 80mm，内容 270px） */
+.rc{font-family:"Inter","Noto Sans SC",sans-serif;font-size:12px;color:#000;background:#fff;width:80mm;box-sizing:border-box;padding:27px 16px;display:flex;flex-direction:column;align-items:center;gap:13px;}
+.rc .rlogo{width:94px;height:94px;object-fit:contain;}
+.rc .rtitle{font-family:"Jua","Noto Sans SC",sans-serif;font-size:22px;text-align:center;}
+.rc .rline{border-top:1px solid #000;width:100%;}
+.rc .rline2{border-top:2px solid #000;width:100%;}
+.rc .rdash{border-top:1px dashed #000;width:100%;}
+.rc .rrow{display:flex;justify-content:space-between;width:100%;}
+.rc .rmeta{display:flex;flex-direction:column;gap:4px;width:100%;}
+.rc .rhead{font-weight:600;}
+.rc .rcol3{display:flex;gap:8px;width:100%;align-items:flex-start;}
+.rc .rcol3 .rname{flex:1 0 0;min-width:1px;font-weight:500;}
+.rc .rcol3 .rqty{width:61px;text-align:right;flex-shrink:0;}
+.rc .rcol3 .ramt{width:60px;text-align:right;flex-shrink:0;}
+.rc .rflav{font-size:10px;font-weight:400;padding-left:18px;margin-top:2px;}
+.rc .ritems{display:flex;flex-direction:column;gap:12px;width:100%;}
+.rc .rsec{display:flex;flex-direction:column;gap:12px;width:100%;}
+.rc .rlbl{font-weight:500;}
+.rc .rtot{font-weight:800;}
+.rc .rcenter{text-align:center;width:100%;font-weight:500;}
+.rc .rmember{display:flex;justify-content:space-between;width:100%;align-items:flex-start;}
+.rc .rmember .rml{display:flex;flex-direction:column;gap:8px;}
+.rc .rmember .rml .rmgain{display:flex;flex-direction:column;gap:2px;}
+.rc .rmember .rmr{display:flex;flex-direction:column;gap:8px;align-items:flex-end;}
+.rc .rstars{width:100%;text-align:center;font-size:12px;letter-spacing:2px;overflow:hidden;white-space:nowrap;}
+.rc .rthanks{font-size:10px;text-align:center;}
 
 /* ── NOTIF ── */
 .notif{position:fixed;top:96px;right:20px;background:#8D0505;color:#FFDE5B;padding:10px 18px;border-radius:10px;font-size:14px;font-weight:700;z-index:9998;display:none;box-shadow:0 4px 16px rgba(0,0,0,.25);}
@@ -1260,26 +1280,84 @@ function askPrint(yes){
 
 /* ── PRINT ── */
 function printRec(o){
-  var dt=new Date(o.createdAt);var p=function(n){return String(n).padStart(2,'0');};
-  var ds=dt.getFullYear()+'-'+p(dt.getMonth()+1)+'-'+p(dt.getDate())+''+p(dt.getHours())+':'+p(dt.getMinutes());
-  var pm={cash:'现金 Cash',tng:'DuitNow/TNG',card:'刷卡 Card',counter:'挂账'};
-  document.getElementById('rcc').innerHTML='<div class="rc">'
-    +'<div class="rt">Pudding Meow 布丁喵</div>'
-    +'<div class="rc2">No K5, Jalan KPKS 1, 75200 Melaka</div>'
-    +'<div class="rc2">Tel: 0175221811</div>'
-    +'<div class="rd"></div>'
-    +'<div class="rr"><span>#'+o.orderNum+'</span><span>'+o.tableName+(o.taMode==='takeaway'?' (外卖)':'')+'</span></div>'
-    +'<div class="rc2">'+ds+'</div>'
-    +'<div class="rd"></div>'
-    +(o.items||[]).map(function(it){return'<div class="rb">'+it.name+'</div><div class="rr"><span>'+it.name_cn+' ×'+it.qty+'</span><span>RM '+(it.qty*it.price).toFixed(2)+'</span></div>';}).join('')
-    +'<div class="rd"></div>'
-    +'<div class="rr rb" style="font-size:14px"><span>TOTAL</span><span>RM '+(o.total||0).toFixed(2)+'</span></div>'
-    +'<div>Payment:'+(pm[o.payMethod]||o.payMethod)+'</div>'
-    +'<div class="rd"></div>'
-    +'<div class="rc2">谢谢光临！Thank you!</div>'
-    +'<div class="rc2">欢迎下次再来</div>'
-    +'<div style="margin-top:14px">&nbsp;</div></div>';
+  // 带会员的订单先拉会员区块数据（昵称/等级/本单积分/余额），拉不到就直接打印
+  if(o.memberId && db){
+    var done=false;
+    var go=function(mem){ if(done)return; done=true; _renderReceipt(o, mem); window.print(); };
+    db.rpc('rpc_pos_receipt_member_info',{p_member_id:o.memberId,p_order_id:o.id||''}).then(function(res){
+      go(res && !res.error && res.data && res.data[0] ? res.data[0] : null);
+    }).catch(function(){ go(null); });
+    setTimeout(function(){ go(null); }, 1500);
+    return;
+  }
+  _renderReceipt(o, null);
   window.print();
+}
+function _renderReceipt(o, mem){
+  var dt=new Date(o.createdAt);var p=function(n){return String(n).padStart(2,'0');};
+  var ds=p(dt.getHours())+':'+p(dt.getMinutes())+' '+p(dt.getDate())+'/'+p(dt.getMonth()+1)+'/'+dt.getFullYear();
+  var pm={tng:'DuitNow/TNG',card:'Card',counter:'Counter'};
+  var esc=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+  // 口味/规格 → 每行一条 "-xxx"（多规格用 、/ ，, 分隔的拆开）
+  var flavHtml=function(it){
+    var f=it.name_cn||it.flavor||'';
+    if(!f) return '';
+    return String(f).split(/[、,，/]+/).filter(function(x){return x.trim();})
+      .map(function(x){return '<div class="rflav">-'+esc(x.trim())+'</div>';}).join('');
+  };
+  var itemsHtml=(o.items||[]).map(function(it){
+    return '<div class="rcol3"><div class="rname">'+esc(it.name)+flavHtml(it)+'</div>'
+      +'<span class="rqty">'+it.qty+'</span>'
+      +'<span class="ramt">'+(it.qty*it.price).toFixed(2)+'</span></div>';
+  }).join('');
+  var subtotal=(o.items||[]).reduce(function(s,it){return s+it.qty*it.price;},0)||o.total||0;
+  var discount=o.discount||0;
+  var discHtml=discount>0
+    ? '<div class="rrow"><span class="rlbl">DISCOUNT'+(o.discountLabel?'<div class="rflav" style="padding-left:0">'+esc(o.discountLabel)+'</div>':'')+'</span><span>-'+discount.toFixed(2)+'</span></div>'
+    : '';
+  var payHtml=o.payMethod==='cash'
+    ? '<div class="rrow"><span class="rlbl">Cash</span><span>'+(o.tender!=null?o.tender.toFixed(2):(o.total||0).toFixed(2))+'</span></div>'
+      +'<div class="rrow"><span class="rlbl">Change</span><span>'+(o.change!=null?o.change.toFixed(2):'0.00')+'</span></div>'
+    : '<div class="rrow"><span class="rlbl">'+(pm[o.payMethod]||esc(o.payMethod||''))+'</span><span>'+(o.total||0).toFixed(2)+'</span></div>';
+  var memHtml='';
+  if(mem){
+    memHtml='<div class="rcenter">MEMBER</div>'
+      +'<div class="rmember"><div class="rml">'
+      +'<span>'+esc(mem.nickname||'')+(mem.level_name?' ('+esc(mem.level_name)+')':'')+'</span>'
+      +'<div class="rmgain">'
+      +(mem.order_xp?'<span>+'+mem.order_xp+' XP</span>':'')
+      +(mem.order_coins?'<span>+'+mem.order_coins+' Coins</span>':'')
+      +'</div></div><div class="rmr">'
+      +'<span>Coins: '+(mem.coins!=null?mem.coins:0)+'</span>'
+      +(mem.next_level_xp_gap!=null?'<span>Next Lv: '+mem.next_level_xp_gap+' XP</span>':'')
+      +'</div></div>';
+  }
+  document.getElementById('rcc').innerHTML='<div class="rc">'
+    +'<img class="rlogo" src="./receipt-logo.png" onerror="this.style.display=\'none\'">'
+    +'<div class="rtitle">Pudding Meow</div>'
+    +'<div class="rline"></div>'
+    +'<div class="rmeta">'
+    +'<div class="rrow"><span>DATE</span><span>'+ds+'</span></div>'
+    +'<div class="rrow"><span>BILL NO</span><span>'+esc(o.orderNum)+'</span></div>'
+    +'</div>'
+    +'<div class="rcol3 rhead"><span class="rname">ITEM</span><span class="rqty">QTY</span><span class="ramt">RM</span></div>'
+    +'<div class="rdash"></div>'
+    +'<div class="ritems">'+itemsHtml+'</div>'
+    +'<div class="rdash"></div>'
+    +'<div class="rsec">'
+    +'<div class="rrow"><span class="rlbl">SUBTOTAL</span><span>'+subtotal.toFixed(2)+'</span></div>'
+    +discHtml
+    +'</div>'
+    +'<div class="rline2"></div>'
+    +'<div class="rsec">'
+    +'<div class="rrow rtot"><span>TOTAL</span><span>'+(o.total||0).toFixed(2)+'</span></div>'
+    +payHtml
+    +'</div>'
+    +'<div class="rline"></div>'
+    +memHtml
+    +'<div class="rstars">* * * * * * * * * * * * * * * * * * * * * * * * * * * *</div>'
+    +'<div class="rthanks">Thank you</div>'
+    +'</div>';
 }
 
 /* ── PENDING ── */
