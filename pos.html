@@ -1035,7 +1035,10 @@ function doLogout(){
 }
 
 /* ── INIT ── */
-function initPOS(){renderCart();updPend();buildNumpad();}
+function initPOS(){renderCart();updPend();buildNumpad();
+  // 预热收据标题字体（收据平时隐藏，字体不会自动加载）——首次打印也能立刻用上 Pattaya
+  try{ if(document.fonts&&document.fonts.load) document.fonts.load('22px "PattayaRC"'); }catch(e){}
+}
 
 /* ── T/A TOGGLE ── */
 function toggleTA(){
@@ -1311,13 +1314,16 @@ function _printWhenReady(){
   var img=document.querySelector('#rcc .rlogo');
   var done=false, fire=function(){ if(done)return; done=true; window.print(); };
   var waitFonts=function(){
-    // 字体已内嵌，通常瞬间就绪；document.fonts.ready 兜底确保标题按 Pattaya 排版
-    if(document.fonts && document.fonts.ready){ document.fonts.ready.then(fire); }
-    else { fire(); }
+    // 收据 #pa 平时 display:none，浏览器不会给隐藏元素预加载字体，
+    // document.fonts.ready 只反映"已请求"的字体、不会主动触发，所以必须显式 load 强制加载 Pattaya，
+    // 否则打印瞬间字体没就绪、标题会退回默认字体。
+    if(document.fonts && document.fonts.load){
+      document.fonts.load('22px "PattayaRC"').then(fire, fire);
+    } else { fire(); }
   };
   if(!img || img.complete){ waitFonts(); }
   else { img.addEventListener('load', waitFonts); img.addEventListener('error', waitFonts); }
-  setTimeout(fire, 1200);
+  setTimeout(fire, 1500);
 }
 function printRec(o){
   // 带会员的订单先拉会员区块数据（昵称/等级/本单积分/余额），拉不到就直接打印
