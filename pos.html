@@ -2315,6 +2315,30 @@ function sdEdit(id){
   document.getElementById('sdBg').classList.add('show');
 }
 function closeSD(){document.getElementById('sdBg').classList.remove('show');}
+/* 规格库选项改动后，同步到所有挂了该规格的商品：保留商品原本勾选中仍存在的选项、
+   追加全新增加的选项、去掉被删除的选项，并同步规格名。这样在规格管理加/改选项后，
+   相关商品无需逐个重进即时更新。返回一个 Promise（更新完所有受影响商品）。 */
+function _syncItemsForSpecDef(defId, oldOptions, newName, newOptions){
+  oldOptions=oldOptions||[]; newOptions=newOptions||[];
+  var updates=[];
+  (_menuRows||[]).forEach(function(r){
+    if(!r.specs||!r.specs.length)return;
+    var changed=false;
+    var specs=r.specs.map(function(g){
+      if(!g||String(g.defId)!==String(defId))return g;
+      var stored=g.options||[];
+      // 商品原本勾选、且规格库仍保留的选项（保住有意排除的子集）；再并上全新选项
+      var merged=newOptions.filter(function(o){return stored.indexOf(o)>=0 || oldOptions.indexOf(o)<0;});
+      if(g.name!==newName || JSON.stringify(stored)!==JSON.stringify(merged)) changed=true;
+      return {defId:g.defId,name:newName,options:merged};
+    });
+    if(changed) updates.push({id:r.id,specs:specs});
+  });
+  if(!updates.length) return Promise.resolve(0);
+  return Promise.all(updates.map(function(u){
+    return db.from('menu_items').update({specs:u.specs}).eq('id',u.id);
+  })).then(function(){return updates.length;});
+}
 function saveSD(){
   if(!db){showN('未连接云端');return;}
   var name=document.getElementById('sdName').value.trim();
@@ -2324,8 +2348,16 @@ function saveSD(){
   var reqEl=document.querySelector('input[name="sdRequired"]:checked');
   var payload={name:name,options:collected.options,sold_out_options:collected.soldOut,required:!reqEl||reqEl.value==='1'};
   if(_sdEditId){
-    db.from('spec_defs').update(payload).eq('id',_sdEditId)
-      .then(function(res){_sdAfterWrite(res,'已保存');}).catch(function(e){showN('网络错误');});
+    var oldDef=(_specDefs||[]).find(function(x){return String(x.id)===String(_sdEditId);});
+    var oldOptions=oldDef?(oldDef.options||[]).slice():[];
+    var editId=_sdEditId;
+    db.from('spec_defs').update(payload).eq('id',editId)
+      .then(function(res){
+        if(res&&res.error){_sdAfterWrite(res,'已保存');return;}
+        _syncItemsForSpecDef(editId, oldOptions, name, collected.options).then(function(n){
+          loadMenu().then(function(){ _sdAfterWrite(res, n?('已保存，已同步 '+n+' 个商品'):'已保存'); });
+        });
+      }).catch(function(e){showN('网络错误');});
   }else{
     var maxSo=(_specDefs||[]).reduce(function(m,r){return Math.max(m,r.sort_order||0);},0);
     payload.sort_order=maxSo+10;
