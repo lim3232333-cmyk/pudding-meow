@@ -1459,13 +1459,22 @@ function _orderTypeLabel(o){
   return /^\d+$/.test(t)?'Table '+t:t;
 }
 // 制作单（厨房单）：Table + 单号/时间 + 大字商品和规格，无价格。付款后自动打印给厨房。
+/* 统一取一条商品的规格/口味文本：POS 单存字符串 flavor/specText；线上（app）单存 specs
+   数组 [{value}]，要拼成字符串，否则会印出 [object Object] */
+function _itemSpecText(it){
+  if(!it) return '';
+  if(it.flavor) return it.flavor;
+  if(it.specText) return it.specText;
+  if(Array.isArray(it.specs)) return it.specs.map(function(s){return s&&typeof s==='object'?s.value:s;}).filter(Boolean).join(' · ');
+  return (typeof it.specs==='string'?it.specs:'')||it.spec||'';
+}
 function _renderKitchen(o){
   var dt=new Date(o.createdAt);var p=function(n){return String(n).padStart(2,'0');};
   var ds=p(dt.getHours())+':'+p(dt.getMinutes())+' '+p(dt.getDate())+'/'+p(dt.getMonth()+1)+'/'+dt.getFullYear();
   var esc=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
   var ticketNo=parseInt(o.orderNum,10); if(!ticketNo&&ticketNo!==0) ticketNo=o.orderNum;
   var specHtml=function(it){
-    var f=it.flavor||it.spec||it.specs||'';
+    var f=_itemSpecText(it);
     if(!f) return '';
     return String(f).split(/[、,，/·]+/).filter(function(x){return x.trim();})
       .map(function(x){return '<div class="kspec">'+esc(x.trim())+'</div>';}).join('');
@@ -1504,7 +1513,7 @@ function _renderReceipt(o, mem){
   // 口味/规格 → 每行一条 "-xxx"（多规格用 、/ ，, 分隔的拆开）
   // 只印真正的口味/规格字段，不印中文名（name_cn）——收据只要英文名
   var flavHtml=function(it){
-    var f=it.flavor||it.spec||it.specs||'';
+    var f=_itemSpecText(it);
     if(!f) return '';
     return String(f).split(/[、,，/·]+/).filter(function(x){return x.trim();})
       .map(function(x){return '<div class="rflav">-'+esc(x.trim())+'</div>';}).join('');
@@ -2645,6 +2654,7 @@ function pmRefreshOrders(announce){
     _pmKnown[o.id]=o.status;
     if(announce && !(o.id in prev) && o.source==='app' && o.status==='pending'){ newN++; last=o; }
   });
+  try{ _scanPrepaidPrint(_orders, prev, announce); }catch(e){}   // 同源 TNG 预付单也自动出单
   try{updPend();}catch(e){}
   try{if(document.getElementById('pendBg').classList.contains('show'))showPending();}catch(e){}
   try{
@@ -2657,6 +2667,33 @@ function pmRefreshOrders(announce){
 if(_pmBC)_pmBC.onmessage=function(ev){if(ev&&ev.data&&ev.data.t==='orders')pmRefreshOrders(true);};
 window.addEventListener('storage',function(e){if(e.key==='pm_orders')pmRefreshOrders(true);});
 
+/* ── 线上预付单（TNG）自动出制作单 ──
+   TNG 单在顾客手机上付款、状态直接是 preparing，从不经过 POS 收银流程，所以要在实时
+   订单进来时自动打印制作单。用 pm_printed_kitchen 持久化已打印的订单号，避免刷新/多次
+   实时事件重复出单；多单到达用队列顺序打印。 */
+var _printedKitchen=(function(){try{return gj('pm_printed_kitchen',{});}catch(e){return {};}})();
+var _kitchenQ=[], _kitchenBusy=false;
+function _drainKitchenQ(){
+  if(_kitchenBusy||!_kitchenQ.length)return;
+  _kitchenBusy=true; var o=_kitchenQ.shift();
+  try{ printKitchen(o); }catch(e){}
+  setTimeout(function(){ _kitchenBusy=false; _drainKitchenQ(); }, 1500);
+}
+/* 扫描新到的、未打印的 app 预付单（preparing/paid），排队打印。announce 为 false（启动首拉）
+   时不打印历史单。返回打印张数。 */
+function _scanPrepaidPrint(arr, prev, announce){
+  if(!announce) return 0;
+  var n=0, last=null;
+  arr.forEach(function(o){
+    if(o.id in prev) return;
+    if(o.source==='app' && (o.status==='preparing'||o.status==='paid') && !_printedKitchen[o.id]){
+      _printedKitchen[o.id]=1; _kitchenQ.push(o); n++; last=o;
+    }
+  });
+  if(n){ try{sj('pm_printed_kitchen',_printedKitchen);}catch(e){} _drainKitchenQ();
+    try{ showN('线上预付单 #'+last.orderNum+(n>1?(' 等'+n+' 单'):'')+' 已出单'); }catch(e){} }
+  return n;
+}
 /* ── 云端订单：跨设备读取 + Realtime（取代跨设备场景下的本地同步）── */
 var _pmKnownCloud={};
 async function loadOrdersFromCloud(announce){
@@ -2668,6 +2705,7 @@ async function loadOrdersFromCloud(announce){
     var arr=(res.data||[]).map(rowToOrder), newN=0, last=null;
     arr.forEach(function(o){ _pmKnownCloud[o.id]=o.status;
       if(announce && !(o.id in prev) && o.source==='app' && o.status==='pending'){ newN++; last=o; } });
+    _scanPrepaidPrint(arr, prev, announce);   // 线上 TNG 预付单自动出制作单
     _orders=arr;
     try{ sj('pm_orders',_orders); }catch(e){}
     try{ updPend(); }catch(e){}
