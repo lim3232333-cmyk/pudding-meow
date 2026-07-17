@@ -751,7 +751,7 @@
   /* ===== 堂食选座弹窗（点堂食后居中弹出：选座号 + 人数） ===== */
   .dine-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:349; display:none; }
   .dine-overlay.show{ display:block; }
-  .dine-modal{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:300px; background:#FFFFD5; border-radius:12px; padding:24px; z-index:350; display:none; flex-direction:column; gap:16px; font-family:"Noto Sans SC",sans-serif; box-shadow:0 8px 30px rgba(0,0,0,.25); }
+  .dine-modal{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:300px; max-height:90vh; overflow-y:auto; background:#FFFFD5; border-radius:12px; padding:24px; z-index:350; display:none; flex-direction:column; gap:16px; font-family:"Noto Sans SC",sans-serif; box-shadow:0 8px 30px rgba(0,0,0,.25); }
   .dine-modal.show{ display:flex; }
   .dine-title{ font-size:20px; font-weight:700; line-height:24px; color:var(--red); text-align:center; }
   .dine-row{ display:flex; flex-direction:column; gap:8px; }
@@ -763,9 +763,9 @@
   .dine-wheel-scroll::-webkit-scrollbar{ display:none; }
   .dine-wheel-item{ height:44px; scroll-snap-align:center; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:700; line-height:24px; color:var(--red); cursor:pointer; }
   .dine-wheel-item.sel{ color:#FFFFD5; }
-  .dine-pax{ display:flex; align-items:center; gap:16px; }
-  .dine-step{ width:40px; height:36px; border:none; border-radius:8px; background:var(--red); color:#FFFFD5; font-size:22px; font-weight:700; line-height:1; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }
-  .dine-pax-val{ min-width:40px; text-align:center; font-size:20px; font-weight:700; color:var(--red); }
+  .dine-pax{ display:flex; align-items:center; justify-content:space-between; }
+  .dine-step{ width:40px; height:36px; border:none; border-radius:8px; background:var(--red); color:#FFFFD5; font-size:22px; font-weight:700; line-height:1; cursor:pointer; font-family:"Noto Sans SC",sans-serif; flex:none; }
+  .dine-pax-wheel{ width:96px; height:132px; }   /* 人数滚轮：数字居中，可滚动选择 */
   .dine-actions{ display:flex; gap:12px; margin-top:4px; }
   .dine-cancel,.dine-ok{ flex:1; height:40px; border-radius:999px; font-size:16px; font-weight:500; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
   .dine-cancel{ background:#FFF; border:1.5px solid var(--red); color:var(--red); }
@@ -1174,7 +1174,7 @@
       <div class="dine-wheel"><div class="dine-wheel-bar"></div><div class="dine-wheel-scroll" id="dineWheelScroll" onscroll="_onDineWheelScroll()"></div></div>
     </div>
     <div class="dine-row"><div class="dine-label">人数</div>
-      <div class="dine-pax"><button class="dine-step" onclick="dinePaxChange(-1)">－</button><div class="dine-pax-val" id="dinePaxVal">1</div><button class="dine-step" onclick="dinePaxChange(1)">＋</button></div>
+      <div class="dine-pax"><button class="dine-step" onclick="dinePaxChange(-1)">－</button><div class="dine-wheel dine-pax-wheel"><div class="dine-wheel-bar"></div><div class="dine-wheel-scroll" id="dinePaxScroll" onscroll="_onDinePaxScroll()"></div></div><button class="dine-step" onclick="dinePaxChange(1)">＋</button></div>
     </div>
     <div class="dine-actions"><button class="dine-cancel" onclick="closeDine()">取消</button><button class="dine-ok" id="dineOk" onclick="confirmDine()">确定</button></div>
   </div>
@@ -1294,11 +1294,15 @@ function openDine(){
   document.getElementById('dineWheelScroll').innerHTML=DINE_TABLES.map(function(t,i){
     return '<div class="dine-wheel-item" onclick="dineWheelTo('+i+')">'+t+'</div>';
   }).join('');
-  document.getElementById('dinePaxVal').textContent=dinePax;
+  var pxHtml=''; for(var n=1;n<=DINE_PAX_MAX;n++){ pxHtml+='<div class="dine-wheel-item" onclick="dinePaxTo('+n+')">'+n+'</div>'; }
+  document.getElementById('dinePaxScroll').innerHTML=pxHtml;
   document.getElementById('dineOverlay').classList.add('show');
   document.getElementById('dineModal').classList.add('show');
-  // 初始定位到第一个（居中）并标记选中；等弹窗显示后再设 scrollTop
-  setTimeout(function(){ var sc=document.getElementById('dineWheelScroll'); sc.scrollTop=0; _dineSyncWheel(); }, 30);
+  // 等弹窗显示后再设 scrollTop：座号定位到第一个、人数定位到 1
+  setTimeout(function(){
+    var sc=document.getElementById('dineWheelScroll'); sc.scrollTop=0; _dineSyncWheel();
+    var px=document.getElementById('dinePaxScroll'); px.scrollTop=0; _dineSyncPax();
+  }, 30);
 }
 function _dineSyncWheel(){
   var sc=document.getElementById('dineWheelScroll');
@@ -1310,7 +1314,18 @@ function _dineSyncWheel(){
 }
 function _onDineWheelScroll(){ _dineSyncWheel(); }
 function dineWheelTo(i){ document.getElementById('dineWheelScroll').scrollTo({top:i*DINE_ITEM_H, behavior:'smooth'}); }
-function dinePaxChange(d){ dinePax=Math.max(1,Math.min(20,dinePax+d)); document.getElementById('dinePaxVal').textContent=dinePax; }
+/* 人数滚轮：与座号同款，数字 1..DINE_PAX_MAX，落在红条上的为选中；－/＋ 也是滚到对应数字 */
+const DINE_PAX_MAX=20;
+function _dineSyncPax(){
+  var sc=document.getElementById('dinePaxScroll');
+  var idx=Math.round(sc.scrollTop/DINE_ITEM_H);
+  idx=Math.max(0,Math.min(DINE_PAX_MAX-1,idx));
+  dinePax=idx+1;
+  var kids=sc.children; for(var i=0;i<kids.length;i++){ kids[i].classList.toggle('sel', i===idx); }
+}
+function _onDinePaxScroll(){ _dineSyncPax(); }
+function dinePaxTo(n){ document.getElementById('dinePaxScroll').scrollTo({top:(n-1)*DINE_ITEM_H, behavior:'smooth'}); }
+function dinePaxChange(d){ dinePaxTo(Math.max(1,Math.min(DINE_PAX_MAX,dinePax+d))); }
 function closeDine(){
   document.getElementById('dineOverlay').classList.remove('show');
   document.getElementById('dineModal').classList.remove('show');
