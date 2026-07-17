@@ -154,7 +154,8 @@
   .screen{ padding-bottom:78px; }
 
   /* =================== MENU / ORDER PAGE =================== */
-  #screen-menu{ background:var(--cream2); }
+  /* 菜单页封顶到一屏高度：header/分类栏固定，只有商品列内部滚动（只作用于本页，不影响其他页滚动） */
+  #screen-menu{ background:var(--cream2); flex:none; height:100vh; height:100dvh; box-sizing:border-box; min-height:0; }
   .menu-header{ position:relative; height:92px; background:var(--cream2); border-bottom:4px solid var(--red); flex-shrink:0; }
   .menu-logo-mark{ position:absolute; left:0; top:0; width:65px; height:92px; object-fit:contain; }
   .menu-brand-cn{ position:absolute; left:86px; top:32px; font-weight:700; font-size:14px; color:var(--red); }
@@ -171,7 +172,7 @@
   .menu-seg button.active .cn, .menu-seg button.active .en{ color:var(--red); }
   .menu-seg button:not(.active) .cn, .menu-seg button:not(.active) .en{ color:var(--cream2); }
 
-  .menu-body{ flex:1; display:flex; overflow:hidden; }
+  .menu-body{ flex:1; display:flex; overflow:hidden; min-height:0; }
   .cat-list{ width:114px; flex-shrink:0; display:flex; flex-direction:column; overflow-y:auto; }
   .cat-item{
     height:77px; flex-shrink:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
