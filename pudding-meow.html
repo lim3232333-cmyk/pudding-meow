@@ -748,6 +748,25 @@
   .ld-result-prize{ font-size:22px; font-weight:700; color:var(--red); }
   .ld-result-close{ margin-top:8px; width:100%; height:38px; background:var(--red); color:var(--cream2); border:none; border-radius:999px; font-size:15px; font-weight:500; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
 
+  /* ===== 堂食选座弹窗（点堂食后居中弹出：选座号 + 人数） ===== */
+  .dine-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:349; display:none; }
+  .dine-overlay.show{ display:block; }
+  .dine-modal{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:300px; background:#FFFFD5; border-radius:12px; padding:24px; z-index:350; display:none; flex-direction:column; gap:16px; font-family:"Noto Sans SC",sans-serif; box-shadow:0 8px 30px rgba(0,0,0,.25); }
+  .dine-modal.show{ display:flex; }
+  .dine-title{ font-size:20px; font-weight:700; line-height:24px; color:var(--red); text-align:center; }
+  .dine-row{ display:flex; flex-direction:column; gap:8px; }
+  .dine-label{ font-size:20px; font-weight:500; line-height:24px; color:var(--red); }
+  .dine-tables{ display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; -webkit-overflow-scrolling:touch; }
+  .dine-tpill{ flex:none; min-width:56px; height:36px; padding:0 14px; border-radius:8px; background:#FFF; border:1.5px solid var(--red); color:var(--red); font-size:18px; font-weight:700; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
+  .dine-tpill.active{ background:var(--red); color:#FFFFD5; border-color:var(--red); }
+  .dine-pax{ display:flex; align-items:center; gap:16px; }
+  .dine-step{ width:40px; height:36px; border:none; border-radius:8px; background:var(--red); color:#FFFFD5; font-size:22px; font-weight:700; line-height:1; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }
+  .dine-pax-val{ min-width:40px; text-align:center; font-size:20px; font-weight:700; color:var(--red); }
+  .dine-actions{ display:flex; gap:12px; margin-top:4px; }
+  .dine-cancel,.dine-ok{ flex:1; height:40px; border-radius:999px; font-size:16px; font-weight:500; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
+  .dine-cancel{ background:#FFF; border:1.5px solid var(--red); color:var(--red); }
+  .dine-ok{ background:var(--red); border:1.5px solid var(--red); color:#FFFFD5; }
+  .dine-ok.disabled,.dine-ok:disabled{ background:#D9D9D9; border-color:#D9D9D9; color:#9A9A9A; cursor:not-allowed; }
   .ld-history-modal{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:340px; max-height:70vh; background:var(--cream2); border-radius:16px; z-index:350; display:none; flex-direction:column; overflow:hidden; }
   .ld-history-modal.show{ display:flex; }
   .ld-history-head{ display:flex; align-items:center; justify-content:space-between; padding:16px; font-size:16px; font-weight:500; color:var(--red); flex-shrink:0; }
@@ -1143,6 +1162,17 @@
 </div>
 </div>
 
+  <!-- ============ 堂食选座弹窗 ============ -->
+  <div class="dine-overlay" id="dineOverlay" onclick="closeDine()"></div>
+  <div class="dine-modal" id="dineModal">
+    <div class="dine-title">堂食 Dine-In</div>
+    <div class="dine-row"><div class="dine-label">座号</div><div class="dine-tables" id="dineTables"></div></div>
+    <div class="dine-row"><div class="dine-label">人数</div>
+      <div class="dine-pax"><button class="dine-step" onclick="dinePaxChange(-1)">－</button><div class="dine-pax-val" id="dinePaxVal">1</div><button class="dine-step" onclick="dinePaxChange(1)">＋</button></div>
+    </div>
+    <div class="dine-actions"><button class="dine-cancel" onclick="closeDine()">取消</button><button class="dine-ok" id="dineOk" onclick="confirmDine()">确定</button></div>
+  </div>
+
   <!-- ============ product detail sheet ============ -->
   <div class="sheet-overlay" id="sheetOverlay" onclick="closeSheet()"></div>
   <div class="product-sheet" id="productSheet">
@@ -1242,10 +1272,44 @@ function selectMode(el){
   document.querySelectorAll('.hc-card').forEach(c=>c.classList.remove('active'));
   el.classList.add('active');
   currentMode = el.dataset.mode;
+  if(currentMode==='dinein'){ openDine(); return; }   // 堂食先选座号+人数
   setTimeout(()=>{
     switchTab('menu');
     syncMenuMode();
   }, 60);
+}
+
+/* ---------- 堂食选座（点堂食 → 居中弹窗选座号+人数）---------- */
+const DINE_TABLES=['T1','T2','T3','T4','T5'];   // 以后加桌子改这里即可（自动可滚动）
+let dineTable=null, dinePax=1, _dineInfo=null;
+function openDine(){
+  dineTable=null; dinePax=1;
+  renderDineTables();
+  document.getElementById('dinePaxVal').textContent=dinePax;
+  var ok=document.getElementById('dineOk'); ok.disabled=true; ok.classList.add('disabled');
+  document.getElementById('dineOverlay').classList.add('show');
+  document.getElementById('dineModal').classList.add('show');
+}
+function renderDineTables(){
+  document.getElementById('dineTables').innerHTML=DINE_TABLES.map(function(t){
+    return '<button class="dine-tpill'+(t===dineTable?' active':'')+'" onclick="pickDineTable(\''+t+'\')">'+t+'</button>';
+  }).join('');
+}
+function pickDineTable(t){
+  dineTable=t; renderDineTables();
+  var ok=document.getElementById('dineOk'); ok.disabled=false; ok.classList.remove('disabled');
+}
+function dinePaxChange(d){ dinePax=Math.max(1,Math.min(20,dinePax+d)); document.getElementById('dinePaxVal').textContent=dinePax; }
+function closeDine(){
+  document.getElementById('dineOverlay').classList.remove('show');
+  document.getElementById('dineModal').classList.remove('show');
+}
+function confirmDine(){
+  if(!dineTable) return;
+  currentMode='dinein';
+  _dineInfo={table:dineTable, pax:dinePax};
+  closeDine();
+  setTimeout(()=>{ switchTab('menu'); syncMenuMode(); }, 60);
 }
 function syncMenuMode(){
   document.querySelectorAll('#seg button').forEach(b=>{
@@ -1253,6 +1317,7 @@ function syncMenuMode(){
   });
 }
 function setMenuMode(el){
+  if(el.dataset.mode==='dinein'){ openDine(); return; }   // 切到堂食也要选座号+人数
   document.querySelectorAll('#seg button').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
   currentMode = el.dataset.mode;
@@ -1485,7 +1550,10 @@ function confirmOrder(){
     status: selectedPay==='tng' ?'preparing' :'pending',
     needs_print: true,
     source:'app',
-    tableName:'线上·'+modeLabel,                       // POS 待付款/交易列表显示来源
+    // 堂食带上座号+人数（_dineInfo），POS/制作单据此显示桌号
+    tableName: (currentMode==='dinein' && _dineInfo)
+      ? '线上·堂食·'+_dineInfo.table+'·'+_dineInfo.pax+'人'
+      : '线上·'+modeLabel,
     taMode: currentMode==='delivery' ?'takeaway' :'dinein',
     memberId: _memberId || null,
     deviceId: _deviceId,
