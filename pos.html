@@ -188,8 +188,8 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 .item-view{position:absolute;left:0;top:0;width:819px;height:578px;background:#FFFFD5;display:none;flex-direction:column;overflow:hidden;}
 .item-view.show{display:flex;}
 /* 面包屑头：Figma 24px/700 #8D0505，2px #F5E9D4 分隔线，长了自动换行（最多两行） */
-.item-view-head{min-height:64px;flex-shrink:0;display:flex;align-items:center;padding:8px 16px;border-bottom:2px solid #F5E9D4;background:#FFFFD5;}
-.item-cat-name{font-size:24px;line-height:29px;font-weight:700;color:#8D0505;}
+.item-view-head{min-height:64px;flex-shrink:0;display:flex;justify-content:center;align-items:center;gap:10px;padding:10px;border-bottom:2px solid #F5E9D4;background:#FFFFD5;}
+.item-cat-name{flex:1;text-align:center;font-size:24px;line-height:29px;font-weight:700;color:#8D0505;}
 .item-grid-wrap{flex:1;overflow-y:auto;}
 /* Item cards — 184×129px, 4 per row */
 .item-grid{display:grid;grid-template-columns:repeat(4,184px);gap:16px;padding:16px;}
@@ -1241,7 +1241,7 @@ function _renderSpecPicker(){
 function _updateSpecBreadcrumb(){
   var c=_specCtx; var it=MENU[c.cat].items[c.idx];
   var parts=[esc(MENU[c.cat].en), esc(it.name)];
-  for(var s=0;s<=c.step;s++){ if(c.sel[s]===SKIP_SEL) continue; var v=(c.groups[s].options||[])[c.sel[s]]; if(v) parts.push(esc(v)); }
+  for(var s=0;s<=c.step;s++){ var g=c.groups[s]; var nm=g.name; if(!nm){ var v=(g.options||[])[c.sel[s]]; nm=v||''; } if(nm) parts.push(esc(nm)); }
   document.getElementById('itemCatName').innerHTML=parts.map(function(p,idx){
     return (idx===parts.length-1?'<span class="bc-cur">'+p+'</span>':p);
   }).join('<span class="bc-sep">\\</span>');
