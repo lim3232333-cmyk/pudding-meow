@@ -756,9 +756,13 @@
   .dine-title{ font-size:20px; font-weight:700; line-height:24px; color:var(--red); text-align:center; }
   .dine-row{ display:flex; flex-direction:column; gap:8px; }
   .dine-label{ font-size:20px; font-weight:500; line-height:24px; color:var(--red); }
-  .dine-tables{ display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; -webkit-overflow-scrolling:touch; }
-  .dine-tpill{ flex:none; min-width:56px; height:36px; padding:0 14px; border-radius:8px; background:#FFF; border:1.5px solid var(--red); color:var(--red); font-size:18px; font-weight:700; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
-  .dine-tpill.active{ background:var(--red); color:#FFFFD5; border-color:var(--red); }
+  /* 座号滚轮：固定红条居中，桌号上下滚动，落在红条上的（米色字）为选中 */
+  .dine-wheel{ position:relative; height:132px; border-radius:8px; background:rgba(217,217,217,0.2); overflow:hidden; }
+  .dine-wheel-bar{ position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); height:36px; background:var(--red); border-radius:8px; pointer-events:none; }
+  .dine-wheel-scroll{ position:relative; height:100%; overflow-y:scroll; scroll-snap-type:y mandatory; padding:44px 0; box-sizing:border-box; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+  .dine-wheel-scroll::-webkit-scrollbar{ display:none; }
+  .dine-wheel-item{ height:44px; scroll-snap-align:center; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:700; line-height:24px; color:var(--red); cursor:pointer; }
+  .dine-wheel-item.sel{ color:#FFFFD5; }
   .dine-pax{ display:flex; align-items:center; gap:16px; }
   .dine-step{ width:40px; height:36px; border:none; border-radius:8px; background:var(--red); color:#FFFFD5; font-size:22px; font-weight:700; line-height:1; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }
   .dine-pax-val{ min-width:40px; text-align:center; font-size:20px; font-weight:700; color:var(--red); }
@@ -1166,7 +1170,9 @@
   <div class="dine-overlay" id="dineOverlay" onclick="closeDine()"></div>
   <div class="dine-modal" id="dineModal">
     <div class="dine-title">堂食 Dine-In</div>
-    <div class="dine-row"><div class="dine-label">座号</div><div class="dine-tables" id="dineTables"></div></div>
+    <div class="dine-row"><div class="dine-label">座号</div>
+      <div class="dine-wheel"><div class="dine-wheel-bar"></div><div class="dine-wheel-scroll" id="dineWheelScroll" onscroll="_onDineWheelScroll()"></div></div>
+    </div>
     <div class="dine-row"><div class="dine-label">人数</div>
       <div class="dine-pax"><button class="dine-step" onclick="dinePaxChange(-1)">－</button><div class="dine-pax-val" id="dinePaxVal">1</div><button class="dine-step" onclick="dinePaxChange(1)">＋</button></div>
     </div>
@@ -1280,25 +1286,30 @@ function selectMode(el){
 }
 
 /* ---------- 堂食选座（点堂食 → 居中弹窗选座号+人数）---------- */
-const DINE_TABLES=['T1','T2','T3','T4','T5'];   // 以后加桌子改这里即可（自动可滚动）
-let dineTable=null, dinePax=1, _dineInfo=null;
+const DINE_TABLES=['T1','T2','T3','T4','T5'];   // 以后加桌子改这里即可（滚轮自动可滚动）
+const DINE_ITEM_H=44;                            // 每行高度，与 .dine-wheel-item / 滚轮 padding 对齐
+let dineTable=null, dinePax=1, _dineInfo=null, _dineWheelSnapT=null;
 function openDine(){
-  dineTable=null; dinePax=1;
-  renderDineTables();
+  dinePax=1;
+  document.getElementById('dineWheelScroll').innerHTML=DINE_TABLES.map(function(t,i){
+    return '<div class="dine-wheel-item" onclick="dineWheelTo('+i+')">'+t+'</div>';
+  }).join('');
   document.getElementById('dinePaxVal').textContent=dinePax;
-  var ok=document.getElementById('dineOk'); ok.disabled=true; ok.classList.add('disabled');
   document.getElementById('dineOverlay').classList.add('show');
   document.getElementById('dineModal').classList.add('show');
+  // 初始定位到第一个（居中）并标记选中；等弹窗显示后再设 scrollTop
+  setTimeout(function(){ var sc=document.getElementById('dineWheelScroll'); sc.scrollTop=0; _dineSyncWheel(); }, 30);
 }
-function renderDineTables(){
-  document.getElementById('dineTables').innerHTML=DINE_TABLES.map(function(t){
-    return '<button class="dine-tpill'+(t===dineTable?' active':'')+'" onclick="pickDineTable(\''+t+'\')">'+t+'</button>';
-  }).join('');
-}
-function pickDineTable(t){
-  dineTable=t; renderDineTables();
+function _dineSyncWheel(){
+  var sc=document.getElementById('dineWheelScroll');
+  var idx=Math.round(sc.scrollTop/DINE_ITEM_H);
+  idx=Math.max(0,Math.min(DINE_TABLES.length-1,idx));
+  dineTable=DINE_TABLES[idx];
+  var kids=sc.children; for(var i=0;i<kids.length;i++){ kids[i].classList.toggle('sel', i===idx); }
   var ok=document.getElementById('dineOk'); ok.disabled=false; ok.classList.remove('disabled');
 }
+function _onDineWheelScroll(){ _dineSyncWheel(); }
+function dineWheelTo(i){ document.getElementById('dineWheelScroll').scrollTo({top:i*DINE_ITEM_H, behavior:'smooth'}); }
 function dinePaxChange(d){ dinePax=Math.max(1,Math.min(20,dinePax+d)); document.getElementById('dinePaxVal').textContent=dinePax; }
 function closeDine(){
   document.getElementById('dineOverlay').classList.remove('show');
