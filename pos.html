@@ -188,8 +188,8 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 .item-view{position:absolute;left:0;top:0;width:819px;height:578px;background:#FFFFD5;display:none;flex-direction:column;overflow:hidden;}
 .item-view.show{display:flex;}
 /* 面包屑头：Figma 24px/700 #8D0505，2px #F5E9D4 分隔线，长了自动换行（最多两行） */
-.item-view-head{min-height:64px;flex-shrink:0;display:flex;justify-content:center;align-items:center;gap:10px;padding:10px;border-bottom:2px solid #F5E9D4;background:#FFFFD5;}
-.item-cat-name{flex:1;text-align:center;font-size:24px;line-height:29px;font-weight:700;color:#8D0505;}
+.item-view-head{min-height:64px;flex-shrink:0;display:flex;align-items:center;padding:8px 16px;border-bottom:2px solid #F5E9D4;background:#FFFFD5;}
+.item-cat-name{font-size:24px;line-height:29px;font-weight:700;color:#8D0505;}
 .item-grid-wrap{flex:1;overflow-y:auto;}
 /* Item cards — 184×129px, 4 per row */
 .item-grid{display:grid;grid-template-columns:repeat(4,184px);gap:16px;padding:16px;}
@@ -1276,7 +1276,7 @@ function renderCart(){
   el.innerHTML=cart.map(function(it,i){
     return'<div class="cart-row'+(i===selIdx?' sel':'')+'" onclick="selCart('+i+')">'
       +'<div class="cr-qty">'+it.qty+'</div>'
-      +'<div class="cr-info"><div class="cr-name">'+esc(it.name)+'</div><div class="cr-fl">'+esc(it.specText||it.name_cn||'')+'</div></div>'
+      +'<div class="cr-info"><div class="cr-name">'+esc(it.name)+'</div><div class="cr-fl">'+esc(it.specText||'')+'</div></div>'
       +'<div class="cr-amt">'+(it.qty*it.price).toFixed(2)+'</div>'
       +'</div>';
   }).join('');
