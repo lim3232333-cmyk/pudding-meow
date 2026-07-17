@@ -1398,11 +1398,13 @@ function buildMenuFromRows(rows){
   return m;
 }
 /* 统一读取规格入口：有 specs 就用 specs（后台规格库配置，顺序=规格1/规格2/...）；
-   否则把旧的 flavors 包成一个无名字的单组，保持未迁移品项跟改动前一样 */
+   否则看旧的 flavors——只有多于一个口味才当作一组显示。没配规格、或只有单一/默认
+   'Original'（后台没加规格时会写入的兜底值）时返回空，不显示任何规格 pill、直接加入。 */
 function _itemSpecs(it){
   if(it && it.specs && it.specs.length) return it.specs;
-  var flavors = (it && it.flavors && it.flavors.length) ? it.flavors : ['Original'];
-  return [{ defId:null, name:'', options:flavors }];
+  var flavors = (it && it.flavors && it.flavors.length) ? it.flavors : [];
+  if(flavors.length > 1) return [{ defId:null, name:'', options:flavors }];
+  return [];
 }
 var SPEC_SEP = ' · ';
 /* 规格库（spec_defs）：只用来查某个规格组下哪些选项当前售罄/下架，跟 menu_items.specs 里存的
