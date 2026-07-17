@@ -1622,9 +1622,11 @@ function selectSpecOption(gi, oi){
   const it = menu[sheetCat].items[sheetIdx];
   const group = _itemSpecs(it)[gi];
   if(group && _isOptionSoldOut(group.defId, group.options[oi])) return;
-  sheetSpecSel[gi] = oi;
+  const optional = !_sheetGroupRequired(group);
+  sheetSpecSel[gi] = (optional && sheetSpecSel[gi] === oi) ? -1 : oi;   // 仅选填组：再次点击同项取消回默认；必填组不可取消，只能换选项
+  const sel = sheetSpecSel[gi];
   document.querySelectorAll('.sheet-spec-group[data-gi="'+gi+'"] .flavor-pill').forEach(b=>{
-    b.classList.toggle('active', +b.dataset.oi === oi);
+    b.classList.toggle('active', +b.dataset.oi === sel);
   });
   refreshSheetFooter();
 }
