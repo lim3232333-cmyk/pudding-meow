@@ -1451,12 +1451,17 @@ function _printWhenReady(){
   else { img.addEventListener('load', waitFonts); img.addEventListener('error', waitFonts); }
   setTimeout(fire, 1500);
 }
-// 订单类型标签：外卖→Takeaway；堂食→Table N（桌号是纯数字时加 Table 前缀），无桌号→Dine-in
+// 桌号统一成 Table N（'T3'/'3'/'Table 3' 都归一）
+function _tableLabel(v){ v=String(v||'').trim(); var m=v.match(/(\d+)/); return m?'Table '+m[1]:(v&&v!=='-'?v:'Dine-in'); }
+// 订单类型标签（POS 单与线上单统一）：堂食→Table N；打包/自取→TA+单号；外卖→DL+单号
 function _orderTypeLabel(o){
-  var t=String(o.tableName==null?'':o.tableName).trim().replace(/^📱[^·]*·?/,'');
-  if(o.taMode==='takeaway') return 'Takeaway';
-  if(!t||t==='-') return 'Dine-in';
-  return /^\d+$/.test(t)?'Table '+t:t;
+  var raw=String(o.tableName==null?'':o.tableName);
+  var num=String(parseInt(o.orderNum,10)||0).padStart(2,'0');
+  if(raw.indexOf('外卖')>=0) return 'DL'+num;                              // 外卖 Delivery（仅线上）
+  if(raw.indexOf('自取')>=0 || o.taMode==='takeaway') return 'TA'+num;     // 自取(线上)/打包(POS)
+  if(raw.indexOf('堂食')>=0){ return _tableLabel(raw.split('·')[2]); }     // 线上堂食：取桌号段
+  var t=raw.trim().replace(/^📱[^·]*·?/,'');
+  return _tableLabel(t);                                                    // POS 堂食：tbl=桌号
 }
 // 制作单（厨房单）：Table + 单号/时间 + 大字商品和规格，无价格。付款后自动打印给厨房。
 /* 统一取一条商品的规格/口味文本：POS 单存字符串 flavor/specText；线上（app）单存 specs
@@ -1482,7 +1487,7 @@ function _renderKitchen(o){
   var items=(o.items||[]).map(function(it){
     return '<div class="kdash"></div>'
       +'<div class="kitem"><div class="kqty">'+it.qty+'x</div>'
-      +'<div class="kbody"><div class="kname">'+esc(it.name)+'</div>'+specHtml(it)+'</div></div>';
+      +'<div class="kbody"><div class="kname">'+esc(it.en||it.name)+'</div>'+specHtml(it)+'</div></div>';
   }).join('');
   document.getElementById('rcc').innerHTML='<div class="kc">'
     +'<div class="ktable">'+esc(_orderTypeLabel(o))+'</div>'
@@ -1520,7 +1525,7 @@ function _renderReceipt(o, mem){
   };
   var itemsHtml=(o.items||[]).map(function(it){
     var fl=flavHtml(it);
-    return '<div class="rcol3"><div class="rname"><span>'+esc(it.name)+'</span>'+(fl?'<div class="rflavs">'+fl+'</div>':'')+'</div>'
+    return '<div class="rcol3"><div class="rname"><span>'+esc(it.en||it.name)+'</span>'+(fl?'<div class="rflavs">'+fl+'</div>':'')+'</div>'
       +'<span class="rqty">'+it.qty+'</span>'
       +'<span class="ramt">'+(it.qty*it.price).toFixed(2)+'</span></div>';
   }).join('');
