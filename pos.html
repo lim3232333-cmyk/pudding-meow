@@ -943,11 +943,30 @@ function setCloudStatus(s){
 }
 setTimeout(function(){ setCloudStatus(db?'connecting':'offline'); },0);
 /* 订单对象 <-> 数据库行（只映射数据库已有的列，tender/change/customerName 等不入库）*/
-function orderToRow(o){return{id:o.id,order_num:o.orderNum,created_at:o.createdAt,items:o.items||[],
+function orderToRow(o){return{id:o.id,order_num:o.orderNum,receipt_no:o.receiptNo!=null?o.receiptNo:null,created_at:o.createdAt,items:o.items||[],
   total:o.total||0,pay_method:o.payMethod,status:o.status,source:o.source,table_name:o.tableName,ta_mode:o.taMode,member_id:o.memberId||null,device_id:o.deviceId||null};}
-function rowToOrder(r){return{id:r.id,orderNum:r.order_num||(r.id?String(r.id).slice(-4):''),createdAt:r.created_at,
+function rowToOrder(r){return{id:r.id,orderNum:r.order_num||(r.id?String(r.id).slice(-4):''),receiptNo:r.receipt_no!=null?r.receipt_no:null,createdAt:r.created_at,
   items:r.items||[],total:Number(r.total)||0,payMethod:r.pay_method||'counter',status:r.status||'pending',
   source:r.source||'app',tableName:r.table_name||'',taMode:r.ta_mode||'',memberId:r.member_id||null,deviceId:r.device_id||null};}
+/* ── 取号：永久收据号 receiptNo + 当天订单号 orderNum ──
+   优先用 Supabase rpc_next_order_num（跨设备唯一/按天重置）；离线或失败时本地兜底。 */
+function _setOrderNums(o,rc,on){ o.receiptNo=rc; o.orderNum=String(on).padStart(4,'0'); }
+function _localNextNums(){
+  var rc=(parseInt(sg('pm_rc','0'),10)||0)+1; ss('pm_rc',String(rc));
+  var today=new Date().toLocaleDateString('en-CA');
+  var dc=gj('pm_ordday',{d:'',n:0}); if(dc.d!==today){dc.d=today;dc.n=0;} dc.n=(dc.n||0)+1; sj('pm_ordday',dc);
+  return {receiptNo:rc, orderNo:dc.n};
+}
+function assignOrderNums(o){
+  if(db){
+    return db.rpc('rpc_next_order_num').then(function(res){
+      if(res&&!res.error&&res.data&&res.data[0]){ _setOrderNums(o,res.data[0].receipt_no,res.data[0].order_no); }
+      else { var l=_localNextNums(); _setOrderNums(o,l.receiptNo,l.orderNo); }
+      return o;
+    }).catch(function(){ var l=_localNextNums(); _setOrderNums(o,l.receiptNo,l.orderNo); return o; });
+  }
+  var l=_localNextNums(); _setOrderNums(o,l.receiptNo,l.orderNo); return Promise.resolve(o);
+}
 
 /* ── MENU DATA (from Figma item panels) ── */
 var MENU_FALLBACK={
@@ -1313,7 +1332,7 @@ function printCurrent(){
   if(!cart.length){showN('购物车是空的');return;}
   var tot=cart.reduce(function(s,it){return s+it.qty*it.price;},0);
   var tbl=document.getElementById('ctTable').value.trim()||'-';
-  printRec({orderNum:sg('pm_ctr','0'),createdAt:new Date().toISOString(),items:cart.map(function(i){return{name:i.name,name_cn:i.name_cn,price:i.price,qty:i.qty,specs:i.specs||[],flavor:i.specText||i.flavor||""};}),total:tot,payMethod:payMethod,tableName:tbl,status:'pending'});
+  printRec({orderNum:'',createdAt:new Date().toISOString(),items:cart.map(function(i){return{name:i.name,name_cn:i.name_cn,price:i.price,qty:i.qty,specs:i.specs||[],flavor:i.specText||i.flavor||""};}),total:tot,payMethod:payMethod,tableName:tbl,status:'pending'});
 }
 
 /* ── PAYMENT ── */
@@ -1372,7 +1391,7 @@ function setPayM(m){
     updTenderDisplay();
   }
 }
-var _pendingOrder=null;
+var _pendingOrder=null, _pendingNums=null;
 function confirmPayment(){
   // Done 按钮：完成付款验证
   var tender=parseFloat(tenderInput)||0;
@@ -1386,14 +1405,14 @@ function confirmPayment(){
     tender=payTotalAmount;
   }
   var change=payMethod==='cash'?(tender-payTotalAmount):0;
-  var n=parseInt(sg('pm_ctr','0'))+1;ss('pm_ctr',String(n));
   var tbl=document.getElementById('ctTable').value.trim()||'-';
   var cust=document.getElementById('ctCustomer').value.trim();
-  _pendingOrder={id:'o'+Date.now(),orderNum:String(n).padStart(4,'0'),createdAt:new Date().toISOString(),
+  _pendingOrder={id:'o'+Date.now(),orderNum:'',createdAt:new Date().toISOString(),
     items:cart.map(function(i){return{name:i.name,name_cn:i.name_cn,price:i.price,qty:i.qty,specs:i.specs||[],flavor:i.specText||i.flavor||""};}),
     total:payTotalAmount,payMethod:payMethod,tender:tender,change:change,
     tableName:tbl,customerName:cust,source:'pos',status:'paid',
     taMode:taMode?'dine-in':'takeaway'};
+  _pendingNums=assignOrderNums(_pendingOrder);   // 取号（永久收据号 + 当天订单号）
 
   // 关付款面板，弹找零 overlay
   closePayment();
@@ -1406,7 +1425,7 @@ function confirmPayment(){
 function changeDone(){
   // 找零 overlay 的 Done → 关找零。付款完成：制作单直接打印给厨房，再弹"打印收据？"（顾客收据每次都问）
   document.getElementById('changeBg').classList.remove('show');
-  if(_pendingOrder) printKitchen(_pendingOrder);
+  (_pendingNums||Promise.resolve()).then(function(){ if(_pendingOrder) printKitchen(_pendingOrder); });
   setTimeout(function(){ document.getElementById('askBg').classList.add('show'); }, 500);
 }
 
@@ -1414,17 +1433,19 @@ function askPrint(yes){
   document.getElementById('askBg').classList.remove('show');
   var o=_pendingOrder;
   if(!o) return;
-  // 保存订单：本地缓存 + 广播 + 写云端（跨设备）
-  _orders.unshift(o);sj('pm_orders',_orders);pmBroadcastOrders();
-  if(db) db.from('orders').insert(orderToRow(o)).then(function(res){ if(res&&res.error) console.error('pos order insert',res.error); }).catch(function(e){ console.error('pos order insert',e); });
-  if(yes) printRec(o);
-  // 清空购物车
-  cart=[];selIdx=-1;
-  document.getElementById('ctTable').value='';
-  document.getElementById('ctCustomer').value='';
-  renderCart();updPend();
-  showN('付款完成！#'+o.orderNum);
-  _pendingOrder=null;
+  (_pendingNums||Promise.resolve()).then(function(){
+    // 保存订单：本地缓存 + 广播 + 写云端（跨设备）——等取号完成后再入库，云端存的是最终号
+    _orders.unshift(o);sj('pm_orders',_orders);pmBroadcastOrders();
+    if(db) db.from('orders').insert(orderToRow(o)).then(function(res){ if(res&&res.error) console.error('pos order insert',res.error); }).catch(function(e){ console.error('pos order insert',e); });
+    if(yes) printRec(o);
+    // 清空购物车
+    cart=[];selIdx=-1;
+    document.getElementById('ctTable').value='';
+    document.getElementById('ctCustomer').value='';
+    renderCart();updPend();
+    showN('付款完成！#'+o.orderNum);
+    _pendingOrder=null; _pendingNums=null;
+  });
 }
 
 /* 收据 logo（内嵌 base64，避免依赖外部 png 文件、也不受异步加载时序影响） */
@@ -1573,8 +1594,8 @@ function _renderReceipt(o, mem){
       +'</div></div></div>';
   }
   var onum=parseInt(o.orderNum,10); if(isNaN(onum)) onum=0;
-  var receiptNo='RC'+String(onum).padStart(6,'0');   // 永久唯一：财务/退款/报表/重印
-  var orderNoDisp='#'+(o.orderNoDaily!=null?String(o.orderNoDaily).padStart(4,'0'):String(onum).padStart(4,'0')); // 当天流水号
+  var receiptNo='RC'+String(o.receiptNo!=null?o.receiptNo:onum).padStart(6,'0');   // 永久唯一：财务/退款/报表/重印
+  var orderNoDisp='#'+String(onum).padStart(4,'0');   // 当天流水号（orderNum 已是当天号）
   var orderCode=_orderTypeLabel(o);                   // Table 1 / TAxx / DLxx：店员/顾客认单
   document.getElementById('rcc').innerHTML='<div class="rc">'
     +'<div class="rheadgrp">'
