@@ -1452,6 +1452,22 @@ function dvLocate(){
     _dvSetFeeUI('error','未定位，无法计算运费');
   }, {enableHighAccuracy:true, timeout:10000});
 }
+/* res.error 是 supabase-js 顶层错误（函数返回非 2xx / 平台层问题）。它对非 2xx 响应默认
+   只给一句笼统的 "Edge Function returned a non-2xx status code"、把真正的 body 吞掉；
+   真正的错误内容要从 error.context（一个 Response）里读。函数本身的已知错误都已经改成
+   固定 200 + {ok:false,error}，不会走到这里——这里只兜底真正意外的情况（函数没部署好/崩溃等）。 */
+function _dvHandleInvokeError(err){
+  var ctx = err && err.context;
+  if(ctx && typeof ctx.clone==='function' && typeof ctx.json==='function'){
+    return ctx.clone().json().then(function(body){
+      return '['+(ctx.status||'?')+'] '+_dvErrText((body&&body.error)||body);
+    }).catch(function(){
+      return ctx.clone().text().then(function(t){ return '['+(ctx.status||'?')+'] '+(t||'未知错误'); })
+        .catch(function(){ return _dvErrText(err); });
+    });
+  }
+  return Promise.resolve(_dvErrText(err));
+}
 function _dvFetchQuote(){
   if(!_dvCoords || !db){ _dvSetFeeUI('error', db?'定位缺失':'未连接云端'); return; }
   _dvSetFeeUI('loading');
@@ -1462,13 +1478,16 @@ function _dvFetchQuote(){
       if(d&&d.ok){
         _dvQuote={total:d.total, currency:d.currency||'MYR', quotationId:d.quotationId};
         _dvSetFeeUI('ok', 'RM '+Number(d.total).toFixed(2));
-      } else {
-        _dvQuote=null;
-        // res.error 是 supabase-js 顶层错误（函数 500/网络等）；d.error 是函数内返回的业务错误
-        var msg=_dvErrText((res&&res.error)) || _dvErrText(d&&d.error) || '计算失败，请重试';
-        console.error('lalamove-quote failed:', res);
-        _dvSetFeeUI('error', msg.slice(0,120));
+        return;
       }
+      _dvQuote=null;
+      console.error('lalamove-quote failed:', res);
+      if(res && res.error){
+        _dvHandleInvokeError(res.error).then(function(msg){ _dvSetFeeUI('error', msg.slice(0,120)); });
+        return;
+      }
+      var msg=_dvErrText(d&&d.error) || '计算失败，请重试';
+      _dvSetFeeUI('error', msg.slice(0,120));
     }).catch(function(e){ _dvQuote=null; console.error('lalamove-quote error:', e); _dvSetFeeUI('error', '网络错误：'+_dvErrText(e).slice(0,80)); });
 }
 function confirmDelivery(){
