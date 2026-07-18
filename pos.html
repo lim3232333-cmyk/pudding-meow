@@ -1452,7 +1452,7 @@ function _printWhenReady(){
   setTimeout(fire, 1500);
 }
 // 桌号统一成 Table N（'T3'/'3'/'Table 3' 都归一）
-function _tableLabel(v){ v=String(v||'').trim(); var m=v.match(/(\d+)/); return m?'Table '+m[1]:(v&&v!=='-'?v:'Dine-in'); }
+function _tableLabel(v){ v=String(v||'').trim(); var m=v.match(/(\d+)/); return m?'Table '+m[1]:(v&&v!=='-'?'Table '+v:'Table'); }
 // 订单类型标签（POS 单与线上单统一）：堂食→Table N；打包/自取→TA+单号；外卖→DL+单号
 function _orderTypeLabel(o){
   var raw=String(o.tableName==null?'':o.tableName);
