@@ -84,7 +84,16 @@ Deno.serve(async (req: Request) => {
     let out: any;
     try { out = JSON.parse(text); } catch { out = { raw: text }; }
 
-    if (!res.ok) return json({ ok: false, status: res.status, error: out?.message || out?.errors || text });
+    if (!res.ok) {
+      // Lalamove 错误体常见形如 { message, errors:[{id,message}] }；统一拼成可读字符串，
+      // 避免前端拿到对象/数组直接 String() 变成 "[object Object]"
+      let errMsg = out?.message;
+      if (!errMsg && Array.isArray(out?.errors)) {
+        errMsg = out.errors.map((e: any) => e?.message || e?.id || JSON.stringify(e)).join("; ");
+      }
+      if (!errMsg) errMsg = text || `HTTP ${res.status}`;
+      return json({ ok: false, status: res.status, error: `[${res.status}] ${errMsg}` });
+    }
 
     // 提取给前端：运费 + quotationId（下单要用）
     const bd = out?.data?.priceBreakdown || {};
