@@ -776,6 +776,18 @@
   .dine-cancel{ background:var(--cream2); border:1.5px solid var(--red); color:var(--red); }
   .dine-ok{ background:var(--red); border:1.5px solid var(--red); color:#FFFFD5; }
   .dine-ok.disabled,.dine-ok:disabled{ background:#D9D9D9; border-color:#D9D9D9; color:#9A9A9A; cursor:not-allowed; }
+
+  /* ===== 外卖收货地址弹窗（点外卖后居中弹出：填地址 + 定位 + Lalamove 运费）===== */
+  .dv-modal{ height:auto; min-height:340px; }
+  .dv-addr{ width:100%; min-height:64px; border:none; border-radius:8px; background:#EDEDED; color:var(--red); font-size:14px; font-family:"Noto Sans SC",sans-serif; padding:10px 12px; box-sizing:border-box; resize:none; outline:none; }
+  .dv-addr::placeholder{ color:#9A9A9A; }
+  .dv-locate{ width:100%; height:38px; border:1.5px solid var(--red); border-radius:8px; background:#FFF; color:var(--red); font-size:14px; font-weight:500; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
+  .dv-locate:disabled{ opacity:.6; cursor:not-allowed; }
+  .dv-locstat{ font-size:11px; color:var(--muted); min-height:14px; }
+  .dv-fee{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-radius:8px; background:#EDEDED; }
+  .dv-fee .lbl{ font-size:14px; font-weight:500; color:var(--red); }
+  .dv-fee .val{ font-size:16px; font-weight:700; color:var(--red); }
+  .dv-fee.err .val{ font-size:12px; font-weight:500; color:#8D0505; }
   .ld-history-modal{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:340px; max-height:70vh; background:var(--cream2); border-radius:16px; z-index:350; display:none; flex-direction:column; overflow:hidden; }
   .ld-history-modal.show{ display:flex; }
   .ld-history-head{ display:flex; align-items:center; justify-content:space-between; padding:16px; font-size:16px; font-weight:500; color:var(--red); flex-shrink:0; }
@@ -1184,6 +1196,21 @@
     <div class="dine-actions"><button class="dine-cancel" onclick="closeDine()">取消</button><button class="dine-ok" id="dineOk" onclick="confirmDine()">确定</button></div>
   </div>
 
+  <!-- ============ 外卖收货地址弹窗 ============ -->
+  <div class="dine-overlay" id="dvOverlay" onclick="closeDelivery()"></div>
+  <div class="dine-modal dv-modal" id="dvModal">
+    <div class="dine-title">外卖<span class="dine-label-en">Delivery</span></div>
+    <div class="dine-row"><div class="dine-label">收货地址<span class="dine-label-en">Address</span></div>
+      <textarea class="dv-addr" id="dvAddr" placeholder="填写收货地址，或点下面定位" oninput="_dvOnAddrInput()"></textarea>
+    </div>
+    <div class="dine-row">
+      <button class="dv-locate" id="dvLocateBtn" onclick="dvLocate()">📍 使用我的定位 Use My Location</button>
+      <div class="dv-locstat" id="dvLocStat"></div>
+    </div>
+    <div class="dine-row"><div class="dv-fee" id="dvFeeBox"><span class="lbl">配送费 Delivery Fee</span><span class="val" id="dvFeeVal">—</span></div></div>
+    <div class="dine-actions"><button class="dine-cancel" onclick="closeDelivery()">取消</button><button class="dine-ok disabled" id="dvOk" disabled onclick="confirmDelivery()">确定</button></div>
+  </div>
+
   <!-- ============ product detail sheet ============ -->
   <div class="sheet-overlay" id="sheetOverlay" onclick="closeSheet()"></div>
   <div class="product-sheet" id="productSheet">
@@ -1303,7 +1330,8 @@ function selectMode(el){
   document.querySelectorAll('.hc-card').forEach(c=>c.classList.remove('active'));
   el.classList.add('active');
   currentMode = el.dataset.mode;
-  if(currentMode==='dinein'){ openDine(); return; }   // 堂食先选座号+人数
+  if(currentMode==='dinein'){ openDine(); return; }       // 堂食先选座号+人数
+  if(currentMode==='delivery'){ openDelivery(); return; } // 外卖先填地址+算运费
   setTimeout(()=>{
     switchTab('menu');
     syncMenuMode();
@@ -1313,7 +1341,7 @@ function selectMode(el){
 /* ---------- 堂食选座（点堂食 → 居中弹窗选座号+人数，下拉框选择）---------- */
 const DINE_TABLES=['Table 1','Table 2','Table 3','Table 4','Table 5'];   // 以后加桌子改这里即可（下拉自动可滚）
 const DINE_PAX_MAX=20;
-let dineTable='T1', dinePax=1, _dineInfo=null;
+let dineTable='T1', dinePax=1, _dineInfo=null, _deliveryInfo=null;
 function openDine(){
   dineTable=DINE_TABLES[0]; dinePax=1;
   document.getElementById('dineTablePanel').innerHTML=DINE_TABLES.map(function(t){
@@ -1358,10 +1386,88 @@ function syncMenuMode(){
   });
 }
 function setMenuMode(el){
-  if(el.dataset.mode==='dinein'){ openDine(); return; }   // 切到堂食也要选座号+人数
+  if(el.dataset.mode==='dinein'){ openDine(); return; }       // 切到堂食也要选座号+人数
+  if(el.dataset.mode==='delivery'){ openDelivery(); return; } // 切到外卖也要填地址+算运费
   document.querySelectorAll('#seg button').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
   currentMode = el.dataset.mode;
+}
+
+/* ---------- 外卖收货地址（点外卖 → 居中弹窗填地址 → 用 Lalamove 报价拿运费）----------
+   报价需要经纬度：用浏览器定位（navigator.geolocation）取顾客当前坐标当送货点；
+   地址文本框只作为显示/备注，实际报价坐标以定位为准。定位成功才会自动请求报价、
+   报价成功才能点确定——避免外卖单没有运费/地址就下单。 */
+let _dvCoords=null, _dvQuote=null;
+function openDelivery(){
+  _dvCoords=null; _dvQuote=null;
+  document.getElementById('dvAddr').value='';
+  document.getElementById('dvLocStat').textContent='';
+  _dvSetFeeUI('idle');
+  document.getElementById('dvOverlay').classList.add('show');
+  document.getElementById('dvModal').classList.add('show');
+}
+function closeDelivery(){
+  document.getElementById('dvOverlay').classList.remove('show');
+  document.getElementById('dvModal').classList.remove('show');
+}
+function _dvSetOk(enabled){
+  var ok=document.getElementById('dvOk');
+  ok.disabled=!enabled; ok.classList.toggle('disabled', !enabled);
+}
+function _dvSetFeeUI(state, text){
+  var box=document.getElementById('dvFeeBox'), val=document.getElementById('dvFeeVal');
+  box.classList.toggle('err', state==='error');
+  if(state==='idle') val.textContent='—';
+  else if(state==='loading') val.textContent='计算中…';
+  else if(state==='ok') val.textContent=text;
+  else if(state==='error') val.textContent=text||'算不出运费，请重试';
+  _dvSetOk(state==='ok');
+}
+function _dvOnAddrInput(){ /* 地址文本仅作备注显示，不影响已算好的运费 */ }
+function dvLocate(){
+  if(!navigator.geolocation){ document.getElementById('dvLocStat').textContent='此设备不支持定位'; return; }
+  var btn=document.getElementById('dvLocateBtn');
+  btn.disabled=true; document.getElementById('dvLocStat').textContent='定位中… Locating...';
+  _dvSetFeeUI('loading');
+  navigator.geolocation.getCurrentPosition(function(pos){
+    btn.disabled=false;
+    _dvCoords={lat:pos.coords.latitude, lng:pos.coords.longitude};
+    document.getElementById('dvLocStat').textContent='已定位 ✓';
+    if(!document.getElementById('dvAddr').value.trim()){
+      document.getElementById('dvAddr').value='GPS: '+_dvCoords.lat.toFixed(5)+', '+_dvCoords.lng.toFixed(5);
+    }
+    _dvFetchQuote();
+  }, function(err){
+    btn.disabled=false;
+    document.getElementById('dvLocStat').textContent='定位失败：'+(err&&err.message?err.message:'请检查定位权限');
+    _dvSetFeeUI('error','未定位，无法计算运费');
+  }, {enableHighAccuracy:true, timeout:10000});
+}
+function _dvFetchQuote(){
+  if(!_dvCoords || !db){ _dvSetFeeUI('error', db?'定位缺失':'未连接云端'); return; }
+  _dvSetFeeUI('loading');
+  var addr=document.getElementById('dvAddr').value.trim();
+  db.functions.invoke('lalamove-quote', {body:{dropoff:{lat:String(_dvCoords.lat), lng:String(_dvCoords.lng), address:addr}}})
+    .then(function(res){
+      var d=res&&res.data;
+      if(d&&d.ok){
+        _dvQuote={total:d.total, currency:d.currency||'MYR', quotationId:d.quotationId};
+        _dvSetFeeUI('ok', 'RM '+Number(d.total).toFixed(2));
+      } else {
+        _dvQuote=null; _dvSetFeeUI('error', (d&&d.error)?String(d.error).slice(0,40):'计算失败，请重试');
+      }
+    }).catch(function(){ _dvQuote=null; _dvSetFeeUI('error','网络错误，请重试'); });
+}
+function confirmDelivery(){
+  if(!_dvQuote) return;   // 必须先算出运费才能确定
+  currentMode='delivery';
+  _deliveryInfo={
+    address: document.getElementById('dvAddr').value.trim(),
+    lat:_dvCoords.lat, lng:_dvCoords.lng,
+    fee:Number(_dvQuote.total)||0, currency:_dvQuote.currency, quotationId:_dvQuote.quotationId
+  };
+  closeDelivery();
+  setTimeout(()=>{ switchTab('menu'); syncMenuMode(); }, 60);
 }
 
 /* ---------- menu data ---------- */
@@ -1580,6 +1686,9 @@ function confirmOrder(){
     total += c.qty * c.price;
     return {name:c.name, en:c.en||'', price:c.price, qty:c.qty, specs:c.specs||[], image:c.image||''};
   });
+  // 外卖：把 Lalamove 配送费计入总额（deliveryFee 单独存一份，方便小票/后台拆分显示）
+  var deliveryFee = (currentMode==='delivery' && _deliveryInfo) ? (_deliveryInfo.fee||0) : 0;
+  total += deliveryFee;
 
   var modeLabel = {dinein:'堂食', pickup:'自取', delivery:'外卖'}[currentMode] ||'自取';
   var order = {
@@ -1592,13 +1701,20 @@ function confirmOrder(){
     status: selectedPay==='tng' ?'preparing' :'pending',
     needs_print: true,
     source:'app',
-    // 堂食带上座号+人数（_dineInfo），POS/制作单据此显示桌号
+    // 堂食带上座号+人数（_dineInfo），POS/制作单据此显示桌号；外卖带上收货地址，方便店员安排配送
     tableName: (currentMode==='dinein' && _dineInfo)
       ? '线上·堂食·'+_dineInfo.table+'·'+_dineInfo.pax+'人'
-      : '线上·'+modeLabel,
+      : (currentMode==='delivery' && _deliveryInfo)
+        ? '线上·外卖·'+(_deliveryInfo.address||'GPS定位')
+        : '线上·'+modeLabel,
     taMode: currentMode==='delivery' ?'takeaway' :'dinein',
     memberId: _memberId || null,
     deviceId: _deviceId,
+    // 外卖专属信息（不入库列，只本地/localStorage 留存备用，与 tender/change/customerName 同类兜底）
+    deliveryFee: deliveryFee || undefined,
+    deliveryAddress: (currentMode==='delivery' && _deliveryInfo) ? _deliveryInfo.address : undefined,
+    deliveryCoords: (currentMode==='delivery' && _deliveryInfo) ? {lat:_deliveryInfo.lat, lng:_deliveryInfo.lng} : undefined,
+    lalamoveQuotationId: (currentMode==='delivery' && _deliveryInfo) ? _deliveryInfo.quotationId : undefined,
   };
 
   document.getElementById('cartSheet').classList.remove('show');
@@ -1667,6 +1783,7 @@ function renderCartSheet(){
 function updateCartBadge(){
   let count=0, total=0;
   Object.values(cart).forEach(c=>{ count+=c.qty; total+=c.qty*c.price; });
+  if(currentMode==='delivery' && _deliveryInfo) total += (_deliveryInfo.fee||0);   // 外卖：购物车总额含配送费，与下单金额一致
   const fab = document.getElementById('cartBadge');
   const hdr = document.getElementById('cartHeaderBadge');
   const tag = document.getElementById('cartTotalTag');
