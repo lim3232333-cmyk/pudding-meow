@@ -40,7 +40,7 @@ Deno.serve(async (req: Request) => {
   try {
     const KEY = Deno.env.get("LALAMOVE_KEY");
     const SECRET = Deno.env.get("LALAMOVE_SECRET");
-    if (!KEY || !SECRET) return json({ error: "未设置 LALAMOVE_KEY / LALAMOVE_SECRET" }, 500);
+    if (!KEY || !SECRET) return json({ ok: false, error: "未设置 LALAMOVE_KEY / LALAMOVE_SECRET（去 Edge Functions → Secrets 里加）" });
 
     const MARKET = Deno.env.get("LALAMOVE_MARKET") || "MY";
     const HOST = Deno.env.get("LALAMOVE_HOST") || "https://rest.sandbox.lalamove.com";
@@ -51,7 +51,7 @@ Deno.serve(async (req: Request) => {
 
     const input = await req.json().catch(() => ({} as any));
     const drop = input?.dropoff || {};
-    if (!drop.lat || !drop.lng) return json({ error: "缺少送货点坐标 dropoff.lat / dropoff.lng" }, 400);
+    if (!drop.lat || !drop.lng) return json({ ok: false, error: "缺少送货点坐标 dropoff.lat / dropoff.lng" });
 
     const bodyObj = {
       data: {
@@ -106,6 +106,9 @@ Deno.serve(async (req: Request) => {
       data: out?.data,
     });
   } catch (e) {
-    return json({ error: String(e) }, 500);
+    // 同上：这里也不用非 2xx 状态码——Supabase functions.invoke 对非 2xx 响应会把 body
+    // 吞掉，前端只会拿到一句笼统的 "Edge Function returned a non-2xx status code"，
+    // 看不到真正的报错，所以本函数所有已知错误都固定用 200 + { ok:false, error }。
+    return json({ ok: false, error: String(e) });
   }
 });
