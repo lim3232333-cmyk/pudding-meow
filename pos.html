@@ -1652,13 +1652,16 @@ var _txPayFilter='';
 var _txSelId=null;
 var _revMode='';
 function txMode(o){ return o.taMode==='takeaway'?'takeaway':'dinein'; }
-/* 三种模式（堂食/自取/外卖）：app 订单从 tableName 里带的中文关键字判断；POS 现场单没有"自取"概念，按 taMode 归入堂食/外卖 */
+/* 三种模式：堂食 / 打包·自取 / 外卖。线上「自取」和 POS「打包」合并为 takeaway；
+   线上「外卖」为 delivery；其余为堂食 */
+var MODE_CN={dinein:'堂食',takeaway:'打包/自取',delivery:'外卖'};
 function orderMode3(o){
   var tn=o.tableName||'';
-  if(tn.indexOf('自取')>=0) return'pickup';
-  if(tn.indexOf('外卖')>=0) return'takeaway';
+  if(tn.indexOf('外卖')>=0) return'delivery';
+  if(tn.indexOf('自取')>=0) return'takeaway';
   if(tn.indexOf('堂食')>=0) return'dinein';
-  return txMode(o)==='takeaway' ?'takeaway' :'dinein';
+  if(o.taMode==='takeaway') return'takeaway';
+  return'dinein';
 }
 function renderDash(){
   var today=new Date().toDateString();var dd=_vDate||today;
@@ -1668,10 +1671,10 @@ function renderDash(){
   var cash=live.filter(function(o){return o.payMethod==='cash';}).reduce(function(s,o){return s+o.total;},0);
   var tng=live.filter(function(o){return o.payMethod==='tng';}).reduce(function(s,o){return s+o.total;},0);
   var revShown = _revMode ? live.filter(function(o){return orderMode3(o)===_revMode;}).reduce(function(s,o){return s+o.total;},0) : rev;
-  var revLabel = {'':'今日营业额',dinein:'堂食营业额',pickup:'自取营业额',takeaway:'外卖营业额'}[_revMode];
+  var revLabel = {'':'今日营业额',dinein:'堂食营业额',takeaway:'打包/自取营业额',delivery:'外卖营业额'}[_revMode];
 
   var filtered=ords.filter(function(o){
-    return (!_txModeFilter||txMode(o)===_txModeFilter) && (!_txPayFilter||o.payMethod===_txPayFilter);
+    return (!_txModeFilter||orderMode3(o)===_txModeFilter) && (!_txPayFilter||o.payMethod===_txPayFilter);
   });
   if(!_txSelId && filtered.length) _txSelId=filtered[0].id;
   var selOrder=filtered.find(function(o){return o.id===_txSelId;}) || filtered[0] || null;
@@ -1684,8 +1687,8 @@ function renderDash(){
     +'<div class="kpi"><div class="l">'+revLabel+'<select class="th-filter" onchange="setRevMode(this.value)">'
       +'<option value=""'+(_revMode===''?' selected':'')+'>▼ 总营业额</option>'
       +'<option value="dinein"'+(_revMode==='dinein'?' selected':'')+'>堂食</option>'
-      +'<option value="pickup"'+(_revMode==='pickup'?' selected':'')+'>自取</option>'
-      +'<option value="takeaway"'+(_revMode==='takeaway'?' selected':'')+'>外卖</option>'
+      +'<option value="takeaway"'+(_revMode==='takeaway'?' selected':'')+'>打包/自取</option>'
+      +'<option value="delivery"'+(_revMode==='delivery'?' selected':'')+'>外卖</option>'
     +'</select></div><div class="v">RM '+revShown.toFixed(1)+'</div></div>'
     +'<div class="kpi"><div class="l">交易笔数</div><div class="v">'+live.length+'</div></div>'
     +'<div class="kpi"><div class="l">现金 Cash</div><div class="v">RM '+cash.toFixed(1)+'</div></div>'
@@ -1698,7 +1701,8 @@ function renderDash(){
       +'<th>模式<select class="th-filter" onchange="setTxModeFilter(this.value)">'
         +'<option value=""'+(_txModeFilter===''?' selected':'')+'>▼ 全部</option>'
         +'<option value="dinein"'+(_txModeFilter==='dinein'?' selected':'')+'>堂食</option>'
-        +'<option value="takeaway"'+(_txModeFilter==='takeaway'?' selected':'')+'>外卖</option>'
+        +'<option value="takeaway"'+(_txModeFilter==='takeaway'?' selected':'')+'>打包/自取</option>'
+        +'<option value="delivery"'+(_txModeFilter==='delivery'?' selected':'')+'>外卖</option>'
       +'</select></th>'
       +'<th>支付<select class="th-filter" onchange="setTxPayFilter(this.value)">'
         +'<option value=""'+(_txPayFilter===''?' selected':'')+'>▼ 全部</option>'
@@ -1715,7 +1719,7 @@ function renderDash(){
         return'<tr class="tx-row'+(o.id===_txSelId?' tx-sel':'')+'" onclick="selectTx(\''+o.id+'\')">'
           +'<td><b style="color:#8D0505">#'+o.orderNum+'</b></td>'
           +'<td style="color:#4A4848;font-size:11px">'+p(dt.getHours())+':'+p(dt.getMinutes())+'</td>'
-          +'<td>'+(txMode(o)==='takeaway'?'外卖':'堂食')+'</td>'
+          +'<td>'+(MODE_CN[orderMode3(o)]||'堂食')+'</td>'
           +'<td>'+(pm2[o.payMethod]||o.payMethod)+'</td>'
           +'<td><b>RM '+o.total.toFixed(2)+'</b></td>'
           +'<td>'+statusHtml+'</td></tr>';
