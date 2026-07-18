@@ -1248,15 +1248,35 @@ if(!db) setTimeout(function(){ setCloudStatus('offline'); },0); else setTimeout(
 
 /* 订单对象 <-> 数据库行（app 用驼峰，DB 用下划线）*/
 function orderToRow(o){
-  return { id:o.id, order_num:o.orderNum, created_at:o.createdAt, items:o.items||[],
+  return { id:o.id, order_num:o.orderNum, receipt_no:o.receiptNo!=null?o.receiptNo:null, created_at:o.createdAt, items:o.items||[],
     total:o.total||0, pay_method:o.payMethod, status:o.status,
     source:o.source, table_name:o.tableName, ta_mode:o.taMode, member_id:o.memberId||null, device_id:o.deviceId||null };
 }
 function rowToOrder(r){
-  return { id:r.id, orderNum:r.order_num||(r.id?String(r.id).slice(-4):''), createdAt:r.created_at,
+  return { id:r.id, orderNum:r.order_num||(r.id?String(r.id).slice(-4):''), receiptNo:r.receipt_no!=null?r.receipt_no:null, createdAt:r.created_at,
     items:r.items||[], total:Number(r.total)||0, payMethod:r.pay_method||'counter',
     status:r.status||'pending', source:r.source||'app', tableName:r.table_name||'', taMode:r.ta_mode||'',
     memberId:r.member_id||null, deviceId:r.device_id||null };
+}
+/* 取号：永久收据号 receiptNo + 当天订单号 orderNum。优先 Supabase RPC（跨设备唯一/按天重置），离线兜底本地 */
+function _appLocalNums(){
+  var rc=(parseInt(localStorage.getItem('pm_rc')||'0',10)||0)+1; try{localStorage.setItem('pm_rc',String(rc));}catch(e){}
+  var today=new Date().toLocaleDateString('en-CA');
+  var dc; try{dc=JSON.parse(localStorage.getItem('pm_ordday')||'{}');}catch(e){dc={};}
+  if(dc.d!==today){dc.d=today;dc.n=0;} dc.n=(dc.n||0)+1;
+  try{localStorage.setItem('pm_ordday',JSON.stringify(dc));}catch(e){}
+  return {receiptNo:rc, orderNo:dc.n};
+}
+function assignOrderNumsApp(o){
+  var set=function(rc,on){ o.receiptNo=rc; o.orderNum=String(on).padStart(4,'0'); };
+  if(db){
+    return db.rpc('rpc_next_order_num').then(function(res){
+      if(res&&!res.error&&res.data&&res.data[0]){ set(res.data[0].receipt_no,res.data[0].order_no); }
+      else { var l=_appLocalNums(); set(l.receiptNo,l.orderNo); }
+      return o;
+    }).catch(function(){ var l=_appLocalNums(); set(l.receiptNo,l.orderNo); return o; });
+  }
+  var l=_appLocalNums(); set(l.receiptNo,l.orderNo); return Promise.resolve(o);
 }
 
 /* ---------- tab switching ---------- */
@@ -1561,11 +1581,10 @@ function confirmOrder(){
     return {name:c.name, en:c.en||'', price:c.price, qty:c.qty, specs:c.specs||[], image:c.image||''};
   });
 
-  var num = (_orders.length+1);
   var modeLabel = {dinein:'堂食', pickup:'自取', delivery:'外卖'}[currentMode] ||'自取';
   var order = {
     id:'o'+Date.now(),
-    orderNum: String(num).padStart(4,'0'),
+    orderNum: '',              // 取号后填入（当天流水号）
     createdAt: new Date().toISOString(),
     items: items,
     total: total,
@@ -1581,26 +1600,30 @@ function confirmOrder(){
     memberId: _memberId || null,
     deviceId: _deviceId,
   };
-  _orders.unshift(order);
-
-  // 存到 localStorage 并广播（离线 / 同机兜底）
-  try{ var ex=JSON.parse(localStorage.getItem('pm_orders')||'[]'); ex.unshift(order); localStorage.setItem('pm_orders',JSON.stringify(ex)); }catch(e){}
-  try{ pmBroadcastOrders(); }catch(e){}
-  // 写入云端（跨设备：店里 POS 实时收到）
-  if(db){ db.from('orders').insert(orderToRow(order)).then(function(res){ if(res && res.error){ console.error('order insert', res.error); setCloudStatus('offline'); } else { setCloudStatus('online'); } }).catch(function(e){ console.error('order insert', e); setCloudStatus('offline'); }); }
 
   document.getElementById('cartSheet').classList.remove('show');
   document.getElementById('cartOverlay').classList.remove('show');
 
-  if(selectedPay==='tng'){
-    window.open('https://payment.tngdigital.com.my/sc/bDLn6uNZxm','_blank');
-    setTimeout(function(){ document.getElementById('successTng').classList.add('show'); }, 500);
-    // TNG 是预付款，下单即视为已付款，直接结算消费 XP/Coin
-    if(db && _memberId) db.rpc('rpc_on_order_completed', {p_member_id:_memberId, p_order_id:order.id, p_amount:order.total}).then(function(){ refreshMemberProfile(); }).catch(function(e){ console.error('rpc_on_order_completed', e); });
-  } else {
-    document.getElementById('successCounter').classList.add('show');
-    // 柜台支付：等店员在 POS 标记「已付款」时才结算（见 pos.html markPaid）
-  }
+  var isTng = selectedPay==='tng';
+  // TNG：先同步打开支付页，保住用户手势（异步后 window.open 会被拦截）
+  if(isTng){ window.open('https://payment.tngdigital.com.my/sc/bDLn6uNZxm','_blank'); }
+
+  // 取号（跨设备唯一/按天重置），拿到号再落库——云端存的是最终号，POS 出单一致
+  assignOrderNumsApp(order).then(function(){
+    _orders.unshift(order);
+    try{ var ex=JSON.parse(localStorage.getItem('pm_orders')||'[]'); ex.unshift(order); localStorage.setItem('pm_orders',JSON.stringify(ex)); }catch(e){}
+    try{ pmBroadcastOrders(); }catch(e){}
+    if(db){ db.from('orders').insert(orderToRow(order)).then(function(res){ if(res && res.error){ console.error('order insert', res.error); setCloudStatus('offline'); } else { setCloudStatus('online'); } }).catch(function(e){ console.error('order insert', e); setCloudStatus('offline'); }); }
+
+    if(isTng){
+      setTimeout(function(){ document.getElementById('successTng').classList.add('show'); }, 300);
+      // TNG 是预付款，下单即视为已付款，直接结算消费 XP/Coin
+      if(db && _memberId) db.rpc('rpc_on_order_completed', {p_member_id:_memberId, p_order_id:order.id, p_amount:order.total}).then(function(){ refreshMemberProfile(); }).catch(function(e){ console.error('rpc_on_order_completed', e); });
+    } else {
+      document.getElementById('successCounter').classList.add('show');
+      // 柜台支付：等店员在 POS 标记「已付款」时才结算（见 pos.html markPaid）
+    }
+  });
 }
 
 function uid(){ return'u'+Date.now(); }
