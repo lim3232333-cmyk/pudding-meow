@@ -1572,8 +1572,10 @@ function _renderReceipt(o, mem){
       +(mem.next_level_xp_gap!=null?'<span>Next Lv: '+mem.next_level_xp_gap+' XP</span>':'')
       +'</div></div></div>';
   }
-  var receiptNo='RC'+esc(o.orderNum);
-  var orderType=_orderTypeLabel(o);
+  var onum=parseInt(o.orderNum,10); if(isNaN(onum)) onum=0;
+  var receiptNo='RC'+String(onum).padStart(6,'0');   // 永久唯一：财务/退款/报表/重印
+  var orderNoDisp='#'+(o.orderNoDaily!=null?String(o.orderNoDaily).padStart(4,'0'):String(onum).padStart(4,'0')); // 当天流水号
+  var orderCode=_orderTypeLabel(o);                   // Table 1 / TAxx / DLxx：店员/顾客认单
   document.getElementById('rcc').innerHTML='<div class="rc">'
     +'<div class="rheadgrp">'
     +'<img class="rlogo" src="'+RECEIPT_LOGO+'" onerror="this.style.display=\'none\'">'
@@ -1586,11 +1588,11 @@ function _renderReceipt(o, mem){
     +'<div class="rright">TEL: 017-5221811</div>'
     +'<div class="rright">RECEIPT NO: '+receiptNo+'</div>'
     +'</div>'
-    +'<div class="rordno"><span class="lbl">ORDER NO</span><span class="num">#'+esc(o.orderNum)+'</span></div>'
+    +'<div class="rordno"><span class="lbl">ORDER CODE</span><span class="num">'+esc(orderCode)+'</span></div>'
     +'<div class="rmeta">'
     +'<div class="rline"></div>'
     +'<div class="rrow"><span>DATE</span><span>'+ds+'</span></div>'
-    +'<div class="rrow"><span>ORDER TYPE</span><span>'+esc(orderType)+'</span></div>'
+    +'<div class="rrow"><span>ORDER NO</span><span>'+orderNoDisp+'</span></div>'
     +'</div>'
     +'<div class="ritemsblock">'
     +'<div class="rcol3 rhead"><span class="rname">ITEM</span><span class="rqty">QTY</span><span class="ramt">RM</span></div>'
