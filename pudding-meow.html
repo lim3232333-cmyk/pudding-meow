@@ -777,22 +777,27 @@
   .dine-ok{ background:var(--red); border:1.5px solid var(--red); color:#FFFFD5; }
   .dine-ok.disabled,.dine-ok:disabled{ background:#D9D9D9; border-color:#D9D9D9; color:#9A9A9A; cursor:not-allowed; }
 
-  /* ===== 外卖收货地址弹窗（点外卖后居中弹出：地址簿列表/新增地址 + Lalamove 运费）===== */
-  .dv-modal{ height:auto; min-height:220px; }
-  .dv-fee{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; border-radius:8px; background:#EDEDED; }
-  .dv-fee .lbl{ font-size:14px; font-weight:500; color:var(--red); flex-shrink:0; }
-  .dv-fee .val{ font-size:16px; font-weight:700; color:var(--red); text-align:right; }
-  .dv-fee.err{ align-items:flex-start; }
-  .dv-fee.err .val{ font-size:11px; font-weight:500; color:#8D0505; line-height:15px; white-space:normal; word-break:break-word; }
-  .dv-add-addr-btn{ width:100%; height:40px; margin-top:8px; border:none; border-radius:12px; background:var(--red); color:#FFFFD5; font-size:14px; font-weight:700; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
-  .dv-addr-row{ display:flex; gap:12px; align-items:center; padding:8px 0; cursor:pointer; }
-  .dv-addr-row+.dv-addr-row{ border-top:1px solid rgba(141,5,5,.08); }
-  .dv-addr-radio{ width:15px; height:15px; border-radius:50%; border:2px solid #D9D9D9; flex-shrink:0; box-sizing:border-box; }
-  .dv-addr-row.sel .dv-addr-radio{ border-color:var(--red); background:var(--red); box-shadow:inset 0 0 0 2.5px #FFFFD5; }
+  /* ===== 外卖收货地址弹窗（Figma 453:237 空状态 / 454:243 有地址）=====
+     配送费不在这个弹窗显示——地址选好后报价在后台算，之后显示在购物车。 */
+  .dv-modal{ height:auto; min-height:0; padding:16px 32px; align-items:center; gap:16px; }
+  .dv-close{ position:absolute; right:-15px; top:-15px; width:30px; height:30px; cursor:pointer; z-index:5; }
+  .dv-close svg{ display:block; }
+  .dv-title{ font-size:16px; font-weight:700; color:var(--red); text-align:center; }
+  .dv-addr-list{ width:100%; display:flex; flex-direction:column; gap:8px; }
+  .dv-addr-list:empty{ display:none; }
+  .dv-addr-row{ display:flex; gap:16px; align-items:center; cursor:pointer; width:100%; }
+  .dv-addr-radio{ width:15px; height:15px; border-radius:50%; border:1.5px solid var(--red); background:transparent; flex-shrink:0; box-sizing:border-box; }
+  .dv-addr-row.sel .dv-addr-radio{ background:var(--yellow); box-shadow:inset 0 0 0 2px #FFFFD5; }
   .dv-addr-info{ flex:1; min-width:0; }
-  .dv-addr-label{ font-size:14px; font-weight:500; color:var(--muted); }
-  .dv-addr-text{ font-size:11px; color:#726F6F; margin-top:2px; }
-  .dv-addr-empty{ font-size:12px; color:var(--muted); text-align:center; padding:10px 0; }
+  .dv-addr-label{ font-size:14px; font-weight:500; color:#4A4848; }
+  .dv-addr-text{ font-size:12px; font-weight:400; color:#726F6F; margin-top:4px; }
+  .dv-addr-div{ width:100%; height:0; border-top:1px solid #D9D9D9; }
+  .dv-add-plus{ border:none; background:none; padding:0; width:24px; height:24px; cursor:pointer; display:block; flex-shrink:0; }
+  .dv-add-plus svg{ display:block; }
+  .dv-main-btn{ width:100%; height:40px; border:none; border-radius:12px; padding:4px; background:var(--red); color:#FFFFD5; font-size:16px; font-weight:700; font-family:"Noto Sans SC",sans-serif; cursor:pointer; box-sizing:border-box; }
+  .dv-main-btn.disabled,.dv-main-btn:disabled{ background:#D9D9D9; color:#9A9A9A; cursor:not-allowed; }
+  .dv-err{ display:none; width:100%; font-size:11px; color:var(--red); line-height:15px; text-align:center; word-break:break-word; }
+  .dv-err.show{ display:block; }
 
   /* ===== 新收货地址整页（点＋新收货地址 → 会员存进地址簿/游客一次性）===== */
   .addr-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:359; display:none; }
@@ -1225,16 +1230,15 @@
     <div class="dine-actions"><button class="dine-cancel" onclick="closeDine()">取消</button><button class="dine-ok" id="dineOk" onclick="confirmDine()">确定</button></div>
   </div>
 
-  <!-- ============ 外卖：收货地址（地址簿/运费）弹窗 ============ -->
+  <!-- ============ 外卖：收货地址（地址簿）弹窗，Figma 453:237 空状态 / 454:243 有地址 ============ -->
   <div class="dine-overlay" id="dvOverlay" onclick="closeDelivery()"></div>
   <div class="dine-modal dv-modal" id="dvModal">
-    <div class="dine-title">外卖<span class="dine-label-en">Delivery</span></div>
-    <div class="dine-row"><div class="dine-label">收货地址<span class="dine-label-en">Address</span></div>
-      <div id="dvAddrList"></div>
-      <button class="dv-add-addr-btn" onclick="openAddrForm()">＋ 新收货地址</button>
-    </div>
-    <div class="dine-row"><div class="dv-fee" id="dvFeeBox"><span class="lbl">配送费 Delivery Fee</span><span class="val" id="dvFeeVal">—</span></div></div>
-    <div class="dine-actions"><button class="dine-cancel" onclick="closeDelivery()">取消</button><button class="dine-ok disabled" id="dvOk" disabled onclick="confirmDelivery()">确定</button></div>
+    <div class="dv-close" onclick="closeDelivery()"><svg viewBox="0 0 24 24" width="30" height="30"><circle cx="12" cy="12" r="10" fill="#4A4848"/><path d="M15 9l-6 6M9 9l6 6" stroke="#FFFFD5" stroke-width="2" stroke-linecap="round"/></svg></div>
+    <div class="dv-title">收货地址</div>
+    <div id="dvAddrList" class="dv-addr-list"></div>
+    <div class="dv-err" id="dvErr"></div>
+    <button class="dv-add-plus" id="dvAddPlus" onclick="openAddrForm()" style="display:none" aria-label="新收货地址"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M12 8v8"/></svg></button>
+    <button class="dv-main-btn" id="dvMainBtn" onclick="_dvMainAction()">+ 新收货地址</button>
   </div>
 
   <!-- ============ 外卖：新收货地址整页表单 ============ -->
@@ -1452,18 +1456,9 @@ function setMenuMode(el){
    简化版）——报价需要坐标，定位成功才能保存，报价成功才能点确定。 */
 let _dvCoords=null, _dvQuote=null, _dvActiveAddr=null, _addrList=[], _addrLocateCoords=null;
 
-function _dvSetOk(enabled){
-  var ok=document.getElementById('dvOk');
-  ok.disabled=!enabled; ok.classList.toggle('disabled', !enabled);
-}
-function _dvSetFeeUI(state, text){
-  var box=document.getElementById('dvFeeBox'), val=document.getElementById('dvFeeVal');
-  box.classList.toggle('err', state==='error');
-  if(state==='idle') val.textContent='—';
-  else if(state==='loading') val.textContent='计算中…';
-  else if(state==='ok') val.textContent=text;
-  else if(state==='error') val.textContent=text||'算不出运费，请重试';
-  _dvSetOk(state==='ok');
+function _dvSetErr(text){
+  var el=document.getElementById('dvErr');
+  el.textContent=text||''; el.classList.toggle('show', !!text);
 }
 /* 安全地把报错转成可读文字：字符串直接用；对象优先取 .message，取不到就 JSON 化
    ——不能直接 String(obj)，那样会变成没意义的 "[object Object]" */
@@ -1493,7 +1488,7 @@ function _addrEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(
 
 function openDelivery(){
   _dvQuote=null; _dvActiveAddr=null; _dvCoords=null;
-  _dvSetFeeUI('idle');
+  _dvSetErr(null);
   _addrList=[];
   _showDvModal(); _renderAddrList();   // 点外卖一律先进地址簿——没有已存地址就是空的那版（444:91）
   if(_memberId && _memberToken && db){
@@ -1521,56 +1516,84 @@ function _loadMyAddresses(){
     .then(function(res){ return (res&&res.data)||[]; })
     .catch(function(){ return []; });
 }
+function _addrFullText(a){
+  // Figma 454:243 的地址行格式：9，Jalan PE8，Taman Paya Emas，74560 Melaka.
+  return [a.unit_no, a.address, [a.postcode,a.city].filter(Boolean).join(' ')].filter(Boolean).join('，');
+}
+/* 弹窗只有一个主按钮，随状态切换：没有已存地址 → 「+ 新收货地址」（Figma 453:237）；
+   有地址 → 列表 + 方形加号 + 「前往点单」（Figma 454:243）。 */
 function _renderAddrList(){
   var wrap=document.getElementById('dvAddrList');
-  if(!_addrList.length){ wrap.innerHTML=''; return; }   // 空状态跟 Figma 444:91 一致：只留标题+新增按钮，不加占位文字
+  var plus=document.getElementById('dvAddPlus');
+  var btn=document.getElementById('dvMainBtn');
+  if(!_addrList.length){
+    wrap.innerHTML=''; plus.style.display='none';
+    btn.textContent='+ 新收货地址'; btn.disabled=false; btn.classList.remove('disabled');
+    return;
+  }
   wrap.innerHTML=_addrList.map(function(a){
     var sel=_dvActiveAddr && String(a.id)===String(_dvActiveAddr.id);
-    var full=[a.unit_no,a.address,a.postcode,a.city].filter(Boolean).join('，');
     return '<div class="dv-addr-row'+(sel?' sel':'')+'" onclick="_selectAddr('+(a.id!=null?"'"+a.id+"'":'null')+')">'
       +'<div class="dv-addr-radio"></div>'
-      +'<div class="dv-addr-info"><div class="dv-addr-label">'+_addrEsc(a.label||'收货地址')+'</div><div class="dv-addr-text">'+_addrEsc(full)+'</div></div>'
-      +'</div>';
+      +'<div class="dv-addr-info"><div class="dv-addr-label">'+_addrEsc(a.label||'收货地址')+'</div><div class="dv-addr-text">'+_addrEsc(_addrFullText(a))+'</div></div>'
+      +'</div><div class="dv-addr-div"></div>';
   }).join('');
+  plus.style.display='block';
+  btn.textContent='前往点单';
+  var ready=!!(_dvActiveAddr && _dvCoords);
+  btn.disabled=!ready; btn.classList.toggle('disabled', !ready);
+}
+function _dvMainAction(){
+  if(!_addrList.length) openAddrForm();
+  else confirmDelivery();
 }
 function _selectAddr(id){
   var a=_addrList.find(function(x){return String(x.id)===String(id);});
   if(!a) return;
-  _dvActiveAddr=a; _renderAddrList();
-  if(a.lat!=null && a.lng!=null){ _dvCoords={lat:Number(a.lat), lng:Number(a.lng)}; _dvFetchQuote(); }
-  else { _dvCoords=null; _dvQuote=null; _dvSetFeeUI('error','该地址没有定位信息，请重新新增一个'); }
+  _dvActiveAddr=a;
+  if(a.lat!=null && a.lng!=null){
+    _dvCoords={lat:Number(a.lat), lng:Number(a.lng)};
+    _dvSetErr(null); _renderAddrList(); _dvFetchQuote();
+  } else {
+    _dvCoords=null; _dvQuote=null; _renderAddrList();
+    _dvSetErr('该地址没有定位信息，请重新新增一个');
+  }
 }
+/* 报价在后台算，弹窗里不显示配送费（之后显示在购物车）；只有出错才在 dvErr 提示一行 */
 function _dvFetchQuote(){
-  if(!_dvCoords || !db){ _dvSetFeeUI('error', db?'定位缺失':'未连接云端'); return; }
-  _dvSetFeeUI('loading');
+  if(!_dvCoords || !db){ if(!db) _dvSetErr('未连接云端，暂时算不了配送费'); return; }
+  var forLat=_dvCoords.lat, forLng=_dvCoords.lng;
+  _dvQuote=null;
   var addr=_dvActiveAddr ? [_dvActiveAddr.unit_no,_dvActiveAddr.address,_dvActiveAddr.city].filter(Boolean).join('，') : '';
-  db.functions.invoke('lalamove-quote', {body:{dropoff:{lat:String(_dvCoords.lat), lng:String(_dvCoords.lng), address:addr}}})
+  db.functions.invoke('lalamove-quote', {body:{dropoff:{lat:String(forLat), lng:String(forLng), address:addr}}})
     .then(function(res){
       var d=res&&res.data;
       if(d&&d.ok){
         _dvQuote={total:d.total, currency:d.currency||'MYR', quotationId:d.quotationId};
-        _dvSetFeeUI('ok', 'RM '+Number(d.total).toFixed(2));
+        _dvSetErr(null);
+        // 用户可能已点「前往点单」——把迟到的报价补写进 _deliveryInfo（结算读它）
+        if(_deliveryInfo && _deliveryInfo.lat===forLat && _deliveryInfo.lng===forLng){
+          _deliveryInfo.fee=Number(d.total)||0; _deliveryInfo.currency=_dvQuote.currency; _deliveryInfo.quotationId=d.quotationId;
+        }
         return;
       }
-      _dvQuote=null;
       console.error('lalamove-quote failed:', res);
       if(res && res.error){
-        _dvHandleInvokeError(res.error).then(function(msg){ _dvSetFeeUI('error', msg.slice(0,120)); });
+        _dvHandleInvokeError(res.error).then(function(msg){ _dvSetErr(('配送费：'+msg).slice(0,120)); });
         return;
       }
-      var msg=_dvErrText(d&&d.error) || '计算失败，请重试';
-      _dvSetFeeUI('error', msg.slice(0,120));
-    }).catch(function(e){ _dvQuote=null; console.error('lalamove-quote error:', e); _dvSetFeeUI('error', '网络错误：'+_dvErrText(e).slice(0,80)); });
+      _dvSetErr(('配送费：'+(_dvErrText(d&&d.error)||'计算失败，请重试')).slice(0,120));
+    }).catch(function(e){ console.error('lalamove-quote error:', e); _dvSetErr('网络错误：'+_dvErrText(e).slice(0,80)); });
 }
 function confirmDelivery(){
-  if(!_dvQuote || !_dvActiveAddr) return;   // 必须先选好地址且算出运费才能确定
+  if(!_dvActiveAddr || !_dvCoords) return;   // 选好带定位的地址就能前往点单；配送费后台算好后写进 _deliveryInfo
   currentMode='delivery';
   var a=_dvActiveAddr;
   _deliveryInfo={
-    address:[a.unit_no,a.address,a.postcode,a.city].filter(Boolean).join('，'),
+    address:_addrFullText(a),
     label:a.label||'', recipientName:a.recipient_name, phone:a.phone, remarks:a.remarks||'',
     lat:_dvCoords.lat, lng:_dvCoords.lng,
-    fee:Number(_dvQuote.total)||0, currency:_dvQuote.currency, quotationId:_dvQuote.quotationId,
+    fee:_dvQuote?(Number(_dvQuote.total)||0):0, currency:(_dvQuote&&_dvQuote.currency)||'MYR', quotationId:(_dvQuote&&_dvQuote.quotationId)||null,
     addressId:a.id||null
   };
   closeDelivery();
