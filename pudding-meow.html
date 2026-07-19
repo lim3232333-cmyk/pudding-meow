@@ -1494,18 +1494,19 @@ function _addrEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(
 function openDelivery(){
   _dvQuote=null; _dvActiveAddr=null; _dvCoords=null;
   _dvSetFeeUI('idle');
+  _addrList=[];
+  _showDvModal(); _renderAddrList();   // 点外卖一律先进地址簿——没有已存地址就是空的那版（444:91）
   if(_memberId && _memberToken && db){
     _loadMyAddresses().then(function(list){
       _addrList=list||[];
-      if(!_addrList.length){ openAddrForm(); return; }   // 会员还没存过地址，直接进新增
-      _showDvModal(); _renderAddrList();
-      var def=_addrList.find(function(a){return a.is_default;}) || _addrList[0];
-      _selectAddr(def.id);
+      _renderAddrList();
+      if(_addrList.length){
+        var def=_addrList.find(function(a){return a.is_default;}) || _addrList[0];
+        _selectAddr(def.id);
+      }
     });
-  } else {
-    _addrList=[];
-    openAddrForm();   // 游客：直接填一次性地址，不查/不存地址簿
   }
+  // 游客（未登录）：_addrList 保持空，地址簿显示空状态；点「+新收货地址」才进新增页
 }
 function _showDvModal(){
   document.getElementById('dvOverlay').classList.add('show');
@@ -1522,7 +1523,7 @@ function _loadMyAddresses(){
 }
 function _renderAddrList(){
   var wrap=document.getElementById('dvAddrList');
-  if(!_addrList.length){ wrap.innerHTML='<div class="dv-addr-empty">暂无收货地址</div>'; return; }
+  if(!_addrList.length){ wrap.innerHTML=''; return; }   // 空状态跟 Figma 444:91 一致：只留标题+新增按钮，不加占位文字
   wrap.innerHTML=_addrList.map(function(a){
     var sel=_dvActiveAddr && String(a.id)===String(_dvActiveAddr.id);
     var full=[a.unit_no,a.address,a.postcode,a.city].filter(Boolean).join('，');
@@ -1590,8 +1591,7 @@ function openAddrForm(){
 function closeAddrForm(){
   document.getElementById('addrFormOverlay').classList.remove('show');
   document.getElementById('addrFormScreen').classList.remove('show');
-  if(_addrList.length){ _showDvModal(); }   // 从地址簿点进来的：回地址簿；游客/首次会员：直接取消
-  else { closeDelivery(); }
+  _showDvModal();   // 新增页只能从地址簿点「+新收货地址」进来，取消/返回一律回地址簿
 }
 function addrLocate(){
   if(!navigator.geolocation){ document.getElementById('addrLocStat').textContent='此设备不支持定位'; return; }
