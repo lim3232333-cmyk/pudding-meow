@@ -20,9 +20,11 @@ const cors = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// Lalamove 的 lat 只接受 -90~90，lng 接受 -180~180。马六甲纬度约 2、经度约 102，
-// 一旦经纬度被填反（比如 Secrets 里 STORE_LAT/STORE_LNG 写反、或历史地址存反），
-// 102 落进 lat 就会撞校验正则。这里做一层自纠正：lat 越界但 lng 没越界就对调。
+// Lalamove 对坐标的校验正则限制两件事：lat 范围 -90~90（lng -180~180），
+// 以及小数最多 15 位。浏览器定位返回的是完整双精度（如 2.1993147282958984，
+// 16 位小数），直接发过去必撞 "does not match pattern"。这里统一：
+// 1) 经纬度明显填反（lat 越界但 lng 没越界）就自动对调；
+// 2) 小数压到 7 位（约 1cm 精度）再转字符串。
 function normCoord(latIn: unknown, lngIn: unknown): { lat: string; lng: string } | null {
   let lat = Number(latIn), lng = Number(lngIn);
   if (!isFinite(lat) || !isFinite(lng)) return null;
@@ -30,7 +32,8 @@ function normCoord(latIn: unknown, lngIn: unknown): { lat: string; lng: string }
   const inLng = (v: number) => Math.abs(v) <= 180;
   if (!inLat(lat) && inLat(lng) && inLng(lat)) { const t = lat; lat = lng; lng = t; } // 明显反了就对调
   if (!inLat(lat) || !inLng(lng)) return null; // 纠正后仍越界，判为无效
-  return { lat: String(lat), lng: String(lng) };
+  const fmt = (v: number) => v.toFixed(7).replace(/0+$/, "").replace(/\.$/, "");
+  return { lat: fmt(lat), lng: fmt(lng) };
 }
 
 async function hmacHex(secret: string, msg: string): Promise<string> {
