@@ -777,18 +777,46 @@
   .dine-ok{ background:var(--red); border:1.5px solid var(--red); color:#FFFFD5; }
   .dine-ok.disabled,.dine-ok:disabled{ background:#D9D9D9; border-color:#D9D9D9; color:#9A9A9A; cursor:not-allowed; }
 
-  /* ===== 外卖收货地址弹窗（点外卖后居中弹出：填地址 + 定位 + Lalamove 运费）===== */
-  .dv-modal{ height:auto; min-height:340px; }
-  .dv-addr{ width:100%; min-height:64px; border:none; border-radius:8px; background:#EDEDED; color:var(--red); font-size:14px; font-family:"Noto Sans SC",sans-serif; padding:10px 12px; box-sizing:border-box; resize:none; outline:none; }
-  .dv-addr::placeholder{ color:#9A9A9A; }
-  .dv-locate{ width:100%; height:38px; border:1.5px solid var(--red); border-radius:8px; background:#FFF; color:var(--red); font-size:14px; font-weight:500; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
-  .dv-locate:disabled{ opacity:.6; cursor:not-allowed; }
-  .dv-locstat{ font-size:11px; color:var(--muted); min-height:14px; }
+  /* ===== 外卖收货地址弹窗（点外卖后居中弹出：地址簿列表/新增地址 + Lalamove 运费）===== */
+  .dv-modal{ height:auto; min-height:220px; }
   .dv-fee{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; border-radius:8px; background:#EDEDED; }
   .dv-fee .lbl{ font-size:14px; font-weight:500; color:var(--red); flex-shrink:0; }
   .dv-fee .val{ font-size:16px; font-weight:700; color:var(--red); text-align:right; }
   .dv-fee.err{ align-items:flex-start; }
   .dv-fee.err .val{ font-size:11px; font-weight:500; color:#8D0505; line-height:15px; white-space:normal; word-break:break-word; }
+  .dv-add-addr-btn{ width:100%; height:40px; margin-top:8px; border:none; border-radius:12px; background:var(--red); color:#FFFFD5; font-size:14px; font-weight:700; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
+  .dv-addr-row{ display:flex; gap:12px; align-items:center; padding:8px 0; cursor:pointer; }
+  .dv-addr-row+.dv-addr-row{ border-top:1px solid rgba(141,5,5,.08); }
+  .dv-addr-radio{ width:15px; height:15px; border-radius:50%; border:2px solid #D9D9D9; flex-shrink:0; box-sizing:border-box; }
+  .dv-addr-row.sel .dv-addr-radio{ border-color:var(--red); background:var(--red); box-shadow:inset 0 0 0 2.5px #FFFFD5; }
+  .dv-addr-info{ flex:1; min-width:0; }
+  .dv-addr-label{ font-size:14px; font-weight:500; color:var(--muted); }
+  .dv-addr-text{ font-size:11px; color:#726F6F; margin-top:2px; }
+  .dv-addr-empty{ font-size:12px; color:var(--muted); text-align:center; padding:10px 0; }
+
+  /* ===== 新收货地址整页（点＋新收货地址 → 会员存进地址簿/游客一次性）===== */
+  .addr-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:359; display:none; }
+  .addr-overlay.show{ display:block; }
+  .addr-form-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:var(--cream2); z-index:360; display:none; flex-direction:column; overflow-y:auto; font-family:"Noto Sans SC",sans-serif; }
+  .addr-form-screen.show{ display:flex; }
+  .addr-form-head{ position:relative; flex-shrink:0; height:54px; display:flex; align-items:center; justify-content:center; }
+  .addr-back{ position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:26px; font-weight:700; color:var(--red); cursor:pointer; line-height:1; padding:4px 8px; }
+  .addr-form-title{ font-size:18px; font-weight:700; color:var(--red); }
+  .addr-map{ flex-shrink:0; background:#D9D9D9; min-height:150px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:16px; box-sizing:border-box; }
+  .addr-pin{ font-size:32px; line-height:1; }
+  .addr-locate-btn{ height:38px; padding:0 18px; border:none; border-radius:999px; background:var(--red); color:#FFFFD5; font-size:13px; font-weight:500; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
+  .addr-locate-btn:disabled{ opacity:.6; cursor:not-allowed; }
+  .addr-locstat{ font-size:11px; color:var(--muted); min-height:14px; }
+  .addr-grid{ flex-shrink:0; display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:20px; box-sizing:border-box; }
+  .addr-field{ grid-column:span 1; background:#FFF; border-radius:12px; padding:8px 16px; box-shadow:0 0 4px rgba(217,217,217,.5); box-sizing:border-box; }
+  .addr-field.span2{ grid-column:span 2; }
+  .addr-field .lbl{ display:block; font-size:10px; color:#726F6F; font-family:"Noto Sans SC",sans-serif; }
+  .addr-field .req{ color:var(--red); margin-left:2px; }
+  .addr-field input{ width:100%; border:none; outline:none; background:transparent; font-size:14px; color:var(--muted); font-family:"Noto Sans SC",sans-serif; padding:2px 0 0; box-sizing:border-box; }
+  .addr-field:focus-within{ box-shadow:0 0 4px rgba(141,5,5,.5); outline:1px solid var(--red); outline-offset:-1px; }
+  .addr-save-bar{ margin-top:auto; flex-shrink:0; padding:16px 20px 28px; box-sizing:border-box; }
+  .addr-save-btn{ width:100%; height:45px; border:none; border-radius:12px; font-size:16px; font-weight:700; font-family:"Noto Sans SC",sans-serif; cursor:pointer; background:var(--red); color:#FFFFD5; }
+  .addr-save-btn.disabled,.addr-save-btn:disabled{ background:#D9D9D9; color:#726F6F; cursor:not-allowed; }
   .ld-history-modal{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:340px; max-height:70vh; background:var(--cream2); border-radius:16px; z-index:350; display:none; flex-direction:column; overflow:hidden; }
   .ld-history-modal.show{ display:flex; }
   .ld-history-head{ display:flex; align-items:center; justify-content:space-between; padding:16px; font-size:16px; font-weight:500; color:var(--red); flex-shrink:0; }
@@ -1197,19 +1225,41 @@
     <div class="dine-actions"><button class="dine-cancel" onclick="closeDine()">取消</button><button class="dine-ok" id="dineOk" onclick="confirmDine()">确定</button></div>
   </div>
 
-  <!-- ============ 外卖收货地址弹窗 ============ -->
+  <!-- ============ 外卖：收货地址（地址簿/运费）弹窗 ============ -->
   <div class="dine-overlay" id="dvOverlay" onclick="closeDelivery()"></div>
   <div class="dine-modal dv-modal" id="dvModal">
     <div class="dine-title">外卖<span class="dine-label-en">Delivery</span></div>
     <div class="dine-row"><div class="dine-label">收货地址<span class="dine-label-en">Address</span></div>
-      <textarea class="dv-addr" id="dvAddr" placeholder="填写收货地址，或点下面定位" oninput="_dvOnAddrInput()"></textarea>
-    </div>
-    <div class="dine-row">
-      <button class="dv-locate" id="dvLocateBtn" onclick="dvLocate()">📍 使用我的定位 Use My Location</button>
-      <div class="dv-locstat" id="dvLocStat"></div>
+      <div id="dvAddrList"></div>
+      <button class="dv-add-addr-btn" onclick="openAddrForm()">＋ 新收货地址</button>
     </div>
     <div class="dine-row"><div class="dv-fee" id="dvFeeBox"><span class="lbl">配送费 Delivery Fee</span><span class="val" id="dvFeeVal">—</span></div></div>
     <div class="dine-actions"><button class="dine-cancel" onclick="closeDelivery()">取消</button><button class="dine-ok disabled" id="dvOk" disabled onclick="confirmDelivery()">确定</button></div>
+  </div>
+
+  <!-- ============ 外卖：新收货地址整页表单 ============ -->
+  <div class="addr-overlay" id="addrFormOverlay"></div>
+  <div class="addr-form-screen" id="addrFormScreen">
+    <div class="addr-form-head">
+      <div class="addr-back" onclick="closeAddrForm()">‹</div>
+      <div class="addr-form-title">新收货地址</div>
+    </div>
+    <div class="addr-map">
+      <div class="addr-pin">📍</div>
+      <button class="addr-locate-btn" id="addrLocateBtn" onclick="addrLocate()">使用我的定位 Use My Location</button>
+      <div class="addr-locstat" id="addrLocStat"></div>
+    </div>
+    <div class="addr-grid">
+      <div class="addr-field span2"><label class="lbl">地点名称（e.g. Home, Office）</label><input id="afLabel" type="text" placeholder="Home"></div>
+      <div class="addr-field span2"><label class="lbl">单位号/门牌号<span class="req">*</span></label><input id="afUnit" type="text" oninput="_addrCheckValid()"></div>
+      <div class="addr-field span2"><label class="lbl">地址<span class="req">*</span></label><input id="afAddress" type="text" oninput="_addrCheckValid()"></div>
+      <div class="addr-field"><label class="lbl">邮政编码<span class="req">*</span></label><input id="afPostcode" type="text" inputmode="numeric" oninput="_addrCheckValid()"></div>
+      <div class="addr-field"><label class="lbl">城市<span class="req">*</span></label><input id="afCity" type="text" oninput="_addrCheckValid()"></div>
+      <div class="addr-field"><label class="lbl">收件人姓名<span class="req">*</span></label><input id="afRecipient" type="text" oninput="_addrCheckValid()"></div>
+      <div class="addr-field"><label class="lbl">手机号码<span class="req">*</span></label><input id="afPhone" type="text" inputmode="tel" oninput="_addrCheckValid()"></div>
+      <div class="addr-field span2"><label class="lbl">备注</label><input id="afRemarks" type="text"></div>
+    </div>
+    <div class="addr-save-bar"><button class="addr-save-btn disabled" id="addrSaveBtn" disabled onclick="saveAddrForm()">保存</button></div>
   </div>
 
   <!-- ============ product detail sheet ============ -->
@@ -1394,23 +1444,14 @@ function setMenuMode(el){
   currentMode = el.dataset.mode;
 }
 
-/* ---------- 外卖收货地址（点外卖 → 居中弹窗填地址 → 用 Lalamove 报价拿运费）----------
-   报价需要经纬度：用浏览器定位（navigator.geolocation）取顾客当前坐标当送货点；
-   地址文本框只作为显示/备注，实际报价坐标以定位为准。定位成功才会自动请求报价、
-   报价成功才能点确定——避免外卖单没有运费/地址就下单。 */
-let _dvCoords=null, _dvQuote=null;
-function openDelivery(){
-  _dvCoords=null; _dvQuote=null;
-  document.getElementById('dvAddr').value='';
-  document.getElementById('dvLocStat').textContent='';
-  _dvSetFeeUI('idle');
-  document.getElementById('dvOverlay').classList.add('show');
-  document.getElementById('dvModal').classList.add('show');
-}
-function closeDelivery(){
-  document.getElementById('dvOverlay').classList.remove('show');
-  document.getElementById('dvModal').classList.remove('show');
-}
+/* ---------- 外卖收货地址 ----------
+   已登录会员：地址存进会员账号（member_addresses 表，rpc_* 系列），点外卖直接从
+   已存地址簿里选，选中后自动用该地址坐标去 Lalamove 报价；没有地址簿时直接进新增页。
+   没登录（游客）：不查/不存地址簿，直接进新增页填一次性地址，只用于这一单。
+   经纬度来自新增页里的"使用我的定位"按钮（地址文本本身不接真正的地图/自动联想，
+   简化版）——报价需要坐标，定位成功才能保存，报价成功才能点确定。 */
+let _dvCoords=null, _dvQuote=null, _dvActiveAddr=null, _addrList=[], _addrLocateCoords=null;
+
 function _dvSetOk(enabled){
   var ok=document.getElementById('dvOk');
   ok.disabled=!enabled; ok.classList.toggle('disabled', !enabled);
@@ -1424,7 +1465,6 @@ function _dvSetFeeUI(state, text){
   else if(state==='error') val.textContent=text||'算不出运费，请重试';
   _dvSetOk(state==='ok');
 }
-function _dvOnAddrInput(){ /* 地址文本仅作备注显示，不影响已算好的运费 */ }
 /* 安全地把报错转成可读文字：字符串直接用；对象优先取 .message，取不到就 JSON 化
    ——不能直接 String(obj)，那样会变成没意义的 "[object Object]" */
 function _dvErrText(e){
@@ -1432,25 +1472,6 @@ function _dvErrText(e){
   if(typeof e==='string') return e;
   if(e.message) return String(e.message);
   try{ return JSON.stringify(e); }catch(_){ return String(e); }
-}
-function dvLocate(){
-  if(!navigator.geolocation){ document.getElementById('dvLocStat').textContent='此设备不支持定位'; return; }
-  var btn=document.getElementById('dvLocateBtn');
-  btn.disabled=true; document.getElementById('dvLocStat').textContent='定位中… Locating...';
-  _dvSetFeeUI('loading');
-  navigator.geolocation.getCurrentPosition(function(pos){
-    btn.disabled=false;
-    _dvCoords={lat:pos.coords.latitude, lng:pos.coords.longitude};
-    document.getElementById('dvLocStat').textContent='已定位 ✓';
-    if(!document.getElementById('dvAddr').value.trim()){
-      document.getElementById('dvAddr').value='GPS: '+_dvCoords.lat.toFixed(5)+', '+_dvCoords.lng.toFixed(5);
-    }
-    _dvFetchQuote();
-  }, function(err){
-    btn.disabled=false;
-    document.getElementById('dvLocStat').textContent='定位失败：'+(err&&err.message?err.message:'请检查定位权限');
-    _dvSetFeeUI('error','未定位，无法计算运费');
-  }, {enableHighAccuracy:true, timeout:10000});
 }
 /* res.error 是 supabase-js 顶层错误（函数返回非 2xx / 平台层问题）。它对非 2xx 响应默认
    只给一句笼统的 "Edge Function returned a non-2xx status code"、把真正的 body 吞掉；
@@ -1468,10 +1489,60 @@ function _dvHandleInvokeError(err){
   }
   return Promise.resolve(_dvErrText(err));
 }
+function _addrEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function openDelivery(){
+  _dvQuote=null; _dvActiveAddr=null; _dvCoords=null;
+  _dvSetFeeUI('idle');
+  if(_memberId && _memberToken && db){
+    _loadMyAddresses().then(function(list){
+      _addrList=list||[];
+      if(!_addrList.length){ openAddrForm(); return; }   // 会员还没存过地址，直接进新增
+      _showDvModal(); _renderAddrList();
+      var def=_addrList.find(function(a){return a.is_default;}) || _addrList[0];
+      _selectAddr(def.id);
+    });
+  } else {
+    _addrList=[];
+    openAddrForm();   // 游客：直接填一次性地址，不查/不存地址簿
+  }
+}
+function _showDvModal(){
+  document.getElementById('dvOverlay').classList.add('show');
+  document.getElementById('dvModal').classList.add('show');
+}
+function closeDelivery(){
+  document.getElementById('dvOverlay').classList.remove('show');
+  document.getElementById('dvModal').classList.remove('show');
+}
+function _loadMyAddresses(){
+  return db.rpc('rpc_list_my_addresses', {p_member_id:_memberId, p_session_token:_memberToken})
+    .then(function(res){ return (res&&res.data)||[]; })
+    .catch(function(){ return []; });
+}
+function _renderAddrList(){
+  var wrap=document.getElementById('dvAddrList');
+  if(!_addrList.length){ wrap.innerHTML='<div class="dv-addr-empty">暂无收货地址</div>'; return; }
+  wrap.innerHTML=_addrList.map(function(a){
+    var sel=_dvActiveAddr && String(a.id)===String(_dvActiveAddr.id);
+    var full=[a.unit_no,a.address,a.postcode,a.city].filter(Boolean).join('，');
+    return '<div class="dv-addr-row'+(sel?' sel':'')+'" onclick="_selectAddr('+(a.id!=null?"'"+a.id+"'":'null')+')">'
+      +'<div class="dv-addr-radio"></div>'
+      +'<div class="dv-addr-info"><div class="dv-addr-label">'+_addrEsc(a.label||'收货地址')+'</div><div class="dv-addr-text">'+_addrEsc(full)+'</div></div>'
+      +'</div>';
+  }).join('');
+}
+function _selectAddr(id){
+  var a=_addrList.find(function(x){return String(x.id)===String(id);});
+  if(!a) return;
+  _dvActiveAddr=a; _renderAddrList();
+  if(a.lat!=null && a.lng!=null){ _dvCoords={lat:Number(a.lat), lng:Number(a.lng)}; _dvFetchQuote(); }
+  else { _dvCoords=null; _dvQuote=null; _dvSetFeeUI('error','该地址没有定位信息，请重新新增一个'); }
+}
 function _dvFetchQuote(){
   if(!_dvCoords || !db){ _dvSetFeeUI('error', db?'定位缺失':'未连接云端'); return; }
   _dvSetFeeUI('loading');
-  var addr=document.getElementById('dvAddr').value.trim();
+  var addr=_dvActiveAddr ? [_dvActiveAddr.unit_no,_dvActiveAddr.address,_dvActiveAddr.city].filter(Boolean).join('，') : '';
   db.functions.invoke('lalamove-quote', {body:{dropoff:{lat:String(_dvCoords.lat), lng:String(_dvCoords.lng), address:addr}}})
     .then(function(res){
       var d=res&&res.data;
@@ -1491,15 +1562,93 @@ function _dvFetchQuote(){
     }).catch(function(e){ _dvQuote=null; console.error('lalamove-quote error:', e); _dvSetFeeUI('error', '网络错误：'+_dvErrText(e).slice(0,80)); });
 }
 function confirmDelivery(){
-  if(!_dvQuote) return;   // 必须先算出运费才能确定
+  if(!_dvQuote || !_dvActiveAddr) return;   // 必须先选好地址且算出运费才能确定
   currentMode='delivery';
+  var a=_dvActiveAddr;
   _deliveryInfo={
-    address: document.getElementById('dvAddr').value.trim(),
+    address:[a.unit_no,a.address,a.postcode,a.city].filter(Boolean).join('，'),
+    label:a.label||'', recipientName:a.recipient_name, phone:a.phone, remarks:a.remarks||'',
     lat:_dvCoords.lat, lng:_dvCoords.lng,
-    fee:Number(_dvQuote.total)||0, currency:_dvQuote.currency, quotationId:_dvQuote.quotationId
+    fee:Number(_dvQuote.total)||0, currency:_dvQuote.currency, quotationId:_dvQuote.quotationId,
+    addressId:a.id||null
   };
   closeDelivery();
   setTimeout(()=>{ switchTab('menu'); syncMenuMode(); }, 60);
+}
+
+/* ---------- 新收货地址整页表单 ---------- */
+function openAddrForm(){
+  _addrLocateCoords=null;
+  ['afLabel','afUnit','afAddress','afPostcode','afCity','afRecipient','afPhone','afRemarks'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('addrLocStat').textContent='';
+  _addrCheckValid();
+  document.getElementById('addrFormOverlay').classList.add('show');
+  document.getElementById('addrFormScreen').classList.add('show');
+  document.getElementById('dvOverlay').classList.remove('show');
+  document.getElementById('dvModal').classList.remove('show');
+}
+function closeAddrForm(){
+  document.getElementById('addrFormOverlay').classList.remove('show');
+  document.getElementById('addrFormScreen').classList.remove('show');
+  if(_addrList.length){ _showDvModal(); }   // 从地址簿点进来的：回地址簿；游客/首次会员：直接取消
+  else { closeDelivery(); }
+}
+function addrLocate(){
+  if(!navigator.geolocation){ document.getElementById('addrLocStat').textContent='此设备不支持定位'; return; }
+  var btn=document.getElementById('addrLocateBtn');
+  btn.disabled=true; document.getElementById('addrLocStat').textContent='定位中… Locating...';
+  navigator.geolocation.getCurrentPosition(function(pos){
+    btn.disabled=false;
+    _addrLocateCoords={lat:pos.coords.latitude, lng:pos.coords.longitude};
+    document.getElementById('addrLocStat').textContent='已定位 ✓';
+    _addrCheckValid();
+  }, function(err){
+    btn.disabled=false;
+    document.getElementById('addrLocStat').textContent='定位失败：'+(err&&err.message?err.message:'请检查定位权限');
+  }, {enableHighAccuracy:true, timeout:10000});
+}
+function _addrCheckValid(){
+  var need=['afUnit','afAddress','afPostcode','afCity','afRecipient','afPhone'];
+  var ok=need.every(function(id){ return document.getElementById(id).value.trim(); }) && !!_addrLocateCoords;
+  var btn=document.getElementById('addrSaveBtn');
+  btn.disabled=!ok; btn.classList.toggle('disabled', !ok);
+}
+function saveAddrForm(){
+  if(!_addrLocateCoords) return;
+  var v=function(id){ return document.getElementById(id).value.trim(); };
+  var unit=v('afUnit'), address=v('afAddress'), postcode=v('afPostcode'), city=v('afCity'), recipient=v('afRecipient'), phone=v('afPhone');
+  if(!unit||!address||!postcode||!city||!recipient||!phone) return;
+  var label=v('afLabel'), remarks=v('afRemarks');
+  var lat=_addrLocateCoords.lat, lng=_addrLocateCoords.lng;
+
+  if(_memberId && _memberToken && db){
+    var btn=document.getElementById('addrSaveBtn'); btn.disabled=true;
+    db.rpc('rpc_save_address', {p_member_id:_memberId, p_session_token:_memberToken,
+      p_unit_no:unit, p_address:address, p_postcode:postcode, p_city:city, p_recipient_name:recipient, p_phone:phone,
+      p_label:label||null, p_remarks:remarks||null, p_lat:lat, p_lng:lng, p_is_default:false
+    }).then(function(res){
+      btn.disabled=false;
+      if(res && res.error){ alert('保存失败：'+_dvErrText(res.error)); return; }
+      var newId=res&&res.data;
+      _loadMyAddresses().then(function(list){
+        _addrList=list||[];
+        document.getElementById('addrFormOverlay').classList.remove('show');
+        document.getElementById('addrFormScreen').classList.remove('show');
+        _showDvModal(); _renderAddrList();
+        var picked=_addrList.find(function(a){return String(a.id)===String(newId);}) || _addrList[0];
+        if(picked) _selectAddr(picked.id);
+      });
+    }).catch(function(e){ btn.disabled=false; alert('保存失败：'+_dvErrText(e)); });
+  } else {
+    // 游客：不存档，只用这一次
+    var guestAddr={id:null, label:label, unit_no:unit, address:address, postcode:postcode, city:city,
+      recipient_name:recipient, phone:phone, remarks:remarks, lat:lat, lng:lng};
+    _addrList=[guestAddr];
+    document.getElementById('addrFormOverlay').classList.remove('show');
+    document.getElementById('addrFormScreen').classList.remove('show');
+    _dvActiveAddr=guestAddr; _dvCoords={lat:lat,lng:lng};
+    _showDvModal(); _renderAddrList(); _dvFetchQuote();
+  }
 }
 
 /* ---------- menu data ---------- */
@@ -1747,6 +1896,9 @@ function confirmOrder(){
     deliveryAddress: (currentMode==='delivery' && _deliveryInfo) ? _deliveryInfo.address : undefined,
     deliveryCoords: (currentMode==='delivery' && _deliveryInfo) ? {lat:_deliveryInfo.lat, lng:_deliveryInfo.lng} : undefined,
     lalamoveQuotationId: (currentMode==='delivery' && _deliveryInfo) ? _deliveryInfo.quotationId : undefined,
+    deliveryRecipientName: (currentMode==='delivery' && _deliveryInfo) ? _deliveryInfo.recipientName : undefined,
+    deliveryPhone: (currentMode==='delivery' && _deliveryInfo) ? _deliveryInfo.phone : undefined,
+    deliveryRemarks: (currentMode==='delivery' && _deliveryInfo && _deliveryInfo.remarks) ? _deliveryInfo.remarks : undefined,
   };
 
   document.getElementById('cartSheet').classList.remove('show');
