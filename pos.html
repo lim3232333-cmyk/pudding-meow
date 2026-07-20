@@ -1534,7 +1534,7 @@ function printRec(o){
 function _renderReceipt(o, mem){
   var dt=new Date(o.createdAt);var p=function(n){return String(n).padStart(2,'0');};
   var ds=p(dt.getHours())+':'+p(dt.getMinutes())+' '+p(dt.getDate())+'/'+p(dt.getMonth()+1)+'/'+dt.getFullYear();
-  var pm={tng:'DuitNow/TNG',card:'Card',counter:'Counter'};
+  var pm={tng:'DuitNow/TNG',card:'Card',counter:'Counter',hitpay:'Online Payment'};
   var esc=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
   // 口味/规格 → 每行一条 "-xxx"（多规格用 、/ ，, 分隔的拆开）
   // 只印真正的口味/规格字段，不印中文名（name_cn）——收据只要英文名
@@ -1641,11 +1641,20 @@ function showPending(){
   var el=document.getElementById('pendList');
   if(!pend.length){el.innerHTML='<div style="text-align:center;padding:30px;color:#4A4848">暂无待付款订单</div>';}
   else{el.innerHTML=pend.map(function(o){
+    // 在线支付（HitPay）订单不给手动「已付款」按钮——客人还没在收银页真的付款就可能一直挂在这里，
+    // 店员误点会在没收到钱的情况下把单标记成已付款；真正付款成功由 hitpay-webhook 自动翻状态。
+    var isOnlinePay = o.payMethod==='hitpay';
+    var payTag = isOnlinePay
+      ? '<span style="font-size:10px;color:#8D0505;background:#B6F3FF;border-radius:6px;padding:1px 6px;margin-left:6px">在线支付</span>'
+      : '';
+    var actionHtml = isOnlinePay
+      ? '<span style="font-size:11px;color:#4A4848;padding:0 4px">等待线上支付确认…</span>'
+      : '<button onclick="markPaid(\''+o.id+'\')" style="height:32px;border-radius:8px;border:none;background:#B6F3FF;color:#8D0505;font-size:12px;font-weight:700;cursor:pointer;padding:0 12px;font-family:Noto Sans SC,sans-serif">已付款</button>';
     return'<div style="background:#FFFFD5;border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px">'
-      +'<div><div style="font-weight:700;font-size:15px;color:#8D0505">#'+o.orderNum+''+o.tableName+'</div>'
+      +'<div><div style="font-weight:700;font-size:15px;color:#8D0505">#'+o.orderNum+''+o.tableName+payTag+'</div>'
       +'<div style="font-size:11px;color:#4A4848;margin-top:3px">'+o.items.map(function(i){return i.name+'×'+i.qty;}).join('、')+' · RM '+o.total.toFixed(2)+'</div></div>'
-      +'<div style="display:flex;gap:8px">'
-      +'<button onclick="markPaid(\''+o.id+'\')" style="height:32px;border-radius:8px;border:none;background:#B6F3FF;color:#8D0505;font-size:12px;font-weight:700;cursor:pointer;padding:0 12px;font-family:Noto Sans SC,sans-serif">已付款</button>'
+      +'<div style="display:flex;gap:8px;align-items:center">'
+      +actionHtml
       +'<button onclick="reprO(\''+o.id+'\')" style="height:32px;border-radius:8px;border:none;background:#FFDE5B;color:#8D0505;font-size:12px;font-weight:700;cursor:pointer;padding:0 10px"></button>'
       +'</div></div>';
   }).join('');}
@@ -1731,11 +1740,12 @@ function renderDash(){
         +'<option value=""'+(_txPayFilter===''?' selected':'')+'>▼ 全部</option>'
         +'<option value="cash"'+(_txPayFilter==='cash'?' selected':'')+'>Cash</option>'
         +'<option value="tng"'+(_txPayFilter==='tng'?' selected':'')+'>DuitNow</option>'
+        +'<option value="hitpay"'+(_txPayFilter==='hitpay'?' selected':'')+'>Online</option>'
       +'</select></th>'
       +'<th>金额</th><th>状态</th></tr></thead>'
       +'<tbody>'+(filtered.length?filtered.map(function(o){
         var dt=new Date(o.createdAt);var p=function(n){return String(n).padStart(2,'0');};
-        var pm2={cash:'Cash',tng:'DuitNow',card:'Card',counter:'Counter'};
+        var pm2={cash:'Cash',tng:'DuitNow',card:'Card',counter:'Counter',hitpay:'Online'};
         var statusHtml=o.status==='void' ?'<span class="badge b-void">已作废</span>'
           : o.status==='pending' ?'<span class="badge b-pend">待付款</span>'
           :'<span class="badge b-paid">已付款</span>';
