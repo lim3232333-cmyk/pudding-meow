@@ -1693,6 +1693,12 @@ function _selectAddr(id){
     _dvSetErr('该地址没有定位信息，请重新新增一个');
   }
 }
+/* 顾客运费缓冲：向顾客收取 = Lalamove 报价 × 1.2（多收的 20% 做差价缓冲，
+   因为店员之后叫车时会按当时的真实价重新报，可能比下单时贵一点；缓冲让店里很少倒贴）。
+   注意：缓冲只加在顾客这一边；POS 叫车时显示的「现在运费」用的是 Lalamove 原始价（真实成本）。 */
+var DELIVERY_FEE_MULTIPLIER = 1.2;
+function _dvCustomerFee(rawTotal){ return Math.round((Number(rawTotal)||0)*DELIVERY_FEE_MULTIPLIER*100)/100; }
+
 /* 报价在后台算，弹窗里不显示配送费（之后显示在购物车）；只有出错才在 dvErr 提示一行 */
 function _dvFetchQuote(){
   if(!_dvCoords || !db){ if(!db) _dvSetErr('未连接云端，暂时算不了配送费'); return; }
@@ -1707,7 +1713,7 @@ function _dvFetchQuote(){
         _dvSetErr(null);
         // 用户可能已点「前往点单」——把迟到的报价补写进 _deliveryInfo（结算读它）
         if(_deliveryInfo && _deliveryInfo.lat===forLat && _deliveryInfo.lng===forLng){
-          _deliveryInfo.fee=Number(d.total)||0; _deliveryInfo.currency=_dvQuote.currency; _deliveryInfo.quotationId=d.quotationId;
+          _deliveryInfo.fee=_dvCustomerFee(d.total); _deliveryInfo.currency=_dvQuote.currency; _deliveryInfo.quotationId=d.quotationId;
           var ck=document.getElementById('ckScreen');
           if(ck && ck.classList.contains('show')) renderCheckout();   // 结算页开着：配送费/总额跟着刷新
         }
@@ -1729,7 +1735,7 @@ function confirmDelivery(){
     address:_addrFullText(a),
     label:a.label||'', recipientName:a.recipient_name, phone:a.phone, remarks:a.remarks||'',
     lat:_dvCoords.lat, lng:_dvCoords.lng,
-    fee:_dvQuote?(Number(_dvQuote.total)||0):0, currency:(_dvQuote&&_dvQuote.currency)||'MYR', quotationId:(_dvQuote&&_dvQuote.quotationId)||null,
+    fee:_dvQuote?_dvCustomerFee(_dvQuote.total):0, currency:(_dvQuote&&_dvQuote.currency)||'MYR', quotationId:(_dvQuote&&_dvQuote.quotationId)||null,
     addressId:a.id||null
   };
   var backToCheckout=_dvFromCheckout;

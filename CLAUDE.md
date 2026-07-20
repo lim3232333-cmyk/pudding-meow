@@ -40,11 +40,16 @@ Cart → **确认订单** full-screen checkout page (`renderCheckout()`), which 
 ### Delivery mode — address book + Lalamove quote
 Picking 外卖 opens the address-book modal (`openDelivery()` / `dvModal`) — member addresses load via `rpc_list_my_addresses`; guests get a one-off form (`addrFormScreen`, not persisted). Selecting/saving an address fetches a delivery quote from the `lalamove-quote` Edge Function and stores it in `_deliveryInfo` (`address, lat, lng, fee, quotationId, recipientName, phone, addressId`). From the checkout page, the pencil icon (`ckEditAddr()`) reopens the address modal **as an overlay on top of the checkout page** (`_dvFromCheckout` flag) instead of navigating away; confirming refreshes the address + fee in place.
 
+**Delivery-fee buffer** — the fee shown to and charged to the customer is the raw Lalamove quote × `DELIVERY_FEE_MULTIPLIER` (default `1.2`, via `_dvCustomerFee()`). The 20% markup is a cushion: when staff later dispatch a rider from POS, Lalamove is re-quoted at the then-current (possibly higher) price, and the buffer means the shop rarely eats the difference. The buffer is applied **only on the customer side** — the POS dispatch flow shows the raw (un-buffered) Lalamove price as the shop's real cost.
+
+**Order → delivery persistence** — a delivery order's `confirmOrder()` also builds `order.deliveryInfo` (`address, lat, lng, recipientName, phone, remarks, fee, quotationId`) which `orderToRow` writes to the `orders.delivery_info` jsonb column (added by `supabase-orders-delivery.sql`). This is what lets the POS on another device read the dropoff coords + phone needed to dispatch a rider — the older per-field `deliveryAddress`/`deliveryCoords`/etc. are localStorage-only receipt fallbacks and do **not** cross devices.
+
 ## POS: `pos.html`
 
 Fixed 1366×768 layout. PIN-gated (`localStorage['pm_pin']`, default `'0000'`). Two top-level views toggled by display:
 - **`#posView`** — cart panel, T/A (dine-in/takeaway) toggle, menu grid, action bar, Cash + DuitNow numpad, **Pending Payment** modal (`showPending()`), change & print-ask overlays. `showPending()` labels `payMethod==='hitpay'` rows "在线支付" and hides the manual **已付款** button for them (they show "等待线上支付确认…" instead) — those orders should self-confirm via the `hitpay-webhook` Edge Function, so a staff member manually confirming one that the customer abandoned mid-payment would falsely mark it paid.
 - **`#adminView`** — dashboard KPIs + transaction table (`renderDash`), members grid (`renderMembers`), monthly reports (`renderReports`).
+- **外卖配送 modal** (`showDelivery()` / `dlvBg`, blue header button with a待叫车 count `updDlv()`) — lists paid, active delivery orders (`deliveryInfo` present). Each shows recipient/phone/address/customer-paid fee + a **叫车 Lalamove** button. `dispatchLalamove(id)` first calls `lalamove-quote` for a fresh price and `confirm()`s "现在叫车运费 vs 顾客已付" (so staff never silently overpay), then calls `lalamove-order` to actually book the rider, writing the result (`orderId, status, shareLink, price`) back to `deliveryInfo.lalamove` (DB + broadcast). Already-dispatched orders show the tracking link and can't be re-dispatched.
 
 Helpers: `sg/ss` (string get/set), `gj/sj` (JSON get/set) wrap `localStorage`. `showN(msg)` shows a transient toast.
 
@@ -56,7 +61,7 @@ Both files load `@supabase/supabase-js@2` from CDN and share **one config block*
 
 | Table | Columns | Purpose |
 |-------|---------|---------|
-| `orders` | `id, order_num, created_at, items(jsonb), total, pay_method, status, source, table_name, ta_mode` | all customer + counter orders |
+| `orders` | `id, order_num, created_at, items(jsonb), total, pay_method, status, source, table_name, ta_mode, member_id, device_id, receipt_no, delivery_info(jsonb)` | all customer + counter orders (`delivery_info` holds the dropoff address/coords/phone + Lalamove dispatch result for 外卖 orders) |
 | `menu_items` | `id, cat, name, en, price, descr, flavors(jsonb), sold_out, sort_order` | the editable menu |
 
 Field mapping between the JS order object (camelCase) and DB rows (snake_case) is done by **`orderToRow()` / `rowToOrder()`** — defined identically in both files. `orderToRow` only emits real columns, so POS-only fields (`tender`, `change`, `customerName`) are dropped on insert.
@@ -70,7 +75,8 @@ Server-side code that holds secrets the front-end must never see (browser source
 
 | Function | Called from | Purpose | Secrets (Edge Functions → Secrets) |
 |----------|-------------|---------|-------------------------------------|
-| `lalamove-quote` | app, delivery mode | Signs + calls Lalamove `/v3/quotations` for a delivery-fee quote to a given address; normalizes/clamps lat-lng decimals (Lalamove's regex rejects full browser-geolocation precision) and auto-swaps obviously-flipped lat/lng | `LALAMOVE_KEY`, `LALAMOVE_SECRET`; optional `LALAMOVE_MARKET`, `LALAMOVE_HOST`, `STORE_LAT`, `STORE_LNG`, `STORE_ADDRESS` |
+| `lalamove-quote` | app (delivery mode) + POS (`dispatchLalamove` re-quote) | Signs + calls Lalamove `/v3/quotations` for a delivery-fee quote to a given address; normalizes/clamps lat-lng decimals (Lalamove's regex rejects full browser-geolocation precision) and auto-swaps obviously-flipped lat/lng | `LALAMOVE_KEY`, `LALAMOVE_SECRET`; optional `LALAMOVE_MARKET`, `LALAMOVE_HOST`, `STORE_LAT`, `STORE_LNG`, `STORE_ADDRESS` |
+| `lalamove-order` | POS, `dispatchLalamove()` | Books a Lalamove rider: re-quotes (`/v3/quotations`, since the checkout quote has expired) then `POST /v3/orders`; returns `lalamoveOrderId, status, shareLink, price`. Normalizes MY phones to E.164 (`0xx`→`+60xx`) | `LALAMOVE_KEY`, `LALAMOVE_SECRET`, `STORE_PHONE` (sender phone, required); optional `STORE_NAME` + same store-coord vars as `lalamove-quote` |
 | `hitpay-checkout` | app, `confirmOrder()` when `selectedPay==='hitpay'` | Creates a HitPay Payment Request (`POST /v1/payment-requests`), returns the hosted checkout `url` the app redirects to | `HITPAY_API_KEY`; optional `HITPAY_HOST` (defaults to the sandbox host — switch to the live host when going live) |
 | `hitpay-webhook` | HitPay's servers (not the app) | Receives the payment-result callback, verifies the HMAC signature, and on `status==='completed'` flips the matching order from `pending` → `preparing` and settles member XP/coin via `rpc_on_order_completed` (only if the row was still `pending`, so retried webhook calls can't double-credit) | `HITPAY_SALT` (the webhook signing salt from the same API Keys page, *not* the API key); `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` are auto-injected by Supabase, no need to set them |
 
