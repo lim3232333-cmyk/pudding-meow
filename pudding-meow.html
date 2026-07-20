@@ -1620,6 +1620,7 @@ function _showDvModal(){
 function closeDelivery(){
   document.getElementById('dvOverlay').classList.remove('show');
   document.getElementById('dvModal').classList.remove('show');
+  _dvFromCheckout=false;   // 没确认就关掉：留在原页（结算页还开着就还在结算页），地址不变
 }
 function _loadMyAddresses(){
   return db.rpc('rpc_list_my_addresses', {p_member_id:_memberId, p_session_token:_memberToken})
@@ -1684,6 +1685,8 @@ function _dvFetchQuote(){
         // 用户可能已点「前往点单」——把迟到的报价补写进 _deliveryInfo（结算读它）
         if(_deliveryInfo && _deliveryInfo.lat===forLat && _deliveryInfo.lng===forLng){
           _deliveryInfo.fee=Number(d.total)||0; _deliveryInfo.currency=_dvQuote.currency; _deliveryInfo.quotationId=d.quotationId;
+          var ck=document.getElementById('ckScreen');
+          if(ck && ck.classList.contains('show')) renderCheckout();   // 结算页开着：配送费/总额跟着刷新
         }
         return;
       }
@@ -1706,7 +1709,9 @@ function confirmDelivery(){
     fee:_dvQuote?(Number(_dvQuote.total)||0):0, currency:(_dvQuote&&_dvQuote.currency)||'MYR', quotationId:(_dvQuote&&_dvQuote.quotationId)||null,
     addressId:a.id||null
   };
+  var backToCheckout=_dvFromCheckout;
   closeDelivery();
+  if(backToCheckout){ renderCheckout(); return; }   // 从结算页铅笔进来的：留在结算页，刷新地址和金额
   setTimeout(()=>{ switchTab('menu'); syncMenuMode(); }, 60);
 }
 
@@ -1996,9 +2001,9 @@ function closeCheckout(){
   document.getElementById('ckScreen').classList.remove('show');
   document.getElementById('cartSheet').classList.add('show');   // 返回箭头回购物车
 }
+let _dvFromCheckout=false;   // 地址簿是从结算页铅笔点开的：结算页不关，弹窗压在上面
 function ckEditAddr(){
-  // 改地址：回到外卖地址簿弹窗，选好后重新进结算页
-  document.getElementById('ckScreen').classList.remove('show');
+  _dvFromCheckout=true;
   openDelivery();
 }
 function renderCheckout(){
