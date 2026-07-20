@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `pos.html` | Staff | Desktop (1366×768) | Point of sale, payment, pending-payment queue, admin dashboard, menu management |
 | `supabase-setup.sql` | one-time | — | Creates DB tables, RLS, realtime, seeds the menu |
 
-Both apps are pure vanilla JS with inline `<style>`/`<script>`. They share a **Supabase** cloud backend (`orders` + `menu_items` tables + Realtime) so a customer's phone and the shop's POS sync across devices. Payment is **TNG** (a fixed payment link) or **柜台/cash at counter** — no online card processor. If Supabase is unconfigured/unreachable, both apps fall back to a localStorage-only mode (single-device). See `DEPLOY.md` to go live.
+Both apps are pure vanilla JS with inline `<style>`/`<script>`. They share a **Supabase** cloud backend (`orders` + `menu_items` tables + Realtime + a few Edge Functions) so a customer's phone and the shop's POS sync across devices. Payment is mode-based: **堂食 dine-in** is counter-only (TNG link or cash/DuitNow at counter, staff confirm in POS); **外卖 delivery / 自取 pickup** use **HitPay** (hosted checkout, online e-wallet/DuitNow) so the order is prepaid before the kitchen starts. If Supabase is unconfigured/unreachable, both apps fall back to a localStorage-only mode (single-device). See `DEPLOY.md` to go live.
 
 ## Mini-program: `pudding-meow.html`
 
@@ -31,15 +31,19 @@ Mobile-first, capped at a 390px `.phone` container. Four screens are all in the 
 ### Cart
 `let cart = {}` keyed by `"cat|idx|flavorIdx"` → `{name, en, price, flavor, qty}`. In-memory only, lost on refresh. After any change call `renderItems()` + `updateCartBadge()`.
 
-### Checkout — `confirmOrder()`
-Builds an order object, `unshift`es it into `_orders`, persists to `localStorage['pm_orders']`, then calls `pmBroadcastOrders()` (see Integration). Payment branches on `selectedPay`:
+### Checkout — `openCheckout()` / `confirmOrder()`
+Cart → **确认订单** full-screen checkout page (`renderCheckout()`), which shows the delivery-address block only in delivery mode, and shows a **mode-gated payment method list** (`_ckSyncPayRows()`): 堂食 shows counter-only; 外卖/自取 show HitPay-only (`ckPayHitpay` row, `selectedPay='hitpay'`). `ckPayNow()` closes the checkout page and calls `confirmOrder()`, which builds an order object, `unshift`es it into `_orders`, persists to `localStorage['pm_orders']`, then calls `pmBroadcastOrders()` (see Integration). Payment branches on `selectedPay`:
 - `tng` → opens the Touch'n Go payment link, order `status:'preparing'` (prepaid).
 - `counter` → order `status:'pending'` (unpaid; staff collect at counter).
+- `hitpay` → order is inserted as `status:'pending'` first, then calls the `hitpay-checkout` Edge Function for a hosted-checkout URL and redirects the page there via `_pmGotoPay()` (a thin wrapper around `location.href =` kept separate so tests can intercept it without a real navigation). See "Delivery + online payment" below for the full flow.
+
+### Delivery mode — address book + Lalamove quote
+Picking 外卖 opens the address-book modal (`openDelivery()` / `dvModal`) — member addresses load via `rpc_list_my_addresses`; guests get a one-off form (`addrFormScreen`, not persisted). Selecting/saving an address fetches a delivery quote from the `lalamove-quote` Edge Function and stores it in `_deliveryInfo` (`address, lat, lng, fee, quotationId, recipientName, phone, addressId`). From the checkout page, the pencil icon (`ckEditAddr()`) reopens the address modal **as an overlay on top of the checkout page** (`_dvFromCheckout` flag) instead of navigating away; confirming refreshes the address + fee in place.
 
 ## POS: `pos.html`
 
 Fixed 1366×768 layout. PIN-gated (`localStorage['pm_pin']`, default `'0000'`). Two top-level views toggled by display:
-- **`#posView`** — cart panel, T/A (dine-in/takeaway) toggle, menu grid, action bar, Cash + DuitNow numpad, **Pending Payment** modal (`showPending()`), change & print-ask overlays.
+- **`#posView`** — cart panel, T/A (dine-in/takeaway) toggle, menu grid, action bar, Cash + DuitNow numpad, **Pending Payment** modal (`showPending()`), change & print-ask overlays. `showPending()` labels `payMethod==='hitpay'` rows "在线支付" and hides the manual **已付款** button for them (they show "等待线上支付确认…" instead) — those orders should self-confirm via the `hitpay-webhook` Edge Function, so a staff member manually confirming one that the customer abandoned mid-payment would falsely mark it paid.
 - **`#adminView`** — dashboard KPIs + transaction table (`renderDash`), members grid (`renderMembers`), monthly reports (`renderReports`).
 
 Helpers: `sg/ss` (string get/set), `gj/sj` (JSON get/set) wrap `localStorage`. `showN(msg)` shows a transient toast.
@@ -59,11 +63,22 @@ Field mapping between the JS order object (camelCase) and DB rows (snake_case) i
 
 **Menu** — the customer app (`loadMenu` → `buildMenuFromRows`) and the POS cashier grid (`loadMenu` → `buildPosMenuFromRows`) both read `menu_items`, so the POS admin **菜单管理** page (`renderMenuAdmin` + `menuAdd/menuEdit/menuToggleSold/menuDel`) is the single source of truth. `sold_out` items are hidden from customers ("下架"). The hardcoded `MENU_FALLBACK` / `MENU_FALLBACK`-style objects remain as offline fallback and seed reference. Category display names are a small hardcoded map (`CAT_META` / `POS_CATN`); only items are cloud-editable.
 
-**Orders realtime** — both apps `subscribeOrders()` via `db.channel(...).on('postgres_changes', {table:'orders'})`. App `confirmOrder()` and POS order-save `insert`; POS `markPaid()` `update`s status. A customer counter order INSERTs → POS `loadOrdersFromCloud(true)` refreshes the 待付款 queue and toasts `🔔 新线上订单`. POS `markPaid` on an app order sets it to `preparing` → the customer's order flips to 制作中 live.
+**Orders realtime** — both apps `subscribeOrders()` via `db.channel(...).on('postgres_changes', {table:'orders'})`. App `confirmOrder()` and POS order-save `insert`; POS `markPaid()` `update`s status. A customer counter order INSERTs → POS `loadOrdersFromCloud(true)` refreshes the 待付款 queue and toasts `🔔 新线上订单`. POS `markPaid` on an app order sets it to `preparing` → the customer's order flips to 制作中 live. The `hitpay-webhook` Edge Function does the same DB `update` as `markPaid` (pending → preparing) when a HitPay payment completes, so the customer's order flips live the same way without staff involvement.
+
+### Edge Functions (`supabase/functions/`)
+Server-side code that holds secrets the front-end must never see (browser source is public). Deployed to Supabase, called from the apps via `db.functions.invoke(name, {body})`. Both return HTTP 200 with `{ok:false, error}` on failure rather than a non-2xx status — `functions.invoke` swallows the response body on non-2xx, which used to hide the real error from the front end.
+
+| Function | Called from | Purpose | Secrets (Edge Functions → Secrets) |
+|----------|-------------|---------|-------------------------------------|
+| `lalamove-quote` | app, delivery mode | Signs + calls Lalamove `/v3/quotations` for a delivery-fee quote to a given address; normalizes/clamps lat-lng decimals (Lalamove's regex rejects full browser-geolocation precision) and auto-swaps obviously-flipped lat/lng | `LALAMOVE_KEY`, `LALAMOVE_SECRET`; optional `LALAMOVE_MARKET`, `LALAMOVE_HOST`, `STORE_LAT`, `STORE_LNG`, `STORE_ADDRESS` |
+| `hitpay-checkout` | app, `confirmOrder()` when `selectedPay==='hitpay'` | Creates a HitPay Payment Request (`POST /v1/payment-requests`), returns the hosted checkout `url` the app redirects to | `HITPAY_API_KEY`; optional `HITPAY_HOST` (defaults to the sandbox host — switch to the live host when going live) |
+| `hitpay-webhook` | HitPay's servers (not the app) | Receives the payment-result callback, verifies the HMAC signature, and on `status==='completed'` flips the matching order from `pending` → `preparing` and settles member XP/coin via `rpc_on_order_completed` (only if the row was still `pending`, so retried webhook calls can't double-credit) | `HITPAY_SALT` (the webhook signing salt from the same API Keys page, *not* the API key); `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` are auto-injected by Supabase, no need to set them |
+
+`hitpay-checkout` fills in the `webhook` field itself (built from the auto-injected `SUPABASE_URL`), so HitPay's dashboard doesn't need a webhook URL configured manually. Use HitPay's **sandbox** key/salt while testing — sandbox payments don't move real money — and swap to live credentials only when actually launching.
 
 ## Order `status` vocabulary (shared)
 
-`pending` (unpaid) → `paid`/`preparing` (paid, being made) → `ready` → `done`. The POS pending-payment queue filters strictly on `status === 'pending'`. The app's `STATUS` map treats `paid` as an alias of `preparing` (制作中). `source` is `'app'` or `'pos'`; app orders set `tableName` to `📱线上·{堂食|自取|外卖}`. Prepaid **TNG** orders are `preparing` (not `pending`), so they're intentionally excluded from the pending queue. Known MVP limitation: the app's 订单 tab shows all recent orders (no per-customer identity yet).
+`pending` (unpaid) → `paid`/`preparing` (paid, being made) → `ready` → `done`. The POS pending-payment queue filters strictly on `status === 'pending'`. The app's `STATUS` map treats `paid` as an alias of `preparing` (制作中). `source` is `'app'` or `'pos'`; app orders set `tableName` to `📱线上·{堂食|自取|外卖}`. Prepaid **TNG** orders are `preparing` (not `pending`), so they're intentionally excluded from the pending queue. **HitPay** orders, unlike TNG, *do* start as `pending` (the order is inserted before the customer has actually paid on HitPay's hosted page) and only flip to `preparing` once the `hitpay-webhook` Edge Function confirms payment — so they briefly appear in the POS pending queue, but tagged "在线支付" with no manual confirm button (see POS section). Known MVP limitation: the app's 订单 tab shows all recent orders (no per-customer identity yet).
 
 ## Offline / local fallback layer (localStorage)
 

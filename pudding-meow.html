@@ -1333,6 +1333,22 @@
 </div>
 </div>
 
+  <!-- ============ success: hitpay return ============ -->
+  <div class="success-overlay" id="successHitpay">
+    <div class="success-box">
+      <div class="icon"></div>
+      <h2>订单已提交<br>Order Submitted!</h2>
+      <p>
+        正在确认您的付款状态，<br>
+        确认后订单会自动开始制作。<br><br>
+        Confirming your payment status,<br>
+        your order will start preparing<br>
+        once payment is confirmed.
+</p>
+      <button class="success-btn" onclick="closeSuccess('hitpay')">好的 OK</button>
+</div>
+</div>
+
   <!-- ============ 堂食选座弹窗 ============ -->
   <div class="dine-overlay" id="dineOverlay" onclick="closeDine()"></div>
   <div class="dine-modal" id="dineModal">
@@ -1995,6 +2011,7 @@ function toggleCart(){
 }
 
 let selectedPay ='tng';
+function _pmGotoPay(url){ location.href = url; }   // 跳去外部收银页；单独包一层方便测试拦截
 
 /* ---------- 确认订单整页（Figma 434:195）：购物车「确认下单」→ 本页，「立即支付」→ confirmOrder ---------- */
 function openCheckout(){
@@ -2137,6 +2154,7 @@ function confirmOrder(){
   document.getElementById('cartOverlay').classList.remove('show');
 
   var isTng = selectedPay==='tng';
+  var isHitpay = selectedPay==='hitpay';
   // TNG：先同步打开支付页，保住用户手势（异步后 window.open 会被拦截）
   if(isTng){ window.open('https://payment.tngdigital.com.my/sc/bDLn6uNZxm','_blank'); }
 
@@ -2147,7 +2165,21 @@ function confirmOrder(){
     try{ pmBroadcastOrders(); }catch(e){}
     if(db){ db.from('orders').insert(orderToRow(order)).then(function(res){ if(res && res.error){ console.error('order insert', res.error); setCloudStatus('offline'); } else { setCloudStatus('online'); } }).catch(function(e){ console.error('order insert', e); setCloudStatus('offline'); }); }
 
-    if(isTng){
+    if(isHitpay){
+      // 在线支付（外卖/自取用）：调 Edge Function 拿 HitPay 收银页链接后整页跳转；
+      // 客人付款成功后 HitPay 会回调 hitpay-webhook，把订单 pending → preparing
+      if(!db){ alert('在线支付需要联网，请检查网络后重试，或改用其他方式下单。'); return; }
+      var redirectUrl = location.origin + location.pathname + '?pm_hitpay=' + encodeURIComponent(order.id);
+      db.functions.invoke('hitpay-checkout', {body:{
+        orderId: order.id, amount: order.total, currency:'MYR', redirectUrl: redirectUrl,
+        customerName: (_deliveryInfo && _deliveryInfo.recipientName) || undefined,
+        customerPhone: (_deliveryInfo && _deliveryInfo.phone) || undefined,
+      }}).then(function(r){
+        var data = r && r.data;
+        if(data && data.ok && data.url){ _pmGotoPay(data.url); }
+        else { alert('在线支付创建失败：'+((data&&data.error)||'请稍后重试，或联系店员改用其他付款方式')); }
+      }).catch(function(e){ console.error('hitpay-checkout', e); alert('在线支付创建失败，请稍后重试'); });
+    } else if(isTng){
       setTimeout(function(){ document.getElementById('successTng').classList.add('show'); }, 300);
       // TNG 是预付款，下单即视为已付款，直接结算消费 XP/Coin
       if(db && _memberId) db.rpc('rpc_on_order_completed', {p_member_id:_memberId, p_order_id:order.id, p_amount:order.total}).then(function(){ refreshMemberProfile(); }).catch(function(e){ console.error('rpc_on_order_completed', e); });
@@ -2162,7 +2194,7 @@ function uid(){ return'u'+Date.now(); }
 
 function closeSuccess(type){
   // 关弹框
-  var id = type==='tng' ?'successTng' :'successCounter';
+  var id = type==='tng' ?'successTng' : type==='hitpay' ?'successHitpay' :'successCounter';
   try{ document.getElementById(id).classList.remove('show'); }catch(e){}
   // 清购物车
   cart = {};
@@ -3084,6 +3116,18 @@ function closeDrawHistory(){
 /* ===== 云端订单初始化：拉一次 + 订阅实时（放在最后，确保 _orders 等已就绪）===== */
 loadOrdersFromCloud().then(function(){ try{ renderOrdersList(); }catch(e){} });
 subscribeOrders();
+
+/* ===== HitPay 支付返回：从 URL 上的 pm_hitpay 参数识别客人刚从收银页跳回来。
+   实际付款状态由 hitpay-webhook 异步更新 DB，这里已有的 subscribeOrders()
+   实时订阅会自动把 pending → preparing 的变化推下来，无需在这里手动查状态。 ===== */
+(function(){
+  var pid;
+  try{ pid = new URLSearchParams(location.search).get('pm_hitpay'); }catch(e){ pid = null; }
+  if(!pid) return;
+  try{ history.replaceState(null, '', location.pathname); }catch(e){}
+  try{ switchTab('orders'); }catch(e){}
+  document.getElementById('successHitpay').classList.add('show');
+})();
 </script>
 </body>
 </html>
