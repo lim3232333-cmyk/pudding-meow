@@ -1684,6 +1684,7 @@ function markPaid(id){var o=_orders.find(function(x){return x.id===id;});if(o){o
 function reprO(id){var o=_orders.find(function(x){return x.id===id;});if(o)printRec(o);}
 
 /* ── DELIVERY / 叫 Lalamove 骑手 ── */
+function _lmStatusText(code){return ({ASSIGNING_DRIVER:'正在安排骑手',ON_GOING:'骑手前往取餐',PICKED_UP:'已取餐·配送中',COMPLETED:'已送达',CANCELED:'已取消',REJECTED:'骑手拒单',EXPIRED:'已过期'})[code]||(code||'处理中');}
 function _isDlvOrder(o){return !!(o.deliveryInfo&&o.deliveryInfo.lat&&o.deliveryInfo.lng);}
 function _dlvDispatched(o){return !!(o.deliveryInfo&&o.deliveryInfo.lalamove&&o.deliveryInfo.lalamove.orderId);}
 function _dlvActive(o){return o.status!=='done'&&o.status!=='void';}
@@ -1703,7 +1704,8 @@ function showDelivery(){
     var action;
     if(lm&&lm.orderId){
       var track=lm.shareLink?'<a href="'+esc(lm.shareLink)+'" target="_blank" style="color:#1D7715;font-size:12px;font-weight:700;text-decoration:none">追踪骑手 ▸</a>':'';
-      action='<div style="text-align:right"><div style="font-size:13px;color:#1D7715;font-weight:700">已叫车 ✓</div><div style="font-size:11px;color:#4A4848;margin:2px 0">'+esc(lm.status||'')+(lm.price?'　RM '+Number(lm.price).toFixed(2):'')+'</div>'+track+'</div>';
+      var drv=(lm.driverName||lm.driverPhone)?'<div style="font-size:11px;color:#4A4848">骑手：'+esc([lm.driverName,lm.driverPhone].filter(Boolean).join(' '))+'</div>':'';
+      action='<div style="text-align:right"><div style="font-size:13px;color:#1D7715;font-weight:700">已叫车 · '+esc(_lmStatusText(lm.status))+'</div><div style="font-size:11px;color:#4A4848;margin:2px 0">'+(lm.price?'RM '+Number(lm.price).toFixed(2):'')+'</div>'+drv+track+'</div>';
     }else if(o.status==='pending'){
       action='<span style="font-size:11px;color:#8D0505">待付款,暂不可叫车</span>';
     }else{
