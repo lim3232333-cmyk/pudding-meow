@@ -799,6 +799,50 @@
   .dv-err{ display:none; width:100%; font-size:11px; color:var(--red); line-height:15px; text-align:center; word-break:break-word; }
   .dv-err.show{ display:block; }
 
+  /* ===== 确认订单整页（Figma 434:195，购物车点「确认下单」后进入，页内「立即支付」才真正下单）===== */
+  .ck-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:#FFFFD5; z-index:345; display:none; flex-direction:column; gap:24px; align-items:center; padding:14px 0; box-sizing:border-box; overflow-y:auto; font-family:"Noto Sans SC",sans-serif; }
+  .ck-screen.show{ display:flex; }
+  .ck-head{ position:relative; width:359px; height:24px; flex-shrink:0; }
+  .ck-back{ position:absolute; left:0; top:0; width:24px; height:24px; cursor:pointer; }
+  .ck-title{ position:absolute; left:50%; transform:translateX(-50%); top:0; font-size:20px; font-weight:700; color:var(--red); white-space:nowrap; }
+  .ck-body{ display:flex; flex-direction:column; gap:20px; align-items:center; width:100%; }
+  .ck-sec{ width:100%; padding:0 15px; box-sizing:border-box; display:flex; flex-direction:column; gap:14px; }
+  .ck-sec-label{ font-size:14px; font-weight:700; color:var(--red); }
+  .ck-hr{ width:100%; border-top:1px solid #D9D9D9; }
+  .ck-addr-row{ display:flex; gap:10px; align-items:center; width:100%; }
+  .ck-addr-text{ flex:1; min-width:0; font-size:14px; color:#4A4848; }
+  .ck-addr-edit{ width:18px; height:18px; flex-shrink:0; cursor:pointer; }
+  .ck-eta-row{ display:flex; gap:14px; align-items:center; width:100%; }
+  .ck-eta-text{ font-size:14px; color:#4A4848; }
+  .ck-items{ display:flex; flex-direction:column; gap:16px; width:100%; }
+  .ck-item{ display:flex; gap:12px; align-items:center; width:100%; }
+  .ck-item-img{ width:100px; height:100px; border-radius:16px; background:#8D0505; background-size:cover; background-position:center; flex-shrink:0; }
+  .ck-item-info{ flex:1; min-width:0; height:100px; display:flex; flex-direction:column; justify-content:space-between; }
+  .ck-item-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  .ck-item-name{ font-size:14px; font-weight:500; color:var(--red); }
+  .ck-item-spec{ font-size:10px; color:#4A4848; margin-top:7px; }
+  .ck-item-edit{ font-size:10px; font-weight:500; color:#0AC4E8; text-decoration:underline; white-space:nowrap; cursor:pointer; flex-shrink:0; }
+  .ck-item-bottom{ display:flex; justify-content:space-between; align-items:center; font-size:14px; color:var(--red); }
+  .ck-item-price{ font-weight:700; }
+  .ck-item-qty{ font-weight:400; }
+  .ck-coupon{ width:361px; max-width:calc(100% - 30px); height:50px; background:#FFF; border-radius:12px; padding:4px 12px; box-sizing:border-box; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+  .ck-coupon-l{ display:flex; gap:8px; align-items:center; }
+  .ck-coupon-l span{ font-size:14px; font-weight:700; color:var(--red); }
+  .ck-coupon-r{ display:flex; gap:8px; align-items:center; }
+  .ck-coupon-pill{ background:var(--yellow); border-radius:999px; padding:3px 0; width:61px; text-align:center; font-size:14px; font-weight:500; color:var(--red); }
+  .ck-pay-rows{ display:flex; flex-direction:column; gap:12px; width:100%; }
+  .ck-pay-row{ display:flex; gap:10px; align-items:center; cursor:pointer; }
+  .ck-pay-row span{ flex:1; min-width:0; font-size:14px; color:#4A4848; }
+  .ck-pay-row.sel span{ color:var(--red); font-weight:700; }
+  .ck-pay-check{ width:18px; height:18px; flex-shrink:0; visibility:hidden; }
+  .ck-pay-row.sel .ck-pay-check{ visibility:visible; }
+  .ck-pay-hr{ width:100%; border-top:1px solid #D9D9D9; }
+  .ck-price-rows{ display:flex; flex-direction:column; gap:8px; width:100%; }
+  .ck-price-row{ display:flex; justify-content:space-between; align-items:center; font-size:14px; color:#4A4848; }
+  .ck-price-row .neg{ color:var(--red); }
+  .ck-price-row.total .val{ font-weight:700; }
+  .ck-paybtn{ width:361px; max-width:calc(100% - 30px); height:45px; border:none; border-radius:12px; background:var(--red); color:#FFF; font-size:14px; font-weight:700; font-family:"Noto Sans SC",sans-serif; cursor:pointer; flex-shrink:0; }
+
   /* ===== 新收货地址整页（点＋新收货地址 → 会员存进地址簿/游客一次性）===== */
   .addr-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:359; display:none; }
   .addr-overlay.show{ display:block; }
@@ -1181,10 +1225,75 @@
       <div class="pay-label-counter" onclick="selectPay('counter')">柜台支付 Pay at Counter</div>
 
       <div class="cart-confirm-btn-wrap">
-        <button class="cart-confirm" onclick="confirmOrder()">确认下单</button>
+        <button class="cart-confirm" onclick="openCheckout()">确认下单</button>
 </div>
 </div>
 </div>
+
+  <!-- ============ 确认订单整页（Figma 434:195）============ -->
+  <div class="ck-screen" id="ckScreen">
+    <div class="ck-head">
+      <div class="ck-back" onclick="closeCheckout()"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></div>
+      <div class="ck-title">确认订单</div>
+    </div>
+    <div class="ck-body">
+      <div class="ck-sec" id="ckDeliverySec">
+        <div class="ck-sec-label">配送至</div>
+        <div class="ck-addr-row">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+          <div class="ck-addr-text" id="ckAddrText"></div>
+          <svg class="ck-addr-edit" onclick="ckEditAddr()" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>
+        </div>
+        <div class="ck-eta-row">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <div class="ck-eta-text" id="ckEtaText">预计配送时间：</div>
+        </div>
+      </div>
+      <div class="ck-hr" id="ckDeliveryHr"></div>
+      <div class="ck-sec">
+        <div class="ck-sec-label">我的订单</div>
+        <div class="ck-items" id="ckItems"></div>
+      </div>
+      <div class="ck-coupon">
+        <div class="ck-coupon-l">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>
+          <span>优惠卷</span>
+        </div>
+        <div class="ck-coupon-r">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </div>
+      </div>
+      <div class="ck-hr"></div>
+      <div class="ck-sec" style="padding:0 16px">
+        <div class="ck-sec-label">付款方式</div>
+        <div class="ck-pay-rows">
+          <div class="ck-pay-row" id="ckPayTng" onclick="selectPay('tng')">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
+            <span>Touch 'n Go eWallet</span>
+            <svg class="ck-pay-check" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </div>
+          <div class="ck-pay-hr"></div>
+          <div class="ck-pay-row" id="ckPayCounter" onclick="selectPay('counter')">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+            <span>柜台支付 Pay at Counter</span>
+            <svg class="ck-pay-check" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </div>
+        </div>
+      </div>
+      <div class="ck-hr"></div>
+      <div class="ck-sec" style="padding:0 16px">
+        <div class="ck-sec-label">价格明细</div>
+        <div class="ck-price-rows">
+          <div class="ck-price-row"><span>商品小计</span><span id="ckSubtotal">RM 0.00</span></div>
+          <div class="ck-price-row" id="ckFeeRow"><span>配送费</span><span id="ckFee">RM 0.00</span></div>
+          <div class="ck-price-row"><span>折扣</span><span class="neg" id="ckDiscount">-RM 0.00</span></div>
+          <div class="ck-pay-hr"></div>
+          <div class="ck-price-row total"><span>付款总额</span><span class="val" id="ckTotal">RM 0.00</span></div>
+        </div>
+      </div>
+    </div>
+    <button class="ck-paybtn" id="ckPayBtn" onclick="ckPayNow()">立即支付 RM0.00</button>
+  </div>
 
   <!-- ============ success: counter ============ -->
   <div class="success-overlay" id="successCounter">
@@ -1874,10 +1983,67 @@ function toggleCart(){
 }
 
 let selectedPay ='tng';
+
+/* ---------- 确认订单整页（Figma 434:195）：购物车「确认下单」→ 本页，「立即支付」→ confirmOrder ---------- */
+function openCheckout(){
+  if(!Object.keys(cart).length) return;
+  document.getElementById('cartSheet').classList.remove('show');
+  renderCheckout();
+  document.getElementById('ckScreen').classList.add('show');
+}
+function closeCheckout(){
+  document.getElementById('ckScreen').classList.remove('show');
+  document.getElementById('cartSheet').classList.add('show');   // 返回箭头回购物车
+}
+function ckEditAddr(){
+  // 改地址：回到外卖地址簿弹窗，选好后重新进结算页
+  document.getElementById('ckScreen').classList.remove('show');
+  openDelivery();
+}
+function renderCheckout(){
+  var isDv = currentMode==='delivery' && _deliveryInfo;
+  document.getElementById('ckDeliverySec').style.display = isDv?'flex':'none';
+  document.getElementById('ckDeliveryHr').style.display = isDv?'block':'none';
+  if(isDv) document.getElementById('ckAddrText').textContent=_deliveryInfo.address;
+
+  var wrap=document.getElementById('ckItems');
+  wrap.innerHTML=Object.entries(cart).map(function(ent){
+    var key=ent[0], c=ent[1];
+    return '<div class="ck-item">'
+      +'<div class="ck-item-img"'+(c.image?' style="background-image:url(\''+c.image+'\')"':'')+'></div>'
+      +'<div class="ck-item-info">'
+        +'<div class="ck-item-top"><div><div class="ck-item-name">'+_addrEsc(c.name)+' '+_addrEsc(c.en)+'</div>'
+        +'<div class="ck-item-spec">'+_addrEsc(specsDisplay(c))+'</div></div>'
+        +'<div class="ck-item-edit" onclick="closeCheckout()">修改</div></div>'
+        +'<div class="ck-item-bottom"><span class="ck-item-price">RM '+(c.price*c.qty).toFixed(2)+'</span><span class="ck-item-qty">x'+c.qty+'</span></div>'
+      +'</div></div>';
+  }).join('');
+
+  _ckSyncPayRows();
+  var sub=0; Object.values(cart).forEach(function(c){ sub+=c.qty*c.price; });
+  var fee=isDv?(_deliveryInfo.fee||0):0;
+  var total=sub+fee;
+  document.getElementById('ckSubtotal').textContent='RM '+sub.toFixed(2);
+  document.getElementById('ckFee').textContent='RM '+fee.toFixed(2);
+  document.getElementById('ckDiscount').textContent='-RM 0.00';
+  document.getElementById('ckTotal').textContent='RM '+total.toFixed(2);
+  document.getElementById('ckPayBtn').textContent='立即支付 RM'+total.toFixed(2);
+}
+function _ckSyncPayRows(){
+  var t=document.getElementById('ckPayTng'), c=document.getElementById('ckPayCounter');
+  if(!t||!c) return;
+  t.classList.toggle('sel', selectedPay==='tng');
+  c.classList.toggle('sel', selectedPay==='counter');
+}
+function ckPayNow(){
+  document.getElementById('ckScreen').classList.remove('show');
+  confirmOrder();
+}
 function selectPay(method){
   selectedPay = method;
   document.getElementById('radio-tng').className ='pay-radio-tng' + (method==='tng' ?' selected' :'');
   document.getElementById('radio-counter').className ='pay-radio-counter' + (method==='counter' ?' selected' :'');
+  _ckSyncPayRows();   // 确认订单页的付款方式行同步选中态
 }
 
 function confirmOrder(){
