@@ -1464,13 +1464,14 @@ if(!db) setTimeout(function(){ setCloudStatus('offline'); },0); else setTimeout(
 function orderToRow(o){
   return { id:o.id, order_num:o.orderNum, receipt_no:o.receiptNo!=null?o.receiptNo:null, created_at:o.createdAt, items:o.items||[],
     total:o.total||0, pay_method:o.payMethod, status:o.status,
-    source:o.source, table_name:o.tableName, ta_mode:o.taMode, member_id:o.memberId||null, device_id:o.deviceId||null };
+    source:o.source, table_name:o.tableName, ta_mode:o.taMode, member_id:o.memberId||null, device_id:o.deviceId||null,
+    delivery_info:o.deliveryInfo||null };
 }
 function rowToOrder(r){
   return { id:r.id, orderNum:r.order_num||(r.id?String(r.id).slice(-4):''), receiptNo:r.receipt_no!=null?r.receipt_no:null, createdAt:r.created_at,
     items:r.items||[], total:Number(r.total)||0, payMethod:r.pay_method||'counter',
     status:r.status||'pending', source:r.source||'app', tableName:r.table_name||'', taMode:r.ta_mode||'',
-    memberId:r.member_id||null, deviceId:r.device_id||null };
+    memberId:r.member_id||null, deviceId:r.device_id||null, deliveryInfo:r.delivery_info||null };
 }
 /* 取号：永久收据号 receiptNo + 当天订单号 orderNum。优先 Supabase RPC（跨设备唯一/按天重置），离线兜底本地 */
 function _appLocalNums(){
@@ -2140,7 +2141,7 @@ function confirmOrder(){
     taMode: currentMode==='delivery' ?'takeaway' :'dinein',
     memberId: _memberId || null,
     deviceId: _deviceId,
-    // 外卖专属信息（不入库列，只本地/localStorage 留存备用，与 tender/change/customerName 同类兜底）
+    // 外卖专属信息（个别字段留本地作小票兜底；deliveryInfo 整块入库 delivery_info 列，给 POS 叫车用）
     deliveryFee: deliveryFee || undefined,
     deliveryAddress: (currentMode==='delivery' && _deliveryInfo) ? _deliveryInfo.address : undefined,
     deliveryCoords: (currentMode==='delivery' && _deliveryInfo) ? {lat:_deliveryInfo.lat, lng:_deliveryInfo.lng} : undefined,
@@ -2148,6 +2149,12 @@ function confirmOrder(){
     deliveryRecipientName: (currentMode==='delivery' && _deliveryInfo) ? _deliveryInfo.recipientName : undefined,
     deliveryPhone: (currentMode==='delivery' && _deliveryInfo) ? _deliveryInfo.phone : undefined,
     deliveryRemarks: (currentMode==='delivery' && _deliveryInfo && _deliveryInfo.remarks) ? _deliveryInfo.remarks : undefined,
+    // POS 叫 Lalamove 需要坐标+电话，这些必须随单入库（delivery_info 列）
+    deliveryInfo: (currentMode==='delivery' && _deliveryInfo) ? {
+      address:_deliveryInfo.address||'', lat:_deliveryInfo.lat, lng:_deliveryInfo.lng,
+      recipientName:_deliveryInfo.recipientName||'', phone:_deliveryInfo.phone||'',
+      remarks:_deliveryInfo.remarks||'', fee:deliveryFee||0, quotationId:_deliveryInfo.quotationId||''
+    } : undefined,
   };
 
   document.getElementById('cartSheet').classList.remove('show');

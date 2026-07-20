@@ -117,6 +117,9 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 .hdr-pend{position:absolute;left:540px;top:21px;width:238px;height:49px;background:#FFFFD5;border-radius:1000px;border:none;font-weight:700;font-size:18px;color:#000;display:flex;align-items:center;justify-content:center;gap:10px;}
 .hdr-pend:active{opacity:.8;}
 .pend-num{background:#8D0505;color:#FFDE5B;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;}
+.hdr-dlv{position:absolute;left:790px;top:21px;width:210px;height:49px;background:#B6F3FF;border-radius:1000px;border:none;font-weight:700;font-size:18px;color:#000;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;}
+.hdr-dlv:active{opacity:.8;}
+.dlv-num{background:#8D0505;color:#B6F3FF;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;}
 /* Right icon area — x:746, y:7 (Frame 20, 32×32) — exit button */
 .hdr-exit{position:absolute;right:20px;top:16px;width:120px;height:59px;background:rgba(217,217,217,.2);border-radius:12px;border:none;font-weight:700;font-size:24px;color:#fff;display:flex;align-items:center;justify-content:center;}
 .hdr-exit:active{background:rgba(217,217,217,.35);}
@@ -569,6 +572,10 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       <span class="pend-num" id="pendNum">0</span>
       Pending Payment
 </button>
+    <button class="hdr-dlv" onclick="showDelivery()">
+      <span class="dlv-num" id="dlvNum">0</span>
+      外卖配送
+</button>
     <button class="hdr-exit" onclick="doLogout()">Exit</button>
 </div>
 
@@ -727,6 +734,17 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       <button onclick="closePending()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:18px;cursor:pointer">✕</button>
 </div>
     <div id="pendList" style="flex:1;overflow-y:auto;padding:16px;"></div>
+</div>
+</div>
+
+<!-- 外卖配送（叫 Lalamove）-->
+<div class="modal-bg" id="dlvBg" onclick="if(event.target===this)closeDelivery()">
+  <div style="background:#fff;border-radius:20px;width:620px;max-height:660px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="background:#8D0505;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+      <span style="font-size:22px;font-weight:700;color:#B6F3FF">外卖配送 · 叫车</span>
+      <button onclick="closeDelivery()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:18px;cursor:pointer">✕</button>
+</div>
+    <div id="dlvList" style="flex:1;overflow-y:auto;padding:16px;"></div>
 </div>
 </div>
 
@@ -944,10 +962,11 @@ function setCloudStatus(s){
 setTimeout(function(){ setCloudStatus(db?'connecting':'offline'); },0);
 /* 订单对象 <-> 数据库行（只映射数据库已有的列，tender/change/customerName 等不入库）*/
 function orderToRow(o){return{id:o.id,order_num:o.orderNum,receipt_no:o.receiptNo!=null?o.receiptNo:null,created_at:o.createdAt,items:o.items||[],
-  total:o.total||0,pay_method:o.payMethod,status:o.status,source:o.source,table_name:o.tableName,ta_mode:o.taMode,member_id:o.memberId||null,device_id:o.deviceId||null};}
+  total:o.total||0,pay_method:o.payMethod,status:o.status,source:o.source,table_name:o.tableName,ta_mode:o.taMode,member_id:o.memberId||null,device_id:o.deviceId||null,
+  delivery_info:o.deliveryInfo||null};}
 function rowToOrder(r){return{id:r.id,orderNum:r.order_num||(r.id?String(r.id).slice(-4):''),receiptNo:r.receipt_no!=null?r.receipt_no:null,createdAt:r.created_at,
   items:r.items||[],total:Number(r.total)||0,payMethod:r.pay_method||'counter',status:r.status||'pending',
-  source:r.source||'app',tableName:r.table_name||'',taMode:r.ta_mode||'',memberId:r.member_id||null,deviceId:r.device_id||null};}
+  source:r.source||'app',tableName:r.table_name||'',taMode:r.ta_mode||'',memberId:r.member_id||null,deviceId:r.device_id||null,deliveryInfo:r.delivery_info||null};}
 /* ── 取号：永久收据号 receiptNo + 当天订单号 orderNum ──
    优先用 Supabase rpc_next_order_num（跨设备唯一/按天重置）；离线或失败时本地兜底。 */
 function _setOrderNums(o,rc,on){ o.receiptNo=rc; o.orderNum=String(on).padStart(4,'0'); }
@@ -1106,7 +1125,7 @@ function doLogout(){
 }
 
 /* ── INIT ── */
-function initPOS(){renderCart();updPend();buildNumpad();
+function initPOS(){renderCart();updPend();updDlv();buildNumpad();
   // 预热收据标题字体（收据平时隐藏，字体不会自动加载）——首次打印也能立刻用上 Pattaya
   try{ if(document.fonts&&document.fonts.load){ document.fonts.load('22px "PattayaRC"'); document.fonts.load('12px "PlexRC"'); document.fonts.load('700 20px "PlexRC"'); } }catch(e){}
 }
@@ -1663,6 +1682,69 @@ function showPending(){
 function closePending(){document.getElementById('pendBg').classList.remove('show');}
 function markPaid(id){var o=_orders.find(function(x){return x.id===id;});if(o){o.status=(o.source==='app'?'preparing':'paid');sj('pm_orders',_orders);pmBroadcastOrders();if(db){db.from('orders').update({status:o.status}).eq('id',id).then(function(res){if(res&&res.error)console.error('markPaid',res.error);}).catch(function(e){console.error('markPaid',e);});if(o.memberId)db.rpc('rpc_on_order_completed',{p_member_id:o.memberId,p_order_id:o.id,p_amount:o.total}).catch(function(e){console.error('rpc_on_order_completed',e);});}updPend();showPending();}}
 function reprO(id){var o=_orders.find(function(x){return x.id===id;});if(o)printRec(o);}
+
+/* ── DELIVERY / 叫 Lalamove 骑手 ── */
+function _isDlvOrder(o){return !!(o.deliveryInfo&&o.deliveryInfo.lat&&o.deliveryInfo.lng);}
+function _dlvDispatched(o){return !!(o.deliveryInfo&&o.deliveryInfo.lalamove&&o.deliveryInfo.lalamove.orderId);}
+function _dlvActive(o){return o.status!=='done'&&o.status!=='void';}
+// 待叫车：外卖单、已付款(非 pending)、还没叫过车
+function _dlvNeedsCar(o){return _isDlvOrder(o)&&_dlvActive(o)&&o.status!=='pending'&&!_dlvDispatched(o);}
+function updDlv(){var el=document.getElementById('dlvNum');if(el)el.textContent=_orders.filter(_dlvNeedsCar).length;}
+function showDelivery(){
+  var list=_orders.filter(function(o){return _isDlvOrder(o)&&_dlvActive(o);});
+  list.sort(function(a,b){return (_dlvNeedsCar(b)?1:0)-(_dlvNeedsCar(a)?1:0);}); // 待叫车的排前面
+  var el=document.getElementById('dlvList');
+  if(!list.length){el.innerHTML='<div style="text-align:center;padding:30px;color:#4A4848">暂无外卖订单</div>';document.getElementById('dlvBg').classList.add('show');return;}
+  el.innerHTML=list.map(function(o){
+    var d=o.deliveryInfo||{},lm=d.lalamove;
+    var head='<div style="font-weight:700;font-size:15px;color:#8D0505">#'+o.orderNum+'　'+esc(d.recipientName||'')+'　'+esc(d.phone||'')+'</div>';
+    var addr='<div style="font-size:12px;color:#4A4848;margin-top:2px">'+esc(d.address||'')+'</div>';
+    var items='<div style="font-size:11px;color:#4A4848;margin-top:2px">'+o.items.map(function(i){return esc(i.name)+'×'+i.qty;}).join('、')+'　·　顾客付运费 RM '+(Number(d.fee)||0).toFixed(2)+'</div>';
+    var action;
+    if(lm&&lm.orderId){
+      var track=lm.shareLink?'<a href="'+esc(lm.shareLink)+'" target="_blank" style="color:#1D7715;font-size:12px;font-weight:700;text-decoration:none">追踪骑手 ▸</a>':'';
+      action='<div style="text-align:right"><div style="font-size:13px;color:#1D7715;font-weight:700">已叫车 ✓</div><div style="font-size:11px;color:#4A4848;margin:2px 0">'+esc(lm.status||'')+(lm.price?'　RM '+Number(lm.price).toFixed(2):'')+'</div>'+track+'</div>';
+    }else if(o.status==='pending'){
+      action='<span style="font-size:11px;color:#8D0505">待付款,暂不可叫车</span>';
+    }else{
+      action='<button onclick="dispatchLalamove(\''+o.id+'\')" style="height:36px;border-radius:8px;border:none;background:#B6F3FF;color:#8D0505;font-size:13px;font-weight:700;cursor:pointer;padding:0 16px;font-family:Noto Sans SC,sans-serif">叫车 Lalamove</button>';
+    }
+    return '<div style="background:#FFFFD5;border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px"><div style="flex:1;min-width:0">'+head+addr+items+'</div><div style="flex-shrink:0">'+action+'</div></div>';
+  }).join('');
+  document.getElementById('dlvBg').classList.add('show');
+}
+function closeDelivery(){document.getElementById('dlvBg').classList.remove('show');}
+function dispatchLalamove(id){
+  var o=_orders.find(function(x){return x.id===id;});if(!o)return;
+  var d=o.deliveryInfo||{};
+  if(_dlvDispatched(o)){showN('这单已经叫过车了');return;}
+  if(!db){alert('叫车需要联网');return;}
+  if(!d.phone){alert('这单缺少收货人电话,无法叫车');return;}
+  if(!d.lat||!d.lng){alert('这单缺少收货地址坐标,无法叫车');return;}
+  showN('正在重新报价…');
+  // 先重新报一次价（顾客下单时那张已过期），把「现在的运费 vs 顾客已付」摆给店员看，确认后再真的叫车
+  db.functions.invoke('lalamove-quote',{body:{dropoff:{lat:String(d.lat),lng:String(d.lng),address:d.address||''}}}).then(function(r){
+    var q=r&&r.data;
+    if(!q||!q.ok){alert('重新报价失败:'+((q&&q.error)||'请重试'));return;}
+    var newFee=Number(q.total)||0,paid=Number(d.fee)||0,diff=newFee-paid;
+    var msg='收货：'+(d.address||'')+'\n\n现在叫车运费　RM '+newFee.toFixed(2)+'\n顾客已付运费　RM '+paid.toFixed(2)+'\n';
+    msg+= diff>0.005?('差价 RM '+diff.toFixed(2)+'（需店里补贴）'):(diff<-0.005?('比顾客付的省 RM '+(-diff).toFixed(2)):'（一致）');
+    msg+='\n\n确认叫 Lalamove 骑手？';
+    if(!confirm(msg))return;
+    showN('正在叫车…');
+    db.functions.invoke('lalamove-order',{body:{
+      dropoff:{lat:String(d.lat),lng:String(d.lng),address:d.address||''},
+      recipient:{name:d.recipientName||'客户',phone:d.phone,remarks:d.remarks||''}
+    }}).then(function(r2){
+      var od=r2&&r2.data;
+      if(!od||!od.ok){alert('叫车失败:'+((od&&od.error)||'请重试'));return;}
+      d.lalamove={orderId:od.lalamoveOrderId,status:od.status||'ASSIGNING_DRIVER',shareLink:od.shareLink||'',driverId:od.driverId||'',price:od.price,currency:od.currency,dispatchedAt:new Date().toISOString()};
+      o.deliveryInfo=d;sj('pm_orders',_orders);pmBroadcastOrders();
+      if(db)db.from('orders').update({delivery_info:d}).eq('id',o.id).then(function(res){if(res&&res.error)console.error('dispatch update',res.error);}).catch(function(e){console.error('dispatch update',e);});
+      showN('已叫车 ✓ 骑手安排中');updDlv();showDelivery();
+    }).catch(function(e){console.error('lalamove-order',e);alert('叫车失败,请重试');});
+  }).catch(function(e){console.error('lalamove-quote',e);alert('重新报价失败,请重试');});
+}
 
 /* ── ADMIN ── */
 function backToPOS(){document.getElementById('adminView').style.display='none';document.getElementById('posView').style.display='block';}
@@ -2698,7 +2780,9 @@ function pmRefreshOrders(announce){
   });
   try{ _scanPrepaidPrint(_orders, prev, announce); }catch(e){}   // 同源 TNG 预付单也自动出单
   try{updPend();}catch(e){}
+  try{updDlv();}catch(e){}
   try{if(document.getElementById('pendBg').classList.contains('show'))showPending();}catch(e){}
+  try{if(document.getElementById('dlvBg').classList.contains('show'))showDelivery();}catch(e){}
   try{
     if(document.getElementById('adminView').style.display==='flex'
        && document.getElementById('asi-dashboard')
@@ -2751,7 +2835,9 @@ async function loadOrdersFromCloud(announce){
     _orders=arr;
     try{ sj('pm_orders',_orders); }catch(e){}
     try{ updPend(); }catch(e){}
+    try{ updDlv(); }catch(e){}
     try{ if(document.getElementById('pendBg').classList.contains('show')) showPending(); }catch(e){}
+    try{ if(document.getElementById('dlvBg').classList.contains('show')) showDelivery(); }catch(e){}
     try{ if(document.getElementById('adminView').style.display==='flex' && document.getElementById('asi-dashboard') && document.getElementById('asi-dashboard').classList.contains('a')) renderDash(); }catch(e){}
     if(newN){ try{ showN('新线上订单 #'+last.orderNum+(newN>1?(' 等'+newN+' 单'):'')); }catch(e){} }
   }catch(e){}
