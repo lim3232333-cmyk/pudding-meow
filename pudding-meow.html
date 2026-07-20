@@ -1268,15 +1268,21 @@
       <div class="ck-sec" style="padding:0 16px">
         <div class="ck-sec-label">付款方式</div>
         <div class="ck-pay-rows">
-          <div class="ck-pay-row" id="ckPayTng" onclick="selectPay('tng')">
+          <div class="ck-pay-row" id="ckPayTng" onclick="selectPay('tng')" style="display:none">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
             <span>Touch 'n Go eWallet</span>
             <svg class="ck-pay-check" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
           </div>
-          <div class="ck-pay-hr"></div>
+          <div class="ck-pay-hr" id="ckPayTngHr" style="display:none"></div>
           <div class="ck-pay-row" id="ckPayCounter" onclick="selectPay('counter')">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
             <span>柜台支付 Pay at Counter</span>
+            <svg class="ck-pay-check" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </div>
+          <div class="ck-pay-hr" id="ckPayCounterHr"></div>
+          <div class="ck-pay-row" id="ckPayHitpay" onclick="selectPay('hitpay')" style="display:none">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/></svg>
+            <span>在线支付 Online Payment</span>
             <svg class="ck-pay-check" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
           </div>
         </div>
@@ -2036,10 +2042,39 @@ function renderCheckout(){
   document.getElementById('ckPayBtn').textContent='立即支付 RM'+total.toFixed(2);
 }
 function _ckSyncPayRows(){
-  var t=document.getElementById('ckPayTng'), c=document.getElementById('ckPayCounter');
-  if(!t||!c) return;
+  var isDinein = currentMode==='dinein';
+  var isDeliveryOrPickup = currentMode==='delivery' || currentMode==='pickup';
+
+  var t=document.getElementById('ckPayTng');
+  var tHr=document.getElementById('ckPayTngHr');
+  var c=document.getElementById('ckPayCounter');
+  var cHr=document.getElementById('ckPayCounterHr');
+  var hp=document.getElementById('ckPayHitpay');
+
+  if(!t||!c||!hp) return;
+
+  // 堂食：只显示柜台支付
+  if(isDinein){
+    t.style.display='none';
+    tHr.style.display='none';
+    c.style.display='block';
+    cHr.style.display='none';
+    hp.style.display='none';
+    if(selectedPay!=='counter') selectedPay='counter';
+  }
+  // 外卖/自取：只显示在线支付（HitPay）
+  else if(isDeliveryOrPickup){
+    t.style.display='none';
+    tHr.style.display='none';
+    c.style.display='none';
+    cHr.style.display='none';
+    hp.style.display='block';
+    if(selectedPay!=='hitpay') selectedPay='hitpay';
+  }
+
   t.classList.toggle('sel', selectedPay==='tng');
   c.classList.toggle('sel', selectedPay==='counter');
+  hp.classList.toggle('sel', selectedPay==='hitpay');
 }
 function ckPayNow(){
   document.getElementById('ckScreen').classList.remove('show');
@@ -2047,8 +2082,10 @@ function ckPayNow(){
 }
 function selectPay(method){
   selectedPay = method;
-  document.getElementById('radio-tng').className ='pay-radio-tng' + (method==='tng' ?' selected' :'');
-  document.getElementById('radio-counter').className ='pay-radio-counter' + (method==='counter' ?' selected' :'');
+  var radiTng=document.getElementById('radio-tng');
+  var radiCtr=document.getElementById('radio-counter');
+  if(radiTng) radiTng.className ='pay-radio-tng' + (method==='tng' ?' selected' :'');
+  if(radiCtr) radiCtr.className ='pay-radio-counter' + (method==='counter' ?' selected' :'');
   _ckSyncPayRows();   // 确认订单页的付款方式行同步选中态
 }
 
