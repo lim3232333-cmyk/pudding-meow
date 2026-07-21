@@ -1663,15 +1663,21 @@ function showPending(){
     // 在线支付（HitPay）订单不给手动「已付款」按钮——客人还没在收银页真的付款就可能一直挂在这里，
     // 店员误点会在没收到钱的情况下把单标记成已付款；真正付款成功由 hitpay-webhook 自动翻状态。
     var isOnlinePay = o.payMethod==='hitpay';
+    var isRecharge = o.taMode==='recharge';
     var payTag = isOnlinePay
       ? '<span style="font-size:10px;color:#8D0505;background:#B6F3FF;border-radius:6px;padding:1px 6px;margin-left:6px">在线支付</span>'
-      : '';
+      : (isRecharge ? '<span style="font-size:10px;color:#fff;background:#8D0505;border-radius:6px;padding:1px 6px;margin-left:6px">钱包充值</span>' : '');
     var actionHtml = isOnlinePay
       ? '<span style="font-size:11px;color:#4A4848;padding:0 4px">等待线上支付确认…</span>'
       : '<button onclick="markPaid(\''+o.id+'\')" style="height:32px;border-radius:8px;border:none;background:#B6F3FF;color:#8D0505;font-size:12px;font-weight:700;cursor:pointer;padding:0 12px;font-family:Noto Sans SC,sans-serif">已付款</button>';
+    // 充值单：副行显示 收款金额 → 到账 + 送币
+    var rc = isRecharge && o.deliveryInfo && o.deliveryInfo.recharge;
+    var subLine = rc
+      ? '收款 RM '+Number(rc.price).toFixed(2)+' → 钱包到账 RM '+Number(rc.price).toFixed(2)+' + '+(rc.coins||0)+' 币'
+      : o.items.map(function(i){return i.name+'×'+i.qty;}).join('、')+' · RM '+o.total.toFixed(2);
     return'<div style="background:#FFFFD5;border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px">'
       +'<div><div style="font-weight:700;font-size:15px;color:#8D0505">#'+o.orderNum+''+o.tableName+payTag+'</div>'
-      +'<div style="font-size:11px;color:#4A4848;margin-top:3px">'+o.items.map(function(i){return i.name+'×'+i.qty;}).join('、')+' · RM '+o.total.toFixed(2)+'</div></div>'
+      +'<div style="font-size:11px;color:#4A4848;margin-top:3px">'+subLine+'</div></div>'
       +'<div style="display:flex;gap:8px;align-items:center">'
       +actionHtml
       +'<button onclick="reprO(\''+o.id+'\')" style="height:32px;border-radius:8px;border:none;background:#FFDE5B;color:#8D0505;font-size:12px;font-weight:700;cursor:pointer;padding:0 10px"></button>'
@@ -1680,7 +1686,25 @@ function showPending(){
   document.getElementById('pendBg').classList.add('show');
 }
 function closePending(){document.getElementById('pendBg').classList.remove('show');}
-function markPaid(id){var o=_orders.find(function(x){return x.id===id;});if(o){o.status=(o.source==='app'?'preparing':'paid');sj('pm_orders',_orders);pmBroadcastOrders();if(db){db.from('orders').update({status:o.status}).eq('id',id).then(function(res){if(res&&res.error)console.error('markPaid',res.error);}).catch(function(e){console.error('markPaid',e);});if(o.memberId)db.rpc('rpc_on_order_completed',{p_member_id:o.memberId,p_order_id:o.id,p_amount:o.total}).catch(function(e){console.error('rpc_on_order_completed',e);});}updPend();showPending();}}
+function markPaid(id){
+  var o=_orders.find(function(x){return x.id===id;});
+  if(!o) return;
+  // 充值单：走 rpc_complete_recharge，服务端给会员钱包加钱(=收款) + 送 coin，订单转 done
+  if(o.taMode==='recharge'){
+    if(!db){ alert('充值到账需要联网'); return; }
+    var rc=o.deliveryInfo&&o.deliveryInfo.recharge;
+    if(!confirm('确认已收到柜台付款 RM '+Number(o.total).toFixed(2)+'？\n确认后会为会员钱包到账 RM '+Number(o.total).toFixed(2)+(rc&&rc.coins?(' + '+rc.coins+' 币'):'')+'。')) return;
+    db.rpc('rpc_complete_recharge',{p_order_id:o.id}).then(function(res){
+      if(res&&res.error){ console.error('rpc_complete_recharge',res.error); alert('充值到账失败：'+res.error.message); return; }
+      o.status='done'; sj('pm_orders',_orders); pmBroadcastOrders();
+      showN('✓ 已到账，会员钱包余额 RM '+Number(res.data).toFixed(2)); updPend(); showPending();
+    }).catch(function(e){ console.error('rpc_complete_recharge',e); alert('充值到账失败，请重试'); });
+    return;
+  }
+  o.status=(o.source==='app'?'preparing':'paid');sj('pm_orders',_orders);pmBroadcastOrders();
+  if(db){db.from('orders').update({status:o.status}).eq('id',id).then(function(res){if(res&&res.error)console.error('markPaid',res.error);}).catch(function(e){console.error('markPaid',e);});if(o.memberId)db.rpc('rpc_on_order_completed',{p_member_id:o.memberId,p_order_id:o.id,p_amount:o.total}).catch(function(e){console.error('rpc_on_order_completed',e);});}
+  updPend();showPending();
+}
 function reprO(id){var o=_orders.find(function(x){return x.id===id;});if(o)printRec(o);}
 
 /* ── DELIVERY / 叫 Lalamove 骑手 ── */
@@ -1781,7 +1805,7 @@ function orderMode3(o){
 }
 function renderDash(){
   var today=new Date().toDateString();var dd=_vDate||today;
-  var ords=_orders.filter(function(o){try{return new Date(o.createdAt).toDateString()===dd;}catch(e){return false;}});
+  var ords=_orders.filter(function(o){try{return new Date(o.createdAt).toDateString()===dd && o.taMode!=='recharge';}catch(e){return false;}});  // 充值单不算营业额（钱花在菜单时才计）
   var live=ords.filter(function(o){return o.status!=='void';});
   var rev=live.reduce(function(s,o){return s+o.total;},0);
   var cash=live.filter(function(o){return o.payMethod==='cash';}).reduce(function(s,o){return s+o.total;},0);
@@ -1884,8 +1908,8 @@ function renderMembers(){
     +'<button class="add-btn" onclick="openMM()">+ 新增会员</button></div>'
     +(!_members.length?'<div style="text-align:center;padding:60px;color:#4A4848">暂无会员</div>'
     :'<div class="mem-grid">'+_members.map(function(m,i){
-      var v=_orders.filter(function(o){return o.memberId===m.id;}).length;
-      var s=_orders.filter(function(o){return o.memberId===m.id;}).reduce(function(t,o){return t+o.total;},0);
+      var v=_orders.filter(function(o){return o.memberId===m.id&&o.taMode!=='recharge';}).length;
+      var s=_orders.filter(function(o){return o.memberId===m.id&&o.taMode!=='recharge';}).reduce(function(t,o){return t+o.total;},0);
       return'<div class="mem-card"><div style="display:flex;justify-content:space-between">'
         +'<div><div class="mem-name">'+m.name+'</div><div class="mem-ph">'+(m.phone||'-')+'</div>'+(m.notes?'<div class="mem-ph">'+m.notes+'</div>':'')+'</div>'
         +'<button onclick="delMem('+i+')" style="border:none;background:transparent;color:#ccc;font-size:20px;cursor:pointer">×</button></div>'
@@ -2312,7 +2336,7 @@ function cpnRedeem(memberCouponId){
 /* ── REPORTS ── */
 function renderReports(){
   var selM=sg('pm_rm',new Date().toISOString().slice(0,7));
-  var mords=_orders.filter(function(o){return o.createdAt&&o.createdAt.slice(0,7)===selM;});
+  var mords=_orders.filter(function(o){return o.createdAt&&o.createdAt.slice(0,7)===selM&&o.taMode!=='recharge';});  // 充值单不计营业额
   var tot=mords.reduce(function(s,o){return s+o.total;},0);
   var cash=mords.filter(function(o){return o.payMethod==='cash';}).reduce(function(s,o){return s+o.total;},0);
   var tng=mords.filter(function(o){return o.payMethod==='tng';}).reduce(function(s,o){return s+o.total;},0);
