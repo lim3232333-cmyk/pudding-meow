@@ -144,14 +144,14 @@
 
   /* =================== bottom nav (always fixed, all screens) =================== */
   .bottom-nav{
-    position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
-    width:342px; max-width:calc(100vw - 24px); height:49px;
+    position:fixed; bottom:34px; left:50%; transform:translateX(-50%);
+    width:342px; max-width:calc(100vw - 24px); height:50px;
     background:var(--red); border-radius:62px; display:flex; align-items:center;
     z-index:50; box-shadow:0 6px 16px rgba(0,0,0,.2);
   }
   .nav-item{ flex:1; text-align:center; cursor:pointer; font-weight:500; font-size:14px; line-height:17px; color:var(--cream2); transition:color .15s; }
   .nav-item.active{ color:var(--yellow); font-weight:700; }
-  .screen{ padding-bottom:78px; }
+  .screen{ padding-bottom:100px; }   /* 让内容避开标签栏(底34+高50)+安全间距 */
 
   /* =================== MENU / ORDER PAGE =================== */
   /* 菜单页本身不滚动（overflow:hidden），header/分类栏固定，只有商品列内部滚动 */
@@ -198,7 +198,7 @@
   /* 一个 #cartBtn 右下浮动，按状态变宽（右锚，宽度往左长 = "往左划出"）：
      空=只有图标；加购=胶囊显示总额；面板打开=大条 + 去结算 */
   .cartbtn{
-    position:fixed; right:16px; bottom:82px; z-index:201;
+    position:fixed; right:16px; bottom:96px; z-index:201;
     display:flex; align-items:center; gap:12px; box-sizing:border-box;
     height:53px; padding:0 8px 0 0; white-space:nowrap; overflow:visible;
     background:var(--yellow); border-radius:999px; cursor:pointer;
@@ -207,8 +207,8 @@
   }
   .cartbtn.s-empty{ width:44px; padding:0; background:transparent; box-shadow:none; justify-content:center; }
   .cartbtn.s-items{ width:150px; }
-  /* 面板打开：大条落到面板最底部当"底栏"，商品列表在它上面滚（面板留了 84px 底部空间） */
-  .cartbtn.s-open{ width:361px; bottom:16px; }
+  /* 面板打开：大条落到面板底部当"底栏"，离屏幕底 34px（避开 Home 指示条），商品在它上面滚 */
+  .cartbtn.s-open{ width:361px; bottom:34px; }
   .cartbtn.hidden{ display:none; }   /* 开产品详情弹窗时隐藏 */
   .cartbtn-ico{ position:relative; width:50px; height:53px; flex-shrink:0; display:flex; align-items:center; justify-content:flex-start; }
   .cartbtn.s-empty .cartbtn-ico{ width:52px; justify-content:center; }
@@ -235,7 +235,7 @@
     position:fixed; left:50%; transform:translateX(-50%); bottom:0;
     width:393px; max-width:100vw; box-sizing:border-box;
     background:var(--cream2); border-radius:16px 16px 0 0; z-index:200;
-    display:none; flex-direction:column; padding:16px 16px 84px; max-height:80vh;
+    display:none; flex-direction:column; padding:16px 16px 100px; max-height:80vh;
     box-shadow:0 -6px 20px rgba(0,0,0,.3);
   }
   .cart-sheet.show{ display:flex; }
@@ -392,7 +392,7 @@
   .od-total-val{ font-weight:700; font-size:20px; color:var(--red); }
 
   .od-reorder-btn{
-    margin:14px 16px 20px; background:var(--red); color:var(--yellow); border:none;
+    margin:14px 16px 34px; background:var(--red); color:var(--yellow); border:none;
     border-radius:62px; height:44px; font-weight:700; font-size:16px; cursor:pointer;
     font-family:"Noto Sans SC",sans-serif; box-shadow:0 4px 0 rgba(0,0,0,.2); width:calc(100% - 32px);
   }
@@ -442,7 +442,7 @@
 
   .sheet-footer{
     flex-shrink:0; background:var(--cream2); box-shadow:0 -4px 2.5px rgba(0,0,0,.1); border-radius:16px;
-    position:relative; z-index:1; height:110px; box-sizing:border-box; padding:5px 15px 22px;
+    position:relative; z-index:1; height:122px; box-sizing:border-box; padding:5px 15px 34px;
     display:flex; flex-direction:column; justify-content:flex-start;
   }
   .sheet-price-row{ display:flex; justify-content:space-between; align-items:center; height:36px; }
@@ -552,7 +552,7 @@
   .rc-balance-label{ font-size:14px; line-height:17px; color:#fff; }
   .rc-balance-value{ font-weight:700; font-size:32px; line-height:38px; color:#fff; }
 
-  .rc-body{ position:relative; margin-top:-28px; z-index:2; padding-bottom:32px; }
+  .rc-body{ position:relative; margin-top:-28px; z-index:2; padding-bottom:34px; }
   .rc-pkg-grid{ margin-left:16px; width:360px; height:158px; box-sizing:border-box; background:#FFFFEA; border-radius:12px; box-shadow:0 0 10px rgba(0,0,0,.25); padding:8px; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,1fr); gap:8px; }
   .rc-pkg{ position:relative; border:1px solid var(--yellow); border-radius:8px; background:#fff; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; }
   .rc-pkg.selected{ border:2px solid var(--red); }
@@ -608,7 +608,7 @@
   .pm-tab{ position:relative; flex:1; height:100%; text-align:center; font-size:12px; font-weight:500; color:var(--cream2); cursor:pointer; }
   .pm-tab.active{ color:var(--yellow); }
   .pm-tab.active::after{ content:''; position:absolute; left:50%; bottom:0; transform:translateX(-50%); width:80px; height:2px; background:var(--yellow); }
-  .pm-body{ position:relative; z-index:2; margin-top:22px; padding:0 16px 32px; display:flex; flex-direction:column; gap:12px; }
+  .pm-body{ position:relative; z-index:2; margin-top:22px; padding:0 16px 34px; display:flex; flex-direction:column; gap:12px; }
   .pm-item-card{ background:#fff; border-radius:12px; padding:16px; display:flex; align-items:center; justify-content:space-between; box-sizing:border-box; box-shadow:0 4px 10px rgba(0,0,0,.25); }
   .pm-item-img{ width:80px; height:80px; border-radius:16px; background:#D9D9D9; flex-shrink:0; overflow:hidden; }
   .pm-item-img-logo{ background:var(--red); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; box-sizing:border-box; padding:8px; }
@@ -651,7 +651,7 @@
   .ld-center img{ width:106px; height:auto; object-fit:contain; position:relative; z-index:1; }
   .ld-stand{ width:0; height:0; margin:-76px auto 0; border-left:128.5px solid transparent; border-right:128.5px solid transparent; border-bottom:125px solid var(--red); filter:drop-shadow(0 4px 10px rgba(0,0,0,.25)); flex-shrink:0; position:relative; z-index:0; }
 
-  .ld-footer{ margin-top:24px; padding:0 16px 32px; display:flex; flex-direction:column; align-items:center; gap:22px; }
+  .ld-footer{ margin-top:24px; padding:0 16px 34px; display:flex; flex-direction:column; align-items:center; gap:22px; }
   .ld-tickets{ font-size:12px; color:var(--red); font-weight:500; }
   .ld-tickets b{ font-size:14px; }
   .ld-spin-btn{ width:100%; height:40px; background:var(--red); color:var(--cream2); border:none; border-radius:999px; font-size:16px; font-weight:500; font-family:"Noto Sans SC",sans-serif; cursor:pointer; box-shadow:0 4px 4px rgba(0,0,0,.25); }
@@ -716,7 +716,7 @@
   .dv-err.show{ display:block; }
 
   /* ===== 确认订单整页（Figma 434:195，购物车点「确认下单」后进入，页内「立即支付」才真正下单）===== */
-  .ck-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:#FFFFD5; z-index:345; display:none; flex-direction:column; gap:24px; align-items:center; padding:14px 0; box-sizing:border-box; overflow-y:auto; font-family:"Noto Sans SC",sans-serif; }
+  .ck-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:#FFFFD5; z-index:345; display:none; flex-direction:column; gap:24px; align-items:center; padding:14px 0 34px; box-sizing:border-box; overflow-y:auto; font-family:"Noto Sans SC",sans-serif; }
   .ck-screen.show{ display:flex; }
   .ck-head{ position:relative; width:359px; height:24px; flex-shrink:0; }
   .ck-back{ position:absolute; left:0; top:0; width:24px; height:24px; cursor:pointer; }
@@ -779,7 +779,7 @@
   .addr-field .req{ color:var(--red); margin-left:2px; }
   .addr-field input{ width:100%; border:none; outline:none; background:transparent; font-size:14px; color:var(--muted); font-family:"Noto Sans SC",sans-serif; padding:2px 0 0; box-sizing:border-box; }
   .addr-field:focus-within{ box-shadow:0 0 4px rgba(141,5,5,.5); outline:1px solid var(--red); outline-offset:-1px; }
-  .addr-save-bar{ margin-top:auto; flex-shrink:0; padding:16px 20px 28px; box-sizing:border-box; }
+  .addr-save-bar{ margin-top:auto; flex-shrink:0; padding:16px 20px 34px; box-sizing:border-box; }
   .addr-save-btn{ width:100%; height:45px; border:none; border-radius:12px; font-size:16px; font-weight:700; font-family:"Noto Sans SC",sans-serif; cursor:pointer; background:var(--red); color:#FFFFD5; }
   .addr-save-btn.disabled,.addr-save-btn:disabled{ background:#D9D9D9; color:#726F6F; cursor:not-allowed; }
   .ld-history-modal{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:340px; max-height:70vh; background:var(--cream2); border-radius:16px; z-index:350; display:none; flex-direction:column; overflow:hidden; }
