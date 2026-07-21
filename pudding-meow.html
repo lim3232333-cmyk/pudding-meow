@@ -210,9 +210,9 @@
   /* 面板打开：大条落到面板最底部当"底栏"，商品列表在它上面滚（面板留了 84px 底部空间） */
   .cartbtn.s-open{ width:361px; bottom:16px; }
   .cartbtn.hidden{ display:none; }   /* 开产品详情弹窗时隐藏 */
-  .cartbtn-ico{ position:relative; width:40px; height:53px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
-  .cartbtn.s-empty .cartbtn-ico{ width:44px; }
-  .cartbtn-ico-img{ height:48px; width:auto; display:block; }
+  .cartbtn-ico{ position:relative; width:50px; height:53px; flex-shrink:0; display:flex; align-items:center; justify-content:flex-start; }
+  .cartbtn.s-empty .cartbtn-ico{ width:52px; justify-content:center; }
+  .cartbtn-ico-img{ height:53px; width:auto; display:block; margin-left:-3px; }
   .cartbtn-badge{
     position:absolute; top:0; left:2px; z-index:2; min-width:15px; height:15px; padding:0 3px; box-sizing:border-box;
     background:var(--red); color:#fff; border-radius:999px; font-size:9px; font-weight:700;
