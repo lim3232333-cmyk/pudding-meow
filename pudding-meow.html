@@ -485,6 +485,11 @@
     border-radius:62px; height:44px; font-weight:700; font-size:16px; cursor:pointer;
     font-family:"Noto Sans SC",sans-serif; box-shadow:0 4px 0 rgba(0,0,0,.2); width:calc(100% - 32px);
   }
+  .od-track-btn{
+    margin-top:10px; width:100%; background:var(--blue); color:var(--red); border:none;
+    border-radius:12px; height:40px; font-weight:700; font-size:14px; cursor:pointer;
+    font-family:"Noto Sans SC",sans-serif;
+  }
 
 
   ::-webkit-scrollbar{ width:0; height:0; }
@@ -1008,6 +1013,11 @@
     <div class="od-scroll">
       <div class="od-section-title">已点商品 Items</div>
       <div id="odItems"></div>
+      <div id="odDeliverBlock" style="display:none">
+        <hr class="od-divider">
+        <div class="od-section-title">配送 Delivery</div>
+        <div id="odDeliverBody"></div>
+      </div>
       <hr class="od-divider">
       <div class="od-summary" id="odPayRow">
         <span class="od-summary-label">支付方式 Payment</span>
@@ -2521,6 +2531,13 @@ function renderOrdersList(){
   list.innerHTML = html;
 }
 
+// Lalamove 配送状态码 → 顾客看得懂的中文
+function _lmStatusText(code){
+  return ({
+    ASSIGNING_DRIVER:'正在安排骑手', ON_GOING:'骑手前往取餐', PICKED_UP:'已取餐 · 配送中',
+    COMPLETED:'已送达', CANCELED:'已取消', REJECTED:'骑手拒单', EXPIRED:'已过期'
+  })[code] || (code||'处理中');
+}
 function openOrderDetail(id){
   var o = null;
   for(var i=0;i<_orders.length;i++){ if(_orders[i].id===id){ o=_orders[i]; break; } }
@@ -2551,8 +2568,26 @@ function openOrderDetail(id){
     itemsHtml +='<div class="od-item-row"><div class="od-item-thumb"'+odThumbStyle+'></div><div class="od-item-info"><div class="od-item-name">'+it.name+'</div><div class="od-item-en">'+(it.en||'')+'</div><div class="od-item-flavor">'+specsDisplay(it)+'</div></div><div class="od-item-price-qty"><div class="od-item-price">RM '+(it.price*it.qty).toFixed(1)+'</div><div class="od-item-qty">×'+it.qty+' @ RM '+it.price.toFixed(1)+'</div></div></div>';
   }
   document.getElementById('odItems').innerHTML = itemsHtml;
-  document.getElementById('odPayMethod').textContent = o.payMethod==='tng'?'Touch n Go':'柜台支付';
+  document.getElementById('odPayMethod').textContent = ({tng:'Touch n Go', hitpay:'在线支付', counter:'柜台支付'})[o.payMethod] || '柜台支付';
   document.getElementById('odTotal').textContent ='RM '+o.total.toFixed(1);
+
+  // 外卖：配送 / 追踪骑手
+  var dvBlock=document.getElementById('odDeliverBlock'), dvBody=document.getElementById('odDeliverBody');
+  var di=o.deliveryInfo;
+  if(di && di.lat && di.lng){
+    var lm=di.lalamove, h='';
+    h+='<div class="od-summary"><span class="od-summary-label">收货地址</span><span class="od-summary-val" style="max-width:60%;text-align:right">'+_addrEsc(di.address||'')+'</span></div>';
+    if(lm && lm.orderId){
+      h+='<div class="od-summary"><span class="od-summary-label">配送状态</span><span class="od-summary-val">'+_addrEsc(_lmStatusText(lm.status))+'</span></div>';
+      if(lm.driverName||lm.driverPhone) h+='<div class="od-summary"><span class="od-summary-label">骑手</span><span class="od-summary-val">'+_addrEsc([lm.driverName,lm.driverPhone].filter(Boolean).join(' '))+'</span></div>';
+      if(lm.shareLink) h+='<button class="od-track-btn" onclick="window.open(\''+_addrEsc(lm.shareLink)+'\',\'_blank\')">📍 追踪骑手 Track Rider</button>';
+    } else {
+      h+='<div class="od-summary"><span class="od-summary-label">配送状态</span><span class="od-summary-val">商家安排配送中</span></div>';
+    }
+    dvBody.innerHTML=h; dvBlock.style.display='block';
+  } else {
+    dvBlock.style.display='none';
+  }
 
   document.getElementById('orderDetailSheet').classList.add('show');
   document.getElementById('odOverlay').classList.add('show');
