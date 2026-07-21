@@ -194,157 +194,66 @@
   .qty-btn.plus{ background:var(--blue); border:none; color:var(--red); }
   .qty-num{ font-weight:500; font-size:15px; color:var(--red); min-width:10px; text-align:center; }
 
-  /* ===== CART FAB + price tag ===== */
-  .cart-fab-wrap{
-    position:fixed; right:18px; bottom:88px; z-index:55;
-    display:flex; align-items:center; gap:10px; flex-direction:row-reverse;
+  /* ===== CART：浮动按钮 3 态（Figma 485:732）+ 面板（Figma 33:44）===== */
+  /* 一个 #cartBtn 右下浮动，按状态变宽（右锚，宽度往左长 = "往左划出"）：
+     空=只有图标；加购=胶囊显示总额；面板打开=大条 + 去结算 */
+  .cartbtn{
+    position:fixed; right:16px; bottom:82px; z-index:201;
+    display:flex; align-items:center; gap:12px; box-sizing:border-box;
+    height:53px; padding:0 8px 0 0; white-space:nowrap; overflow:hidden;
+    background:var(--yellow); border-radius:999px; cursor:pointer;
+    box-shadow:0 4px 2px rgba(0,0,0,.25);
+    transition:width .28s cubic-bezier(.4,0,.2,1);
   }
-  .cart-fab{
-    width:66px; height:66px; border-radius:50%;
-    background:var(--red); border:none; cursor:pointer; box-shadow:0 6px 14px rgba(0,0,0,.3);
-    display:flex; align-items:center; justify-content:center; flex-shrink:0; position:relative;
+  .cartbtn.s-empty{ width:44px; padding:0; background:transparent; box-shadow:none; justify-content:center; }
+  .cartbtn.s-items{ width:150px; }
+  .cartbtn.s-open{ width:359px; }
+  .cartbtn-ico{ position:relative; width:40px; height:53px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+  .cartbtn.s-empty .cartbtn-ico{ width:44px; }
+  .cartbtn-ico svg{ width:32px; height:32px; }
+  .cartbtn-badge{
+    position:absolute; top:7px; left:19px; min-width:15px; height:15px; padding:0 3px; box-sizing:border-box;
+    background:var(--red); color:#fff; border-radius:999px; font-size:9px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
   }
-  .cart-fab .badge{
-    position:absolute; top:-4px; right:-4px; background:var(--yellow); color:var(--red); font-weight:700;
-    font-size:13px; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  .cartbtn-total{ flex:1 0 0; min-width:0; font-weight:700; font-size:16px; color:var(--red); overflow:hidden; text-overflow:ellipsis; }
+  .cartbtn-go{
+    flex-shrink:0; height:39px; padding:0 23px; border:none; border-radius:999px; cursor:pointer;
+    background:var(--red); color:#fff; font-weight:700; font-size:16px;
+    display:flex; align-items:center; justify-content:center; font-family:"Noto Sans SC",sans-serif;
   }
-  .cart-total-tag{
-    background:var(--cream2); color:var(--red); font-weight:700; font-size:14px;
-    border-radius:999px; padding:6px 14px; box-shadow:0 3px 10px rgba(0,0,0,.18);
-    white-space:nowrap; display:none;
-  }
-  .cart-total-tag.show{ display:block; }
-
-  /* ===== CART FOOTER (严格按设计参数) ===== */
-  .cart-pay-method{
-    position:relative;
-    width:378px; height:130px;
-    margin:0 auto;
-    flex-shrink:0;
-    overflow:visible;
-  }
-  /* 支付方式 标题 left:9 top:0 */
-  .cart-pay-method-title{
-    position:absolute; left:9px; top:0px;
-    width:190px; height:18px;
-    font-weight:700; font-size:15px; line-height:18px;
-    color:var(--muted); display:flex; align-items:center;
-  }
-  /* 总价 right side left:287 top:8 */
-  .cart-total-label{
-    position:absolute; left:278px; top:8px;
-    width:100px;
-    font-weight:700; font-size:20px; line-height:24px;
-    color:var(--muted); white-space:nowrap;
-  }
-  /* TNG radio left:9 top:32 */
-  .pay-radio-tng{
-    position:absolute; left:9px; top:32px;
-    width:12px; height:12px; border-radius:50%;
-    border:1px solid var(--muted); background:transparent; cursor:pointer;
-  }
-  .pay-radio-tng.selected{ background:var(--yellow); }
-  /* TNG label left:31 top:28.64 */
-  .pay-label-tng{
-    position:absolute; left:31px; top:28px;
-    font-weight:400; font-size:14px; line-height:17px; color:var(--muted);
-    cursor:pointer;
-  }
-  /* Counter radio left:9 top:62 */
-  .pay-radio-counter{
-    position:absolute; left:9px; top:62px;
-    width:12px; height:11px; border-radius:50%;
-    border:1px solid var(--muted); background:transparent; cursor:pointer;
-  }
-  .pay-radio-counter.selected{ background:var(--yellow); }
-  /* Counter label left:30 top:58 */
-  .pay-label-counter{
-    position:absolute; left:30px; top:58px;
-    font-weight:400; font-size:14px; line-height:17px; color:var(--muted);
-    cursor:pointer;
-  }
-  /* 确认下单 button left:223-9=214 (relative) top:75 */
-  .cart-confirm-btn-wrap{
-    position:absolute; left:214px; top:75px;
-    width:164px; height:37px;
-  }
-  .cart-confirm{
-    width:164px; height:37px;
-    background:var(--blue); border:none; border-radius:62px;
-    font-weight:700; font-size:16px; color:var(--red);
-    cursor:pointer; font-family:"Noto Sans SC",sans-serif;
-    box-shadow:0px 4px 4px rgba(0,0,0,.25);
-  }
-  .cart-pay-left{ display:none; } /* 旧的flex结构隐藏 */
+  .cartbtn.s-empty .cartbtn-badge,
+  .cartbtn.s-empty .cartbtn-total,
+  .cartbtn.s-empty .cartbtn-go{ display:none; }
+  .cartbtn:not(.s-open) .cartbtn-go{ display:none; }
 
   .cart-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:199; display:none; }
   .cart-overlay.show{ display:block; }
   .cart-sheet{
     position:fixed; left:50%; transform:translateX(-50%); bottom:0;
-    width:393px; max-width:100vw;
-    background:var(--cream2); border-radius:10px 10px 0 0; z-index:200;
-    display:none; flex-direction:column;
-    box-shadow:0 -6px 20px rgba(0,0,0,.3); overflow:hidden;
+    width:393px; max-width:100vw; box-sizing:border-box;
+    background:var(--cream2); border-radius:16px 16px 0 0; z-index:200;
+    display:none; flex-direction:column; padding:16px 16px 84px; max-height:80vh;
+    box-shadow:0 -6px 20px rgba(0,0,0,.3);
   }
   .cart-sheet.show{ display:flex; }
-
-  /* header — 32px */
-  .cart-header{
-    height:32px; flex-shrink:0; position:relative;
-    display:flex; align-items:center; justify-content:center;
-  }
-  .cart-header-title{ font-weight:500; font-size:16px; line-height:19px; color:var(--red); }
-  .cart-header-sub{ position:absolute; left:21px; font-weight:400; font-size:12px; line-height:14px; color:var(--muted); }
-  .cart-header-badge{
-    position:absolute; left:calc(50% + 20px); width:22px; height:20.65px; border-radius:50%;
-    background:var(--yellow); display:flex; align-items:center; justify-content:center;
-    font-weight:500; font-size:16px; line-height:19px; color:var(--red);
-  }
-  .cart-header-close{
-    position:absolute; right:12px; width:25.5px; height:24px; border-radius:50%;
-    background:#4A4848; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center;
-  }
-  .cart-header-close svg{ width:13px; height:13px; }
-  .cart-header-close svg line{ stroke:#fff; stroke-width:2.4; stroke-linecap:round; }
-
-  /* items: grows naturally, max 4 items then scroll */
-  .cart-scroll{ max-height:calc(4 * 95px); overflow-y:auto; flex-shrink:0; }
-  .cart-item{
-    display:flex; gap:15px; padding:10px 8px; align-items:flex-start;
-    border-bottom:1px solid #D9D9D9; position:relative; height:95px; box-sizing:border-box;
-  }
-  .cart-item-thumb{ width:100px; height:75px; background:var(--red); border-radius:16px; flex-shrink:0; }
-  .cart-item-info{ flex:1; }
-  .cart-item-name{ font-weight:700; font-size:15px; line-height:18px; color:var(--red); }
-  .cart-item-en{ font-weight:400; font-size:10px; line-height:12px; color:var(--muted); margin-top:3px; }
-  .cart-item-price{ font-weight:700; font-size:15px; line-height:18px; color:var(--red); margin-top:10px; }
-  .cart-item-qty{ position:absolute; right:8px; bottom:10px; display:flex; align-items:center; gap:12px; }
-  .cqty-btn{ width:24.22px; height:24.22px; border-radius:50%; border:1.5px solid var(--blue); background:transparent; color:var(--red); font-size:18px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1; flex-shrink:0; }
-  .cqty-btn.plus{ background:var(--blue); border:none; }
-  .cqty-num{ font-weight:500; font-size:15px; line-height:18px; color:var(--red); min-width:10px; text-align:center; }
-  .cart-empty-msg{ padding:30px; text-align:center; font-size:13px; color:var(--muted); }
-
-  /* payment + total on same row */
-  .cart-pay-method{
-    flex-shrink:0; padding:8px 12px 6px;
-    border-top:1px solid #D9D9D9;
-    display:flex; align-items:flex-start; justify-content:space-between;
-  }
-  .cart-pay-left{ flex:1; }
-  .cart-pay-method-title{ font-weight:500; font-size:14px; line-height:17px; color:var(--muted); text-decoration:underline; margin-bottom:8px; }
-  .pay-option{ display:flex; align-items:center; gap:10px; margin-bottom:8px; cursor:pointer; }
-  .pay-radio{ width:6px; height:6px; border-radius:50%; border:1px solid var(--muted); background:transparent; flex-shrink:0; }
-  .pay-radio.selected{ background:var(--yellow); border-color:var(--muted); }
-  .pay-label{ font-weight:400; font-size:12px; line-height:14px; color:var(--muted); }
-  .cart-total-label{ font-weight:700; font-size:20px; line-height:24px; color:var(--muted); padding-top:4px; }
-
-  /* confirm button */
-  .cart-confirm-wrap{ flex-shrink:0; padding:8px 30px 14px; }
-  .cart-confirm{
-    width:100%; height:43.96px; background:var(--blue); border:none; border-radius:62px;
-    font-weight:700; font-size:18px; color:var(--red); cursor:pointer;
-    font-family:"Noto Sans SC",sans-serif; box-shadow:0 4px 4px rgba(0,0,0,.25);
-  }
+  .cart-head2{ position:relative; height:26px; flex-shrink:0; display:flex; align-items:center; justify-content:center; margin-bottom:16px; }
+  .cart-clear{ position:absolute; left:0; font-size:12px; color:#0AC4E8; text-decoration:underline; cursor:pointer; }
+  .cart-title2{ font-weight:500; font-size:16px; color:var(--red); }
+  .cart-close2{ position:absolute; right:0; width:30px; height:30px; cursor:pointer; color:var(--red); }
+  .cart-scroll{ overflow-y:auto; display:flex; flex-direction:column; gap:12px; }
+  .cart-empty-msg{ padding:40px; text-align:center; font-size:13px; color:var(--muted); }
+  .citem{ display:flex; gap:12px; }
+  .citem-img{ width:100px; height:100px; flex-shrink:0; border-radius:16px; background:var(--red); background-size:cover; background-position:center; }
+  .citem-r{ flex:1; min-width:0; min-height:100px; display:flex; flex-direction:column; justify-content:space-between; }
+  .citem-name{ font-weight:500; font-size:14px; color:var(--red); }
+  .citem-spec{ font-weight:400; font-size:10px; line-height:1.35; color:var(--muted); margin-top:7px; white-space:pre-line; }
+  .citem-bot{ display:flex; align-items:center; justify-content:space-between; margin-top:8px; }
+  .citem-price{ font-weight:700; font-size:14px; color:var(--red); }
+  .citem-qty{ display:flex; align-items:center; gap:8px; }
+  .cqbtn{ width:24px; height:24px; flex-shrink:0; border:none; border-radius:50%; background:var(--yellow); color:var(--red); font-size:18px; font-weight:700; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .cqnum{ font-weight:500; font-size:15px; color:var(--red); min-width:18px; text-align:center; }
+  .citem-div{ height:1px; background:#D9D9D9; }
 
   /* success overlays */
   .success-overlay{
@@ -968,11 +877,13 @@
       <div class="item-list" id="itemList"></div>
 </div>
 
-    <div class="cart-fab-wrap" id="cartFabWrap">
-      <button class="cart-fab" id="cartFab" onclick="toggleCart()">
-        <span class="badge" id="cartBadge" style="display:none;">0</span>
-</button>
-      <div class="cart-total-tag" id="cartTotalTag">RM 0.0</div>
+    <div class="cartbtn s-empty" id="cartBtn" onclick="toggleCart()">
+      <span class="cartbtn-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+        <span class="cartbtn-badge" id="cartBadge">0</span>
+      </span>
+      <span class="cartbtn-total" id="cartBtnTotal">RM 0.00</span>
+      <button class="cartbtn-go" id="cartGoBtn" onclick="event.stopPropagation();openCheckout()">去结算</button>
 </div>
   </section>
 
@@ -1215,29 +1126,12 @@
   <!-- ============ cart sheet ============ -->
   <div class="cart-overlay" id="cartOverlay" onclick="toggleCart()"></div>
   <div class="cart-sheet" id="cartSheet">
-    <div class="cart-header">
-      <span class="cart-header-sub">已选商品</span>
-      <span class="cart-header-title">购物车</span>
-      <span class="cart-header-badge" id="cartHeaderBadge">0</span>
-      <button class="cart-header-close" onclick="toggleCart()">
-        <svg viewBox="0 0 16 16"><line x1="2" y1="2" x2="14" y2="14"/><line x1="14" y1="2" x2="2" y2="14"/></svg>
-</button>
+    <div class="cart-head2">
+      <span class="cart-clear" onclick="clearCart()">清空购物车</span>
+      <span class="cart-title2">购物车</span>
+      <svg class="cart-close2" onclick="toggleCart()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
 </div>
     <div class="cart-scroll" id="cartScroll"></div>
-    <div class="cart-pay-method">
-      <div class="cart-pay-method-title">支付方式 Payment Method</div>
-      <div class="cart-total-label" id="cartTotalLabel">RM 0.0</div>
-
-      <div class="pay-radio-tng selected" id="radio-tng" onclick="selectPay('tng')"></div>
-      <div class="pay-label-tng" onclick="selectPay('tng')">Touch n Go</div>
-
-      <div class="pay-radio-counter" id="radio-counter" onclick="selectPay('counter')"></div>
-      <div class="pay-label-counter" onclick="selectPay('counter')">柜台支付 Pay at Counter</div>
-
-      <div class="cart-confirm-btn-wrap">
-        <button class="cart-confirm" onclick="openCheckout()">确认下单</button>
-</div>
-</div>
 </div>
 
   <!-- ============ 确认订单整页（Figma 434:195）============ -->
@@ -2010,7 +1904,18 @@ function changeItemQty(key, delta){
   if(next === 0){ delete cart[key]; }
   else { cart[key].qty = next; }
   renderItems();
-  renderCartPanel();
+  var open = document.getElementById('cartSheet').classList.contains('show');
+  if(open && Object.keys(cart).length){ renderCartSheet(); }   // 面板开着：刷新行
+  else if(open){ toggleCart(); }                                // 清空了：关面板
+  else { updateCartBadge(); }
+}
+
+function clearCart(){
+  cart = {};
+  renderItems();
+  document.getElementById('cartSheet').classList.remove('show');
+  document.getElementById('cartOverlay').classList.remove('show');
+  updateCartBadge();
 }
 
 function toggleCart(){
@@ -2021,10 +1926,12 @@ function toggleCart(){
     sheet.classList.remove('show');
     overlay.classList.remove('show');
   } else {
+    if(!Object.keys(cart).length) return;   // 空车不打开面板
     renderCartSheet();
     sheet.classList.add('show');
     overlay.classList.add('show');
   }
+  updateCartBadge();   // 刷新浮动按钮状态（s-open / s-items）
 }
 
 let selectedPay ='tng';
@@ -2233,41 +2140,40 @@ function renderCartSheet(){
   if(entries.length===0){
     scroll.innerHTML ='<div class="cart-empty-msg">购物车是空的 Cart is empty</div>';
   } else {
-    scroll.innerHTML = entries.map(([key,c])=>`
-      <div class="cart-item">
-        <div class="cart-item-thumb"${c.image?` style="background-image:url('${c.image}');background-size:cover;background-repeat:no-repeat;background-position:center"`:''}></div>
-        <div class="cart-item-info">
-          <div class="cart-item-name">${c.name}</div>
-          <div class="cart-item-en">${c.en} · ${specsDisplay(c)}</div>
-          <div class="cart-item-price">RM ${c.price.toFixed(1)}</div>
-</div>
-        <div class="cart-item-qty">
-          <button class="cqty-btn" onclick="changeItemQty('${key}',-1); renderCartSheet()">−</button>
-          <span class="cqty-num">${c.qty}</span>
-          <button class="cqty-btn plus" onclick="changeItemQty('${key}',1); renderCartSheet()">+</button>
-</div>
-</div>`).join('');
+    scroll.innerHTML = entries.map(function(e){
+      var key=e[0], c=e[1];
+      var spec=[c.en, specsDisplay(c)].filter(Boolean).join('\n');
+      return '<div class="citem">'
+        +'<div class="citem-img"'+(c.image?' style="background-image:url(\''+c.image+'\')"':'')+'></div>'
+        +'<div class="citem-r">'
+          +'<div><div class="citem-name">'+_addrEsc(c.name)+'</div><div class="citem-spec">'+_addrEsc(spec)+'</div></div>'
+          +'<div class="citem-bot"><span class="citem-price">RM '+(c.price*c.qty).toFixed(2)+'</span>'
+            +'<span class="citem-qty">'
+              +'<button class="cqbtn" onclick="changeItemQty(\''+key+'\',-1)">−</button>'
+              +'<span class="cqnum">'+c.qty+'</span>'
+              +'<button class="cqbtn" onclick="changeItemQty(\''+key+'\',1)">+</button>'
+            +'</span></div>'
+        +'</div></div>'
+        +'<div class="citem-div"></div>';
+    }).join('');
   }
   updateCartBadge();
 }
 
 function updateCartBadge(){
-  let count=0, total=0;
-  Object.values(cart).forEach(c=>{ count+=c.qty; total+=c.qty*c.price; });
-  if(currentMode==='delivery' && _deliveryInfo) total += (_deliveryInfo.fee||0);   // 外卖：购物车总额含配送费，与下单金额一致
-  const fab = document.getElementById('cartBadge');
-  const hdr = document.getElementById('cartHeaderBadge');
-  const tag = document.getElementById('cartTotalTag');
-  const lbl = document.getElementById('cartTotalLabel');
-  if(count>0){
-    fab.style.display='flex'; fab.textContent=count;
-    tag.classList.add('show'); tag.textContent='RM '+total.toFixed(1);
-  } else {
-    fab.style.display='none';
-    tag.classList.remove('show');
+  var count=0, total=0;
+  Object.values(cart).forEach(function(c){ count+=c.qty; total+=c.qty*c.price; });
+  if(currentMode==='delivery' && _deliveryInfo) total += (_deliveryInfo.fee||0);   // 外卖：总额含配送费
+  var badge = document.getElementById('cartBadge');
+  var tot = document.getElementById('cartBtnTotal');
+  var btn = document.getElementById('cartBtn');
+  if(badge) badge.textContent = count;
+  if(tot) tot.textContent ='RM '+total.toFixed(2);
+  if(btn){
+    var open = document.getElementById('cartSheet').classList.contains('show');
+    btn.classList.remove('s-empty','s-items','s-open');
+    btn.classList.add(count===0 ?'s-empty' : (open ?'s-open' :'s-items'));
   }
-  if(hdr) hdr.textContent = count;
-  if(lbl) lbl.textContent ='RM '+total.toFixed(1);
 }
 
 function renderCartPanel(){ updateCartBadge(); }
