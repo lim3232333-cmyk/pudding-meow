@@ -576,6 +576,7 @@
   .rc-pay-dot{ width:12px; height:12px; border-radius:50%; border:1.5px solid var(--red); box-sizing:border-box; flex-shrink:0; }
   .rc-pay-dot.selected{ background:var(--yellow); }
   .rc-pay-label{ font-size:12px; color:#000; }
+  .rc-pay-note{ margin:8px 20px 0; font-size:11px; line-height:1.4; color:var(--muted); }
   .rc-cta{ display:block; margin:12px 17px 0; width:360px; height:29px; background:var(--yellow); border:none; border-radius:8px; box-shadow:0 4px 4px rgba(0,0,0,.25); color:var(--red); font-size:16px; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
   .rc-tx-title{ margin:36px 0 8px 31px; font-weight:500; font-size:16px; color:var(--red); }
   .rc-tx-card{ margin:0 17px; width:360px; box-sizing:border-box; background:#fff; border-radius:12px; padding:0 13.5px; }
@@ -1060,9 +1061,9 @@
     <div class="rc-body">
       <div class="rc-pkg-grid" id="rcPkgGrid"></div>
       <div class="rc-pay-methods">
-        <div class="rc-pay-row" onclick="selectRcPay('tng')"><span class="rc-pay-dot" id="rcPayDotTng"></span><span class="rc-pay-label">Touch n Go</span></div>
-        <div class="rc-pay-row" onclick="selectRcPay('counter')"><span class="rc-pay-dot" id="rcPayDotCounter"></span><span class="rc-pay-label">柜台支付 (Cash/Duitnow)</span></div>
+        <div class="rc-pay-row" onclick="selectRcPay('counter')"><span class="rc-pay-dot selected" id="rcPayDotCounter"></span><span class="rc-pay-label">柜台支付 (Cash/DuitNow)</span></div>
 </div>
+      <div class="rc-pay-note">充值只在柜台付款：提交后请到柜台以现金 / DuitNow 支付，店员确认收款后余额到账。</div>
       <button class="rc-cta" onclick="doRecharge()">充值</button>
       <div class="rc-tx-title">交易明细</div>
       <div class="rc-tx-card" id="rcTxList"></div>
@@ -1189,6 +1190,12 @@
           <div class="ck-pay-row" id="ckPayHitpay" onclick="selectPay('hitpay')" style="display:none">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/></svg>
             <span>在线支付 Online Payment</span>
+            <svg class="ck-pay-check" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </div>
+          <div class="ck-pay-hr" id="ckPayWalletHr" style="display:none"></div>
+          <div class="ck-pay-row" id="ckPayWallet" onclick="selectPay('wallet')" style="display:none">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
+            <span>余额支付 Meow Wallet<span id="ckWalletBal" style="color:#4A4848;font-weight:400"></span></span>
             <svg class="ck-pay-check" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
           </div>
         </div>
@@ -1945,6 +1952,8 @@ function openCheckout(){
   document.getElementById('cartSheet').classList.remove('show');
   renderCheckout();
   document.getElementById('ckScreen').classList.add('show');
+  // 会员：拉最新余额，刷新「余额支付」行显示的可用余额
+  if(_memberId && _memberToken) refreshMemberProfile().then(function(){ try{ _ckSyncPayRows(); }catch(e){} });
 }
 function closeCheckout(){
   document.getElementById('ckScreen').classList.remove('show');
@@ -1993,31 +2002,32 @@ function _ckSyncPayRows(){
   var c=document.getElementById('ckPayCounter');
   var cHr=document.getElementById('ckPayCounterHr');
   var hp=document.getElementById('ckPayHitpay');
-
+  var w=document.getElementById('ckPayWallet');
+  var wHr=document.getElementById('ckPayWalletHr');
+  var wbal=document.getElementById('ckWalletBal');
   if(!t||!c||!hp) return;
 
-  // 堂食：只显示柜台支付
-  if(isDinein){
-    t.style.display='none';
-    tHr.style.display='none';
-    c.style.display='block';
-    cHr.style.display='none';
-    hp.style.display='none';
-    if(selectedPay!=='counter') selectedPay='counter';
-  }
-  // 外卖/自取：只显示在线支付（HitPay）
-  else if(isDeliveryOrPickup){
-    t.style.display='none';
-    tHr.style.display='none';
-    c.style.display='none';
-    cHr.style.display='none';
-    hp.style.display='block';
-    if(selectedPay!=='hitpay') selectedPay='hitpay';
+  var isMember = !!_memberId;
+  var bal = (isMember && _memberProfile) ? (Number(_memberProfile.wallet_balance)||0) : 0;
+
+  // 模式默认付款方式：堂食=柜台，外卖/自取=在线支付；会员额外可选「余额支付」
+  var modeDefault = isDinein ? 'counter' : 'hitpay';
+  var valid = [modeDefault]; if(isMember) valid.push('wallet');
+  if(valid.indexOf(selectedPay)<0) selectedPay = modeDefault;   // 当前选择对本模式无效时回落默认
+
+  t.style.display='none'; tHr.style.display='none';
+  c.style.display = isDinein?'block':'none'; cHr.style.display='none';
+  hp.style.display = isDeliveryOrPickup?'block':'none';
+  if(w){
+    w.style.display = isMember?'flex':'none';
+    wHr.style.display = isMember?'block':'none';
+    if(wbal) wbal.textContent = isMember ? ('（RM'+bal.toFixed(2)+'）') : '';
   }
 
   t.classList.toggle('sel', selectedPay==='tng');
   c.classList.toggle('sel', selectedPay==='counter');
   hp.classList.toggle('sel', selectedPay==='hitpay');
+  if(w) w.classList.toggle('sel', selectedPay==='wallet');
 }
 function ckPayNow(){
   document.getElementById('ckScreen').classList.remove('show');
@@ -2046,6 +2056,13 @@ function confirmOrder(){
   var deliveryFee = (currentMode==='delivery' && _deliveryInfo) ? (_deliveryInfo.fee||0) : 0;
   total += deliveryFee;
 
+  // 余额支付：先做客户端预检（余额够不够、有没有登录联网），不够就直接拦下，不建单
+  if(selectedPay==='wallet'){
+    if(!db || !_memberId || !_memberToken){ alert('余额支付需要登录会员并联网'); return; }
+    var _wbal = (_memberProfile && Number(_memberProfile.wallet_balance)) || 0;
+    if(_wbal < total){ alert('余额不足：当前余额 RM'+_wbal.toFixed(2)+'，本单需 RM'+total.toFixed(2)+'。\n请先到「充值」补充余额，或改用其他付款方式。'); return; }
+  }
+
   var modeLabel = {dinein:'堂食', pickup:'自取', delivery:'外卖'}[currentMode] ||'自取';
   var order = {
     id:'o'+Date.now(),
@@ -2054,7 +2071,7 @@ function confirmOrder(){
     items: items,
     total: total,
     payMethod: selectedPay,
-    status: selectedPay==='tng' ?'preparing' :'pending',
+    status: (selectedPay==='tng'||selectedPay==='wallet') ?'preparing' :'pending',   // 余额支付=预付，直接进制作
     needs_print: true,
     source:'app',
     // 堂食带上座号+人数（_dineInfo），POS/制作单据此显示桌号；外卖带上收货地址，方便店员安排配送
@@ -2087,6 +2104,7 @@ function confirmOrder(){
 
   var isTng = selectedPay==='tng';
   var isHitpay = selectedPay==='hitpay';
+  var isWallet = selectedPay==='wallet';
   // TNG：先同步打开支付页，保住用户手势（异步后 window.open 会被拦截）
   if(isTng){ window.open('https://payment.tngdigital.com.my/sc/bDLn6uNZxm','_blank'); }
 
@@ -2111,6 +2129,24 @@ function confirmOrder(){
         if(data && data.ok && data.url){ _pmGotoPay(data.url); }
         else { alert('在线支付创建失败：'+((data&&data.error)||'请稍后重试，或联系店员改用其他付款方式')); }
       }).catch(function(e){ console.error('hitpay-checkout', e); alert('在线支付创建失败，请稍后重试'); });
+    } else if(isWallet){
+      // 余额支付：服务端从会员钱包扣款（原子、校验余额、幂等）
+      db.rpc('rpc_pay_with_wallet', {p_member_id:_memberId, p_session_token:_memberToken, p_order_id:order.id, p_amount:order.total}).then(function(r){
+        if(r && r.error){
+          console.error('rpc_pay_with_wallet', r.error);
+          // 扣款失败（余额不足/竞态）：撤掉这单（本地移除 + 云端标 void）
+          _orders = _orders.filter(function(x){ return x.id!==order.id; });
+          try{ var ex2=JSON.parse(localStorage.getItem('pm_orders')||'[]').filter(function(x){return x.id!==order.id;}); localStorage.setItem('pm_orders',JSON.stringify(ex2)); }catch(e){}
+          try{ if(db) db.from('orders').update({status:'void'}).eq('id',order.id); }catch(e){}
+          try{ pmBroadcastOrders(); }catch(e){}
+          alert('余额支付失败：'+(r.error.message||'请重试或改用其他付款方式'));
+          return;
+        }
+        // 扣款成功：预付订单，直接结算消费 XP/Coin + 刷新余额，弹成功
+        document.getElementById('successTng').classList.add('show');
+        if(_memberId) db.rpc('rpc_on_order_completed', {p_member_id:_memberId, p_order_id:order.id, p_amount:order.total}).catch(function(e){ console.error('rpc_on_order_completed', e); });
+        refreshMemberProfile();
+      }).catch(function(e){ console.error('rpc_pay_with_wallet', e); alert('余额支付失败，请重试'); });
     } else if(isTng){
       setTimeout(function(){ document.getElementById('successTng').classList.add('show'); }, 300);
       // TNG 是预付款，下单即视为已付款，直接结算消费 XP/Coin
@@ -2406,7 +2442,7 @@ function renderOrdersList(){
   var list = document.getElementById('ordersList');
   if(!list) return;
 
-  var src = _orders.slice();
+  var src = _orders.slice().filter(function(o){ return o.taMode!=='recharge'; });   // 充值单不进订单历史（在充值页看明细）
   var filtered;
   if(_orderFilter ==='all') filtered = src;
   else if(_orderFilter ==='pending') filtered = src.filter(function(o){ return o.status==='pending'; });
@@ -2752,15 +2788,11 @@ var RECHARGE_PACKAGES = [
 ];
 var _rcSelected = 0;
 var _rcAlreadyRecharged = false; // 已经充值过一次了：首充双倍徽章就不该再显示
-var _rcPayMethod ='tng';
+var _rcPayMethod ='counter';   // 充值只开放柜台支付
 function renderRcPayMethods(){
-  document.getElementById('rcPayDotTng').classList.toggle('selected', _rcPayMethod==='tng');
-  document.getElementById('rcPayDotCounter').classList.toggle('selected', _rcPayMethod==='counter');
+  var c=document.getElementById('rcPayDotCounter'); if(c) c.classList.add('selected');
 }
-function selectRcPay(method){
-  _rcPayMethod = method;
-  renderRcPayMethods();
-}
+function selectRcPay(method){ _rcPayMethod='counter'; renderRcPayMethods(); }
 function _rcPkgHtml(p, idx){
   var cls ='rc-pkg'+(p.special?' rc-pkg-special':'')+(idx===_rcSelected?' selected':'');
   var badge = (p.special && !_rcAlreadyRecharged) ?'<div class="rc-pkg-badge">首充双倍</div>' :'';
@@ -2778,11 +2810,13 @@ function selectRecharge(idx){
 function openRecharge(){
   if(!_memberId || !_memberToken){ alert('请先登录会员'); return; }
   _rcSelected = 0;
-  _rcPayMethod ='tng';
+  _rcPayMethod ='counter';
   renderRechargePackages();
   renderRcPayMethods();
-  document.getElementById('rcBalance').textContent = (_memberProfile ? (_memberProfile.wallet_balance||0) : 0).toFixed(2);
+  var _setBal=function(){ document.getElementById('rcBalance').textContent = (_memberProfile ? (_memberProfile.wallet_balance||0) : 0).toFixed(2); };
+  _setBal();
   document.getElementById('rcScreen').classList.add('show');
+  refreshMemberProfile().then(_setBal);   // 拉最新余额（POS 充值到账后能看到）
   loadWalletLedger().then(renderRechargePackages);
 }
 function closeRecharge(){
@@ -2805,13 +2839,34 @@ function closeRecharge(){
   }, {passive:true});
 })();
 function doRecharge(){
+  if(!_memberId || !_memberToken){ alert('请先登录会员'); return; }
   var p = RECHARGE_PACKAGES[_rcSelected];
-  if(_rcPayMethod==='counter'){
-    alert('请到柜台以现金或 DuitNow 支付 RM'+p.price+'，工作人员确认收款后会为您的 Meow Wallet 充值 '+p.credit+' 元。');
-    return;
-  }
-  window.open('https://payment.tngdigital.com.my/sc/bDLn6uNZxm','_blank');
-  alert('请通过 TNG 完成 RM'+p.price+' 付款，工作人员确认收款后会为您的 Meow Wallet 充值 '+p.credit+' 元，请留意店内通知。');
+  // 充值 = 一条 orders 行（ta_mode=recharge），进 POS 待付款；店员柜台收款后
+  // 点「已付款」→ rpc_complete_recharge 给钱包加钱(=price) + 送 coin(=credit)
+  var order = {
+    id:'o'+Date.now(),
+    orderNum:'',
+    createdAt:new Date().toISOString(),
+    items:[{name:'钱包充值', en:'Wallet Top-up', price:p.price, qty:1, specs:[], image:''}],
+    total:p.price,
+    payMethod:'counter',
+    status:'pending',
+    needs_print:true,
+    source:'app',
+    tableName:'💰充值·'+((_memberProfile&&_memberProfile.nickname)||'会员'),
+    taMode:'recharge',
+    memberId:_memberId,
+    deviceId:_deviceId,
+    deliveryInfo:{ recharge:{ price:p.price, coins:p.credit } }
+  };
+  assignOrderNumsApp(order).then(function(){
+    _orders.unshift(order);
+    try{ var ex=JSON.parse(localStorage.getItem('pm_orders')||'[]'); ex.unshift(order); localStorage.setItem('pm_orders',JSON.stringify(ex)); }catch(e){}
+    try{ pmBroadcastOrders(); }catch(e){}
+    if(db){ db.from('orders').insert(orderToRow(order)).then(function(res){ if(res && res.error){ console.error('recharge insert', res.error); setCloudStatus('offline'); } else { setCloudStatus('online'); } }).catch(function(e){ console.error('recharge insert', e); setCloudStatus('offline'); }); }
+    alert('充值申请已提交！\n请到柜台以现金 / DuitNow 支付 RM'+p.price.toFixed(2)+'。\n店员确认收款后，您的 Meow Wallet 到账 RM'+p.price.toFixed(2)+'，并获得 '+p.credit+' Meow Coin。');
+    closeRecharge();
+  });
 }
 function loadWalletLedger(){
   var box = document.getElementById('rcTxList');
