@@ -45,7 +45,6 @@
     display:flex;
     justify-content:center;
     height:100%;
-    padding-bottom:env(safe-area-inset-bottom);
   }
   .phone{
     width:390px;
@@ -145,7 +144,7 @@
 
   /* =================== bottom nav (always fixed, all screens) =================== */
   .bottom-nav{
-    position:fixed; bottom:max(34px, calc(env(safe-area-inset-bottom, 0px) + 17px)); left:50%; transform:translateX(-50%);
+    position:fixed; bottom:max(16px, env(safe-area-inset-bottom, 0px)); left:50%; transform:translateX(-50%);
     width:342px; max-width:calc(100vw - 24px); height:50px;
     background:var(--red); border-radius:62px; display:flex; align-items:center;
     z-index:50; box-shadow:0 6px 16px rgba(0,0,0,.2);
@@ -199,7 +198,7 @@
   /* 一个 #cartBtn 右下浮动，按状态变宽（右锚，宽度往左长 = "往左划出"）：
      空=只有图标；加购=胶囊显示总额；面板打开=大条 + 去结算 */
   .cartbtn{
-    position:fixed; right:16px; bottom:calc(96px + env(safe-area-inset-bottom, 0px)); z-index:201;
+    position:fixed; right:16px; bottom:calc(max(16px, env(safe-area-inset-bottom, 0px)) + 62px); z-index:201;
     display:flex; align-items:center; gap:12px; box-sizing:border-box;
     height:53px; padding:0 8px 0 0; white-space:nowrap; overflow:visible;
     background:var(--yellow); border-radius:999px; cursor:pointer;
@@ -209,7 +208,7 @@
   .cartbtn.s-empty{ width:44px; padding:0; background:transparent; box-shadow:none; justify-content:center; }
   .cartbtn.s-items{ width:150px; }
   /* 面板打开：大条落到面板底部当"底栏"，离屏幕底 34px（避开 Home 指示条），商品在它上面滚 */
-  .cartbtn.s-open{ width:361px; bottom:max(34px, calc(env(safe-area-inset-bottom, 0px) + 17px)); }
+  .cartbtn.s-open{ width:361px; bottom:max(16px, env(safe-area-inset-bottom, 0px)); }
   .cartbtn.hidden{ display:none; }   /* 开产品详情弹窗时隐藏 */
   .cartbtn-ico{ position:relative; width:50px; height:53px; flex-shrink:0; display:flex; align-items:center; justify-content:flex-start; }
   .cartbtn.s-empty .cartbtn-ico{ width:52px; justify-content:center; }
@@ -760,7 +759,7 @@
   .ck-price-row{ display:flex; justify-content:space-between; align-items:center; font-size:14px; color:#4A4848; }
   .ck-price-row .neg{ color:var(--red); }
   .ck-price-row.total .val{ font-weight:700; }
-  .ck-paybtn{ position:fixed; left:50%; transform:translateX(-50%); bottom:max(34px, calc(env(safe-area-inset-bottom, 0px) + 17px)); z-index:5; width:361px; max-width:calc(100% - 30px); height:45px; border:none; border-radius:12px; background:var(--red); color:#FFF; font-size:14px; font-weight:700; font-family:"Noto Sans SC",sans-serif; cursor:pointer; flex-shrink:0; box-shadow:0 4px 12px rgba(0,0,0,.2); }
+  .ck-paybtn{ position:fixed; left:50%; transform:translateX(-50%); bottom:max(16px, env(safe-area-inset-bottom, 0px)); z-index:5; width:361px; max-width:calc(100% - 30px); height:45px; border:none; border-radius:12px; background:var(--red); color:#FFF; font-size:14px; font-weight:700; font-family:"Noto Sans SC",sans-serif; cursor:pointer; flex-shrink:0; box-shadow:0 4px 12px rgba(0,0,0,.2); }
 
   /* ===== 新收货地址整页（点＋新收货地址 → 会员存进地址簿/游客一次性）===== */
   .addr-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:359; display:none; }
