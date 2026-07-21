@@ -716,7 +716,7 @@
   .dv-err.show{ display:block; }
 
   /* ===== 确认订单整页（Figma 434:195，购物车点「确认下单」后进入，页内「立即支付」才真正下单）===== */
-  .ck-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:#FFFFD5; z-index:345; display:none; flex-direction:column; gap:24px; align-items:center; padding:14px 0 34px; box-sizing:border-box; overflow-y:auto; font-family:"Noto Sans SC",sans-serif; }
+  .ck-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:#FFFFD5; z-index:345; display:none; flex-direction:column; gap:24px; align-items:center; padding:14px 0 95px; box-sizing:border-box; overflow-y:auto; font-family:"Noto Sans SC",sans-serif; }
   .ck-screen.show{ display:flex; }
   .ck-head{ position:relative; width:359px; height:24px; flex-shrink:0; }
   .ck-back{ position:absolute; left:0; top:0; width:24px; height:24px; cursor:pointer; }
@@ -757,7 +757,7 @@
   .ck-price-row{ display:flex; justify-content:space-between; align-items:center; font-size:14px; color:#4A4848; }
   .ck-price-row .neg{ color:var(--red); }
   .ck-price-row.total .val{ font-weight:700; }
-  .ck-paybtn{ width:361px; max-width:calc(100% - 30px); height:45px; border:none; border-radius:12px; background:var(--red); color:#FFF; font-size:14px; font-weight:700; font-family:"Noto Sans SC",sans-serif; cursor:pointer; flex-shrink:0; }
+  .ck-paybtn{ position:fixed; left:50%; transform:translateX(-50%); bottom:34px; z-index:5; width:361px; max-width:calc(100% - 30px); height:45px; border:none; border-radius:12px; background:var(--red); color:#FFF; font-size:14px; font-weight:700; font-family:"Noto Sans SC",sans-serif; cursor:pointer; flex-shrink:0; box-shadow:0 4px 12px rgba(0,0,0,.2); }
 
   /* ===== 新收货地址整页（点＋新收货地址 → 会员存进地址簿/游客一次性）===== */
   .addr-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:359; display:none; }
