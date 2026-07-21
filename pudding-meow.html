@@ -203,11 +203,13 @@
     height:53px; padding:0 8px 0 0; white-space:nowrap; overflow:hidden;
     background:var(--yellow); border-radius:999px; cursor:pointer;
     box-shadow:0 4px 2px rgba(0,0,0,.25);
-    transition:width .28s cubic-bezier(.4,0,.2,1);
+    transition:width .28s cubic-bezier(.4,0,.2,1), bottom .28s cubic-bezier(.4,0,.2,1);
   }
   .cartbtn.s-empty{ width:44px; padding:0; background:transparent; box-shadow:none; justify-content:center; }
   .cartbtn.s-items{ width:150px; }
-  .cartbtn.s-open{ width:359px; }
+  /* 面板打开：大条落到面板最底部当"底栏"，商品列表在它上面滚（面板留了 84px 底部空间） */
+  .cartbtn.s-open{ width:361px; bottom:16px; }
+  .cartbtn.hidden{ display:none; }   /* 开产品详情弹窗时隐藏 */
   .cartbtn-ico{ position:relative; width:40px; height:53px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
   .cartbtn.s-empty .cartbtn-ico{ width:44px; }
   .cartbtn-ico-img{ height:48px; width:auto; display:block; }
@@ -2219,11 +2221,13 @@ function openSheet(cat, idx){
   document.getElementById('productSheet').classList.add('show');
   document.getElementById('sheetOverlay').classList.add('show');
   document.querySelector('.sheet-scroll').scrollTop = 0;
+  var cb=document.getElementById('cartBtn'); if(cb) cb.classList.add('hidden');   // 开产品弹窗时不显示购物车按钮
 }
 
 function closeSheet(){
   document.getElementById('productSheet').classList.remove('show');
   document.getElementById('sheetOverlay').classList.remove('show');
+  var cb=document.getElementById('cartBtn'); if(cb) cb.classList.remove('hidden');
 }
 
 function selectSpecOption(gi, oi){
