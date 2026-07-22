@@ -21,11 +21,6 @@
   window.addEventListener('load', fit);
   window.addEventListener('resize', fit);
   window.addEventListener('orientationchange', fit);
-  /* 独立窗口(PWA/已安装到桌面)时给 <html> 加 .pwa：胶囊底部改回固定 20px，不跟随 safe-area。
-     iOS 用 navigator.standalone，其它平台用 display-mode:standalone 媒体查询 */
-  var isPWA = (window.navigator.standalone===true) ||
-              (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
-  if(isPWA) document.documentElement.classList.add('pwa');
 })();
 </script>
 <title>布丁喵 Pudding Meow</title>
@@ -152,11 +147,9 @@
   .hc-nav-item.active{ color:var(--yellow); font-weight:700; }
 
   /* =================== bottom nav (always fixed, all screens) =================== */
-  /* 悬浮胶囊：高 64px、圆角 32px、左右留白 16px。
-     Safari(浏览器)用 bottom:env(safe-area-inset-bottom) 浮在底栏/Home 指示条之上；
-     PWA(独立窗口)由下方 html.pwa 覆盖为固定 20px（保持不动） */
+  /* 悬浮胶囊：高 64px、圆角 32px、左右留白 16px、离屏底固定 20px（浏览器/PWA 一致，不贴 Safari 底栏采样区） */
   .bottom-nav{
-    position:fixed; bottom:env(safe-area-inset-bottom, 0px); left:50%; transform:translateX(-50%);
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
     width:calc(100% - 32px); max-width:358px; height:64px;
     background:var(--red); border-radius:32px; display:flex; align-items:center;
     z-index:50; box-shadow:0 6px 16px rgba(0,0,0,.2);
@@ -164,9 +157,6 @@
   .nav-item{ flex:1; text-align:center; cursor:pointer; font-weight:500; font-size:14px; line-height:17px; color:var(--cream2); transition:color .15s; }
   .nav-item.active{ color:var(--yellow); font-weight:700; }
   .screen{ padding-bottom:100px; }   /* 让内容避开悬浮胶囊标签栏 */
-  /* PWA：固定 20px，不跟随 safe-area（保持原样） */
-  html.pwa .bottom-nav, html.pwa .cartbtn.s-open, html.pwa .ck-paybtn{ bottom:20px; }
-  html.pwa .cartbtn{ bottom:96px; }
 
   /* =================== MENU / ORDER PAGE =================== */
   /* 菜单页随文档滚动：header/分类栏用 sticky 吸顶/吸边，商品列在文档里正常流动 */
@@ -213,7 +203,7 @@
   /* 一个 #cartBtn 右下浮动，按状态变宽（右锚，宽度往左长 = "往左划出"）：
      空=只有图标；加购=胶囊显示总额；面板打开=大条 + 去结算 */
   .cartbtn{
-    position:fixed; right:16px; bottom:calc(env(safe-area-inset-bottom, 0px) + 76px); z-index:201;
+    position:fixed; right:16px; bottom:96px; z-index:201;
     display:flex; align-items:center; gap:12px; box-sizing:border-box;
     height:53px; padding:0 8px 0 0; white-space:nowrap; overflow:visible;
     background:var(--yellow); border-radius:999px; cursor:pointer;
@@ -223,7 +213,7 @@
   .cartbtn.s-empty{ width:44px; padding:0; background:transparent; box-shadow:none; justify-content:center; }
   .cartbtn.s-items{ width:150px; }
   /* 面板打开：大条落到面板底部当"底栏"，离屏幕底 34px（避开 Home 指示条），商品在它上面滚 */
-  .cartbtn.s-open{ width:361px; bottom:env(safe-area-inset-bottom, 0px); }
+  .cartbtn.s-open{ width:361px; bottom:20px; }
   .cartbtn.hidden{ display:none; }   /* 开产品详情弹窗时隐藏 */
   .cartbtn-ico{ position:relative; width:50px; height:53px; flex-shrink:0; display:flex; align-items:center; justify-content:flex-start; }
   .cartbtn.s-empty .cartbtn-ico{ width:52px; justify-content:center; }
@@ -774,7 +764,7 @@
   .ck-price-row{ display:flex; justify-content:space-between; align-items:center; font-size:14px; color:#4A4848; }
   .ck-price-row .neg{ color:var(--red); }
   .ck-price-row.total .val{ font-weight:700; }
-  .ck-paybtn{ position:fixed; left:50%; transform:translateX(-50%); bottom:env(safe-area-inset-bottom, 0px); z-index:5; width:361px; max-width:calc(100% - 30px); height:45px; border:none; border-radius:12px; background:var(--red); color:#FFF; font-size:14px; font-weight:700; font-family:"Noto Sans SC",sans-serif; cursor:pointer; flex-shrink:0; box-shadow:0 4px 12px rgba(0,0,0,.2); }
+  .ck-paybtn{ position:fixed; left:50%; transform:translateX(-50%); bottom:20px; z-index:5; width:361px; max-width:calc(100% - 30px); height:45px; border:none; border-radius:12px; background:var(--red); color:#FFF; font-size:14px; font-weight:700; font-family:"Noto Sans SC",sans-serif; cursor:pointer; flex-shrink:0; box-shadow:0 4px 12px rgba(0,0,0,.2); }
 
   /* ===== 新收货地址整页（点＋新收货地址 → 会员存进地址簿/游客一次性）===== */
   .addr-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:359; display:none; }
