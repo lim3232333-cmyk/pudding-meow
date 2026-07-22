@@ -37,27 +37,29 @@
     --shadow: 0 6px 18px rgba(141,5,5,.14);
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
-  html,body{margin:0;padding:0;height:100%;overflow:hidden;}   /* 锁死整页滚动，滚动交给各屏内部 */
+  /* 文档级滚动：整页跟随浏览器滚动，往上滑时手机地址栏自动收起、固定胶囊随视口下移 */
+  html,body{margin:0;padding:0;}
   body{
     background:var(--cream);
     font-family:"Noto Sans SC", sans-serif;
     color:var(--red);
     display:flex;
     justify-content:center;
-    height:100%;
+    min-height:100vh;
+    min-height:100dvh;
   }
   .phone{
     width:390px;
     max-width:100vw;
-    height:100%;
+    min-height:100vh;
+    min-height:100dvh;
     background:var(--cream);
     position:relative;
-    overflow:hidden;
     box-shadow:0 0 40px rgba(0,0,0,.25);
     display:flex;
     flex-direction:column;
   }
-  .screen{ display:none; flex:1; flex-direction:column; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .screen{ display:none; flex-direction:column; }
   .screen.active{ display:flex; animation: fadeIn .08s ease; }
   @keyframes fadeIn{ from{opacity:0;} to{opacity:1;} }
 
@@ -155,9 +157,9 @@
   .screen{ padding-bottom:100px; }   /* 让内容避开悬浮胶囊标签栏(底20+高64) */
 
   /* =================== MENU / ORDER PAGE =================== */
-  /* 菜单页本身不滚动（overflow:hidden），header/分类栏固定，只有商品列内部滚动 */
-  #screen-menu{ background:var(--cream2); overflow:hidden; }
-  .menu-header{ position:relative; height:92px; background:var(--cream2); border-bottom:4px solid var(--red); flex-shrink:0; }
+  /* 菜单页随文档滚动：header/分类栏用 sticky 吸顶/吸边，商品列在文档里正常流动 */
+  #screen-menu{ background:var(--cream2); }
+  .menu-header{ position:sticky; top:0; z-index:20; height:92px; background:var(--cream2); border-bottom:4px solid var(--red); flex-shrink:0; }
   .menu-logo-mark{ position:absolute; left:0; top:0; width:65px; height:92px; object-fit:contain; }
   .menu-brand-cn{ position:absolute; left:86px; top:32px; font-weight:700; font-size:14px; color:var(--red); }
   .menu-brand-en{ position:absolute; left:65px; top:46px; font-family:'Pattaya',cursive; font-weight:400; font-size:14px; color:var(--red); }
@@ -173,8 +175,8 @@
   .menu-seg button.active .cn, .menu-seg button.active .en{ color:var(--red); }
   .menu-seg button:not(.active) .cn, .menu-seg button:not(.active) .en{ color:var(--cream2); }
 
-  .menu-body{ flex:1; display:flex; overflow:hidden; min-height:0; }
-  .cat-list{ width:114px; flex-shrink:0; display:flex; flex-direction:column; overflow-y:auto; }
+  .menu-body{ display:flex; align-items:flex-start; }
+  .cat-list{ width:114px; flex-shrink:0; display:flex; flex-direction:column; position:sticky; top:92px; align-self:flex-start; max-height:calc(100dvh - 92px); overflow-y:auto; }
   .cat-item{
     height:77px; flex-shrink:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
     gap:2px; cursor:pointer; background:var(--yellow); border-bottom:1.5px solid #F5D55A; color:var(--red);
@@ -183,7 +185,7 @@
   .cat-item .cn{ font-weight:700; font-size:14px; line-height:17px; }
   .cat-item .en{ font-weight:500; font-size:10px; line-height:12px; }
 
-  .item-list{ flex:1; min-height:0; padding:14px 12px 90px; display:flex; flex-direction:column; gap:14px; overflow-y:auto; overscroll-behavior:contain; }
+  .item-list{ flex:1; min-width:0; padding:14px 12px 90px; display:flex; flex-direction:column; gap:14px; }
   .item-row{ display:flex; gap:14px; cursor:pointer; position:relative; min-height:100px; }
   .item-thumb{ width:100px; height:100px; flex-shrink:0; background:var(--red); border-radius:16px; }
   .item-info{ flex:1; padding-top:4px; position:relative; }
