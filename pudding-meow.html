@@ -514,7 +514,9 @@
   /* ---- 积分商城 / 幸运抽奖 图标格 ---- */
   .mem-icon-grid{ display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,70px); column-gap:36px; row-gap:8px; margin-top:12px; }
   .mem-icon-item{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; cursor:pointer; }
-  .mem-icon-circle{ width:40px; height:40px; border-radius:50%; background:var(--yellow); display:flex; align-items:center; justify-content:center; font-size:18px; }
+  .mem-icon-circle{ width:44px; height:44px; border-radius:50%; background:var(--yellow); display:flex; align-items:center; justify-content:center; font-size:18px; }
+  .mem-icon-circle svg{ width:24px; height:24px; display:block; }
+  .mem-icon-circle img{ width:34px; height:34px; object-fit:contain; display:block; }
   .mem-icon-item span{ font-size:12px; color:var(--red); text-align:center; }
 
   /* ---- 会员专属礼 横幅 ---- */
@@ -1017,13 +1019,21 @@
 </div>
 </div>
 
+        <!-- 会员功能九宫格（Figma 229:177）：充值/幸运抽奖/积分商城/会员明细/收货地址/切换语言。
+             图标为品牌色内联 SVG 占位，等 Figma 图标 SVG 上传后可直接把 svg 换成 <img src="xxx.svg"> -->
         <div class="mem-icon-grid">
-          <div class="mem-icon-item" style="grid-column:1;grid-row:1" onclick="openRecharge()"><div class="mem-icon-circle"></div><span>充值</span></div>
-          <div class="mem-icon-item" style="grid-column:2;grid-row:1" onclick="openLuckyDraw()"><div class="mem-icon-circle"></div><span>幸运抽奖</span></div>
-          <div class="mem-icon-item" style="grid-column:3;grid-row:1" onclick="openPointsMall()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
-          <div class="mem-icon-item" style="grid-column:1;grid-row:2" onclick="openPointsMall()"><div class="mem-icon-circle"></div><span>积分商城</span></div>
-          <div class="mem-icon-item" style="grid-column:2;grid-row:2" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>预约</span></div>
-          <div class="mem-icon-item" style="grid-column:3;grid-row:2" onclick="memComingSoon()"><div class="mem-icon-circle"></div><span>设置</span></div>
+          <div class="mem-icon-item" onclick="openRecharge()">
+            <div class="mem-icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></div><span>充值</span></div>
+          <div class="mem-icon-item" onclick="openLuckyDraw()">
+            <div class="mem-icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/></svg></div><span>幸运抽奖</span></div>
+          <div class="mem-icon-item" onclick="openPointsMall()">
+            <div class="mem-icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7 4 3h16l2 4"/><path d="M4 7v13a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V7"/><path d="M2 7h20"/><path d="M9 21v-6h6v6"/></svg></div><span>积分商城</span></div>
+          <div class="mem-icon-item" onclick="openRecharge()">
+            <div class="mem-icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5 6 17h12l3.5-9.5-5 3.5L12 4 7.5 11z"/><path d="M6 20h12"/></svg></div><span>会员明细</span></div>
+          <div class="mem-icon-item" onclick="openDelivery()">
+            <div class="mem-icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg></div><span>收货地址</span></div>
+          <div class="mem-icon-item" onclick="memComingSoon()">
+            <div class="mem-icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg></div><span>切换语言</span></div>
 </div>
 
         <div class="mem-promo-banner">
