@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>会员卡等级预览 · Member Card Levels</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Pattaya&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FFFDD6; --bg:rgba(255,255,213,0.835294); --blue:#B6F3FF;
+    --red:#8D0505; --yellow:#FFDE5B; --cream2:#FFFFD5; --muted:#4A4848;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:#EDE9D6; font-family:"Noto Sans SC",sans-serif; color:var(--red); padding:24px 0 60px; }
+  h1{ text-align:center; font-size:20px; margin:0 0 6px; }
+  .sub{ text-align:center; font-size:12px; color:var(--muted); margin:0 0 24px; }
+  .pv-list{ display:flex; flex-direction:column; align-items:center; gap:28px; }
+  .pv-item{ width:390px; max-width:100vw; }
+  .pv-label{ font-size:13px; font-weight:700; color:var(--red); margin:0 0 6px 16px; }
+
+  /* ===== 以下会员卡样式与 pudding-meow.html 保持一致（Figma 660:859）===== */
+  .mem-home{ overflow:hidden; border-radius:0 0 16px 16px; }
+  .mem-hero{ position:relative; height:246px; background:var(--red); overflow:visible; }
+  .mem-hero-word{ position:absolute; left:0; right:0; top:84px; height:50px; line-height:50px; text-align:center; font-family:'Pattaya',cursive; font-weight:400; font-size:36px; color:var(--cream2); }
+  .mem-home-body{ position:relative; z-index:2; margin-top:-106px; padding:0 16px 20px; }
+  .mem-card2{ background:var(--yellow); border-radius:16px; padding:12px; }
+  .mem-card2-inner{ position:relative; background:var(--cream2); border-radius:16px; height:113px; box-sizing:border-box; }
+  .mem-name{ position:absolute; left:109px; top:11px; font-weight:500; font-size:16px; color:var(--red); }
+  .mem-level-pill{ position:absolute; left:107px; top:34px; height:18px; box-sizing:border-box; display:inline-flex; align-items:center; gap:10px; padding:0 10px; border-radius:999px; background:var(--yellow); color:var(--red); font-size:12px; }
+  .mem-xp-label{ position:absolute; left:109px; top:66px; font-size:12px; color:var(--red); }
+  .mem-xp-count{ position:absolute; left:276px; top:70px; font-size:8px; color:var(--red); }
+  .mem-xpbar{ position:absolute; left:109px; top:84px; width:212px; height:10px; border-radius:999px; background:#F5E9D4; overflow:hidden; }
+  .mem-xpbar i{ display:block; height:100%; background:var(--red); border-radius:999px; }
+  .mem-xp-next{ position:absolute; left:109px; top:98px; width:129px; font-size:8px; color:var(--red); opacity:.85; text-align:center; }
+  .mem-stats-row{ display:flex; align-items:center; justify-content:center; gap:24px; margin-top:8px; }
+  .mem-stat{ text-align:center; }
+  .mem-stat b{ display:block; font-size:16px; font-weight:700; color:#202055; }
+  .mem-stat span{ font-size:12px; color:var(--red); }
+  .mem-stat-div{ width:1px; height:35px; background:rgba(141,5,5,.25); }
+
+  .mem-card2-inner{ background:#ffffea; }
+
+  /* Lv.0 游客（灰） */
+  .mem-lvl-0 .mem-hero, .mem-lvl-0 .mem-card2{ background:linear-gradient(180deg,#BDBDBD 0%,#EDEDED 33%,#BDBDBD 66%,#EDEDED 100%); }
+  .mem-lvl-0 .mem-hero-word{ color:#fff; }
+  .mem-lvl-0 .mem-level-pill{ background:#D9D9D9; color:#4A4848; }
+  .mem-lvl-0 .mem-xpbar i{ background:#8A8A8A; }
+  .mem-lvl-0 .mem-stat b, .mem-lvl-0 .mem-stat span{ color:#4A4848; }
+
+  /* Lv.1 新生小猫（橙 · 橙-奶油-橙） */
+  .mem-lvl-1 .mem-hero, .mem-lvl-1 .mem-card2{ background:linear-gradient(180deg,#CD680B 0%,#FFFFD5 50%,#CD680B 100%); }
+  .mem-lvl-1 .mem-hero-word{ color:var(--red); }
+  .mem-lvl-1 .mem-level-pill{ background:#CD6B0D; color:#fff; }
+  .mem-lvl-1 .mem-xpbar i{ background:#CD680B; }
+  .mem-lvl-1 .mem-stat b, .mem-lvl-1 .mem-stat span{ color:#fff; }
+
+  /* Lv.2 幼猫（灰↔浅蓝 条纹） */
+  .mem-lvl-2 .mem-hero, .mem-lvl-2 .mem-card2{ background:linear-gradient(180deg,#BFBFBF 0%,#E2FAFF 33%,#BFBFBF 66%,#E2FAFF 100%); }
+  .mem-lvl-2 .mem-hero-word{ color:var(--red); }
+  .mem-lvl-2 .mem-level-pill{ background:#D9D9D9; color:#202055; }
+  .mem-lvl-2 .mem-xpbar i{ background:#2FA6C9; }
+  .mem-lvl-2 .mem-stat b, .mem-lvl-2 .mem-stat span{ color:#202055; }
+  .mem-lvl-2 .mem-name, .mem-lvl-2 .mem-xp-label, .mem-lvl-2 .mem-xp-count, .mem-lvl-2 .mem-xp-next{ color:#202055; }
+
+  /* Lv.3 青年猫（金黄 · 金-奶油-金） */
+  .mem-lvl-3 .mem-hero, .mem-lvl-3 .mem-card2{ background:linear-gradient(180deg,#E1B401 0%,#FEFFD0 33%,#E1B401 66%,#FFFFD5 100%); }
+  .mem-lvl-3 .mem-hero-word{ color:var(--red); }
+  .mem-lvl-3 .mem-level-pill{ background:#FFED63; color:var(--red); }
+  .mem-lvl-3 .mem-xpbar i{ background:#D9A400; }
+  .mem-lvl-3 .mem-stat b, .mem-lvl-3 .mem-stat span{ color:var(--red); }
+
+  /* Lv.Max 布丁猫（暗红-黑-暗红） */
+  .mem-lvl-4 .mem-hero, .mem-lvl-4 .mem-card2{ background:linear-gradient(180deg,#8D0505 0%,#000000 50%,#8D0505 100%); }
+  .mem-lvl-4 .mem-hero-word{ color:var(--cream2); }
+  .mem-lvl-4 .mem-level-pill{ background:#8D0505; color:var(--cream2); }
+  .mem-lvl-4 .mem-xpbar i{ background:#8D0505; }
+  .mem-lvl-4 .mem-stat b, .mem-lvl-4 .mem-stat span{ color:#ffffea; }
+</style>
+</head>
+<body>
+<h1>会员卡等级预览</h1>
+<p class="sub">Member Card · 5 个等级（此页仅供预览，非正式页面）</p>
+<div class="pv-list" id="pvList"></div>
+<script>
+  var CARDS = [
+    { lv:'Lv.0', name:'猫味蛋',   cls:'mem-lvl-0', wallet:'RM0',   coin:'0',     vou:'0',  xp:0,  next:'注册成为会员，开启喵星之旅' },
+    { lv:'Lv.1', name:'新生小猫', cls:'mem-lvl-1', wallet:'RM100', coin:'1000',  vou:'5',  xp:78, next:'再获得180 XP即可升级到Lv.2 幼猫' },
+    { lv:'Lv.2', name:'幼猫',     cls:'mem-lvl-2', wallet:'RM200', coin:'2000',  vou:'7',  xp:78, next:'再获得180 XP即可升级到Lv.3 青年猫' },
+    { lv:'Lv.3', name:'青年猫',   cls:'mem-lvl-3', wallet:'RM300', coin:'3000',  vou:'10', xp:78, next:'再获得180 XP即可升级到LV.Max 布丁猫' },
+    { lv:'Lv.Max', name:'布丁猫', cls:'mem-lvl-4', wallet:'RM499', coin:'10000', vou:'20', xp:100, next:'已经达到最高等级' }
+  ];
+  document.getElementById('pvList').innerHTML = CARDS.map(function(c){
+    return '<div class="pv-item">'
+      + '<div class="pv-label">'+c.lv+' · '+c.name+'</div>'
+      + '<div class="mem-home '+c.cls+'">'
+      +   '<div class="mem-hero"><div class="mem-hero-word">Pudding Meow</div></div>'
+      +   '<div class="mem-home-body"><div class="mem-card2">'
+      +     '<div class="mem-card2-inner">'
+      +       '<div class="mem-name">嘉慧</div>'
+      +       '<span class="mem-level-pill"><span>'+c.lv+'</span><span>'+c.name+'</span></span>'
+      +       '<div class="mem-xp-label">成长值</div>'
+      +       '<div class="mem-xp-count">'+(c.xp===100?'800/800':'620/800')+' XP</div>'
+      +       '<div class="mem-xpbar"><i style="width:'+c.xp+'%"></i></div>'
+      +       '<div class="mem-xp-next">'+c.next+'</div>'
+      +     '</div>'
+      +     '<div class="mem-stats-row">'
+      +       '<div class="mem-stat"><b>'+c.wallet+'</b><span>Meow Wallet</span></div>'
+      +       '<div class="mem-stat-div"></div>'
+      +       '<div class="mem-stat"><b>'+c.coin+'</b><span>Meow Coin</span></div>'
+      +       '<div class="mem-stat-div"></div>'
+      +       '<div class="mem-stat"><b>'+c.vou+'</b><span>优惠卷</span></div>'
+      +     '</div>'
+      +   '</div></div>'
+      + '</div></div>';
+  }).join('');
+</script>
+</body>
+</html>
