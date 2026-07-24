@@ -199,33 +199,34 @@
   .qty-btn.plus{ background:var(--blue); border:none; color:var(--red); }
   .qty-num{ font-weight:500; font-size:15px; color:var(--red); min-width:10px; text-align:center; }
 
-  /* ===== CART：浮动按钮 3 态（Figma 485:732）+ 面板（Figma 33:44）===== */
-  /* 一个 #cartBtn 右下浮动，按状态变宽（右锚，宽度往左长 = "往左划出"）：
-     空=只有图标；加购=胶囊显示总额；面板打开=大条 + 去结算 */
+  /* ===== CART：浮动购物车按钮 3 态（Figma 586:761 空 / 586:760 加购 / 586:759 展开）+ 面板（Figma 33:44）=====
+     图标(Group 29)沿用同款布丁盒；空=70×70 黄圆、加购=黄色胶囊、展开=黄条+去结算 */
   .cartbtn{
     position:fixed; right:16px; bottom:96px; z-index:201;
-    display:flex; align-items:center; gap:12px; box-sizing:border-box;
-    height:53px; padding:0 8px 0 0; white-space:nowrap; overflow:visible;
-    background:var(--yellow); border-radius:999px; cursor:pointer;
+    display:flex; align-items:center; box-sizing:border-box;
+    height:50px; padding:0 8px 0 52px; white-space:nowrap; overflow:visible;
+    background:var(--yellow); border-radius:25px; cursor:pointer;
     box-shadow:0 4px 2px rgba(0,0,0,.25);
     transition:width .28s cubic-bezier(.4,0,.2,1), bottom .28s cubic-bezier(.4,0,.2,1);
   }
-  .cartbtn.s-empty{ width:44px; padding:0; background:transparent; box-shadow:none; justify-content:center; }
+  .cartbtn.s-empty{ width:70px; height:70px; padding:0; border-radius:50%; justify-content:center; }
   .cartbtn.s-items{ width:150px; }
-  /* 面板打开：大条落到面板底部当"底栏"，离屏幕底 34px（避开 Home 指示条），商品在它上面滚 */
+  /* 面板打开：大条落到面板底部当"底栏"，商品在它上面滚 */
   .cartbtn.s-open{ width:361px; bottom:20px; }
   .cartbtn.hidden{ display:none; }   /* 开产品详情弹窗时隐藏 */
-  .cartbtn-ico{ position:relative; width:50px; height:53px; flex-shrink:0; display:flex; align-items:center; justify-content:flex-start; }
-  .cartbtn.s-empty .cartbtn-ico{ width:52px; justify-content:center; }
-  .cartbtn-ico-img{ height:53px; width:auto; display:block; margin-left:-3px; }
+  /* 图标：默认坐在胶囊左侧、略高于条（上下各探出一点）；空态时居中在圆里 */
+  .cartbtn-ico{ position:absolute; left:6px; top:-5px; width:44px; height:60px; z-index:2; pointer-events:none; }
+  .cartbtn-ico-img{ height:60px; width:auto; display:block; }
+  .cartbtn.s-empty .cartbtn-ico{ left:50%; top:50%; transform:translate(-50%,-50%); width:auto; height:auto; }
+  .cartbtn.s-empty .cartbtn-ico-img{ height:50px; }
   .cartbtn-badge{
-    position:absolute; top:0; left:2px; z-index:2; min-width:15px; height:15px; padding:0 3px; box-sizing:border-box;
-    background:var(--red); color:#fff; border-radius:999px; font-size:9px; font-weight:700;
+    position:absolute; top:-4px; left:1px; z-index:3; min-width:15px; height:15px; padding:0 2px; box-sizing:border-box;
+    background:var(--red); color:#fff; border-radius:999px; font-size:10px; font-weight:700; line-height:1;
     display:flex; align-items:center; justify-content:center;
   }
-  .cartbtn-total{ flex:1 0 0; min-width:0; font-weight:700; font-size:16px; color:var(--red); overflow:hidden; text-overflow:ellipsis; }
+  .cartbtn-total{ flex:1 0 auto; min-width:0; font-weight:700; font-size:16px; color:var(--red); overflow:hidden; text-overflow:ellipsis; }
   .cartbtn-go{
-    flex-shrink:0; height:39px; padding:0 23px; border:none; border-radius:999px; cursor:pointer;
+    flex-shrink:0; margin-left:8px; width:106px; height:39px; padding:0; border:none; border-radius:20px; cursor:pointer;
     background:var(--red); color:#fff; font-weight:700; font-size:16px;
     display:flex; align-items:center; justify-content:center; font-family:"Noto Sans SC",sans-serif;
   }
