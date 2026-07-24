@@ -529,6 +529,56 @@
   .lang-opt{ width:120px; height:120px; border-radius:50%; border:none; cursor:pointer; background:var(--red); color:#fff; font-size:26px; font-weight:700; font-family:"Noto Sans SC",sans-serif; transition:box-shadow .15s; }
   .lang-opt.active{ box-shadow:0 0 0 4px var(--yellow), 0 4px 12px rgba(141,5,5,.25); }
 
+  /* ===== 会员卡按等级换配色（Figma 612:1820）：#memHome 加 .mem-lvl-N 类，改 hero/黄卡框/等级胶囊/成长条 ===== */
+  #memHome.mem-lvl-0 .mem-hero{ background:linear-gradient(180deg,#EDEDED 0%,#9B9B9B 100%); }
+  #memHome.mem-lvl-0 .mem-hero-word{ color:#fff; }
+  #memHome.mem-lvl-0 .mem-card2{ background:#9B9B9B; }
+  #memHome.mem-lvl-0 .mem-level-pill{ background:#8A8A8A; color:#fff; }
+  #memHome.mem-lvl-0 .mem-xpbar i{ background:#8A8A8A; }
+
+  #memHome.mem-lvl-1 .mem-hero{ background:linear-gradient(180deg,#FBEBCB 0%,#E68A2B 100%); }
+  #memHome.mem-lvl-1 .mem-hero-word{ color:var(--red); }
+  #memHome.mem-lvl-1 .mem-card2{ background:#E68A2B; }
+  #memHome.mem-lvl-1 .mem-level-pill{ background:#E68A2B; color:#fff; }
+  #memHome.mem-lvl-1 .mem-xpbar i{ background:#C9741A; }
+
+  #memHome.mem-lvl-2 .mem-hero{ background:linear-gradient(180deg,#EAF9FD 0%,#9BE0F0 100%); }
+  #memHome.mem-lvl-2 .mem-hero-word{ color:var(--red); }
+  #memHome.mem-lvl-2 .mem-card2{ background:var(--blue); }
+  #memHome.mem-lvl-2 .mem-level-pill{ background:#66C7E0; color:var(--red); }
+  #memHome.mem-lvl-2 .mem-xpbar i{ background:#2FA6C9; }
+
+  #memHome.mem-lvl-3 .mem-hero{ background:linear-gradient(180deg,#FFFBEA 0%,#FFDE5B 100%); }
+  #memHome.mem-lvl-3 .mem-hero-word{ color:var(--red); }
+  #memHome.mem-lvl-3 .mem-card2{ background:var(--yellow); }
+  #memHome.mem-lvl-3 .mem-level-pill{ background:#F3C93B; color:var(--red); }
+  #memHome.mem-lvl-3 .mem-xpbar i{ background:#D9A400; }
+
+  #memHome.mem-lvl-4 .mem-hero{ background:linear-gradient(180deg,#FBEFD8 0%,#6B0303 100%); }
+  #memHome.mem-lvl-4 .mem-hero-word{ color:var(--cream2); }
+  #memHome.mem-lvl-4 .mem-card2{ background:#6B0303; }
+  #memHome.mem-lvl-4 .mem-level-pill{ background:#8D0505; color:#fff; }
+  #memHome.mem-lvl-4 .mem-xpbar i{ background:#8D0505; }
+
+  /* ===== 会员明细页（Figma 319:187）：规则 + 等级权益表 ===== */
+  .md-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:var(--cream); z-index:320; display:none; flex-direction:column; overflow-y:auto; }
+  .md-screen.show{ display:flex; }
+  .md-header{ position:relative; height:52px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+  .md-back{ position:absolute; left:16px; top:50%; transform:translateY(-50%); width:24px; height:24px; cursor:pointer; }
+  .md-title{ font-weight:700; font-size:16px; color:var(--red); }
+  .md-body{ padding:8px 18px 32px; }
+  .md-rules-h{ font-weight:700; font-size:15px; color:var(--red); margin:6px 0 10px; }
+  .md-rules{ margin:0; padding-left:20px; color:var(--red); font-size:13px; line-height:1.7; }
+  .md-rules li{ margin-bottom:4px; }
+  .md-table{ width:100%; border-collapse:collapse; margin-top:26px; border-radius:8px; overflow:hidden; font-size:11px; }
+  .md-table th{ background:var(--red); color:#fff; font-weight:700; padding:8px 4px; text-align:center; }
+  .md-table td{ padding:9px 4px; text-align:center; color:var(--red); border:1px solid #F0E6C8; background:#FFFDF0; line-height:1.3; }
+  .md-table td.md-lvl{ font-weight:700; color:#fff; }
+  .md-lvl-1{ background:#E68A2B !important; }
+  .md-lvl-2{ background:#B8B8B8 !important; }
+  .md-lvl-3{ background:#FFDE5B !important; color:var(--red) !important; }
+  .md-lvl-4{ background:#5A5A5A !important; }
+
   /* ---- 会员专属礼 横幅 ---- */
   .mem-promo-banner{ background:var(--red); border-radius:16px; padding:16px; margin-top:12px; text-align:center; }
   .mem-promo-tag{ display:inline-block; background:var(--yellow); color:var(--red); font-size:12px; font-weight:500; padding:2px 10px; border-radius:999px; }
@@ -1037,7 +1087,7 @@
             <div class="mem-icon-circle"><img src="icon-luckydraw.svg" alt=""></div><span>幸运抽奖</span></div>
           <div class="mem-icon-item" onclick="openPointsMall()">
             <div class="mem-icon-circle"><img src="icon-mall.svg" alt=""></div><span>积分商城</span></div>
-          <div class="mem-icon-item" onclick="openRecharge()">
+          <div class="mem-icon-item" onclick="openMemberDetail()">
             <div class="mem-icon-circle"><img src="icon-detail.svg" alt=""></div><span>会员明细</span></div>
           <div class="mem-icon-item" onclick="openDelivery()">
             <div class="mem-icon-circle"><img src="icon-address.svg" alt=""></div><span>收货地址</span></div>
@@ -1148,6 +1198,33 @@
     <div class="lang-body">
       <button class="lang-opt" id="langZh" onclick="setLang('zh')">中文</button>
       <button class="lang-opt" id="langEn" onclick="setLang('en')">English</button>
+    </div>
+  </div>
+
+  <!-- ============ 会员明细页（Figma 319:187）============ -->
+  <div class="md-screen" id="mdScreen">
+    <div class="md-header">
+      <div class="md-back" onclick="closeMemberDetail()"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></div>
+      <div class="md-title">会员明细</div>
+    </div>
+    <div class="md-body">
+      <div class="md-rules-h">规则：</div>
+      <ol class="md-rules">
+        <li>每消费 RM1 = 1 Paw Coin</li>
+        <li>会员可以通过消费、邀请好友、每日签到、幸运抽奖来获得 Paw Coin 和 XP 值。</li>
+        <li>会员等级分为：</li>
+      </ol>
+      <table class="md-table">
+        <thead>
+          <tr><th>等级/权益</th><th>生日</th><th>Coin倍率</th><th>幸运抽奖</th><th>会员日</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="md-lvl md-lvl-1">新生小猫</td><td>100 Coin</td><td>1x</td><td>1次/月</td><td>1.5x Coin</td></tr>
+          <tr><td class="md-lvl md-lvl-2">幼猫</td><td>200 Coin</td><td>1.2x</td><td>2次/月</td><td>1.5x Coin</td></tr>
+          <tr><td class="md-lvl md-lvl-3">青年猫</td><td>300 Coin</td><td>1.5x</td><td>3次/月</td><td>2x Coin·抽奖1次</td></tr>
+          <tr><td class="md-lvl md-lvl-4">布丁喵</td><td>500 Coin</td><td>2x</td><td>5次/月</td><td>3x Coin·抽奖1次</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 
@@ -2700,6 +2777,8 @@ function renderProfileScreen(){
     var heroLogo = document.getElementById('memHeroLogo'), brandLogo = document.getElementById('brandLogoImg');
     if(heroLogo && brandLogo && !heroLogo.src) heroLogo.src = brandLogo.src;
     var lvl = _memLevelById(_memberProfile.level_id);
+    /* 会员卡按等级换配色（Figma 612:1820）：1新生小猫橙 / 2幼猫蓝 / 3青年猫黄 / 4布丁猫暗红，0游客灰 */
+    homeEl.className = 'mem-lvl-' + Math.max(0, Math.min(4, lvl.sort_order||0));
     document.getElementById('memName').textContent = _memberProfile.nickname ||'喵星人';
     document.getElementById('memLevelNum').textContent ='Lv.'+(lvl.sort_order||0);
     document.getElementById('memLevelName').textContent = lvl.name_cn||'';
@@ -2723,6 +2802,10 @@ function renderProfileScreen(){
   });
 }
 function memComingSoon(){ alert('敬请期待'); }
+
+/* ===== 会员明细页（Figma 319:187）：规则 + 等级权益表 ===== */
+function openMemberDetail(){ document.getElementById('mdScreen').classList.add('show'); }
+function closeMemberDetail(){ document.getElementById('mdScreen').classList.remove('show'); }
 
 /* ===== 切换语言页（Figma 567:618）：中文/English 选择器。
    目前仅记录偏好(localStorage['pm_lang'])并高亮当前语言；English 全量翻译为后续工作 ===== */
