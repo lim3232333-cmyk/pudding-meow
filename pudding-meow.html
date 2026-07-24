@@ -530,33 +530,34 @@
   .lang-opt.active{ box-shadow:0 0 0 4px var(--yellow), 0 4px 12px rgba(141,5,5,.25); }
 
   /* ===== 会员卡按等级换配色（Figma 612:1820）：#memHome 加 .mem-lvl-N 类，改 hero/黄卡框/等级胶囊/成长条 ===== */
-  #memHome.mem-lvl-0 .mem-hero{ background:linear-gradient(180deg,#EDEDED 0%,#9B9B9B 100%); }
+  /* 渐变统一：对角 to top left = 深色在右下、浅色在左上；hero 与黄卡框用同一条渐变 */
+  #memHome.mem-lvl-0 .mem-hero,
+  #memHome.mem-lvl-0 .mem-card2{ background:linear-gradient(to top left,#8F8F8F 0%,#E8E8E8 100%); }
   #memHome.mem-lvl-0 .mem-hero-word{ color:#fff; }
-  #memHome.mem-lvl-0 .mem-card2{ background:#9B9B9B; }
   #memHome.mem-lvl-0 .mem-level-pill{ background:#8A8A8A; color:#fff; }
   #memHome.mem-lvl-0 .mem-xpbar i{ background:#8A8A8A; }
 
-  #memHome.mem-lvl-1 .mem-hero{ background:linear-gradient(180deg,#FBEBCB 0%,#E68A2B 100%); }
+  #memHome.mem-lvl-1 .mem-hero,
+  #memHome.mem-lvl-1 .mem-card2{ background:linear-gradient(to top left,#D97B1E 0%,#FBEBCB 100%); }
   #memHome.mem-lvl-1 .mem-hero-word{ color:var(--red); }
-  #memHome.mem-lvl-1 .mem-card2{ background:#E68A2B; }
   #memHome.mem-lvl-1 .mem-level-pill{ background:#E68A2B; color:#fff; }
   #memHome.mem-lvl-1 .mem-xpbar i{ background:#C9741A; }
 
-  #memHome.mem-lvl-2 .mem-hero{ background:linear-gradient(180deg,#EAF9FD 0%,#9BE0F0 100%); }
+  #memHome.mem-lvl-2 .mem-hero,
+  #memHome.mem-lvl-2 .mem-card2{ background:linear-gradient(to top left,#5EC3DE 0%,#EAF9FD 100%); }
   #memHome.mem-lvl-2 .mem-hero-word{ color:var(--red); }
-  #memHome.mem-lvl-2 .mem-card2{ background:var(--blue); }
   #memHome.mem-lvl-2 .mem-level-pill{ background:#66C7E0; color:var(--red); }
   #memHome.mem-lvl-2 .mem-xpbar i{ background:#2FA6C9; }
 
-  #memHome.mem-lvl-3 .mem-hero{ background:linear-gradient(180deg,#FFFBEA 0%,#FFDE5B 100%); }
+  #memHome.mem-lvl-3 .mem-hero,
+  #memHome.mem-lvl-3 .mem-card2{ background:linear-gradient(to top left,#F2C21E 0%,#FFFBEA 100%); }
   #memHome.mem-lvl-3 .mem-hero-word{ color:var(--red); }
-  #memHome.mem-lvl-3 .mem-card2{ background:var(--yellow); }
   #memHome.mem-lvl-3 .mem-level-pill{ background:#F3C93B; color:var(--red); }
   #memHome.mem-lvl-3 .mem-xpbar i{ background:#D9A400; }
 
-  #memHome.mem-lvl-4 .mem-hero{ background:linear-gradient(180deg,#FBEFD8 0%,#6B0303 100%); }
+  #memHome.mem-lvl-4 .mem-hero,
+  #memHome.mem-lvl-4 .mem-card2{ background:linear-gradient(to top left,#4A0202 0%,#A00808 100%); }
   #memHome.mem-lvl-4 .mem-hero-word{ color:var(--cream2); }
-  #memHome.mem-lvl-4 .mem-card2{ background:#6B0303; }
   #memHome.mem-lvl-4 .mem-level-pill{ background:#8D0505; color:#fff; }
   #memHome.mem-lvl-4 .mem-xpbar i{ background:#8D0505; }
 
