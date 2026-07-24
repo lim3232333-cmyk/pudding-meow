@@ -128,9 +128,7 @@
   .hc-card:active{ transform:scale(.97); }
   .hc-card.active{ border-color:var(--yellow); }
   .hc-card-txt{ display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
-  .hc-card-ico{ position:absolute; left:18px; top:50%; transform:translateY(-50%); width:64px; height:66px; object-fit:contain; pointer-events:none; }
-  .hc-delivery .hc-card-ico{ left:11px; width:77px; height:77px; }
-  .hc-reserve  .hc-card-ico{ left:10px; width:64px; height:54px; }
+  .hc-card-ico{ position:absolute; left:16px; top:50%; transform:translateY(-50%); width:52px; height:52px; object-fit:contain; pointer-events:none; }
 
   .hc-label-cn{ font-weight:500; font-size:20px; line-height:24px; color:var(--red); white-space:nowrap; }
   .hc-label-en{ font-weight:500; font-size:12px; line-height:14px; color:var(--red); white-space:nowrap; }
@@ -949,19 +947,19 @@
 
         <div class="hc-modebox">
           <div class="hc-card hc-dinein" data-mode="dinein" onclick="selectMode(this)">
-            <img class="hc-card-ico" src="mode-dinein.png" alt="" onerror="this.style.display='none'">
+            <img class="hc-card-ico" src="mode-dinein.svg" alt="" onerror="this.style.display='none'">
             <div class="hc-card-txt"><div class="hc-label-cn">堂食</div><div class="hc-label-en">Dine-In</div></div>
           </div>
           <div class="hc-card hc-pickup" data-mode="pickup" onclick="selectMode(this)">
-            <img class="hc-card-ico" src="mode-pickup.png" alt="" onerror="this.style.display='none'">
+            <img class="hc-card-ico" src="mode-pickup.svg" alt="" onerror="this.style.display='none'">
             <div class="hc-card-txt"><div class="hc-label-cn">自取</div><div class="hc-label-en">Pick-up</div></div>
           </div>
           <div class="hc-card hc-reserve" onclick="alert('预约功能即将开放，敬请期待')">
-            <img class="hc-card-ico" src="mode-reserve.png" alt="" onerror="this.style.display='none'">
+            <img class="hc-card-ico" src="mode-reserve.svg" alt="" onerror="this.style.display='none'">
             <div class="hc-card-txt"><div class="hc-label-cn">预约</div><div class="hc-label-en">Reservation</div></div>
           </div>
           <div class="hc-card hc-delivery" data-mode="delivery" onclick="selectMode(this)">
-            <img class="hc-card-ico" src="mode-delivery.png" alt="" onerror="this.style.display='none'">
+            <img class="hc-card-ico" src="mode-delivery.svg" alt="" onerror="this.style.display='none'">
             <div class="hc-card-txt"><div class="hc-label-cn">外卖</div><div class="hc-label-en">Delivery</div></div>
           </div>
         </div>
