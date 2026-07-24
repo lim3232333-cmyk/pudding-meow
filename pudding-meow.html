@@ -530,36 +530,49 @@
   .lang-opt.active{ box-shadow:0 0 0 4px var(--yellow), 0 4px 12px rgba(141,5,5,.25); }
 
   /* ===== 会员卡按等级换配色（Figma 612:1820）：#memHome 加 .mem-lvl-N 类，改 hero/黄卡框/等级胶囊/成长条 ===== */
-  /* 渐变统一：对角 to top left = 深色在右下、浅色在左上；hero 与黄卡框用同一条渐变 */
+  /* 精确渐变取自 Figma 660:859 member card：竖向多段渐变，hero 与卡体同一条；内白盒 #ffffea */
+  #memHome .mem-card2-inner{ background:#ffffea; }
+
+  /* Lv.0 游客（灰） */
   #memHome.mem-lvl-0 .mem-hero,
-  #memHome.mem-lvl-0 .mem-card2{ background:linear-gradient(to top left,#8F8F8F 0%,#E8E8E8 100%); }
+  #memHome.mem-lvl-0 .mem-card2{ background:linear-gradient(180deg,#BDBDBD 0%,#EDEDED 33%,#BDBDBD 66%,#EDEDED 100%); }
   #memHome.mem-lvl-0 .mem-hero-word{ color:#fff; }
-  #memHome.mem-lvl-0 .mem-level-pill{ background:#8A8A8A; color:#fff; }
+  #memHome.mem-lvl-0 .mem-level-pill{ background:#D9D9D9; color:#4A4848; }
   #memHome.mem-lvl-0 .mem-xpbar i{ background:#8A8A8A; }
+  #memHome.mem-lvl-0 .mem-stat b, #memHome.mem-lvl-0 .mem-stat span{ color:#4A4848; }
 
+  /* Lv.1 新生小猫（橙 · 橙-奶油-橙） */
   #memHome.mem-lvl-1 .mem-hero,
-  #memHome.mem-lvl-1 .mem-card2{ background:linear-gradient(to top left,#D97B1E 0%,#FBEBCB 100%); }
+  #memHome.mem-lvl-1 .mem-card2{ background:linear-gradient(180deg,#CD680B 0%,#FFFFD5 50%,#CD680B 100%); }
   #memHome.mem-lvl-1 .mem-hero-word{ color:var(--red); }
-  #memHome.mem-lvl-1 .mem-level-pill{ background:#E68A2B; color:#fff; }
-  #memHome.mem-lvl-1 .mem-xpbar i{ background:#C9741A; }
+  #memHome.mem-lvl-1 .mem-level-pill{ background:#CD6B0D; color:#fff; }
+  #memHome.mem-lvl-1 .mem-xpbar i{ background:#CD680B; }
+  #memHome.mem-lvl-1 .mem-stat b, #memHome.mem-lvl-1 .mem-stat span{ color:#fff; }
 
+  /* Lv.2 幼猫（灰↔浅蓝 条纹） */
   #memHome.mem-lvl-2 .mem-hero,
-  #memHome.mem-lvl-2 .mem-card2{ background:linear-gradient(to top left,#5EC3DE 0%,#EAF9FD 100%); }
+  #memHome.mem-lvl-2 .mem-card2{ background:linear-gradient(180deg,#BFBFBF 0%,#E2FAFF 33%,#BFBFBF 66%,#E2FAFF 100%); }
   #memHome.mem-lvl-2 .mem-hero-word{ color:var(--red); }
-  #memHome.mem-lvl-2 .mem-level-pill{ background:#66C7E0; color:var(--red); }
+  #memHome.mem-lvl-2 .mem-level-pill{ background:#D9D9D9; color:#202055; }
   #memHome.mem-lvl-2 .mem-xpbar i{ background:#2FA6C9; }
+  #memHome.mem-lvl-2 .mem-stat b, #memHome.mem-lvl-2 .mem-stat span{ color:#202055; }
+  #memHome.mem-lvl-2 .mem-name, #memHome.mem-lvl-2 .mem-xp-label, #memHome.mem-lvl-2 .mem-xp-count, #memHome.mem-lvl-2 .mem-xp-next{ color:#202055; }
 
+  /* Lv.3 青年猫（金黄 · 金-奶油-金） */
   #memHome.mem-lvl-3 .mem-hero,
-  #memHome.mem-lvl-3 .mem-card2{ background:linear-gradient(to top left,#F2C21E 0%,#FFFBEA 100%); }
+  #memHome.mem-lvl-3 .mem-card2{ background:linear-gradient(180deg,#E1B401 0%,#FEFFD0 33%,#E1B401 66%,#FFFFD5 100%); }
   #memHome.mem-lvl-3 .mem-hero-word{ color:var(--red); }
-  #memHome.mem-lvl-3 .mem-level-pill{ background:#F3C93B; color:var(--red); }
+  #memHome.mem-lvl-3 .mem-level-pill{ background:#FFED63; color:var(--red); }
   #memHome.mem-lvl-3 .mem-xpbar i{ background:#D9A400; }
+  #memHome.mem-lvl-3 .mem-stat b, #memHome.mem-lvl-3 .mem-stat span{ color:var(--red); }
 
+  /* Lv.Max 布丁猫（暗红-黑-暗红） */
   #memHome.mem-lvl-4 .mem-hero,
-  #memHome.mem-lvl-4 .mem-card2{ background:linear-gradient(to top left,#4A0202 0%,#A00808 100%); }
+  #memHome.mem-lvl-4 .mem-card2{ background:linear-gradient(180deg,#8D0505 0%,#000000 50%,#8D0505 100%); }
   #memHome.mem-lvl-4 .mem-hero-word{ color:var(--cream2); }
-  #memHome.mem-lvl-4 .mem-level-pill{ background:#8D0505; color:#fff; }
+  #memHome.mem-lvl-4 .mem-level-pill{ background:#8D0505; color:var(--cream2); }
   #memHome.mem-lvl-4 .mem-xpbar i{ background:#8D0505; }
+  #memHome.mem-lvl-4 .mem-stat b, #memHome.mem-lvl-4 .mem-stat span{ color:#ffffea; }
 
   /* ===== 会员明细页（Figma 319:187）：规则 + 等级权益表 ===== */
   .md-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:var(--cream); z-index:320; display:none; flex-direction:column; overflow-y:auto; }
