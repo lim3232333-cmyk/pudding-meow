@@ -543,12 +543,18 @@
   /* 精确渐变取自 Figma 660:859 member card：竖向多段渐变，hero 与卡体同一条；内白盒 #ffffea */
   #memHome .mem-card2-inner{ background:#ffffea; }
 
-  /* Lv.0 游客（灰） */
+  /* Lv.0 游客（Figma 599:2119，纯色无渐变：卡片白 / 内盒 #D9D9D9 / 文字 #4A4848 / 成长条 #726F6F） */
   #memHome.mem-lvl-0 .mem-hero,
-  #memHome.mem-lvl-0 .mem-card2{ background:linear-gradient(180deg,#BDBDBD 0%,#EDEDED 33%,#BDBDBD 66%,#EDEDED 100%); }
-  #memHome.mem-lvl-0 .mem-hero-word{ color:#fff; }
-  #memHome.mem-lvl-0 .mem-level-pill{ background:#D9D9D9; color:#4A4848; }
-  #memHome.mem-lvl-0 .mem-xpbar i{ background:#8A8A8A; }
+  #memHome.mem-lvl-0 .mem-card2{ background:#FFFFFF; }
+  #memHome.mem-lvl-0 .mem-card2-inner{ background:#D9D9D9; }
+  #memHome.mem-lvl-0 .mem-hero-word{ color:#4A4848; }
+  #memHome.mem-lvl-0 .mem-level-pill{ background:#FFFFFF; color:#4A4848; }
+  #memHome.mem-lvl-0 .mem-xpbar{ background:#726F6F; }
+  #memHome.mem-lvl-0 .mem-xpbar i{ background:#726F6F; }
+  #memHome.mem-lvl-0 .mem-name,
+  #memHome.mem-lvl-0 .mem-xp-label,
+  #memHome.mem-lvl-0 .mem-xp-count,
+  #memHome.mem-lvl-0 .mem-xp-next{ color:#4A4848; }
   #memHome.mem-lvl-0 .mem-stat b, #memHome.mem-lvl-0 .mem-stat span{ color:#4A4848; }
 
   /* Lv.1 新生小猫（橙 · 橙-奶油-橙） */
