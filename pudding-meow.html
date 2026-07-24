@@ -108,39 +108,34 @@
   }
   .hc-register:active{ transform:translateY(2px); box-shadow:0 1px 0 #D2D2D2; }
 
-  .hc-modebox{ left:26px; top:302px; width:342px; height:216px; background:var(--red); border-radius:0 0 20px 20px; }
-  .hc-card{ background:var(--cream2); border-radius:20px; cursor:pointer; border:2px solid transparent; transition:border-color .12s, transform .12s; }
+  .hc-modebox{ left:26px; top:302px; width:358px; height:201px; background:var(--red); border-radius:0 0 20px 20px; display:grid; grid-template-columns:repeat(2,1fr); grid-template-rows:repeat(2,1fr); gap:12px; padding:8px; box-sizing:border-box; }
+  .hc-card{ background:var(--cream2); border-radius:12px; cursor:pointer; border:2px solid transparent; transition:border-color .12s, transform .12s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; position:relative; }
   .hc-card:active{ transform:scale(.97); }
   .hc-card.active{ border-color:var(--yellow); }
 
-  .hc-dinein{ left:calc(50% - 150px/2 - 75px); top:312px; width:150px; height:185px; }
-  .hc-pickup{ left:207px; top:312px; width:146px; height:87px; }
-  .hc-delivery{ left:207px; top:410px; width:146px; height:87px; }
+  .hc-dinein{ grid-column:1; grid-row:1; }
+  .hc-pickup{ grid-column:2; grid-row:1; }
+  .hc-delivery{ grid-column:2; grid-row:2; }
 
   .hc-label-cn{ font-weight:500; font-size:20px; line-height:24px; color:var(--red); white-space:nowrap; }
   .hc-label-en{ font-weight:500; font-size:12px; line-height:14px; color:var(--red); white-space:nowrap; }
 
-  .hc-dinein-cn{ left:99px; top:419px; width:60px; }
-  .hc-dinein-en{ left:99px; top:443px; width:60px; }
-  .hc-pickup-cn{ left:295.38px; top:337px; width:60px; }
-  .hc-pickup-en{ left:295px; top:361px; width:65px; }
-  .hc-delivery-cn{ left:295.28px; top:434px; width:60px; }
-  .hc-delivery-en{ left:292px; top:458px; width:70px; }
+  .hc-dinein-cn, .hc-dinein-en, .hc-pickup-cn, .hc-pickup-en, .hc-delivery-cn, .hc-delivery-en { position:absolute; }
 
-  .hc-contact-bg{ left:26px; top:534px; width:342px; height:70px; background:var(--blue); border-radius:15px; cursor:pointer; }
-  .hc-contact-title{ left:256px; top:549px; width:90px; font-weight:700; font-size:20px; line-height:24px; color:var(--red); }
-  .hc-contact-sub{ left:243px; top:574px; width:110px; font-weight:500; font-size:12px; line-height:14px; color:var(--red); }
+  .hc-contact-bg{ left:26px; top:519px; width:342px; height:70px; background:var(--blue); border-radius:15px; cursor:pointer; }
+  .hc-contact-title{ left:256px; top:534px; width:90px; font-weight:700; font-size:20px; line-height:24px; color:var(--red); }
+  .hc-contact-sub{ left:243px; top:559px; width:110px; font-weight:500; font-size:12px; line-height:14px; color:var(--red); }
 
-  .hc-divider2{ left:41px; top:604px; width:312px; border-top:3px dashed var(--red); }
-  .hc-info-title{ left:40px; top:632px; width:140px; font-weight:700; font-size:14px; line-height:17px; color:var(--red); }
-  .hc-divider3{ left:26px; top:655px; width:342px; border-top:1px solid var(--red); }
+  .hc-divider2{ left:41px; top:589px; width:312px; border-top:3px dashed var(--red); }
+  .hc-info-title{ left:40px; top:617px; width:140px; font-weight:700; font-size:14px; line-height:17px; color:var(--red); }
+  .hc-divider3{ left:26px; top:640px; width:342px; border-top:1px solid var(--red); }
 
-  .hc-hours-title{ left:62px; top:671px; width:80px; font-weight:700; font-size:12px; line-height:14px; color:var(--red); }
-  .hc-hours-text{ left:62px; top:691px; width:200px; font-weight:400; font-size:12px; line-height:16px; color:var(--muted); }
-  .hc-closed-badge{ left:62px; top:733px; width:85px; height:21px; background:var(--red); border-radius:62px; display:flex; align-items:center; justify-content:center; }
+  .hc-hours-title{ left:62px; top:656px; width:80px; font-weight:700; font-size:12px; line-height:14px; color:var(--red); }
+  .hc-hours-text{ left:62px; top:676px; width:200px; font-weight:400; font-size:12px; line-height:16px; color:var(--muted); }
+  .hc-closed-badge{ left:62px; top:718px; width:85px; height:21px; background:var(--red); border-radius:62px; display:flex; align-items:center; justify-content:center; }
   .hc-closed-text{ font-weight:700; font-size:12px; line-height:14px; color:var(--cream2); }
-  .hc-addr-title{ left:62px; top:764px; width:80px; font-weight:700; font-size:12px; line-height:14px; color:var(--red); }
-  .hc-addr-text{ left:63px; top:783px; width:268px; font-weight:400; font-size:12px; line-height:16px; color:var(--muted); }
+  .hc-addr-title{ left:62px; top:749px; width:80px; font-weight:700; font-size:12px; line-height:14px; color:var(--red); }
+  .hc-addr-text{ left:63px; top:768px; width:268px; font-weight:400; font-size:12px; line-height:16px; color:var(--muted); }
 
   .hc-navbg{ left:24px; top:835px; width:342px; height:49px; background:var(--red); border-radius:62px; display:flex; align-items:center; }
   .hc-nav-item{ flex:1; text-align:center; cursor:pointer; font-weight:500; font-size:14px; line-height:17px; color:var(--cream2); transition:color .15s; }
@@ -928,19 +923,24 @@
       <div class="abs hc-member-sub">Member exclusive perks</div>
       <button class="abs hc-register" onclick="openRegister()">立即注册</button>
 
-      <div class="abs hc-modebox"></div>
-
-      <div class="abs hc-card hc-dinein" data-mode="dinein" onclick="selectMode(this)"></div>
-      <div class="abs hc-label-cn hc-dinein-cn">堂食</div>
-      <div class="abs hc-label-en hc-dinein-en">Dine-In</div>
-
-      <div class="abs hc-card hc-pickup" data-mode="pickup" onclick="selectMode(this)"></div>
-      <div class="abs hc-label-cn hc-pickup-cn">自取</div>
-      <div class="abs hc-label-en hc-pickup-en">Pick-up</div>
-
-      <div class="abs hc-card hc-delivery" data-mode="delivery" onclick="selectMode(this)"></div>
-      <div class="abs hc-label-cn hc-delivery-cn">外卖</div>
-      <div class="abs hc-label-en hc-delivery-en">Delivery</div>
+      <div class="abs hc-modebox">
+        <div class="hc-card hc-dinein" data-mode="dinein" onclick="selectMode(this)">
+          <div class="hc-label-cn">堂食</div>
+          <div class="hc-label-en">Dine-In</div>
+        </div>
+        <div class="hc-card hc-pickup" data-mode="pickup" onclick="selectMode(this)">
+          <div class="hc-label-cn">自取</div>
+          <div class="hc-label-en">Pick-up</div>
+        </div>
+        <div class="hc-card hc-delivery" data-mode="delivery" onclick="selectMode(this)">
+          <div class="hc-label-cn">外卖</div>
+          <div class="hc-label-en">Delivery</div>
+        </div>
+        <div class="hc-card" style="grid-column:1; grid-row:2;">
+          <div class="hc-label-cn">预约</div>
+          <div class="hc-label-en">Reservation</div>
+        </div>
+      </div>
 
       <a class="abs hc-contact-bg" href="https://wa.me/60175221811" target="_blank" rel="noopener" style="display:block;"></a>
       <div class="abs hc-contact-title">联系店长</div>
