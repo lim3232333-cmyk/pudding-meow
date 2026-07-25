@@ -1547,11 +1547,11 @@
     <div class="rsv-head">
       <span class="rsv-title">预约</span>
     </div>
-    <div class="rsv-search">
-      <input id="rsvSearchInput" type="tel" inputmode="tel" placeholder="输入手机号码查询预约" oninput="rsvSearchInput()" onkeydown="if(event.key==='Enter'){event.preventDefault();rsvDoSearch();}">
+    <form class="rsv-search" onsubmit="rsvDoSearch();return false;" action="javascript:void 0">
+      <input id="rsvSearchInput" type="tel" inputmode="tel" enterkeyhint="search" placeholder="输入手机号码查询预约" oninput="rsvSearchInput()">
       <svg class="rsv-search-clear" id="rsvSearchClear" viewBox="0 0 24 24" onclick="rsvSearchClear()"><circle cx="12" cy="12" r="10" fill="#8D0505"/><path d="M15 9l-6 6M9 9l6 6" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
       <svg class="rsv-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer" onclick="rsvDoSearch()"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
-    </div>
+    </form>
     <button class="rsv-newbtn" onclick="rsvOpenNew()">前往预约</button>
   </div>
 
