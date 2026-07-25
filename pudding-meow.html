@@ -184,7 +184,8 @@
   .menu-seg button .en{ font-weight:500; font-size:8px; line-height:10px; }
   .menu-seg button.active{ background:var(--blue); }
   .menu-search{ width:24px; height:24px; color:var(--cream2); cursor:pointer; flex-shrink:0; }
-  .menu-tableinfo{ display:flex; gap:8px; align-items:center; height:19px; color:var(--cream2); }
+  /* 长地址要能折行，所以是 min-height 不是写死 height；页头一变高，--menuHeaderH 由 _syncMenuHeaderH() 实测同步 */
+  .menu-tableinfo{ display:flex; gap:8px; align-items:center; min-height:19px; color:var(--cream2); }
   .menu-tableinfo svg{ width:18px; height:18px; flex-shrink:0; }
   .menu-tableinfo span{ font-weight:500; font-size:10px; line-height:normal; }
 
@@ -2080,19 +2081,27 @@ function setMenuMode(el){
   currentMode = el.dataset.mode;
   updateMenuTableInfo();
 }
-/* 页头第二行（Figma 547:1199）：堂食显示桌号+人数，自取/外卖显示模式说明 */
+/* 页头第二行（Figma 547:1199）：堂食显示桌号+人数，外卖显示收货地址，自取显示模式说明 */
 function updateMenuTableInfo(){
   var t=document.getElementById('menuTableInfoText');
   if(!t) return;
   if(currentMode==='dinein'){
-    t.textContent = _dineInfo ? ('Table '+_dineInfo.table+' ｜'+_dineInfo.pax+' Pax') : '堂食 · 请选择桌号';
+    /* DINE_TABLES 里存的就是 'Table 1' 这种完整文本，别再加一次 'Table ' 前缀（会变成 Table Table 1） */
+    t.textContent = _dineInfo ? (_dineInfo.table+' ｜'+_dineInfo.pax+' Pax') : '堂食 · 请选择桌号';
   } else if(currentMode==='pickup'){
     t.textContent = '自取 · 到店领取';
   } else if(currentMode==='delivery'){
-    t.textContent = _deliveryInfo ? ('外卖 ｜'+(_deliveryInfo.address||'送餐上门')) : '外卖 · 送餐上门';
+    t.textContent = _deliveryInfo ? (_deliveryInfo.address||'外卖 · 送餐上门') : '外卖 · 送餐上门';
   } else {
     t.textContent = '请选择用餐方式';
   }
+  _syncMenuHeaderH();
+}
+/* 页头高度实测同步给 --menuHeaderH：地址长了会折行把页头撑高，
+   而分类栏是 position:sticky;top:var(--menuHeaderH)，写死 78px 的话会被页头盖住 */
+function _syncMenuHeaderH(){
+  var h=document.querySelector('.menu-header'), s=document.getElementById('screen-menu');
+  if(h && s && h.offsetHeight) s.style.setProperty('--menuHeaderH', h.offsetHeight+'px');
 }
 
 /* ---------- 外卖收货地址 ----------
