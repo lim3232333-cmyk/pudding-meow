@@ -800,6 +800,48 @@
   .dine-pax{ display:flex; align-items:center; }
   /* 人数：点击输入框弹数字键盘打字、数字居中；两侧保留 －/＋ */
   .dine-pax-input{ flex:1; min-width:0; width:0; margin:0 12px; height:40px; text-align:center; border:none; border-radius:8px; background:#EDEDED; color:var(--red); font-size:18px; font-weight:600; font-family:"Noto Sans SC",sans-serif; box-sizing:border-box; outline:none; -moz-appearance:textfield; }
+
+  /* ===== 预约弹窗（Figma 546:922 New reservation + 711:789 日历）===== */
+  .rsv-modal{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:332px; max-width:calc(100vw - 24px); max-height:calc(100dvh - 80px); overflow-y:auto; background:var(--cream2); border-radius:12px; padding:16px; z-index:350; display:none; flex-direction:column; gap:16px; font-family:"Noto Sans SC",sans-serif; box-shadow:0 8px 30px rgba(0,0,0,.25); box-sizing:border-box; }
+  .rsv-modal.show{ display:flex; }
+  .rsv-head{ position:relative; height:24px; display:flex; align-items:center; justify-content:center; }
+  .rsv-head .rsv-title{ font-weight:700; font-size:16px; color:var(--red); }
+  .rsv-back{ position:absolute; left:0; top:0; width:24px; height:24px; cursor:pointer; color:var(--red); }
+  .rsv-close{ position:absolute; right:-4px; top:-4px; width:26px; height:26px; cursor:pointer; color:var(--red); }
+  .rsv-field{ display:flex; flex-direction:column; gap:8px; }
+  .rsv-flabel{ font-weight:500; font-size:14px; color:var(--muted); }
+  .rsv-input{ display:flex; align-items:center; justify-content:space-between; gap:8px; height:40px; padding:0 12px; background:#fff; border:1px solid var(--yellow); border-radius:12px; cursor:pointer; box-sizing:border-box; }
+  .rsv-input span{ font-weight:500; font-size:14px; color:var(--muted); }
+  .rsv-input svg{ width:22px; height:22px; color:var(--red); flex-shrink:0; }
+  /* 日历 */
+  .rsv-cal{ display:none; background:#fff; border:1px solid var(--yellow); border-radius:12px; padding:10px; }
+  .rsv-cal.show{ display:block; }
+  .rsv-cal-nav{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .rsv-cal-nav b{ font-weight:500; font-size:14px; color:var(--muted); }
+  .rsv-cal-nav button{ width:28px; height:28px; border:none; background:transparent; color:var(--red); font-size:18px; cursor:pointer; border-radius:8px; }
+  .rsv-cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .rsv-cal-grid .wd{ font-weight:500; font-size:11px; color:var(--muted); text-align:center; padding:2px 0; }
+  .rsv-cal-day{ aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--muted); border-radius:8px; cursor:pointer; }
+  .rsv-cal-day.muted{ color:#CFCabb; cursor:default; }
+  .rsv-cal-day.sel{ background:var(--red); color:var(--cream2); font-weight:700; }
+  .rsv-cal-day:not(.muted):not(.sel):active{ background:var(--yellow); }
+  /* 时间下拉 */
+  .rsv-times{ display:none; grid-template-columns:repeat(3,1fr); gap:8px; background:#fff; border:1px solid var(--yellow); border-radius:12px; padding:10px; }
+  .rsv-times.show{ display:grid; }
+  .rsv-time-opt{ text-align:center; padding:8px 4px; font-size:13px; color:var(--muted); border-radius:8px; cursor:pointer; border:1px solid #eee; }
+  .rsv-time-opt.sel{ background:var(--red); color:var(--cream2); border-color:var(--red); font-weight:700; }
+  /* 人数 */
+  .rsv-pax{ display:flex; align-items:center; justify-content:center; gap:24px; }
+  .rsv-pax button{ width:28px; height:28px; border:none; background:transparent; color:var(--red); cursor:pointer; padding:0; }
+  .rsv-pax button svg{ width:26px; height:26px; display:block; }
+  .rsv-pax span{ font-weight:500; font-size:16px; color:var(--muted); min-width:24px; text-align:center; }
+  /* 个人资料 */
+  .rsv-tf{ background:#fff; border-radius:12px; box-shadow:0 0 4px rgba(217,217,217,.5); padding:6px 20px; min-height:45px; display:flex; flex-direction:column; justify-content:center; }
+  .rsv-tf label{ font-weight:400; font-size:10px; color:#726f6f; }
+  .rsv-tf input{ border:none; outline:none; background:transparent; font-family:"Noto Sans SC",sans-serif; font-size:14px; color:var(--muted); width:100%; padding:0; }
+  .rsv-tf input::placeholder{ color:#726f6f; }
+  .rsv-confirm{ height:40px; background:var(--red); color:var(--cream2); border:none; border-radius:12px; font-weight:700; font-size:16px; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }
+  .rsv-confirm:disabled{ opacity:.5; cursor:default; }
   .dine-step{ width:40px; height:40px; border:none; border-radius:8px; background:var(--red); color:#FFFFD5; font-size:22px; font-weight:600; line-height:1; cursor:pointer; font-family:"Noto Sans SC",sans-serif; flex:none; }
   .dine-actions{ display:flex; gap:12px; margin-top:auto; }   /* 固定高度下按钮压到底部 */
   .dine-cancel,.dine-ok{ flex:1; height:40px; border-radius:999px; font-size:16px; font-weight:500; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
@@ -959,7 +1001,7 @@
             <img class="hc-card-ico" src="mode-pickup.svg" alt="" onerror="this.style.display='none'">
             <div class="hc-card-txt"><div class="hc-label-cn">自取</div><div class="hc-label-en">Pick-up</div></div>
           </div>
-          <div class="hc-card hc-reserve" onclick="alert('预约功能即将开放，敬请期待')">
+          <div class="hc-card hc-reserve" onclick="openReserve()">
             <img class="hc-card-ico" src="mode-reserve.svg" alt="" onerror="this.style.display='none'">
             <div class="hc-card-txt"><div class="hc-label-cn">预约</div><div class="hc-label-en">Reservation</div></div>
           </div>
@@ -1479,6 +1521,54 @@
     <div class="dine-actions"><button class="dine-cancel" onclick="closeDine()">取消</button><button class="dine-ok" id="dineOk" onclick="confirmDine()">确定</button></div>
   </div>
 
+  <!-- ============ 预约弹窗（Figma 546:922 New reservation + 711:789 日历）============ -->
+  <div class="dine-overlay" id="rsvOverlay" onclick="closeReserve()"></div>
+  <div class="rsv-modal" id="rsvModal">
+    <div class="rsv-head">
+      <svg class="rsv-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" onclick="closeReserve()"><path d="M15 5l-7 7 7 7"/></svg>
+      <span class="rsv-title">预约</span>
+      <svg class="rsv-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" onclick="closeReserve()"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
+    </div>
+
+    <div class="rsv-field">
+      <div class="rsv-flabel">1. 选择日期</div>
+      <div class="rsv-input" onclick="rsvToggleCal()">
+        <span id="rsvDateVal">请选择日期</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4"/></svg>
+      </div>
+      <div class="rsv-cal" id="rsvCal">
+        <div class="rsv-cal-nav"><button type="button" onclick="rsvCalMove(-1)">‹</button><b id="rsvCalTitle"></b><button type="button" onclick="rsvCalMove(1)">›</button></div>
+        <div class="rsv-cal-grid" id="rsvCalGrid"></div>
+      </div>
+    </div>
+
+    <div class="rsv-field">
+      <div class="rsv-flabel">2. 选择时间</div>
+      <div class="rsv-input" onclick="rsvToggleTimes()">
+        <span id="rsvTimeVal">请选择时间</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      </div>
+      <div class="rsv-times" id="rsvTimes"></div>
+    </div>
+
+    <div class="rsv-field">
+      <div class="rsv-flabel">3. 选择人数</div>
+      <div class="rsv-pax">
+        <button type="button" onclick="rsvPaxChange(-1)" aria-label="减"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12h8"/></svg></button>
+        <span id="rsvPaxVal">2</span>
+        <button type="button" onclick="rsvPaxChange(1)" aria-label="加"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M12 8v8M8 12h8"/></svg></button>
+      </div>
+    </div>
+
+    <div class="rsv-field">
+      <div class="rsv-flabel">4. 填个人资料</div>
+      <div class="rsv-tf"><label>姓名</label><input id="rsvName" type="text" placeholder="请输入姓名"></div>
+      <div class="rsv-tf"><input id="rsvPhone" type="tel" inputmode="tel" placeholder="手机号码"></div>
+    </div>
+
+    <button class="rsv-confirm" id="rsvConfirm" onclick="confirmReserve()">确认预约</button>
+  </div>
+
   <!-- ============ 外卖：收货地址（地址簿）弹窗，Figma 453:237 空状态 / 454:243 有地址 ============ -->
   <div class="dine-overlay" id="dvOverlay" onclick="closeDelivery()"></div>
   <div class="dine-modal dv-modal" id="dvModal">
@@ -1684,6 +1774,104 @@ function confirmDine(){
   _dineInfo={table:dineTable, pax:dinePax};
   closeDine();
   setTimeout(()=>{ switchTab('menu'); syncMenuMode(); }, 60);
+}
+
+/* ---------- 预约（Figma 546:922 New reservation + 711:789 日历）---------- */
+var RSV_TIMES=['4:00 pm','4:30 pm','5:00 pm','5:30 pm','6:00 pm','6:30 pm','7:00 pm','7:30 pm','8:00 pm','8:30 pm','9:00 pm','9:30 pm'];
+var _rsvDate=null, _rsvTime=null, _rsvPax=2, _rsvCalYM=null;   // _rsvDate: Date（当天0点）；_rsvCalYM: {y,m} 当前显示月
+function openReserve(){
+  _rsvDate=null; _rsvTime=null; _rsvPax=2;
+  var now=new Date(); _rsvCalYM={y:now.getFullYear(), m:now.getMonth()};
+  document.getElementById('rsvDateVal').textContent='请选择日期';
+  document.getElementById('rsvTimeVal').textContent='请选择时间';
+  document.getElementById('rsvPaxVal').textContent=_rsvPax;
+  document.getElementById('rsvCal').classList.remove('show');
+  document.getElementById('rsvTimes').classList.remove('show');
+  // 已登录会员预填姓名/电话
+  var nm=document.getElementById('rsvName'), ph=document.getElementById('rsvPhone');
+  if(_memberProfile){ nm.value=_memberProfile.nickname||_memberProfile.name||''; ph.value=_memberProfile.phone||''; }
+  else { nm.value=''; ph.value=''; }
+  rsvRenderTimes(); rsvRenderCal();
+  document.getElementById('rsvOverlay').classList.add('show');
+  document.getElementById('rsvModal').classList.add('show');
+}
+function closeReserve(){
+  document.getElementById('rsvOverlay').classList.remove('show');
+  document.getElementById('rsvModal').classList.remove('show');
+}
+function rsvToggleCal(){ var c=document.getElementById('rsvCal'); c.classList.toggle('show'); document.getElementById('rsvTimes').classList.remove('show'); }
+function rsvToggleTimes(){ var t=document.getElementById('rsvTimes'); t.classList.toggle('show'); document.getElementById('rsvCal').classList.remove('show'); }
+function rsvCalMove(delta){ var m=_rsvCalYM.m+delta, y=_rsvCalYM.y; if(m<0){m=11;y--;} if(m>11){m=0;y++;} _rsvCalYM={y:y,m:m}; rsvRenderCal(); }
+function rsvRenderCal(){
+  var y=_rsvCalYM.y, m=_rsvCalYM.m;
+  document.getElementById('rsvCalTitle').textContent=y+'年'+(m+1)+'月';
+  var first=new Date(y,m,1), startDow=(first.getDay()+6)%7;   // 周一为第一列
+  var days=new Date(y,m+1,0).getDate();
+  var today=new Date(); today.setHours(0,0,0,0);
+  var wd=['一','二','三','四','五','六','日'];
+  var html=wd.map(function(d){return '<div class="wd">'+d+'</div>';}).join('');
+  for(var i=0;i<startDow;i++){ html+='<div class="rsv-cal-day muted"></div>'; }
+  for(var d=1;d<=days;d++){
+    var cur=new Date(y,m,d);
+    var past=cur<today;
+    var sel=_rsvDate && cur.getTime()===_rsvDate.getTime();
+    html+='<div class="rsv-cal-day'+(past?' muted':'')+(sel?' sel':'')+'"'+(past?'':' onclick="rsvPickDate('+y+','+m+','+d+')"')+'>'+d+'</div>';
+  }
+  document.getElementById('rsvCalGrid').innerHTML=html;
+}
+function rsvPickDate(y,m,d){
+  _rsvDate=new Date(y,m,d); _rsvDate.setHours(0,0,0,0);
+  var mm=('0'+(m+1)).slice(-2), dd=('0'+d).slice(-2);
+  document.getElementById('rsvDateVal').textContent=y+'-'+mm+'-'+dd;
+  rsvRenderCal();
+  document.getElementById('rsvCal').classList.remove('show');
+}
+function rsvRenderTimes(){
+  document.getElementById('rsvTimes').innerHTML=RSV_TIMES.map(function(t){
+    return '<div class="rsv-time-opt'+(t===_rsvTime?' sel':'')+'" onclick="rsvPickTime(\''+t+'\')">'+t+'</div>';
+  }).join('');
+}
+function rsvPickTime(t){
+  _rsvTime=t; document.getElementById('rsvTimeVal').textContent=t;
+  rsvRenderTimes();
+  document.getElementById('rsvTimes').classList.remove('show');
+}
+function rsvPaxChange(delta){ _rsvPax=Math.max(1,Math.min(50,_rsvPax+delta)); document.getElementById('rsvPaxVal').textContent=_rsvPax; }
+function confirmReserve(){
+  var name=(document.getElementById('rsvName').value||'').trim();
+  var phone=(document.getElementById('rsvPhone').value||'').trim();
+  if(!_rsvDate){ alert('请选择预约日期'); return; }
+  if(!_rsvTime){ alert('请选择预约时间'); return; }
+  if(!name){ alert('请填写姓名'); return; }
+  if(!phone){ alert('请填写手机号码'); return; }
+  var y=_rsvDate.getFullYear(), mm=('0'+(_rsvDate.getMonth()+1)).slice(-2), dd=('0'+_rsvDate.getDate()).slice(-2);
+  var dateStr=y+'-'+mm+'-'+dd;
+  // 预约 = 一条 orders 行（ta_mode=reservation），进 POS 供店员查看/安排
+  var order={
+    id:'o'+Date.now(),
+    orderNum:'',
+    createdAt:new Date().toISOString(),
+    items:[{name:'桌位预约', en:'Table Reservation', price:0, qty:1, specs:[], image:''}],
+    total:0,
+    payMethod:'counter',
+    status:'pending',
+    needs_print:false,
+    source:'app',
+    tableName:'📅预约·'+name+'·'+_rsvPax+'人',
+    taMode:'reservation',
+    memberId:(_memberId||null),
+    deviceId:_deviceId,
+    deliveryInfo:{ reservation:{ date:dateStr, time:_rsvTime, pax:_rsvPax, name:name, phone:phone } }
+  };
+  var finish=function(){
+    _orders.unshift(order);
+    try{ var ex=JSON.parse(localStorage.getItem('pm_orders')||'[]'); ex.unshift(order); localStorage.setItem('pm_orders',JSON.stringify(ex)); }catch(e){}
+    try{ pmBroadcastOrders(); }catch(e){}
+    if(db){ db.from('orders').insert(orderToRow(order)).then(function(res){ if(res&&res.error){ console.error('reservation insert', res.error); setCloudStatus('offline'); } else { setCloudStatus('online'); } }).catch(function(e){ console.error('reservation insert', e); setCloudStatus('offline'); }); }
+    closeReserve();
+    alert('预约已提交！\n'+dateStr+' '+_rsvTime+' · '+_rsvPax+'人\n姓名：'+name+'\n我们会尽快与您确认。');
+  };
+  if(typeof assignOrderNumsApp==='function'){ assignOrderNumsApp(order).then(finish); } else { finish(); }
 }
 function syncMenuMode(){
   document.querySelectorAll('#seg button').forEach(b=>{
