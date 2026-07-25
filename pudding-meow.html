@@ -1547,18 +1547,27 @@
       <svg class="rsv-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" onclick="closeReserve()"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
     </div>
     <div class="rsv-search">
-      <input id="rsvSearchInput" type="tel" inputmode="tel" placeholder="输入手机号码查询预约" oninput="rsvSearchInput()">
+      <input id="rsvSearchInput" type="tel" inputmode="tel" placeholder="输入手机号码查询预约" oninput="rsvSearchInput()" onkeydown="if(event.key==='Enter'){event.preventDefault();rsvDoSearch();}">
       <svg class="rsv-search-clear" id="rsvSearchClear" viewBox="0 0 24 24" onclick="rsvSearchClear()"><circle cx="12" cy="12" r="10" fill="#8D0505"/><path d="M15 9l-6 6M9 9l6 6" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
-      <svg class="rsv-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+      <svg class="rsv-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer" onclick="rsvDoSearch()"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+    </div>
+  </div>
+
+  <!-- ============ 预约·详情弹窗（Figma 546:921 Reservation：详情 slot + 前往预约）============ -->
+  <div class="rsv-modal" id="rsvDetailModal">
+    <div class="rsv-head">
+      <svg class="rsv-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" onclick="rsvBackToSearch()"><path d="M15 5l-7 7 7 7"/></svg>
+      <span class="rsv-title">预约</span>
+      <svg class="rsv-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" onclick="closeReserve()"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
     </div>
     <div class="rsv-slots" id="rsvSlots"></div>
-    <button class="rsv-newbtn" onclick="rsvOpenNew()">＋ 新预约</button>
+    <button class="rsv-newbtn" onclick="rsvOpenNew()">前往预约</button>
   </div>
 
   <!-- ============ 预约·新建弹窗（Figma 546:922 New reservation + 711:789 日历）============ -->
   <div class="rsv-modal" id="rsvModal">
     <div class="rsv-head">
-      <svg class="rsv-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" onclick="closeReserve()"><path d="M15 5l-7 7 7 7"/></svg>
+      <svg class="rsv-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" onclick="rsvBackToDetail()"><path d="M15 5l-7 7 7 7"/></svg>
       <span class="rsv-title">预约</span>
       <svg class="rsv-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" onclick="closeReserve()"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
     </div>
@@ -1812,33 +1821,47 @@ function confirmDine(){
 /* ---------- 预约（Figma 546:922 New reservation + 711:789 日历）---------- */
 var RSV_TIMES=['4:00 pm','4:30 pm','5:00 pm','5:30 pm','6:00 pm','6:30 pm','7:00 pm','7:30 pm','8:00 pm','8:30 pm','9:00 pm','9:30 pm'];
 var _rsvDate=null, _rsvTime=null, _rsvPax=2, _rsvCalYM=null;   // _rsvDate: Date（当天0点）；_rsvCalYM: {y,m} 当前显示月
-/* 点「预约」先进查询视图（Figma 546:920）：输入手机号码查已有预约（slot 565:376），或 ＋新预约 */
+/* 三态流转（Figma 546:923 Component 2）：
+   ① Search reservation：点「预约」进搜索框（546:920）
+   ② Reservation：输入手机号→搜索→显示预约详情 slot（546:921），返回=回搜索框
+   ③ New reservation：详情态点「前往预约」→新建表单（546:922），返回=回详情态 */
+function _rsvHideAll(){
+  ['rsvSearchModal','rsvDetailModal','rsvModal'].forEach(function(id){ document.getElementById(id).classList.remove('show'); });
+}
+/* ① 搜索态 */
 function openReserve(){
   var inp=document.getElementById('rsvSearchInput');
-  inp.value = '';   // 留空：输入手机号搜索后才显示预约槽
+  inp.value='';
   document.getElementById('rsvSearchClear').classList.remove('show');
-  rsvRenderSlots();
-  document.getElementById('rsvModal').classList.remove('show');
+  _rsvHideAll();
   document.getElementById('rsvOverlay').classList.add('show');
   document.getElementById('rsvSearchModal').classList.add('show');
 }
 function rsvSearchInput(){
   document.getElementById('rsvSearchClear').classList.toggle('show', !!document.getElementById('rsvSearchInput').value);
-  rsvRenderSlots();
 }
 function rsvSearchClear(){
   document.getElementById('rsvSearchInput').value='';
   document.getElementById('rsvSearchClear').classList.remove('show');
-  rsvRenderSlots();
 }
-/* 从已加载订单里挑出预约单（ta_mode=reservation），按手机号码过滤，渲染成 slot */
+/* 点搜索图标 / 回车 → ② 详情态 */
+function rsvDoSearch(){
+  rsvRenderSlots();
+  _rsvHideAll();
+  document.getElementById('rsvDetailModal').classList.add('show');
+}
+/* ② 详情态返回 → ① 搜索态（保留已输入号码） */
+function rsvBackToSearch(){
+  _rsvHideAll();
+  document.getElementById('rsvSearchModal').classList.add('show');
+}
+/* 按手机号过滤预约单，渲染成 slot（详情态用；搜不到显示无预约）*/
 function rsvRenderSlots(){
   var q=(document.getElementById('rsvSearchInput').value||'').replace(/\D/g,'');
   var box=document.getElementById('rsvSlots');
-  if(!q){ box.innerHTML=''; return; }   // 未输入手机号：不显示预约槽
-  var list=(_orders||[]).filter(function(o){ return o.taMode==='reservation' && o.deliveryInfo && o.deliveryInfo.reservation
-    && String(o.deliveryInfo.reservation.phone||'').replace(/\D/g,'').indexOf(q)>=0; });
-  if(!list.length){ box.innerHTML='<div class="rsv-slot-empty">无预约</div>'; return; }   // 搜不到：无预约
+  var list=q ? (_orders||[]).filter(function(o){ return o.taMode==='reservation' && o.deliveryInfo && o.deliveryInfo.reservation
+    && String(o.deliveryInfo.reservation.phone||'').replace(/\D/g,'').indexOf(q)>=0; }) : [];
+  if(!list.length){ box.innerHTML='<div class="rsv-slot-empty">无预约</div>'; return; }   // 搜不到/未输入：无预约
   box.innerHTML=list.map(function(o){
     var r=o.deliveryInfo.reservation;
     var st=(o.status==='done')?'<span class="rsv-slot-status done">已确认</span>':'<span class="rsv-slot-status pending">待确认</span>';
@@ -1850,7 +1873,7 @@ function rsvRenderSlots(){
   }).join('');
 }
 function _esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-/* ＋新预约：进新建表单（Figma 546:922）*/
+/* ③ 详情态「前往预约」→ 新建表单（Figma 546:922）*/
 function rsvOpenNew(){
   _rsvDate=null; _rsvTime=null; _rsvPax=2;
   var now=new Date(); _rsvCalYM={y:now.getFullYear(), m:now.getMonth()};
@@ -1864,14 +1887,19 @@ function rsvOpenNew(){
   if(_memberProfile){ nm.value=_memberProfile.nickname||_memberProfile.name||''; ph.value=_memberProfile.phone||''; }
   else { nm.value=''; ph.value=''; }
   rsvRenderTimes(); rsvRenderCal();
-  document.getElementById('rsvSearchModal').classList.remove('show');
+  _rsvHideAll();
   document.getElementById('rsvOverlay').classList.add('show');
   document.getElementById('rsvModal').classList.add('show');
 }
+/* 表单返回 → ② 详情态 */
+function rsvBackToDetail(){
+  rsvRenderSlots();
+  _rsvHideAll();
+  document.getElementById('rsvDetailModal').classList.add('show');
+}
 function closeReserve(){
   document.getElementById('rsvOverlay').classList.remove('show');
-  document.getElementById('rsvModal').classList.remove('show');
-  document.getElementById('rsvSearchModal').classList.remove('show');
+  _rsvHideAll();
 }
 function rsvToggleCal(){ var c=document.getElementById('rsvCal'); c.classList.toggle('show'); document.getElementById('rsvTimes').classList.remove('show'); }
 function rsvToggleTimes(){ var t=document.getElementById('rsvTimes'); t.classList.toggle('show'); document.getElementById('rsvCal').classList.remove('show'); }
@@ -1943,12 +1971,12 @@ function confirmReserve(){
     try{ pmBroadcastOrders(); }catch(e){}
     if(db){ db.from('orders').insert(orderToRow(order)).then(function(res){ if(res&&res.error){ console.error('reservation insert', res.error); setCloudStatus('offline'); } else { setCloudStatus('online'); } }).catch(function(e){ console.error('reservation insert', e); setCloudStatus('offline'); }); }
     alert('预约已提交！\n'+dateStr+' '+_rsvTime+' · '+_rsvPax+'人\n姓名：'+name+'\n我们会尽快与您确认。');
-    // 回到查询视图，显示刚提交的预约
-    document.getElementById('rsvModal').classList.remove('show');
+    // 回到详情态，显示刚提交的预约（按该手机号）
     document.getElementById('rsvSearchInput').value=phone;
     document.getElementById('rsvSearchClear').classList.add('show');
     rsvRenderSlots();
-    document.getElementById('rsvSearchModal').classList.add('show');
+    _rsvHideAll();
+    document.getElementById('rsvDetailModal').classList.add('show');
   };
   if(typeof assignOrderNumsApp==='function'){ assignOrderNumsApp(order).then(finish); } else { finish(); }
 }
