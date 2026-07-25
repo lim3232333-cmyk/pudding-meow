@@ -450,13 +450,14 @@
   .sheet-spec-label .spec-opt{ font-weight:500; }
   .sheet-pill-row{ display:flex; flex-wrap:wrap; gap:10px; }
   /* Figma 201:98（Frame 94）：Default 米底/红框红字，Hover #F5E9D4 底/红框红字，Pressed 红底/米字。
-     三态都留 1px 边框（Pressed 的边框与底同色）——否则选中时少 2px 会让整行 pill 抖一下。 */
+     三态都留 1px 边框（Pressed 的边框与底同色）——否则选中时少 2px 会让整行 pill 抖一下。
+     高度 32px、左右内边距 16px 是按需要放大的（设计稿为 25px / 10px），字号仍是设计稿的 12px。 */
   .flavor-pill{
-    min-width:66px; height:25px; border-radius:999px;
+    min-width:66px; height:32px; border-radius:999px;
     background:var(--cream2); color:var(--red); border:1px solid var(--red);
     font-size:12px; font-weight:500; line-height:14px; cursor:pointer; font-family:"Noto Sans SC",sans-serif;
     display:flex; align-items:center; justify-content:center; text-align:center; white-space:nowrap;
-    padding:0 10px; box-sizing:border-box; flex-shrink:0;
+    padding:0 16px; box-sizing:border-box; flex-shrink:0;
   }
   .flavor-pill:not(.active):not(.soldout):hover{ background:#F5E9D4; }
   .flavor-pill:not(.soldout):active,
