@@ -1799,36 +1799,58 @@ if(!db) setTimeout(function(){ setCloudStatus('offline'); },0); else setTimeout(
 
 /* 订单对象 <-> 数据库行（app 用驼峰，DB 用下划线）*/
 function orderToRow(o){
-  return { id:o.id, order_num:o.orderNum, receipt_no:o.receiptNo!=null?o.receiptNo:null, created_at:o.createdAt, items:o.items||[],
+  return { id:o.id, order_num:o.orderNum, receipt_no:o.receiptNo!=null?o.receiptNo:null, kind_seq:o.kindSeq!=null?o.kindSeq:null, created_at:o.createdAt, items:o.items||[],
     total:o.total||0, pay_method:o.payMethod, status:o.status,
     source:o.source, table_name:o.tableName, ta_mode:o.taMode, member_id:o.memberId||null, device_id:o.deviceId||null,
     delivery_info:o.deliveryInfo||null };
 }
 function rowToOrder(r){
-  return { id:r.id, orderNum:r.order_num||(r.id?String(r.id).slice(-4):''), receiptNo:r.receipt_no!=null?r.receipt_no:null, createdAt:r.created_at,
+  return { id:r.id, orderNum:r.order_num||(r.id?String(r.id).slice(-4):''), receiptNo:r.receipt_no!=null?r.receipt_no:null, kindSeq:r.kind_seq!=null?r.kind_seq:null, createdAt:r.created_at,
     items:r.items||[], total:Number(r.total)||0, payMethod:r.pay_method||'counter',
     status:r.status||'pending', source:r.source||'app', tableName:r.table_name||'', taMode:r.ta_mode||'',
     memberId:r.member_id||null, deviceId:r.device_id||null, deliveryInfo:r.delivery_info||null };
 }
 /* 取号：永久收据号 receiptNo + 当天订单号 orderNum。优先 Supabase RPC（跨设备唯一/按天重置），离线兜底本地 */
-function _appLocalNums(){
+/* 取号要用的类型：自取 TA、外卖 DL 各自从 01 起编号；堂食直接用桌号、
+   充值单和预约单不出餐，都返回 null，不占用 TA/DL 序号。
+   与 pos.html 的 _orderKind() 语义必须一致，两端共用同一套 order_counters。 */
+function _appOrderKind(o){
+  if(o.taMode==='recharge'||o.taMode==='reservation') return null;
+  var t=String(o.tableName||'');
+  if(t.indexOf('外卖')>=0) return 'delivery';
+  if(t.indexOf('自取')>=0) return 'takeaway';
+  if(t.indexOf('堂食')>=0) return null;
+  return o.taMode==='takeaway' ? 'takeaway' : null;
+}
+function _appLocalNums(kind){
   var rc=(parseInt(localStorage.getItem('pm_rc')||'0',10)||0)+1; try{localStorage.setItem('pm_rc',String(rc));}catch(e){}
   var today=new Date().toLocaleDateString('en-CA');
   var dc; try{dc=JSON.parse(localStorage.getItem('pm_ordday')||'{}');}catch(e){dc={};}
   if(dc.d!==today){dc.d=today;dc.n=0;} dc.n=(dc.n||0)+1;
   try{localStorage.setItem('pm_ordday',JSON.stringify(dc));}catch(e){}
-  return {receiptNo:rc, orderNo:dc.n};
+  // 离线兜底也按类型分别计数，跟云端 rpc 的语义保持一致
+  var ks=null;
+  if(kind){
+    var kc; try{kc=JSON.parse(localStorage.getItem('pm_kindday')||'{}');}catch(e){kc={};}
+    if(kc.d!==today){ kc={d:today,takeaway:0,delivery:0}; }
+    kc[kind]=(kc[kind]||0)+1;
+    try{localStorage.setItem('pm_kindday',JSON.stringify(kc));}catch(e){}
+    ks=kc[kind];
+  }
+  return {receiptNo:rc, orderNo:dc.n, kindSeq:ks};
 }
 function assignOrderNumsApp(o){
-  var set=function(rc,on){ o.receiptNo=rc; o.orderNum=String(on).padStart(4,'0'); };
+  var kind=_appOrderKind(o);
+  var set=function(rc,on,ks){ o.receiptNo=rc; o.orderNum=String(on).padStart(4,'0'); if(ks!=null) o.kindSeq=ks; };
+  var fallback=function(){ var l=_appLocalNums(kind); set(l.receiptNo,l.orderNo,l.kindSeq); };
   if(db){
-    return db.rpc('rpc_next_order_num').then(function(res){
-      if(res&&!res.error&&res.data&&res.data[0]){ set(res.data[0].receipt_no,res.data[0].order_no); }
-      else { var l=_appLocalNums(); set(l.receiptNo,l.orderNo); }
+    return db.rpc('rpc_next_order_num',{p_kind:kind}).then(function(res){
+      if(res&&!res.error&&res.data&&res.data[0]){ set(res.data[0].receipt_no,res.data[0].order_no,res.data[0].kind_seq); }
+      else fallback();
       return o;
-    }).catch(function(){ var l=_appLocalNums(); set(l.receiptNo,l.orderNo); return o; });
+    }).catch(function(){ fallback(); return o; });
   }
-  var l=_appLocalNums(); set(l.receiptNo,l.orderNo); return Promise.resolve(o);
+  fallback(); return Promise.resolve(o);
 }
 
 /* ---------- tab switching ---------- */
