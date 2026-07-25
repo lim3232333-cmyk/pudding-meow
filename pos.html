@@ -1715,6 +1715,23 @@ function updPend(){
   var p=_orders.filter(function(o){return o.status==='pending' && o.taMode!=='reservation';}).length;
   document.getElementById('pendNum').textContent=p;
 }
+/* 待付款行的黑字：取餐短码，而不是 tableName 那种长字符串。
+   线上·堂食·A3·2人 → A3 ／ 线上·外卖·<地址> → DL ／ 线上·自取 → TA ／ 充值单 → 会员昵称 */
+function _pendCode(o){
+  var t=String(o.tableName||'');
+  if(o.taMode==='recharge') return t.replace(/^💰充值·/,'')||'会员';
+  var m=t.match(/堂食·([^·]+)/);
+  if(m) return m[1];
+  if(t.indexOf('外卖')>=0) return 'DL';
+  if(t.indexOf('自取')>=0) return 'TA';
+  // POS 本机单：堂食有填桌号就用桌号，外带统一 TA
+  if(o.taMode==='takeaway') return 'TA';
+  return (t && t!=='-') ? t : 'T';
+}
+/* 弹窗开着才重刷列表——收款时会先关掉待付款弹窗，刷新不该把它又弹回来 */
+function _refreshPendIfOpen(){
+  if(document.getElementById('pendBg').classList.contains('show')) showPending();
+}
 function showPending(){
   var pend=_orders.filter(function(o){return o.status==='pending' && o.taMode!=='reservation';});
   var el=document.getElementById('pendList');
@@ -1726,7 +1743,7 @@ function showPending(){
     var isRecharge = o.taMode==='recharge';
     // 充值单：单号位写「#充值」，名字位取会员昵称（tableName 形如 "💰充值·小明"）
     var num = isRecharge ? '#充值' : '#'+o.orderNum;
-    var name = isRecharge ? String(o.tableName||'').replace(/^💰充值·/,'') : o.tableName;
+    var name = _pendCode(o);
     var right = isOnlinePay
       ? '<span class="pend-status">付款中</span>'
       : '<button class="pend-pay" onclick="payPend(\''+o.id+'\')">Payment</button>';
@@ -1748,6 +1765,7 @@ function payPend(id){
   var o=_orders.find(function(x){return x.id===id;});
   if(!o) return;
   _payPendId=id;
+  closePending();   // 收款面板顶上来，待付款列表自动收起，不用店员手动关
   payTotalAmount=Number(o.total)||0;
   payMethod='cash';
   tenderInput='';
@@ -1771,7 +1789,7 @@ function _confirmPendPay(tender,change){
       if(res&&res.error){ console.error('rpc_complete_recharge',res.error); alert('充值到账失败：'+res.error.message); return; }
       o.status='done'; sj('pm_orders',_orders); pmBroadcastOrders();
       showN('✓ 已到账，会员钱包余额 RM '+Number(res.data).toFixed(2));
-      updPend(); showPending();
+      updPend(); _refreshPendIfOpen();
     }).catch(function(e){ console.error('rpc_complete_recharge',e); alert('充值到账失败，请重试'); });
     return;
   }
@@ -1784,7 +1802,7 @@ function _confirmPendPay(tender,change){
     if(o.memberId) db.rpc('rpc_on_order_completed',{p_member_id:o.memberId,p_order_id:o.id,p_amount:o.total})
       .catch(function(e){console.error('rpc_on_order_completed',e);});
   }
-  updPend(); showPending();
+  updPend(); _refreshPendIfOpen();
   // 接回找零 → 制作单 → 问收据 这条链；_pendExisting 让 askPrint 知道这单早就在库里，别再 insert
   _pendingOrder=o; _pendingNums=null; _pendExisting=true;
   document.getElementById('chgAmount').textContent='RM '+(Number(o.total)||0).toFixed(2);
