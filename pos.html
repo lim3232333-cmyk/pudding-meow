@@ -235,6 +235,27 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 .modal-bg{position:fixed;left:0;top:0;width:1366px;height:768px;background:rgba(0,0,0,.5);z-index:400;display:none;align-items:center;justify-content:center;}
 .modal-bg.show{display:flex;}
 
+/* ═══════ PENDING PAYMENT — Figma 533:282 ═══════ */
+.pend-card{width:762px;max-height:700px;background:#FFFFD5;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.pend-head{flex-shrink:0;height:66px;padding:24px 29px;background:#8D0505;border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:space-between;}
+.pend-title{font-size:24px;font-weight:700;color:#FFFFD5;white-space:nowrap;}
+.pend-close{width:42px;height:42px;flex-shrink:0;background:none;border:none;padding:0;cursor:pointer;display:block;}
+.pend-close svg{width:100%;height:100%;display:block;}
+.pend-body{flex:1;overflow-y:auto;padding:16px 24px;display:flex;flex-direction:column;gap:16px;}
+.pend-row{display:flex;align-items:center;justify-content:space-between;gap:16px;}
+.pend-row-l{display:flex;align-items:center;gap:24px;min-width:0;}
+/* 注意：.pend-num 已被顶栏待付款计数圆点占用（见上方 .hdr-pend），这里用 .pend-ord */
+.pend-ord{font-size:32px;font-weight:500;color:#8D0505;white-space:nowrap;}
+.pend-table{font-size:32px;font-weight:500;color:#000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pend-amt{flex-shrink:0;padding:0 12px;background:#FFDE5B;border-radius:999px;font-size:24px;font-weight:500;color:#8D0505;white-space:nowrap;display:flex;align-items:center;justify-content:center;}
+.pend-row-r{display:flex;align-items:center;justify-content:flex-end;gap:16px;flex-shrink:0;}
+/* 「付款中」占固定宽度，没有这行字的行 Payment 按钮也能对齐同一条竖线 */
+.pend-status{width:88px;flex-shrink:0;text-align:right;font-size:24px;font-weight:500;color:#1D7715;white-space:nowrap;}
+.pend-pay{flex-shrink:0;padding:10px;background:#8D0505;border:none;border-radius:12px;color:#fff;font-size:24px;font-weight:500;line-height:1;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
+.pend-pay:active{transform:translateY(1px);}
+.pend-sep{height:1px;background:#8D0505;opacity:.25;flex-shrink:0;}
+.pend-empty{text-align:center;padding:40px;font-size:18px;color:#4A4848;}
+
 /* ═══════ PAYMENT PANEL — 570×722px exact Figma ═══════ */
 .pay-panel{
   position:relative;
@@ -752,12 +773,18 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
 
 <!-- PENDING MODAL -->
 <div class="modal-bg" id="pendBg" onclick="if(event.target===this)closePending()">
-  <div style="background:#fff;border-radius:20px;width:580px;max-height:640px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);">
-    <div style="background:#8D0505;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
-      <span style="font-size:22px;font-weight:700;color:#FFDE5B">待付款订单</span>
-      <button onclick="closePending()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:18px;cursor:pointer">✕</button>
+  <div class="pend-card">
+    <div class="pend-head">
+      <span class="pend-title">Pending Payment</span>
+      <button class="pend-close" onclick="closePending()" aria-label="关闭">
+        <!-- lucide/circle-x（设计图层名即此图标）：白圆底 + 红叉 -->
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="10" fill="#FFFFD5"/>
+          <path d="m15 9-6 6M9 9l6 6" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
 </div>
-    <div id="pendList" style="flex:1;overflow-y:auto;padding:16px;"></div>
+    <div id="pendList" class="pend-body"></div>
 </div>
 </div>
 
@@ -1409,6 +1436,7 @@ function updTenderDisplay(){
 }
 function showPayment(){
   if(!cart.length){showN('购物车是空的');return;}
+  _payPendId=null;   // 收银台结账：确保不会误用待付款队列的结算分支
   payTotalAmount=cart.reduce(function(s,it){return s+it.qty*it.price;},0);
   payMethod='cash';
   tenderInput='';
@@ -1419,7 +1447,7 @@ function showPayment(){
   document.getElementById('pay-tng').classList.remove('a');
   document.getElementById('payBg').classList.add('show');
 }
-function closePayment(){document.getElementById('payBg').classList.remove('show');}
+function closePayment(){_payPendId=null;document.getElementById('payBg').classList.remove('show');}
 function setPayM(m){
   payMethod=m;
   document.getElementById('pay-cash').classList.toggle('a',m==='cash');
@@ -1434,7 +1462,7 @@ function setPayM(m){
     updTenderDisplay();
   }
 }
-var _pendingOrder=null, _pendingNums=null;
+var _pendingOrder=null, _pendingNums=null, _pendExisting=false;
 function confirmPayment(){
   // Done 按钮：完成付款验证
   var tender=parseFloat(tenderInput)||0;
@@ -1448,6 +1476,8 @@ function confirmPayment(){
     tender=payTotalAmount;
   }
   var change=payMethod==='cash'?(tender-payTotalAmount):0;
+  // 待付款队列点进来的：结算那张已存在的单，不新建
+  if(_payPendId){ _confirmPendPay(tender,change); return; }
   var tbl=document.getElementById('ctTable').value.trim()||'-';
   var cust=document.getElementById('ctCustomer').value.trim();
   _pendingOrder={id:'o'+Date.now(),orderNum:'',createdAt:new Date().toISOString(),
@@ -1476,6 +1506,12 @@ function askPrint(yes){
   document.getElementById('askBg').classList.remove('show');
   var o=_pendingOrder;
   if(!o) return;
+  // 待付款队列收的款：单子早就在 _orders 和云端了，只补打收据，不再入库、也不清收银台购物车
+  if(_pendExisting){
+    _pendExisting=false; _pendingOrder=null;
+    if(yes) printRec(o);
+    return;
+  }
   (_pendingNums||Promise.resolve()).then(function(){
     // 保存订单：本地缓存 + 广播 + 写云端（跨设备）——等取号完成后再入库，云端存的是最终号
     _orders.unshift(o);sj('pm_orders',_orders);pmBroadcastOrders();
@@ -1682,52 +1718,79 @@ function updPend(){
 function showPending(){
   var pend=_orders.filter(function(o){return o.status==='pending' && o.taMode!=='reservation';});
   var el=document.getElementById('pendList');
-  if(!pend.length){el.innerHTML='<div style="text-align:center;padding:30px;color:#4A4848">暂无待付款订单</div>';}
-  else{el.innerHTML=pend.map(function(o){
-    // 在线支付（HitPay）订单不给手动「已付款」按钮——客人还没在收银页真的付款就可能一直挂在这里，
+  if(!pend.length){el.innerHTML='<div class="pend-empty">暂无待付款订单</div>';}
+  else{el.innerHTML=pend.map(function(o,i){
+    // 在线支付（HitPay）订单只显示「付款中」、不给 Payment 按钮——客人还没在收银页真的付款就可能一直挂在这里，
     // 店员误点会在没收到钱的情况下把单标记成已付款；真正付款成功由 hitpay-webhook 自动翻状态。
     var isOnlinePay = o.payMethod==='hitpay';
     var isRecharge = o.taMode==='recharge';
-    var payTag = isOnlinePay
-      ? '<span style="font-size:10px;color:#8D0505;background:#B6F3FF;border-radius:6px;padding:1px 6px;margin-left:6px">在线支付</span>'
-      : (isRecharge ? '<span style="font-size:10px;color:#fff;background:#8D0505;border-radius:6px;padding:1px 6px;margin-left:6px">钱包充值</span>' : '');
-    var actionHtml = isOnlinePay
-      ? '<span style="font-size:11px;color:#4A4848;padding:0 4px">等待线上支付确认…</span>'
-      : '<button onclick="markPaid(\''+o.id+'\')" style="height:32px;border-radius:8px;border:none;background:#B6F3FF;color:#8D0505;font-size:12px;font-weight:700;cursor:pointer;padding:0 12px;font-family:Noto Sans SC,sans-serif">已付款</button>';
-    // 充值单：副行显示 收款金额 → 到账 + 送币
-    var rc = isRecharge && o.deliveryInfo && o.deliveryInfo.recharge;
-    var subLine = rc
-      ? '收款 RM '+Number(rc.price).toFixed(2)+' → 钱包到账 RM '+Number(rc.price).toFixed(2)+' + '+(rc.coins||0)+' 币'
-      : o.items.map(function(i){return i.name+'×'+i.qty;}).join('、')+' · RM '+o.total.toFixed(2);
-    return'<div style="background:#FFFFD5;border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px">'
-      +'<div><div style="font-weight:700;font-size:15px;color:#8D0505">#'+o.orderNum+''+o.tableName+payTag+'</div>'
-      +'<div style="font-size:11px;color:#4A4848;margin-top:3px">'+subLine+'</div></div>'
-      +'<div style="display:flex;gap:8px;align-items:center">'
-      +actionHtml
-      +'<button onclick="reprO(\''+o.id+'\')" style="height:32px;border-radius:8px;border:none;background:#FFDE5B;color:#8D0505;font-size:12px;font-weight:700;cursor:pointer;padding:0 10px"></button>'
-      +'</div></div>';
+    // 充值单：单号位写「#充值」，名字位取会员昵称（tableName 形如 "💰充值·小明"）
+    var num = isRecharge ? '#充值' : '#'+o.orderNum;
+    var name = isRecharge ? String(o.tableName||'').replace(/^💰充值·/,'') : o.tableName;
+    var right = isOnlinePay
+      ? '<span class="pend-status">付款中</span>'
+      : '<button class="pend-pay" onclick="payPend(\''+o.id+'\')">Payment</button>';
+    return (i?'<div class="pend-sep"></div>':'')
+      +'<div class="pend-row">'
+      +'<div class="pend-row-l"><span class="pend-ord">'+esc(num)+'</span><span class="pend-table">'+esc(name)+'</span>'
+      +'<span class="pend-amt">RM '+Number(o.total||0).toFixed(2)+'</span></div>'
+      +'<div class="pend-row-r">'+right+'</div>'
+      +'</div>';
   }).join('');}
   document.getElementById('pendBg').classList.add('show');
 }
 function closePending(){document.getElementById('pendBg').classList.remove('show');}
-function markPaid(id){
+/* 待付款队列点 Payment：复用收银台那个 Cash/DuitNow 面板给这一单收款。
+   _payPendId 非空时，confirmPayment() 走 _confirmPendPay 结算已存在的订单，
+   而不是像购物车结账那样新建一单。 */
+var _payPendId=null;
+function payPend(id){
   var o=_orders.find(function(x){return x.id===id;});
   if(!o) return;
-  // 充值单：走 rpc_complete_recharge，服务端给会员钱包加钱(=收款) + 送 coin，订单转 done
+  _payPendId=id;
+  payTotalAmount=Number(o.total)||0;
+  payMethod='cash';
+  tenderInput='';
+  document.getElementById('payAmt').textContent=payTotalAmount.toFixed(2);
+  updTenderDisplay();
+  document.getElementById('pay-cash').classList.add('a');
+  document.getElementById('pay-tng').classList.remove('a');
+  document.getElementById('payBg').classList.add('show');
+}
+function _confirmPendPay(tender,change){
+  var o=_orders.find(function(x){return x.id===_payPendId;});
+  _payPendId=null;
+  closePayment();
+  if(!o){ showN('订单不存在'); return; }
+  o.payMethod=payMethod; o.tender=tender; o.change=change;
+  // 充值单：走 rpc_complete_recharge，服务端给会员钱包加钱(=收款) + 送 coin，订单转 done。
+  // 充值不出品也不打小票，所以不走找零/打印那条链。
   if(o.taMode==='recharge'){
     if(!db){ alert('充值到账需要联网'); return; }
-    var rc=o.deliveryInfo&&o.deliveryInfo.recharge;
-    if(!confirm('确认已收到柜台付款 RM '+Number(o.total).toFixed(2)+'？\n确认后会为会员钱包到账 RM '+Number(o.total).toFixed(2)+(rc&&rc.coins?(' + '+rc.coins+' 币'):'')+'。')) return;
     db.rpc('rpc_complete_recharge',{p_order_id:o.id}).then(function(res){
       if(res&&res.error){ console.error('rpc_complete_recharge',res.error); alert('充值到账失败：'+res.error.message); return; }
       o.status='done'; sj('pm_orders',_orders); pmBroadcastOrders();
-      showN('✓ 已到账，会员钱包余额 RM '+Number(res.data).toFixed(2)); updPend(); showPending();
+      showN('✓ 已到账，会员钱包余额 RM '+Number(res.data).toFixed(2));
+      updPend(); showPending();
     }).catch(function(e){ console.error('rpc_complete_recharge',e); alert('充值到账失败，请重试'); });
     return;
   }
-  o.status=(o.source==='app'?'preparing':'paid');sj('pm_orders',_orders);pmBroadcastOrders();
-  if(db){db.from('orders').update({status:o.status}).eq('id',id).then(function(res){if(res&&res.error)console.error('markPaid',res.error);}).catch(function(e){console.error('markPaid',e);});if(o.memberId)db.rpc('rpc_on_order_completed',{p_member_id:o.memberId,p_order_id:o.id,p_amount:o.total}).catch(function(e){console.error('rpc_on_order_completed',e);});}
-  updPend();showPending();
+  o.status=(o.source==='app'?'preparing':'paid');
+  sj('pm_orders',_orders); pmBroadcastOrders();
+  if(db){
+    db.from('orders').update({status:o.status,pay_method:o.payMethod}).eq('id',o.id)
+      .then(function(res){if(res&&res.error)console.error('payPend update',res.error);})
+      .catch(function(e){console.error('payPend update',e);});
+    if(o.memberId) db.rpc('rpc_on_order_completed',{p_member_id:o.memberId,p_order_id:o.id,p_amount:o.total})
+      .catch(function(e){console.error('rpc_on_order_completed',e);});
+  }
+  updPend(); showPending();
+  // 接回找零 → 制作单 → 问收据 这条链；_pendExisting 让 askPrint 知道这单早就在库里，别再 insert
+  _pendingOrder=o; _pendingNums=null; _pendExisting=true;
+  document.getElementById('chgAmount').textContent='RM '+(Number(o.total)||0).toFixed(2);
+  document.getElementById('chgTender').textContent='RM '+tender.toFixed(2);
+  document.getElementById('chgChange').textContent='RM '+change.toFixed(2);
+  document.getElementById('changeBg').classList.add('show');
 }
 function reprO(id){var o=_orders.find(function(x){return x.id===id;});if(o)printRec(o);}
 
