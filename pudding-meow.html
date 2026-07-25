@@ -449,17 +449,19 @@
   .sheet-spec-label{ font-size:12px; font-weight:500; line-height:14px; color:var(--red); margin-bottom:8px; }
   .sheet-spec-label .spec-opt{ font-weight:500; }
   .sheet-pill-row{ display:flex; flex-wrap:wrap; gap:10px; }
+  /* Figma 201:98（Frame 94）：Default 米底/红框红字，Hover #F5E9D4 底/红框红字，Pressed 红底/米字。
+     三态都留 1px 边框（Pressed 的边框与底同色）——否则选中时少 2px 会让整行 pill 抖一下。 */
   .flavor-pill{
-    min-width:66px; height:25px; border-radius:999px; background:var(--red); color:var(--cream2);
-    font-size:12px; font-weight:500; line-height:14px; border:none; cursor:pointer; font-family:"Noto Sans SC",sans-serif;
+    min-width:66px; height:25px; border-radius:999px;
+    background:var(--cream2); color:var(--red); border:1px solid var(--red);
+    font-size:12px; font-weight:500; line-height:14px; cursor:pointer; font-family:"Noto Sans SC",sans-serif;
     display:flex; align-items:center; justify-content:center; text-align:center; white-space:nowrap;
     padding:0 10px; box-sizing:border-box; flex-shrink:0;
   }
-  /* Figma Frame 94：Default 深红/米字，Hover 深红#981717/白字，Pressed 蓝底/红字 */
-  .flavor-pill:not(.active):not(.soldout):hover,
-  .flavor-pill:not(.active):not(.soldout):active{ background:#981717; color:#fff; }
-  .flavor-pill.active{ background:var(--blue); color:var(--red); }
-  .flavor-pill.soldout, .flavor-pill.soldout.active{ background:#D9D9D9; color:#9A9A9A; cursor:not-allowed; text-decoration:line-through; }
+  .flavor-pill:not(.active):not(.soldout):hover{ background:#F5E9D4; }
+  .flavor-pill:not(.soldout):active,
+  .flavor-pill.active{ background:var(--red); color:var(--cream2); }
+  .flavor-pill.soldout, .flavor-pill.soldout.active{ background:#D9D9D9; color:#9A9A9A; border-color:#D9D9D9; cursor:not-allowed; text-decoration:line-through; }
 
   .sheet-footer{
     flex-shrink:0; background:var(--cream2); box-shadow:0 -4px 2.5px rgba(0,0,0,.1); border-radius:16px;
