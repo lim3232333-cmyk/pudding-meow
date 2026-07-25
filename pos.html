@@ -1715,18 +1715,12 @@ function updPend(){
   var p=_orders.filter(function(o){return o.status==='pending' && o.taMode!=='reservation';}).length;
   document.getElementById('pendNum').textContent=p;
 }
-/* 待付款行的黑字：取餐短码，而不是 tableName 那种长字符串。
-   线上·堂食·A3·2人 → A3 ／ 线上·外卖·<地址> → DL ／ 线上·自取 → TA ／ 充值单 → 会员昵称 */
+/* 待付款行的黑字 = 顾客小票上那个 ORDER CODE，必须同源，店员和顾客才对得上。
+   直接复用 _orderTypeLabel()（堂食 Table N／自取 TAxx／外卖 DLxx，收据和厨房制作单印的也是它）。
+   充值单没有取餐码，改显会员昵称。 */
 function _pendCode(o){
-  var t=String(o.tableName||'');
-  if(o.taMode==='recharge') return t.replace(/^💰充值·/,'')||'会员';
-  var m=t.match(/堂食·([^·]+)/);
-  if(m) return m[1];
-  if(t.indexOf('外卖')>=0) return 'DL';
-  if(t.indexOf('自取')>=0) return 'TA';
-  // POS 本机单：堂食有填桌号就用桌号，外带统一 TA
-  if(o.taMode==='takeaway') return 'TA';
-  return (t && t!=='-') ? t : 'T';
+  if(o.taMode==='recharge') return String(o.tableName||'').replace(/^💰充值·/,'')||'会员';
+  return _orderTypeLabel(o);
 }
 /* 弹窗开着才重刷列表——收款时会先关掉待付款弹窗，刷新不该把它又弹回来 */
 function _refreshPendIfOpen(){
