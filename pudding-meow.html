@@ -1815,8 +1815,8 @@ var _rsvDate=null, _rsvTime=null, _rsvPax=2, _rsvCalYM=null;   // _rsvDate: Date
 /* 点「预约」先进查询视图（Figma 546:920）：输入手机号码查已有预约（slot 565:376），或 ＋新预约 */
 function openReserve(){
   var inp=document.getElementById('rsvSearchInput');
-  inp.value = (_memberProfile && _memberProfile.phone) ? _memberProfile.phone : '';
-  document.getElementById('rsvSearchClear').classList.toggle('show', !!inp.value);
+  inp.value = '';   // 留空：输入手机号搜索后才显示预约槽
+  document.getElementById('rsvSearchClear').classList.remove('show');
   rsvRenderSlots();
   document.getElementById('rsvModal').classList.remove('show');
   document.getElementById('rsvOverlay').classList.add('show');
@@ -1834,10 +1834,11 @@ function rsvSearchClear(){
 /* 从已加载订单里挑出预约单（ta_mode=reservation），按手机号码过滤，渲染成 slot */
 function rsvRenderSlots(){
   var q=(document.getElementById('rsvSearchInput').value||'').replace(/\D/g,'');
-  var list=(_orders||[]).filter(function(o){ return o.taMode==='reservation' && o.deliveryInfo && o.deliveryInfo.reservation; });
-  if(q){ list=list.filter(function(o){ return String(o.deliveryInfo.reservation.phone||'').replace(/\D/g,'').indexOf(q)>=0; }); }
   var box=document.getElementById('rsvSlots');
-  if(!list.length){ box.innerHTML='<div class="rsv-slot-empty">无预约</div>'; return; }
+  if(!q){ box.innerHTML=''; return; }   // 未输入手机号：不显示预约槽
+  var list=(_orders||[]).filter(function(o){ return o.taMode==='reservation' && o.deliveryInfo && o.deliveryInfo.reservation
+    && String(o.deliveryInfo.reservation.phone||'').replace(/\D/g,'').indexOf(q)>=0; });
+  if(!list.length){ box.innerHTML='<div class="rsv-slot-empty">无预约</div>'; return; }   // 搜不到：无预约
   box.innerHTML=list.map(function(o){
     var r=o.deliveryInfo.reservation;
     var st=(o.status==='done')?'<span class="rsv-slot-status done">已确认</span>':'<span class="rsv-slot-status pending">待确认</span>';
