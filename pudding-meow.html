@@ -824,6 +824,17 @@
   .rsv-dd-opt{ padding:10px 12px; font-size:14px; color:var(--muted); text-align:center; cursor:pointer; }
   .rsv-dd-opt.sel{ background:var(--red); color:var(--cream2); font-weight:700; }
   .rsv-dd-opt:not(.sel):active{ background:var(--yellow); }
+  /* 日期下拉里放日历（不滚动，保持日历状选择）*/
+  .rsv-cal-panel{ max-height:none; overflow:visible; padding:10px; }
+  .rsv-cal-nav{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .rsv-cal-nav b{ font-weight:500; font-size:14px; color:var(--muted); }
+  .rsv-cal-nav button{ width:28px; height:28px; border:none; background:transparent; color:var(--red); font-size:18px; cursor:pointer; border-radius:8px; }
+  .rsv-cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .rsv-cal-grid .wd{ font-weight:500; font-size:11px; color:var(--muted); text-align:center; padding:2px 0; }
+  .rsv-cal-day{ aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--muted); border-radius:8px; cursor:pointer; }
+  .rsv-cal-day.muted{ color:#CFC9B0; cursor:default; }
+  .rsv-cal-day.sel{ background:var(--red); color:var(--cream2); font-weight:700; }
+  .rsv-cal-day:not(.muted):not(.sel):active{ background:var(--yellow); }
   /* 人数 */
   .rsv-pax{ display:flex; align-items:center; justify-content:center; gap:24px; }
   .rsv-pax button{ width:28px; height:28px; border:none; background:transparent; color:var(--red); cursor:pointer; padding:0; }
@@ -1571,7 +1582,10 @@
       <div class="rsv-flabel">1. 选择日期</div>
       <details class="rsv-dd" id="rsvDateDD">
         <summary><span id="rsvDateVal">请选择日期</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4"/></svg></summary>
-        <div class="rsv-dd-panel" id="rsvDatePanel"></div>
+        <div class="rsv-dd-panel rsv-cal-panel" id="rsvDatePanel">
+          <div class="rsv-cal-nav"><button type="button" onclick="rsvCalMove(-1)">‹</button><b id="rsvCalTitle"></b><button type="button" onclick="rsvCalMove(1)">›</button></div>
+          <div class="rsv-cal-grid" id="rsvCalGrid"></div>
+        </div>
       </details>
     </div>
 
@@ -1810,8 +1824,7 @@ function confirmDine(){
 
 /* ---------- 预约（Figma 546:922 New reservation + 711:789 日历）---------- */
 var RSV_TIMES=['4:00 pm','4:30 pm','5:00 pm','5:30 pm','6:00 pm','6:30 pm','7:00 pm','7:30 pm','8:00 pm','8:30 pm','9:00 pm','9:30 pm','10:00 pm'];
-var RSV_DATE_DAYS=30;   // 日期下拉可选未来天数
-var _rsvDate=null, _rsvTime=null, _rsvPax=2;   // _rsvDate: 'YYYY-MM-DD' 字符串
+var _rsvDate=null, _rsvTime=null, _rsvPax=2, _rsvCalYM=null;   // _rsvDate: 'YYYY-MM-DD' 字符串；_rsvCalYM:{y,m}
 /* 三态流转（Figma 546:923 Component 2）：
    ① Search reservation：点「预约」进搜索框（546:920）
    ② Reservation：输入手机号→搜索→显示预约详情 slot（546:921），返回=回搜索框
@@ -1872,11 +1885,12 @@ function rsvOpenNew(){
   document.getElementById('rsvPaxVal').textContent=_rsvPax;
   document.getElementById('rsvDateDD').open=false;
   document.getElementById('rsvTimeDD').open=false;
+  var now=new Date(); _rsvCalYM={y:now.getFullYear(), m:now.getMonth()};
   // 已登录会员预填姓名/电话
   var nm=document.getElementById('rsvName'), ph=document.getElementById('rsvPhone');
   if(_memberProfile){ nm.value=_memberProfile.nickname||_memberProfile.name||''; ph.value=_memberProfile.phone||''; }
   else { nm.value=''; ph.value=''; }
-  rsvRenderTimeOptions(); rsvRenderDateOptions();
+  rsvRenderTimeOptions(); rsvRenderCal();
   _rsvHideAll();
   document.getElementById('rsvOverlay').classList.add('show');
   document.getElementById('rsvModal').classList.add('show');
@@ -1891,23 +1905,31 @@ function closeReserve(){
   document.getElementById('rsvOverlay').classList.remove('show');
   _rsvHideAll();
 }
-/* 日期下拉：今天起未来 RSV_DATE_DAYS 天，选项格式 2026-08-25 周一 */
+/* 日期：下拉里放日历（不滚动，保持日历状选择）*/
 var _RSV_WD=['周日','周一','周二','周三','周四','周五','周六'];
-function rsvRenderDateOptions(){
+function rsvCalMove(delta){ var m=_rsvCalYM.m+delta, y=_rsvCalYM.y; if(m<0){m=11;y--;} if(m>11){m=0;y++;} _rsvCalYM={y:y,m:m}; rsvRenderCal(); }
+function rsvRenderCal(){
+  var y=_rsvCalYM.y, m=_rsvCalYM.m;
+  document.getElementById('rsvCalTitle').textContent=y+'年'+(m+1)+'月';
+  var first=new Date(y,m,1), startDow=(first.getDay()+6)%7;   // 周一为第一列
+  var days=new Date(y,m+1,0).getDate();
   var today=new Date(); today.setHours(0,0,0,0);
-  var html='';
-  for(var i=0;i<RSV_DATE_DAYS;i++){
-    var d=new Date(today.getTime()+i*86400000);
-    var iso=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
-    var label=iso+' '+_RSV_WD[d.getDay()]+(i===0?'（今天）':'');
-    html+='<div class="rsv-dd-opt'+(iso===_rsvDate?' sel':'')+'" onclick="rsvPickDate(\''+iso+'\',\''+label.replace(/'/g,'')+'\')">'+label+'</div>';
+  var wd=['一','二','三','四','五','六','日'];
+  var html=wd.map(function(d){return '<div class="wd">'+d+'</div>';}).join('');
+  for(var i=0;i<startDow;i++){ html+='<div class="rsv-cal-day muted"></div>'; }
+  for(var d=1;d<=days;d++){
+    var iso=y+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+d).slice(-2);
+    var past=new Date(y,m,d)<today;
+    var sel=(iso===_rsvDate);
+    html+='<div class="rsv-cal-day'+(past?' muted':'')+(sel?' sel':'')+'"'+(past?'':' onclick="rsvPickDate('+y+','+m+','+d+')"')+'>'+d+'</div>';
   }
-  document.getElementById('rsvDatePanel').innerHTML=html;
+  document.getElementById('rsvCalGrid').innerHTML=html;
 }
-function rsvPickDate(iso,label){
-  _rsvDate=iso; document.getElementById('rsvDateVal').textContent=label;
+function rsvPickDate(y,m,d){
+  _rsvDate=y+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+d).slice(-2);
+  document.getElementById('rsvDateVal').textContent=_rsvDate+' '+_RSV_WD[new Date(y,m,d).getDay()];
   document.getElementById('rsvDateDD').open=false;
-  rsvRenderDateOptions();
+  rsvRenderCal();
 }
 /* 时间下拉：滚动列表，最多到 10:00 pm */
 function rsvRenderTimeOptions(){
