@@ -501,17 +501,19 @@
   .mem-card2{ background:var(--yellow); border-radius:16px; padding:12px; }
   .mem-card2-inner{ position:relative; background:var(--cream2); border-radius:16px; height:113px; box-sizing:border-box; }
 
-  /* ---- 会员卡左侧：按等级换的动画小猫（3 帧交叉淡入淡出做摇晃循环，取自 Figma 逐帧姿态）---- */
-  .mem-cat{ position:absolute; left:6px; top:10px; width:93px; height:93px; }
-  .mem-cat-set{ display:none; position:absolute; inset:0; }
-  .mem-cat-set svg{ position:absolute; inset:0; width:100%; height:100%; }
-  #memHome.mem-lvl-0 .mem-cat-set[data-lvl="0"]{ display:block; }
-  @keyframes catPoseA{ 0%,12%{opacity:1} 18%,27%{opacity:0} 33%,42%{opacity:1} 48%,57%{opacity:0} 63%,100%{opacity:1} }
-  @keyframes catPoseB{ 0%,12%{opacity:0} 18%,27%{opacity:1} 33%,100%{opacity:0} }
-  @keyframes catPoseC{ 0%,42%{opacity:0} 48%,57%{opacity:1} 63%,100%{opacity:0} }
-  .mem-cat-pose-a{ animation:catPoseA 4s ease-in-out infinite; }
-  .mem-cat-pose-b{ animation:catPoseB 4s ease-in-out infinite; }
-  .mem-cat-pose-c{ animation:catPoseC 4s ease-in-out infinite; }
+  /* ---- 会员卡左侧：按等级换的动画小猫 ----
+     Lv.0 猫咪蛋用 sprite sheet：cat-egg-sprite.png，512×64，8 帧每帧 64×64。
+     帧序取自 cat_egg.png 的时间轴 A A A B A C A A（A=正，B/C=左右倾），
+     逐帧硬切，所以用 steps(8) 一格一格推 background-position，不做插值。 */
+  .mem-cat{ position:absolute; left:6px; top:10px; width:93px; height:93px; display:flex; align-items:center; justify-content:center; }
+  .mem-cat-sprite{
+    display:none; width:64px; height:64px;
+    background:url('cat-egg-sprite.png') 0 0 no-repeat;
+    background-size:512px 64px;   /* 8 帧 × 64px */
+    animation:catEggSprite 4s steps(8) infinite;
+  }
+  #memHome.mem-lvl-0 .mem-cat-sprite[data-lvl="0"]{ display:block; }
+  @keyframes catEggSprite{ from{ background-position:0 0; } to{ background-position:-512px 0; } }
   .mem-name{ position:absolute; left:109px; top:11px; font-weight:500; font-size:16px; color:var(--red); }
   .mem-level-pill{ position:absolute; left:107px; top:34px; height:18px; box-sizing:border-box; display:inline-flex; align-items:center; gap:10px; padding:0 10px; border-radius:999px; background:var(--yellow); color:var(--red); font-size:12px; }
   .mem-xp-label{ position:absolute; left:109px; top:66px; font-size:12px; color:var(--red); }
@@ -1207,72 +1209,7 @@
         <div class="mem-card2">
           <div class="mem-card2-inner">
             <div class="mem-cat" id="memCat">
-              <div class="mem-cat-set" data-lvl="0">
-                <svg class="mem-cat-pose-a" viewBox="129.7 104.3 480 480" xmlns="http://www.w3.org/2000/svg">
-                  <defs><radialGradient id="_catEggRadialA" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="matrix(135.397,0,0,135.397,374.859,384.188)"><stop offset="0" style="stop-color:rgb(255,244,61);stop-opacity:1"/><stop offset="1" style="stop-color:rgb(255,243,147);stop-opacity:1"/></radialGradient></defs>
-                  <g transform="matrix(0.618638,0,0,0.644464,0,0)">
-                    <g transform="matrix(1.61645,0,0,1.55168,0,0)">
-                      <path d="M480.389,247.319C500.048,283.585 511.711,326.597 511.034,365.978C508.838,493.769 443.551,526.636 367.331,525.735C294.324,524.872 231.018,488.852 228.434,370.222C227.537,329.052 240.334,283.055 261.712,244.859C261.712,244.859 257.692,284.192 281.645,281.013C305.599,277.833 310.876,246.578 338.207,281.232C361.623,310.922 383.901,304.2 403.289,284.24C422.024,264.952 419.934,260.513 447.361,279.2C474.116,297.428 483.195,253.977 480.389,247.319Z" style="fill:url(#_catEggRadialA);"/>
-                      <g transform="matrix(1,0,0,1,-25.2485,22.7936)"><path d="M395.508,360.702C406.085,360.997 410.741,369.201 416.834,375.288C424.053,382.5 439.542,389.043 438.826,403.975C437.257,436.7 401.637,417.7 395.508,417.7C389.379,417.7 352.334,433.645 352.334,403.975C352.334,386.108 364.383,382.5 371.579,375.288C378.177,368.675 379.944,360.267 395.508,360.702Z" style="fill:rgb(151,3,2);"/></g>
-                      <path d="M261.712,244.859C287.962,197.959 327.151,162.821 369.818,162.821C413.865,162.821 454.016,198.895 480.155,246.888C480.233,247.032 480.311,247.175 480.389,247.319C483.195,253.977 474.116,297.428 447.361,279.2C419.934,260.513 422.024,264.952 403.289,284.24C383.901,304.2 361.623,310.922 338.207,281.232C310.876,246.578 305.599,277.833 281.645,281.013C257.692,284.192 261.712,244.859 261.712,244.859Z" style="fill:rgb(137,10,10);stroke:rgb(92,42,0);stroke-width:6px;"/>
-                      <path d="M480.389,247.319C500.048,283.585 511.711,326.597 511.034,365.978C508.838,493.769 443.551,526.636 367.331,525.735C294.324,524.872 231.018,488.852 228.434,370.222C227.537,329.052 240.334,283.055 261.712,244.859C261.712,244.859 257.692,284.192 281.645,281.013C305.599,277.833 310.876,246.578 338.207,281.232C361.623,310.922 383.901,304.2 403.289,284.24C422.024,264.952 419.934,260.513 447.361,279.2C474.116,297.428 483.195,253.977 480.389,247.319Z" style="fill:none;stroke:rgb(92,42,0);stroke-width:6px;stroke-linecap:round;stroke-miterlimit:1.5;"/>
-                      <path d="M261.712,244.859C261.712,244.859 257.692,284.192 281.645,281.013C305.599,277.833 310.876,246.578 338.207,281.232C361.623,310.922 383.901,304.2 403.289,284.24C422.024,264.952 419.934,260.513 447.361,279.2C474.788,297.887 483.64,251.753 480.155,246.888" style="fill:none;stroke:rgb(92,42,0);stroke-width:6px;stroke-linecap:round;stroke-miterlimit:1.5;"/>
-                      <g transform="matrix(0.962058,-0.272845,0.272845,0.962058,-82.4958,144.108)"><ellipse cx="319.331" cy="341.456" rx="15.68" ry="20.872" style="fill:rgb(151,3,2);"/></g>
-                      <g transform="matrix(1,0,0,1,30.3594,15.3017)"><ellipse cx="319.331" cy="341.456" rx="15.68" ry="20.872" style="fill:rgb(151,3,2);"/></g>
-                      <g transform="matrix(1,0,0,1,71.2084,15.3017)"><ellipse cx="319.331" cy="341.456" rx="15.68" ry="20.872" style="fill:rgb(151,3,2);"/></g>
-                      <g transform="matrix(0.945803,0.324741,-0.324741,0.945803,231.387,-41.0256)"><ellipse cx="319.331" cy="341.456" rx="15.68" ry="20.872" style="fill:rgb(151,3,2);"/></g>
-                    </g>
-                  </g>
-                </svg>
-                <svg class="mem-cat-pose-b" viewBox="131.1 557.3 480 480" xmlns="http://www.w3.org/2000/svg">
-                  <defs><radialGradient id="_catEggRadialB" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="matrix(135.397,0,0,135.397,374.859,384.188)"><stop offset="0" style="stop-color:rgb(255,244,61);stop-opacity:1"/><stop offset="1" style="stop-color:rgb(255,243,147);stop-opacity:1"/></radialGradient></defs>
-                  <g transform="matrix(0.618638,0,0,0.644464,0,0)">
-                    <g transform="matrix(1.61071,0.130737,-0.136194,1.54616,49.0151,656.238)">
-                      <path d="M480.389,247.319C500.048,283.585 511.711,326.597 511.034,365.978C508.838,493.769 443.551,526.636 367.331,525.735C294.324,524.872 231.018,488.852 228.434,370.222C227.537,329.052 240.334,283.055 261.712,244.859C261.712,244.859 257.692,284.192 281.645,281.013C305.599,277.833 310.876,246.578 338.207,281.232C361.623,310.922 383.901,304.2 403.289,284.24C422.024,264.952 419.934,260.513 447.361,279.2C474.116,297.428 483.195,253.977 480.389,247.319Z" style="fill:url(#_catEggRadialB);"/>
-                      <g transform="matrix(1,0,0,1,-25.2485,22.7936)"><path d="M395.508,360.702C406.085,360.997 410.741,369.201 416.834,375.288C424.053,382.5 439.542,389.043 438.826,403.975C437.257,436.7 401.637,417.7 395.508,417.7C389.379,417.7 352.334,433.645 352.334,403.975C352.334,386.108 364.383,382.5 371.579,375.288C378.177,368.675 379.944,360.267 395.508,360.702Z" style="fill:rgb(151,3,2);"/></g>
-                      <path d="M261.712,244.859C287.962,197.959 327.151,162.821 369.818,162.821C413.865,162.821 454.016,198.895 480.155,246.888C480.233,247.032 480.311,247.175 480.389,247.319C483.195,253.977 474.116,297.428 447.361,279.2C419.934,260.513 422.024,264.952 403.289,284.24C383.901,304.2 361.623,310.922 338.207,281.232C310.876,246.578 305.599,277.833 281.645,281.013C257.692,284.192 261.712,244.859 261.712,244.859Z" style="fill:rgb(137,10,10);stroke:rgb(92,42,0);stroke-width:6px;"/>
-                      <path d="M480.389,247.319C500.048,283.585 511.711,326.597 511.034,365.978C508.838,493.769 443.551,526.636 367.331,525.735C294.324,524.872 231.018,488.852 228.434,370.222C227.537,329.052 240.334,283.055 261.712,244.859C261.712,244.859 257.692,284.192 281.645,281.013C305.599,277.833 310.876,246.578 338.207,281.232C361.623,310.922 383.901,304.2 403.289,284.24C422.024,264.952 419.934,260.513 447.361,279.2C474.116,297.428 483.195,253.977 480.389,247.319Z" style="fill:none;stroke:rgb(92,42,0);stroke-width:6px;stroke-linecap:round;stroke-miterlimit:1.5;"/>
-                      <path d="M261.712,244.859C261.712,244.859 257.692,284.192 281.645,281.013C305.599,277.833 310.876,246.578 338.207,281.232C361.623,310.922 383.901,304.2 403.289,284.24C422.024,264.952 419.934,260.513 447.361,279.2C474.788,297.887 483.64,251.753 480.155,246.888" style="fill:none;stroke:rgb(92,42,0);stroke-width:6px;stroke-linecap:round;stroke-miterlimit:1.5;"/>
-                      <g transform="matrix(0.962058,-0.272845,0.272845,0.962058,-82.4958,144.108)"><ellipse cx="319.331" cy="341.456" rx="15.68" ry="20.872" style="fill:rgb(151,3,2);"/></g>
-                      <g transform="matrix(1,0,0,1,30.3594,15.3017)"><ellipse cx="319.331" cy="341.456" rx="15.68" ry="20.872" style="fill:rgb(151,3,2);"/></g>
-                      <g transform="matrix(1,0,0,1,71.2084,15.3017)"><ellipse cx="319.331" cy="341.456" rx="15.68" ry="20.872" style="fill:rgb(151,3,2);"/></g>
-                      <g transform="matrix(0.945803,0.324741,-0.324741,0.945803,231.387,-41.0256)"><ellipse cx="319.331" cy="341.456" rx="15.68" ry="20.872" style="fill:rgb(151,3,2);"/></g>
-                      <g transform="matrix(0.996444,-0.0842551,0.0842551,0.996444,-65.8481,-418.863)">
-                        <path d="M200.839,877.917C200.839,877.917 198.964,899.258 216.705,915.638" style="fill:none;stroke:rgb(92,42,0);stroke-width:6px;stroke-linecap:round;stroke-miterlimit:1.5;"/>
-                        <path d="M214.698,884.4C214.698,884.4 213.003,897.391 221.476,903.604" style="fill:none;stroke:rgb(92,42,0);stroke-width:6px;stroke-linecap:round;stroke-miterlimit:1.5;"/>
-                      </g>
-                      <g transform="matrix(-0.996444,0.0842551,0.0842551,0.996444,656.894,-464.403)">
-                        <path d="M200.839,877.917C200.839,877.917 198.964,899.258 216.705,915.638" style="fill:none;stroke:rgb(92,42,0);stroke-width:6px;stroke-linecap:round;stroke-miterlimit:1.5;"/>
-                        <path d="M214.698,884.4C214.698,884.4 213.003,897.391 221.476,903.604" style="fill:none;stroke:rgb(92,42,0);stroke-width:6px;stroke-linecap:round;stroke-miterlimit:1.5;"/>
-                      </g>
-                    </g>
-                  </g>
-                </svg>
-                <svg class="mem-cat-pose-c" viewBox="129.9 1058.7 480 480" xmlns="http://www.w3.org/2000/svg">
-                  <defs><radialGradient id="_catEggRadialC" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="matrix(135.397,0,0,135.397,374.859,384.188)"><stop offset="0" style="stop-color:rgb(255,244,61);stop-opacity:1"/><stop offset="1" style="stop-color:rgb(255,243,147);stop-opacity:1"/></radialGradient></defs>
-                  <g transform="matrix(0.618638,0,0,0.644464,0,0)">
-                    <g transform="matrix(1.57634,-0.343514,0.357854,1.51318,-110.227,1621.65)">
-                      <path d="M480.389,247.319C500.048,283.585 511.711,326.597 511.034,365.978C508.838,493.769 443.551,526.636 367.331,525.735C294.324,524.872 231.018,488.852 228.434,370.222C227.537,329.052 240.334,283.055 261.712,244.859C261.712,244.859 257.692,284.192 281.645,281.013C305.599,277.833 310.876,246.578 338.207,281.232C361.623,310.922 383.901,304.2 403.289,284.24C422.024,264.952 419.934,260.513 447.361,279.2C474.116,297.428 483.195,253.977 480.389,247.319Z" style="fill:url(#_catEggRadialC);"/>
-                      <g transform="matrix(1,0,0,1,-25.2485,22.7936)"><path d="M395.508,360.702C406.085,360.997 410.741,369.201 416.834,375.288C424.053,382.5 439.542,389.043 438.826,403.975C437.257,436.7 401.637,417.7 395.508,417.7C389.379,417.7 352.334,433.645 352.334,403.975C352.334,386.108 364.383,382.5 371.579,375.288C378.177,368.675 379.944,360.267 395.508,360.702Z" style="fill:rgb(151,3,2);"/></g>
-                      <path d="M261.712,244.859C287.962,197.959 327.151,162.821 369.818,162.821C413.865,162.821 454.016,198.895 480.155,246.888C480.233,247.032 480.311,247.175 480.389,247.319C483.195,253.977 474.116,297.428 447.361,279.2C419.934,260.513 422.024,264.952 403.289,284.24C383.901,304.2 361.623,310.922 338.207,281.232C310.876,246.578 305.599,277.833 281.645,281.013C257.692,284.192 261.712,244.859 261.712,244.859Z" style="fill:rgb(137,10,10);stroke:rgb(92,42,0);stroke-width:6px;"/>
-                      <path d="M480.389,247.319C500.048,283.585 511.711,326.597 511.034,365.978C508.838,493.769 443.551,526.636 367.331,525.735C294.324,524.872 231.018,488.852 228.434,370.222C227.537,329.052 240.334,283.055 261.712,244.859C261.712,244.859 257.692,284.192 281.645,281.013C305.599,277.833 310.876,246.578 338.207,281.232C361.623,310.922 383.901,304.2 403.289,284.24C422.024,264.952 419.934,260.513 447.361,279.2C474.116,297.428 483.195,253.977 480.389,247.319Z" style="fill:none;stroke:rgb(92,42,0);stroke-width:6px;stroke-linecap:round;stroke-miterlimit:1.5;"/>
-                      <path d="M261.712,244.859C261.712,244.859 257.692,284.192 281.645,281.013C305.599,277.833 310.876,246.578 338.207,281.232C361.623,310.922 383.901,304.2 403.289,284.24C422.024,264.952 419.934,260.513 447.361,279.2C474.788,297.887 483.64,251.753 480.155,246.888" style="fill:none;stroke:rgb(92,42,0);stroke-width:6px;stroke-linecap:round;stroke-miterlimit:1.5;"/>
-                      <g transform="matrix(0.962058,-0.272845,0.272845,0.962058,-82.4958,144.108)"><ellipse cx="319.331" cy="341.456" rx="15.68" ry="20.872" style="fill:rgb(151,3,2);"/></g>
-                      <g transform="matrix(1,0,0,1,30.3594,15.3017)"><ellipse cx="319.331" cy="341.456" rx="15.68" ry="20.872" style="fill:rgb(151,3,2);"/></g>
-                      <g transform="matrix(1,0,0,1,71.2084,15.3017)"><ellipse cx="319.331" cy="341.456" rx="15.68" ry="20.872" style="fill:rgb(151,3,2);"/></g>
-                      <g transform="matrix(0.945803,0.324741,-0.324741,0.945803,231.387,-41.0256)"><ellipse cx="319.331" cy="341.456" rx="15.68" ry="20.872" style="fill:rgb(151,3,2);"/></g>
-                      <g transform="matrix(0.996444,-0.0842551,0.0842551,0.996444,-65.8481,-418.863)">
-                        <path d="M200.839,877.917C200.839,877.917 198.964,899.258 216.705,915.638" style="fill:none;stroke:rgb(92,42,0);stroke-width:6px;stroke-linecap:round;stroke-miterlimit:1.5;"/>
-                        <path d="M214.698,884.4C214.698,884.4 213.003,897.391 221.476,903.604" style="fill:none;stroke:rgb(92,42,0);stroke-width:6px;stroke-linecap:round;stroke-miterlimit:1.5;"/>
-                      </g>
-                      <g transform="matrix(-0.996444,0.0842551,0.0842551,0.996444,656.894,-464.403)">
-                        <path d="M200.839,877.917C200.839,877.917 198.964,899.258 216.705,915.638" style="fill:none;stroke:rgb(92,42,0);stroke-width:6px;stroke-linecap:round;stroke-miterlimit:1.5;"/>
-                        <path d="M214.698,884.4C214.698,884.4 213.003,897.391 221.476,903.604" style="fill:none;stroke:rgb(92,42,0);stroke-width:6px;stroke-linecap:round;stroke-miterlimit:1.5;"/>
-                      </g>
-                    </g>
-                  </g>
-                </svg>
-              </div>
+              <div class="mem-cat-sprite" data-lvl="0"></div>
             </div>
             <div class="mem-name" id="memName">—</div>
             <span class="mem-level-pill" id="memLevelPill"><span id="memLevelNum"></span><span id="memLevelName"></span></span>
