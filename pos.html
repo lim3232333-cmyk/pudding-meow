@@ -880,7 +880,12 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       <label class="mfl">升级所需 XP *</label><input class="mfi" id="lvlXp" type="number" step="1" placeholder="0">
       <label class="mfl">专属颜色</label><input class="mfi" id="lvlColor" type="color" value="#8D0505" style="height:44px;padding:4px;">
       <label class="mfl">徽章图标（emoji）</label><input class="mfi" id="lvlIcon" placeholder="">
-      <label class="mfl">权益</label>
+      <!-- 这 4 项对应小程序「会员明细」表的 4 列，改了顾客端立刻同步 -->
+      <label class="mfl">生日</label><input class="mfi" id="lvlPerkBirthday" placeholder="如：100 Coin">
+      <label class="mfl">Coin 倍率</label><input class="mfi" id="lvlPerkCoinRate" placeholder="如：1.2x">
+      <label class="mfl">幸运抽奖</label><input class="mfi" id="lvlPerkDraw" placeholder="如：2次/月">
+      <label class="mfl">会员日</label><input class="mfi" id="lvlPerkMemberday" placeholder="如：1.5x Coin">
+      <label class="mfl">其他权益</label>
       <div class="mfh">用逗号分隔，如：生日月双倍金币, 每月8折券</div>
       <input class="mfi" id="lvlPerks" placeholder="生日月双倍金币, 每月8折券">
       <button class="mfs" onclick="saveLvl()">保存 Save</button>
@@ -2209,6 +2214,10 @@ function openLvl(id){
   document.getElementById('lvlColor').value=l?l.color_hex:'#8D0505';
   document.getElementById('lvlIcon').value=l?(l.badge_icon||''):'';
   document.getElementById('lvlPerks').value=l&&l.perks?l.perks.join(','):'';
+  document.getElementById('lvlPerkBirthday').value=l?(l.perk_birthday||''):'';
+  document.getElementById('lvlPerkCoinRate').value=l?(l.perk_coin_rate||''):'';
+  document.getElementById('lvlPerkDraw').value=l?(l.perk_draw||''):'';
+  document.getElementById('lvlPerkMemberday').value=l?(l.perk_memberday||''):'';
   document.getElementById('lvlBg').classList.add('show');
 }
 function closeLvl(){document.getElementById('lvlBg').classList.remove('show');}
@@ -2221,7 +2230,11 @@ function saveLvl(){
     xp_required:parseInt(document.getElementById('lvlXp').value)||0,
     color_hex:document.getElementById('lvlColor').value||'#8D0505',
     badge_icon:document.getElementById('lvlIcon').value.trim(),
-    perks:_miParseList(document.getElementById('lvlPerks').value)
+    perks:_miParseList(document.getElementById('lvlPerks').value),
+    perk_birthday:document.getElementById('lvlPerkBirthday').value.trim(),
+    perk_coin_rate:document.getElementById('lvlPerkCoinRate').value.trim(),
+    perk_draw:document.getElementById('lvlPerkDraw').value.trim(),
+    perk_memberday:document.getElementById('lvlPerkMemberday').value.trim()
   };
   var q=_lvlEditId?db.from('member_levels').update(payload).eq('id',_lvlEditId):db.from('member_levels').insert(payload);
   q.then(function(res){if(res.error){showN(''+res.error.message);return;}showN('已保存');closeLvl();loadLoyaltyLevels();}).catch(function(e){showN('网络错误');});

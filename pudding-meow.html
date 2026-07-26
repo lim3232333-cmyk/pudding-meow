@@ -1442,7 +1442,7 @@
       <ol class="md-rules" id="mdRules"></ol>
       <table class="md-table">
         <thead>
-          <tr><th>等级</th><th>升级所需</th><th>权益</th></tr>
+          <tr><th>等级/权益</th><th>生日</th><th>Coin倍率</th><th>幸运抽奖</th><th>会员日</th></tr>
         </thead>
         <tbody id="mdLevels"></tbody>
       </table>
@@ -3411,16 +3411,18 @@ function renderMemberDetail(){
   rulesEl.innerHTML = lines.length
     ? lines.map(function(t){return '<li>'+t+'</li>';}).join('')
     : '<li>每消费 RM1 = 1 Paw Coin</li><li>会员可以通过消费、邀请好友、每日签到、幸运抽奖来获得 Paw Coin 和 XP 值。</li>';
+  // 4 个权益列对应 member_levels 上的独立字段，POS「等级管理」分别可填（supabase-level-perks.sql）
   lvlEl.innerHTML = _memberLevels.length
     ? _memberLevels.map(function(l){
-        var perks = Array.isArray(l.perks) ? l.perks : [];
         return '<tr>'
-          +'<td class="md-lvl" style="background:'+_esc(l.color_hex||'#8D0505')+';color:'+_fgOn(l.color_hex)+'">'+(l.badge_icon?_esc(l.badge_icon)+' ':'')+_esc(l.name_cn||'')+'</td>'
-          +'<td>'+(l.xp_required||0)+' XP</td>'
-          +'<td>'+(perks.length?perks.map(_esc).join('<br>'):'—')+'</td>'
+          +'<td class="md-lvl" style="background:'+_esc(l.color_hex||'#8D0505')+';color:'+_fgOn(l.color_hex)+'">'+_esc(l.name_cn||'')+'</td>'
+          +'<td>'+_esc(l.perk_birthday||'—')+'</td>'
+          +'<td>'+_esc(l.perk_coin_rate||'—')+'</td>'
+          +'<td>'+_esc(l.perk_draw||'—')+'</td>'
+          +'<td>'+_esc(l.perk_memberday||'—')+'</td>'
           +'</tr>';
       }).join('')
-    : '<tr><td colspan="3">暂无等级资料</td></tr>';
+    : '<tr><td colspan="5">暂无等级资料</td></tr>';
 }
 function openMemberDetail(){
   document.getElementById('mdScreen').classList.add('show');
