@@ -184,7 +184,8 @@
   .menu-seg button .en{ font-weight:500; font-size:8px; line-height:10px; }
   .menu-seg button.active{ background:var(--blue); }
   .menu-search{ width:24px; height:24px; color:var(--cream2); cursor:pointer; flex-shrink:0; }
-  .menu-tableinfo{ display:flex; gap:8px; align-items:center; height:19px; color:var(--cream2); }
+  /* 长地址要能折行，所以是 min-height 不是写死 height；页头一变高，--menuHeaderH 由 _syncMenuHeaderH() 实测同步 */
+  .menu-tableinfo{ display:flex; gap:8px; align-items:center; min-height:19px; color:var(--cream2); }
   .menu-tableinfo svg{ width:18px; height:18px; flex-shrink:0; }
   .menu-tableinfo span{ font-weight:500; font-size:10px; line-height:normal; }
 
@@ -633,11 +634,8 @@
   .md-table{ width:100%; border-collapse:collapse; margin-top:26px; border-radius:8px; overflow:hidden; font-size:11px; }
   .md-table th{ background:var(--red); color:#fff; font-weight:700; padding:8px 4px; text-align:center; }
   .md-table td{ padding:9px 4px; text-align:center; color:var(--red); border:1px solid #F0E6C8; background:#FFFDF0; line-height:1.3; }
-  .md-table td.md-lvl{ font-weight:700; color:#fff; }
-  .md-lvl-1{ background:#E68A2B !important; }
-  .md-lvl-2{ background:#B8B8B8 !important; }
-  .md-lvl-3{ background:#FFDE5B !important; color:var(--red) !important; }
-  .md-lvl-4{ background:#5A5A5A !important; }
+  /* 底色和字色都由 renderMemberDetail() 按 member_levels.color_hex 内联写入 */
+  .md-table td.md-lvl{ font-weight:700; }
 
   /* ---- 会员专属礼 横幅 ---- */
   .mem-promo-banner{ background:var(--red); border-radius:16px; padding:16px; margin-top:12px; text-align:center; }
@@ -1439,22 +1437,14 @@
       <div class="md-title">会员明细</div>
     </div>
     <div class="md-body">
+      <!-- 规则和等级表都从云端读（xp_rules / coin_rules / member_levels），POS 后台改了这里跟着变 -->
       <div class="md-rules-h">规则：</div>
-      <ol class="md-rules">
-        <li>每消费 RM1 = 1 Paw Coin</li>
-        <li>会员可以通过消费、邀请好友、每日签到、幸运抽奖来获得 Paw Coin 和 XP 值。</li>
-        <li>会员等级分为：</li>
-      </ol>
+      <ol class="md-rules" id="mdRules"></ol>
       <table class="md-table">
         <thead>
           <tr><th>等级/权益</th><th>生日</th><th>Coin倍率</th><th>幸运抽奖</th><th>会员日</th></tr>
         </thead>
-        <tbody>
-          <tr><td class="md-lvl md-lvl-1">新生小猫</td><td>100 Coin</td><td>1x</td><td>1次/月</td><td>1.5x Coin</td></tr>
-          <tr><td class="md-lvl md-lvl-2">幼猫</td><td>200 Coin</td><td>1.2x</td><td>2次/月</td><td>1.5x Coin</td></tr>
-          <tr><td class="md-lvl md-lvl-3">青年猫</td><td>300 Coin</td><td>1.5x</td><td>3次/月</td><td>2x Coin·抽奖1次</td></tr>
-          <tr><td class="md-lvl md-lvl-4">布丁喵</td><td>500 Coin</td><td>2x</td><td>5次/月</td><td>3x Coin·抽奖1次</td></tr>
-        </tbody>
+        <tbody id="mdLevels"></tbody>
       </table>
     </div>
   </div>
@@ -1798,36 +1788,58 @@ if(!db) setTimeout(function(){ setCloudStatus('offline'); },0); else setTimeout(
 
 /* 订单对象 <-> 数据库行（app 用驼峰，DB 用下划线）*/
 function orderToRow(o){
-  return { id:o.id, order_num:o.orderNum, receipt_no:o.receiptNo!=null?o.receiptNo:null, created_at:o.createdAt, items:o.items||[],
+  return { id:o.id, order_num:o.orderNum, receipt_no:o.receiptNo!=null?o.receiptNo:null, kind_seq:o.kindSeq!=null?o.kindSeq:null, created_at:o.createdAt, items:o.items||[],
     total:o.total||0, pay_method:o.payMethod, status:o.status,
     source:o.source, table_name:o.tableName, ta_mode:o.taMode, member_id:o.memberId||null, device_id:o.deviceId||null,
     delivery_info:o.deliveryInfo||null };
 }
 function rowToOrder(r){
-  return { id:r.id, orderNum:r.order_num||(r.id?String(r.id).slice(-4):''), receiptNo:r.receipt_no!=null?r.receipt_no:null, createdAt:r.created_at,
+  return { id:r.id, orderNum:r.order_num||(r.id?String(r.id).slice(-4):''), receiptNo:r.receipt_no!=null?r.receipt_no:null, kindSeq:r.kind_seq!=null?r.kind_seq:null, createdAt:r.created_at,
     items:r.items||[], total:Number(r.total)||0, payMethod:r.pay_method||'counter',
     status:r.status||'pending', source:r.source||'app', tableName:r.table_name||'', taMode:r.ta_mode||'',
     memberId:r.member_id||null, deviceId:r.device_id||null, deliveryInfo:r.delivery_info||null };
 }
 /* 取号：永久收据号 receiptNo + 当天订单号 orderNum。优先 Supabase RPC（跨设备唯一/按天重置），离线兜底本地 */
-function _appLocalNums(){
+/* 取号要用的类型：自取 TA、外卖 DL 各自从 01 起编号；堂食直接用桌号、
+   充值单和预约单不出餐，都返回 null，不占用 TA/DL 序号。
+   与 pos.html 的 _orderKind() 语义必须一致，两端共用同一套 order_counters。 */
+function _appOrderKind(o){
+  if(o.taMode==='recharge'||o.taMode==='reservation') return null;
+  var t=String(o.tableName||'');
+  if(t.indexOf('外卖')>=0) return 'delivery';
+  if(t.indexOf('自取')>=0) return 'takeaway';
+  if(t.indexOf('堂食')>=0) return null;
+  return o.taMode==='takeaway' ? 'takeaway' : null;
+}
+function _appLocalNums(kind){
   var rc=(parseInt(localStorage.getItem('pm_rc')||'0',10)||0)+1; try{localStorage.setItem('pm_rc',String(rc));}catch(e){}
   var today=new Date().toLocaleDateString('en-CA');
   var dc; try{dc=JSON.parse(localStorage.getItem('pm_ordday')||'{}');}catch(e){dc={};}
   if(dc.d!==today){dc.d=today;dc.n=0;} dc.n=(dc.n||0)+1;
   try{localStorage.setItem('pm_ordday',JSON.stringify(dc));}catch(e){}
-  return {receiptNo:rc, orderNo:dc.n};
+  // 离线兜底也按类型分别计数，跟云端 rpc 的语义保持一致
+  var ks=null;
+  if(kind){
+    var kc; try{kc=JSON.parse(localStorage.getItem('pm_kindday')||'{}');}catch(e){kc={};}
+    if(kc.d!==today){ kc={d:today,takeaway:0,delivery:0}; }
+    kc[kind]=(kc[kind]||0)+1;
+    try{localStorage.setItem('pm_kindday',JSON.stringify(kc));}catch(e){}
+    ks=kc[kind];
+  }
+  return {receiptNo:rc, orderNo:dc.n, kindSeq:ks};
 }
 function assignOrderNumsApp(o){
-  var set=function(rc,on){ o.receiptNo=rc; o.orderNum=String(on).padStart(4,'0'); };
+  var kind=_appOrderKind(o);
+  var set=function(rc,on,ks){ o.receiptNo=rc; o.orderNum=String(on).padStart(4,'0'); if(ks!=null) o.kindSeq=ks; };
+  var fallback=function(){ var l=_appLocalNums(kind); set(l.receiptNo,l.orderNo,l.kindSeq); };
   if(db){
-    return db.rpc('rpc_next_order_num').then(function(res){
-      if(res&&!res.error&&res.data&&res.data[0]){ set(res.data[0].receipt_no,res.data[0].order_no); }
-      else { var l=_appLocalNums(); set(l.receiptNo,l.orderNo); }
+    return db.rpc('rpc_next_order_num',{p_kind:kind}).then(function(res){
+      if(res&&!res.error&&res.data&&res.data[0]){ set(res.data[0].receipt_no,res.data[0].order_no,res.data[0].kind_seq); }
+      else fallback();
       return o;
-    }).catch(function(){ var l=_appLocalNums(); set(l.receiptNo,l.orderNo); return o; });
+    }).catch(function(){ fallback(); return o; });
   }
-  var l=_appLocalNums(); set(l.receiptNo,l.orderNo); return Promise.resolve(o);
+  fallback(); return Promise.resolve(o);
 }
 
 /* ---------- tab switching ---------- */
@@ -2080,19 +2092,27 @@ function setMenuMode(el){
   currentMode = el.dataset.mode;
   updateMenuTableInfo();
 }
-/* 页头第二行（Figma 547:1199）：堂食显示桌号+人数，自取/外卖显示模式说明 */
+/* 页头第二行（Figma 547:1199）：堂食显示桌号+人数，外卖显示收货地址，自取显示模式说明 */
 function updateMenuTableInfo(){
   var t=document.getElementById('menuTableInfoText');
   if(!t) return;
   if(currentMode==='dinein'){
-    t.textContent = _dineInfo ? ('Table '+_dineInfo.table+' ｜'+_dineInfo.pax+' Pax') : '堂食 · 请选择桌号';
+    /* DINE_TABLES 里存的就是 'Table 1' 这种完整文本，别再加一次 'Table ' 前缀（会变成 Table Table 1） */
+    t.textContent = _dineInfo ? (_dineInfo.table+' ｜'+_dineInfo.pax+' Pax') : '堂食 · 请选择桌号';
   } else if(currentMode==='pickup'){
     t.textContent = '自取 · 到店领取';
   } else if(currentMode==='delivery'){
-    t.textContent = _deliveryInfo ? ('外卖 ｜'+(_deliveryInfo.address||'送餐上门')) : '外卖 · 送餐上门';
+    t.textContent = _deliveryInfo ? (_deliveryInfo.address||'外卖 · 送餐上门') : '外卖 · 送餐上门';
   } else {
     t.textContent = '请选择用餐方式';
   }
+  _syncMenuHeaderH();
+}
+/* 页头高度实测同步给 --menuHeaderH：地址长了会折行把页头撑高，
+   而分类栏是 position:sticky;top:var(--menuHeaderH)，写死 78px 的话会被页头盖住 */
+function _syncMenuHeaderH(){
+  var h=document.querySelector('.menu-header'), s=document.getElementById('screen-menu');
+  if(h && s && h.offsetHeight) s.style.setProperty('--menuHeaderH', h.offsetHeight+'px');
 }
 
 /* ---------- 外卖收货地址 ----------
@@ -3015,6 +3035,44 @@ function subscribeOrders(){
     .subscribe();
 }
 
+/* 会员数据即时刷新：订阅 member_events「门铃表」。
+   不能直接订阅 members——它有意不给 anon 任何 RLS policy（anon key 是公开的，
+   放开就等于公开整个会员库），而 realtime 走 RLS，订了也收不到。
+   门铃表只有 (member_id, updated_at)，不含个人资料；收到通知后仍旧用鉴权的
+   rpc_get_my_profile 去取真实数据。见 supabase-member-realtime.sql。 */
+var _memberChannel = null;
+function subscribeMemberEvents(){
+  if(_memberChannel){ try{ db.removeChannel(_memberChannel); }catch(e){} _memberChannel = null; }
+  if(!db || !_memberId || !_memberToken) return;
+  _memberChannel = db.channel('member-events-'+_memberId)
+    .on('postgres_changes', {event:'*', schema:'public', table:'member_events', filter:'member_id=eq.'+_memberId}, function(){
+      _refreshMemberNow();
+    })
+    .subscribe();
+}
+/* 拉最新会员资料并重绘会员卡；充值页开着的话余额也一起刷新 */
+function _refreshMemberNow(){
+  if(!db || !_memberId || !_memberToken) return Promise.resolve();
+  return refreshMemberProfile().then(function(){
+    try{ renderProfileScreen(); }catch(e){}
+    try{ _ckSyncPayRows(); }catch(e){}   // 余额变了，结算页的「余额支付」行要跟着更新
+    try{
+      var rc=document.getElementById('rcScreen');
+      if(rc && rc.classList.contains('show') && _memberProfile){
+        document.getElementById('rcBalance').textContent=Number(_memberProfile.wallet_balance||0).toFixed(2);
+      }
+    }catch(e){}
+  }).catch(function(e){});
+}
+/* 兜底：手机息屏/切走时 websocket 可能被系统掐掉，期间的变动收不到通知，
+   所以回到前台时主动补拉一次 */
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState==='visible' && _memberId && _memberToken){
+    try{ subscribeMemberEvents(); }catch(e){}
+    _refreshMemberNow();
+  }
+});
+
 function fmtDate(ts){
   try{
     var d = new Date(ts);
@@ -3183,11 +3241,13 @@ function _memSaveSession(id, token){
   _memberId = id; _memberToken = token;
   try{ localStorage.setItem('pm_member_id', id); localStorage.setItem('pm_member_token', token); }catch(e){}
   _orders = []; try{ subscribeOrders(); }catch(e){}
+  try{ subscribeMemberEvents(); }catch(e){}   // 换人了，门铃要重新按新 member_id 订阅
 }
 function _memClearSession(){
   _memberId = null; _memberToken = null; _memberProfile = null;
   try{ localStorage.removeItem('pm_member_id'); localStorage.removeItem('pm_member_token'); }catch(e){}
   _orders = []; try{ subscribeOrders(); }catch(e){}
+  try{ subscribeMemberEvents(); }catch(e){}   // 退出登录：内部会因 _memberId 为空而退订
 }
 function memSwitchAuthTab(tab){
   document.getElementById('memTabLogin').classList.toggle('active', tab==='login');
@@ -3318,8 +3378,76 @@ function renderProfileScreen(){
 function memComingSoon(){ alert('敬请期待'); }
 
 /* ===== 会员明细页（Figma 319:187）：规则 + 等级权益表 ===== */
-function openMemberDetail(){ document.getElementById('mdScreen').classList.add('show'); }
+/* 会员明细页的「规则」和「等级权益表」原本是写死的 HTML，POS 后台改了不会变。
+   改成从 xp_rules / coin_rules / member_levels 三张表读——它们本来就给了 anon 读权限、
+   也已经在 realtime 发布里（supabase-membership.sql），所以能直接订阅，不用额外建表。 */
+var _xpRules=[], _coinRules=[];
+function loadLoyaltyRules(){
+  if(!db) return Promise.resolve();
+  return Promise.all([
+    db.from('xp_rules').select('*').then(function(r){ if(!r.error) _xpRules=r.data||[]; }),
+    db.from('coin_rules').select('*').then(function(r){ if(!r.error) _coinRules=r.data||[]; })
+  ]).catch(function(e){});
+}
+/* 等级底色由后台自填（color_hex），浅色底上白字看不清（例如青年猫的黄 #FFDE5B），
+   按亮度自动切深/浅字色 */
+function _fgOn(hex){
+  var m=/^#?([0-9a-f]{6})$/i.exec(String(hex||''));
+  if(!m) return '#fff';
+  var n=parseInt(m[1],16), r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+  return (0.299*r+0.587*g+0.114*b) > 160 ? '#8D0505' : '#fff';
+}
+function _ruleLine(r, unit, valKey){
+  var cap = r.daily_cap ? '（每日上限 '+r.daily_cap+'）' : '';
+  return _esc(r.name)+'：+'+r[valKey]+' '+unit+cap;
+}
+function renderMemberDetail(){
+  var rulesEl=document.getElementById('mdRules'), lvlEl=document.getElementById('mdLevels');
+  if(!rulesEl||!lvlEl) return;
+  var lines=[];
+  _xpRules.filter(function(r){return r.enabled!==false;}).forEach(function(r){ lines.push(_ruleLine(r,'XP','xp_value')); });
+  _coinRules.filter(function(r){return r.enabled!==false;}).forEach(function(r){ lines.push(_ruleLine(r,'Coin','coin_value')); });
+  // 拉不到云端规则时退回原来那两句静态说明，页面不至于空白
+  rulesEl.innerHTML = lines.length
+    ? lines.map(function(t){return '<li>'+t+'</li>';}).join('')
+    : '<li>每消费 RM1 = 1 Paw Coin</li><li>会员可以通过消费、邀请好友、每日签到、幸运抽奖来获得 Paw Coin 和 XP 值。</li>';
+  // 4 个权益列对应 member_levels 上的独立字段，POS「等级管理」分别可填（supabase-level-perks.sql）
+  lvlEl.innerHTML = _memberLevels.length
+    ? _memberLevels.map(function(l){
+        return '<tr>'
+          +'<td class="md-lvl" style="background:'+_esc(l.color_hex||'#8D0505')+';color:'+_fgOn(l.color_hex)+'">'+_esc(l.name_cn||'')+'</td>'
+          +'<td>'+_esc(l.perk_birthday||'—')+'</td>'
+          +'<td>'+_esc(l.perk_coin_rate||'—')+'</td>'
+          +'<td>'+_esc(l.perk_draw||'—')+'</td>'
+          +'<td>'+_esc(l.perk_memberday||'—')+'</td>'
+          +'</tr>';
+      }).join('')
+    : '<tr><td colspan="5">暂无等级资料</td></tr>';
+}
+function openMemberDetail(){
+  document.getElementById('mdScreen').classList.add('show');
+  renderMemberDetail();   // 先用缓存渲染，拉到最新再重绘一次
+  Promise.all([_memberLevels.length?Promise.resolve():loadMemberLevels(), loadLoyaltyRules()]).then(renderMemberDetail);
+}
 function closeMemberDetail(){ document.getElementById('mdScreen').classList.remove('show'); }
+/* 等级/规则是全店配置（不含个人数据），anon 可读，直接订阅这三张表即可实时同步。
+   变了要同时重绘：会员明细页 + 会员卡（等级门槛一改，成长值进度条 207/800 的分母就变了） */
+var _loyaltyChannel=null;
+function subscribeLoyaltyConfig(){
+  if(!db) return;
+  if(_loyaltyChannel){ try{ db.removeChannel(_loyaltyChannel); }catch(e){} _loyaltyChannel=null; }
+  var onChange=function(){
+    Promise.all([loadMemberLevels(), loadLoyaltyRules()]).then(function(){
+      try{ renderMemberDetail(); }catch(e){}
+      try{ renderProfileScreen(); }catch(e){}   // 重算成长值进度条
+    });
+  };
+  _loyaltyChannel = db.channel('loyalty-config')
+    .on('postgres_changes', {event:'*', schema:'public', table:'member_levels'}, onChange)
+    .on('postgres_changes', {event:'*', schema:'public', table:'xp_rules'}, onChange)
+    .on('postgres_changes', {event:'*', schema:'public', table:'coin_rules'}, onChange)
+    .subscribe();
+}
 
 /* ===== 切换语言页（Figma 567:618）：中文/English 选择器。
    目前仅记录偏好(localStorage['pm_lang'])并高亮当前语言；English 全量翻译为后续工作 ===== */
@@ -3778,6 +3906,10 @@ function closeDrawHistory(){
 /* ===== 云端订单初始化：拉一次 + 订阅实时（放在最后，确保 _orders 等已就绪）===== */
 loadOrdersFromCloud().then(function(){ try{ renderOrdersList(); }catch(e){} });
 subscribeOrders();
+/* 会员数据即时刷新：会话是从 localStorage 恢复的，启动时也要订阅一次门铃 */
+try{ subscribeMemberEvents(); }catch(e){}
+/* 等级/成长值规则改动也实时同步（全店配置，与是否登录无关） */
+try{ subscribeLoyaltyConfig(); }catch(e){}
 
 /* ===== HitPay 支付返回：从 URL 上的 pm_hitpay 参数识别客人刚从收银页跳回来。
    实际付款状态由 hitpay-webhook 异步更新 DB，这里已有的 subscribeOrders()

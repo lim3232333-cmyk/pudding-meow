@@ -880,7 +880,12 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       <label class="mfl">升级所需 XP *</label><input class="mfi" id="lvlXp" type="number" step="1" placeholder="0">
       <label class="mfl">专属颜色</label><input class="mfi" id="lvlColor" type="color" value="#8D0505" style="height:44px;padding:4px;">
       <label class="mfl">徽章图标（emoji）</label><input class="mfi" id="lvlIcon" placeholder="">
-      <label class="mfl">权益</label>
+      <!-- 这 4 项对应小程序「会员明细」表的 4 列，改了顾客端立刻同步 -->
+      <label class="mfl">生日</label><input class="mfi" id="lvlPerkBirthday" placeholder="如：100 Coin">
+      <label class="mfl">Coin 倍率</label><input class="mfi" id="lvlPerkCoinRate" placeholder="如：1.2x">
+      <label class="mfl">幸运抽奖</label><input class="mfi" id="lvlPerkDraw" placeholder="如：2次/月">
+      <label class="mfl">会员日</label><input class="mfi" id="lvlPerkMemberday" placeholder="如：1.5x Coin">
+      <label class="mfl">其他权益</label>
       <div class="mfh">用逗号分隔，如：生日月双倍金币, 每月8折券</div>
       <input class="mfi" id="lvlPerks" placeholder="生日月双倍金币, 每月8折券">
       <button class="mfs" onclick="saveLvl()">保存 Save</button>
@@ -1012,30 +1017,46 @@ function setCloudStatus(s){
 }
 setTimeout(function(){ setCloudStatus(db?'connecting':'offline'); },0);
 /* 订单对象 <-> 数据库行（只映射数据库已有的列，tender/change/customerName 等不入库）*/
-function orderToRow(o){return{id:o.id,order_num:o.orderNum,receipt_no:o.receiptNo!=null?o.receiptNo:null,created_at:o.createdAt,items:o.items||[],
+function orderToRow(o){return{id:o.id,order_num:o.orderNum,receipt_no:o.receiptNo!=null?o.receiptNo:null,kind_seq:o.kindSeq!=null?o.kindSeq:null,created_at:o.createdAt,items:o.items||[],
   total:o.total||0,pay_method:o.payMethod,status:o.status,source:o.source,table_name:o.tableName,ta_mode:o.taMode,member_id:o.memberId||null,device_id:o.deviceId||null,
   delivery_info:o.deliveryInfo||null};}
-function rowToOrder(r){return{id:r.id,orderNum:r.order_num||(r.id?String(r.id).slice(-4):''),receiptNo:r.receipt_no!=null?r.receipt_no:null,createdAt:r.created_at,
+function rowToOrder(r){return{id:r.id,orderNum:r.order_num||(r.id?String(r.id).slice(-4):''),receiptNo:r.receipt_no!=null?r.receipt_no:null,kindSeq:r.kind_seq!=null?r.kind_seq:null,createdAt:r.created_at,
   items:r.items||[],total:Number(r.total)||0,payMethod:r.pay_method||'counter',status:r.status||'pending',
   source:r.source||'app',tableName:r.table_name||'',taMode:r.ta_mode||'',memberId:r.member_id||null,deviceId:r.device_id||null,deliveryInfo:r.delivery_info||null};}
 /* ── 取号：永久收据号 receiptNo + 当天订单号 orderNum ──
    优先用 Supabase rpc_next_order_num（跨设备唯一/按天重置）；离线或失败时本地兜底。 */
-function _setOrderNums(o,rc,on){ o.receiptNo=rc; o.orderNum=String(on).padStart(4,'0'); }
-function _localNextNums(){
+function _setOrderNums(o,rc,on,ks){ o.receiptNo=rc; o.orderNum=String(on).padStart(4,'0'); if(ks!=null) o.kindSeq=ks; }
+/* 取号要用的类型：自取/打包 takeaway、外卖 delivery 各自编号；堂食直接用桌号、
+   充值单和预约单不出餐，都返回 null，不占用 TA/DL 序号 */
+function _orderKind(o){
+  if(o.taMode==='recharge'||o.taMode==='reservation') return null;
+  var m=orderMode3(o);
+  return (m==='takeaway'||m==='delivery') ? m : null;
+}
+function _localNextNums(kind){
   var rc=(parseInt(sg('pm_rc','0'),10)||0)+1; ss('pm_rc',String(rc));
   var today=new Date().toLocaleDateString('en-CA');
   var dc=gj('pm_ordday',{d:'',n:0}); if(dc.d!==today){dc.d=today;dc.n=0;} dc.n=(dc.n||0)+1; sj('pm_ordday',dc);
-  return {receiptNo:rc, orderNo:dc.n};
+  // 离线兜底也按类型分别计数，跟云端 rpc 的语义保持一致
+  var ks=null;
+  if(kind){
+    var kc=gj('pm_kindday',{d:'',takeaway:0,delivery:0});
+    if(kc.d!==today){ kc={d:today,takeaway:0,delivery:0}; }
+    kc[kind]=(kc[kind]||0)+1; sj('pm_kindday',kc); ks=kc[kind];
+  }
+  return {receiptNo:rc, orderNo:dc.n, kindSeq:ks};
 }
 function assignOrderNums(o){
+  var kind=_orderKind(o);
+  var fallback=function(){ var l=_localNextNums(kind); _setOrderNums(o,l.receiptNo,l.orderNo,l.kindSeq); };
   if(db){
-    return db.rpc('rpc_next_order_num').then(function(res){
-      if(res&&!res.error&&res.data&&res.data[0]){ _setOrderNums(o,res.data[0].receipt_no,res.data[0].order_no); }
-      else { var l=_localNextNums(); _setOrderNums(o,l.receiptNo,l.orderNo); }
+    return db.rpc('rpc_next_order_num',{p_kind:kind}).then(function(res){
+      if(res&&!res.error&&res.data&&res.data[0]){ _setOrderNums(o,res.data[0].receipt_no,res.data[0].order_no,res.data[0].kind_seq); }
+      else fallback();
       return o;
-    }).catch(function(){ var l=_localNextNums(); _setOrderNums(o,l.receiptNo,l.orderNo); return o; });
+    }).catch(function(){ fallback(); return o; });
   }
-  var l=_localNextNums(); _setOrderNums(o,l.receiptNo,l.orderNo); return Promise.resolve(o);
+  fallback(); return Promise.resolve(o);
 }
 
 /* ── MENU DATA (from Figma item panels) ── */
@@ -1556,7 +1577,13 @@ function _tableLabel(v){ v=String(v||'').trim(); var m=v.match(/(\d+)/); return 
 // 订单类型标签（POS 单与线上单统一）：堂食→Table N；打包/自取→TA+单号；外卖→DL+单号
 function _orderTypeLabel(o){
   var raw=String(o.tableName==null?'':o.tableName);
-  var num=String(parseInt(o.orderNum,10)||0).padStart(2,'0');
+  // 充值/预约不是取餐单，没有取餐码，直接显示名字（否则会拼成「Table 💰充值·小明」）
+  if(o.taMode==='recharge') return raw.replace(/^💰充值·/,'')||'充值';
+  if(o.taMode==='reservation') return raw.replace(/^📅预约·/,'')||'预约';
+  /* TA/DL 后面接「该类型当天的序号」(kindSeq)，所以自取和外卖各自从 01 起，
+     不会出现今天才 3 单外卖却编到 DL07 的情况。
+     历史订单没有 kindSeq，退回用当天流水号，旧单重印保持原样。 */
+  var num=String(parseInt(o.kindSeq!=null?o.kindSeq:o.orderNum,10)||0).padStart(2,'0');
   if(raw.indexOf('外卖')>=0) return 'DL'+num;                              // 外卖 Delivery（仅线上）
   if(raw.indexOf('自取')>=0 || o.taMode==='takeaway') return 'TA'+num;     // 自取(线上)/打包(POS)
   if(raw.indexOf('堂食')>=0){ return _tableLabel(raw.split('·')[2]); }     // 线上堂食：取桌号段
@@ -1716,12 +1743,9 @@ function updPend(){
   document.getElementById('pendNum').textContent=p;
 }
 /* 待付款行的黑字 = 顾客小票上那个 ORDER CODE，必须同源，店员和顾客才对得上。
-   直接复用 _orderTypeLabel()（堂食 Table N／自取 TAxx／外卖 DLxx，收据和厨房制作单印的也是它）。
-   充值单没有取餐码，改显会员昵称。 */
-function _pendCode(o){
-  if(o.taMode==='recharge') return String(o.tableName||'').replace(/^💰充值·/,'')||'会员';
-  return _orderTypeLabel(o);
-}
+   直接复用 _orderTypeLabel()（堂食 Table N／自取 TAxx／外卖 DLxx，收据和厨房制作单印的也是它；
+   充值单它会返回会员昵称）。 */
+function _pendCode(o){ return _orderTypeLabel(o); }
 /* 弹窗开着才重刷列表——收款时会先关掉待付款弹窗，刷新不该把它又弹回来 */
 function _refreshPendIfOpen(){
   if(document.getElementById('pendBg').classList.contains('show')) showPending();
@@ -2190,6 +2214,10 @@ function openLvl(id){
   document.getElementById('lvlColor').value=l?l.color_hex:'#8D0505';
   document.getElementById('lvlIcon').value=l?(l.badge_icon||''):'';
   document.getElementById('lvlPerks').value=l&&l.perks?l.perks.join(','):'';
+  document.getElementById('lvlPerkBirthday').value=l?(l.perk_birthday||''):'';
+  document.getElementById('lvlPerkCoinRate').value=l?(l.perk_coin_rate||''):'';
+  document.getElementById('lvlPerkDraw').value=l?(l.perk_draw||''):'';
+  document.getElementById('lvlPerkMemberday').value=l?(l.perk_memberday||''):'';
   document.getElementById('lvlBg').classList.add('show');
 }
 function closeLvl(){document.getElementById('lvlBg').classList.remove('show');}
@@ -2202,7 +2230,11 @@ function saveLvl(){
     xp_required:parseInt(document.getElementById('lvlXp').value)||0,
     color_hex:document.getElementById('lvlColor').value||'#8D0505',
     badge_icon:document.getElementById('lvlIcon').value.trim(),
-    perks:_miParseList(document.getElementById('lvlPerks').value)
+    perks:_miParseList(document.getElementById('lvlPerks').value),
+    perk_birthday:document.getElementById('lvlPerkBirthday').value.trim(),
+    perk_coin_rate:document.getElementById('lvlPerkCoinRate').value.trim(),
+    perk_draw:document.getElementById('lvlPerkDraw').value.trim(),
+    perk_memberday:document.getElementById('lvlPerkMemberday').value.trim()
   };
   var q=_lvlEditId?db.from('member_levels').update(payload).eq('id',_lvlEditId):db.from('member_levels').insert(payload);
   q.then(function(res){if(res.error){showN(''+res.error.message);return;}showN('已保存');closeLvl();loadLoyaltyLevels();}).catch(function(e){showN('网络错误');});
