@@ -738,6 +738,7 @@
   .pm-tab.active{ color:var(--yellow); }
   .pm-tab.active::after{ content:''; position:absolute; left:50%; bottom:0; transform:translateX(-50%); width:80px; height:2px; background:var(--yellow); }
   .pm-body{ position:relative; z-index:2; margin-top:22px; padding:0 16px calc(34px + env(safe-area-inset-bottom, 0px)); display:flex; flex-direction:column; gap:12px; }
+  .pm-empty{ text-align:center; padding:48px 20px; font-size:13px; color:var(--muted); }
   .pm-item-card{ background:#fff; border-radius:12px; padding:16px; display:flex; align-items:center; justify-content:space-between; box-sizing:border-box; box-shadow:0 4px 10px rgba(0,0,0,.25); }
   .pm-item-img{ width:80px; height:80px; border-radius:16px; background:#D9D9D9; flex-shrink:0; overflow:hidden; }
   .pm-item-img-logo{ background:var(--red); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; box-sizing:border-box; padding:8px; }
@@ -1328,6 +1329,7 @@
         <div class="pm-tab active" data-cat="all" onclick="selectPmTab('all',this)">全部</div>
         <div class="pm-tab" data-cat="coupon" onclick="selectPmTab('coupon',this)">优惠卷</div>
         <div class="pm-tab" data-cat="dessert" onclick="selectPmTab('dessert',this)">甜品兑换</div>
+        <div class="pm-tab" data-cat="mine" onclick="selectPmTab('mine',this)">我的</div>
 </div>
 </div>
     <div class="pm-body" id="pmList"></div>
@@ -3604,27 +3606,54 @@ function loadWalletLedger(){
   }).catch(function(e){ box.innerHTML ='<div class="rc-tx-empty">暂无交易记录</div>'; });
 }
 
-/* ===== 积分商城 Points Mall ===== */
-var POINTS_MALL_ITEMS = [
-  { name:'布蕾曲奇', coin:600, cat:'dessert', img:null },
-  { name:'RM 5 优惠卷', coin:500, cat:'coupon', img:'logo' }
-];
-var _pmTab ='all';
-function _pmItemHtml(it){
-  var imgHtml = it.img==='logo'
-    ?'<div class="pm-item-img pm-item-img-logo"><img alt=""><span>Total Price</span></div>'
-    :'<div class="pm-item-img"></div>';
-  return'<div class="pm-item-card">'+imgHtml
-    +'<div class="pm-item-info"><div class="pm-item-name">'+it.name+'</div>'
-    +'<div class="pm-item-coin-row"><span class="pm-item-coin-dot"></span><span class="pm-item-coin-txt">'+it.coin+' Coin</span></div></div>'
-    +'<button class="pm-item-redeem" onclick="memComingSoon()">兑换</button></div>';
+/* ===== 积分商城 Points Mall =====
+   商品就是优惠券模板本身：POS「优惠券管理」里填了「积分商城售价（Coin）」的券会出现在这里。
+   兑换走 rpc_redeem_coupon（服务端扣币发券，前端不碰余额），兑到的券进「我的」。 */
+var _pmTab='all', _mallItems=[], _myCoupons=[], _mallLoading=false;
+function _pmCatOf(c){ return c.type==='dessert' ? 'dessert' : 'coupon'; }
+/* 券面文案：甜品券显示兑换的商品，现金券分现金/百分比 */
+function _pmValTxt(c){
+  if(c.type==='dessert') return _esc(c.menu_item_name||'指定商品');
+  return c.type==='percent_off' ? (c.value+'% OFF') : ('RM '+Number(c.value||0).toFixed(2)+' OFF');
+}
+function _pmImg(c){
+  if(c.menu_item_image) return '<div class="pm-item-img" style="background-image:url(\''+_esc(c.menu_item_image)+'\');background-size:cover;background-position:center"></div>';
+  return '<div class="pm-item-img pm-item-img-logo"><img alt=""><span>'+_pmValTxt(c)+'</span></div>';
+}
+function _pmItemHtml(c){
+  var afford=!_memberProfile || (_memberProfile.coins||0) >= c.coin_price;
+  return'<div class="pm-item-card">'+_pmImg(c)
+    +'<div class="pm-item-info"><div class="pm-item-name">'+_esc(c.name)+'</div>'
+    +'<div class="pm-item-coin-row"><span class="pm-item-coin-dot"></span><span class="pm-item-coin-txt">'+c.coin_price+' Coin</span></div></div>'
+    +'<button class="pm-item-redeem"'+(afford?'':' style="opacity:.45"')+' onclick="redeemMallCoupon(\''+c.id+'\')">兑换</button></div>';
+}
+/* 「我的」：已兑到手的券。未使用的排在前面 */
+function _pmMineHtml(mc){
+  var ST={unused:'未使用',used:'已使用',expired:'已过期'};
+  var exp=''; try{ exp=new Date(mc.expires_at).toLocaleDateString(); }catch(e){}
+  return'<div class="mem-coupon-ticket'+(mc.status==='unused'?'':' used')+'">'
+    +'<div class="mem-coupon-value"><b>'+(mc.type==='dessert'?'兑换':(mc.type==='percent_off'?(mc.value+'%'):('RM'+mc.value)))+'</b>'
+    +'<span>'+(mc.type==='dessert'?'甜品':'OFF')+'</span></div>'
+    +'<div class="mem-coupon-info"><div class="mem-coupon-name">'+_esc(mc.name)+'</div>'
+    +'<div class="mem-coupon-cond">'+(mc.type==='dessert'
+        ? _esc(mc.menu_item_name||'指定商品')
+        : (Number(mc.min_spend)>0?('满 RM'+Number(mc.min_spend).toFixed(2)+'可用'):'无门槛'))+'</div>'
+    +'<div class="mem-coupon-exp">'+(ST[mc.status]||mc.status)+' · '+exp+' 到期</div></div></div>';
 }
 function renderPointsMallList(){
-  var list = POINTS_MALL_ITEMS.filter(function(it){ return _pmTab==='all' || it.cat===_pmTab; });
-  document.getElementById('pmList').innerHTML = list.map(_pmItemHtml).join('');
-  var brandLogo = document.getElementById('brandLogoImg');
+  var box=document.getElementById('pmList');
+  if(_mallLoading){ box.innerHTML='<div class="pm-empty">加载中…</div>'; return; }
+  if(_pmTab==='mine'){
+    box.innerHTML=_myCoupons.length
+      ? _myCoupons.map(_pmMineHtml).join('')
+      : '<div class="pm-empty">还没有优惠券，去上面兑换一张吧</div>';
+    return;
+  }
+  var list=_mallItems.filter(function(c){ return _pmTab==='all' || _pmCatOf(c)===_pmTab; });
+  box.innerHTML = list.length ? list.map(_pmItemHtml).join('') : '<div class="pm-empty">暂无可兑换的商品</div>';
+  var brandLogo=document.getElementById('brandLogoImg');
   if(brandLogo && brandLogo.src){
-    document.querySelectorAll('.pm-item-img-logo img').forEach(function(img){ if(!img.src) img.src = brandLogo.src; });
+    document.querySelectorAll('.pm-item-img-logo img').forEach(function(img){ if(!img.src) img.src=brandLogo.src; });
   }
 }
 function selectPmTab(cat, el){
@@ -3632,13 +3661,47 @@ function selectPmTab(cat, el){
   document.querySelectorAll('#pmTabs .pm-tab').forEach(function(t){ t.classList.toggle('active', t===el); });
   renderPointsMallList();
 }
+function loadMallData(){
+  if(!db) return Promise.resolve();
+  _mallLoading=true; renderPointsMallList();
+  return Promise.all([
+    db.rpc('rpc_list_mall_coupons').then(function(r){ if(!r.error) _mallItems=r.data||[]; }),
+    db.rpc('rpc_get_my_coupons',{p_member_id:_memberId,p_session_token:_memberToken}).then(function(r){ if(!r.error) _myCoupons=r.data||[]; })
+  ]).then(function(){ _mallLoading=false; renderPointsMallList(); })
+   .catch(function(e){ _mallLoading=false; renderPointsMallList(); });
+}
+function redeemMallCoupon(id){
+  var c=_mallItems.find(function(x){return x.id===id;});
+  if(!c) return;
+  if(!db || !_memberId || !_memberToken){ alert('请先登录会员'); return; }
+  // 只在确实拿到了会员资料时才本地预检；资料没加载出来就别拦，交给服务端判定（它才是权威）
+  if(_memberProfile && (_memberProfile.coins||0) < c.coin_price){
+    alert('Coin 不足：需要 '+c.coin_price+'，当前 '+(_memberProfile.coins||0)); return;
+  }
+  if(!confirm('用 '+c.coin_price+' Coin 兑换「'+c.name+'」？')) return;
+  db.rpc('rpc_redeem_coupon',{p_member_id:_memberId,p_session_token:_memberToken,p_coupon_id:id}).then(function(res){
+    if(res.error){ alert('兑换失败：'+res.error.message); return; }
+    // 服务端已扣币发券，这里重新拉一次余额和券列表
+    return refreshMemberProfile().then(function(){
+      document.getElementById('pmCoinBalance').textContent=(_memberProfile&&_memberProfile.coins)||0;
+      return loadMallData();
+    }).then(function(){
+      alert('兑换成功！可在「我的」里查看');
+      try{ renderProfileScreen(); }catch(e){}
+    });
+  }).catch(function(e){ alert('网络错误，请重试'); });
+}
 function openPointsMall(){
   if(!_memberId || !_memberToken){ alert('请先登录会员'); return; }
   _pmTab ='all';
   document.querySelectorAll('#pmTabs .pm-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.cat==='all'); });
   document.getElementById('pmCoinBalance').textContent = _memberProfile ? (_memberProfile.coins||0) :0;
-  renderPointsMallList();
   document.getElementById('pmScreen').classList.add('show');
+  // 会员资料可能还没拉过（直接进商城的情况），补一次，余额和「买得起吗」的置灰才准
+  (_memberProfile ? Promise.resolve() : refreshMemberProfile()).then(function(){
+    document.getElementById('pmCoinBalance').textContent = (_memberProfile&&_memberProfile.coins)||0;
+    return loadMallData();
+  });
 }
 function closePointsMall(){
   document.getElementById('pmScreen').classList.remove('show');
