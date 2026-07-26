@@ -127,7 +127,8 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 /* CART PANEL — x:0, y:91, w:413, h:676 */
 .cart{position:absolute;left:0;top:91px;width:413px;height:676px;background:#FFFFD5;border-right:1px solid #F5E9D4;}
 /* Top section — Frame24, h:123 */
-.cart-top{position:absolute;left:0;top:0;width:413px;height:123px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start;border-bottom:1px solid #F5E9D4;}
+.cart-top{position:absolute;left:0;top:0;width:413px;height:123px;padding:10px 14px;display:flex;flex-direction:column;gap:6px;border-bottom:1px solid #F5E9D4;overflow:hidden;}
+.cart-top-row{display:flex;gap:10px;align-items:flex-start;flex-shrink:0;}
 .cart-top-box{flex:1;height:55px;background:#D9D9D9;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#666;}
 /* Column headers — Frame14, y:123, h:44 */
 .cart-cols{position:absolute;left:0;top:123px;width:413px;height:44px;border-bottom:2px solid #F5E9D4;display:flex;align-items:center;}
@@ -145,10 +146,11 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 .cr-amt{width:73px;display:flex;align-items:center;justify-content:center;font-weight:400;font-size:20px;color:#000;flex-shrink:0;}
 .cart-empty{position:absolute;left:0;top:167px;width:413px;height:431px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#4A4848;font-size:18px;gap:12px;}
 /* Total footer — y:601, h:75, border-top 4px */
-.cart-footer{position:absolute;left:0;top:601px;width:413px;height:75px;border-top:4px solid #F5E9D4;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;}
+.cart-footer{position:absolute;left:0;top:588px;width:413px;height:88px;border-top:4px solid #F5E9D4;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;}
 .cf-row1{display:flex;align-items:center;justify-content:space-between;width:100%;}
 .cf-total-lbl{width:75px;text-align:center;font-weight:400;font-size:20px;color:#000;}
-.cf-total-rm{width:125px;text-align:center;font-weight:700;font-size:32px;color:#8D0505;}
+/* hug：宽度跟着内容走 + 不换行，否则「RM 15.00」会在固定 125px 里断成两行 */
+.cf-total-rm{width:auto;padding-right:18px;text-align:right;white-space:nowrap;font-weight:700;font-size:32px;color:#8D0505;}
 .cf-count{width:125px;text-align:right;padding-right:18px;font-weight:400;font-size:20px;color:#000;}
 
 /* T/A CONTROL PANEL — x:413, y:91, w:134, h:578, border 4px, padding 20px 10px, gap 20px */
@@ -163,6 +165,25 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 /* on state (take-away): dot moves right */
 .ta-switch.on::after{left:auto;right:5.06%;}
 .ta-mode{display:none;}
+/* ── 收银台会员条（Figma 97:14）+ 控制栏 Voucher/Top up（99:282）── */
+.cart-mem{flex:1;min-height:0;padding:5px 9px;background:#FFF9C4;border-radius:10px;font-size:13px;line-height:1.4;color:#202055;overflow:hidden;}
+.cart-mem:empty{display:none;}
+.cart-mem .nm{font-weight:700;color:#202055;}
+.cart-mem .lv{font-weight:700;}
+.cart-mem .r{float:right;text-align:right;font-weight:700;}
+.cart-mem .warn{color:#8D0505;font-weight:700;}
+.cf-disc{width:100%;box-sizing:border-box;padding:0 18px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#8D0505;font-weight:700;margin-bottom:3px;}
+.cf-disc-x{margin-left:8px;border:none;background:#F5E9D4;color:#8D0505;border-radius:6px;padding:1px 6px;font-size:11px;cursor:pointer;}
+.tu-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.tu-pkg{position:relative;padding:12px 6px;background:#fff;border:2px solid #F0E6C8;border-radius:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:"Noto Sans SC",sans-serif;}
+.tu-pkg b{font-size:18px;color:#8D0505;}
+.tu-pkg span{font-size:12px;color:#4A4848;}
+.tu-pkg.a{border-color:#8D0505;background:#FFFDF0;}
+.tu-tag{position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#FFDE5B;color:#8D0505;font-size:10px;font-weight:700;padding:1px 8px;border-radius:999px;}
+.ta-mbtns{width:114px;display:flex;flex-direction:column;gap:10px;margin-top:14px;flex-shrink:0;}
+.ta-mbtn{position:relative;width:114px;height:44px;background:#202055;color:#fff;border:none;border-radius:1000px;font-weight:700;font-size:15px;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
+.ta-mbtn:active{opacity:.85;}
+.ta-badge{position:absolute;top:-6px;right:-2px;min-width:22px;height:22px;padding:0 5px;box-sizing:border-box;background:#B6F3FF;color:#202055;border-radius:999px;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;}
 /* Frame23 — w:114, h:125, column, gap:6 */
 .ta-controls{width:114px;height:125px;display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0;}
 /* plus pill — 114×39, red bg #8D0505, white + */
@@ -574,6 +595,13 @@ details.mi-spec-count>summary::after{content:'▾';margin-left:8px;font-size:11p
 details.mi-spec-count[open]>summary::after{content:'▴';}
 .mi-spec-count-panel{position:absolute;left:0;right:0;top:36px;z-index:8;background:#FFFDF0;border:1px solid #E7D6B0;border-radius:8px;padding:8px;display:flex;flex-wrap:wrap;gap:5px;box-shadow:0 6px 18px rgba(0,0,0,.15);max-height:200px;overflow-y:auto;}
 .mi-spec-rm{flex-shrink:0;width:26px;height:26px;border:none;background:transparent;color:#8D0505;cursor:pointer;font-size:14px;opacity:.6;}
+/* 商品表单里逐个选项的加价覆盖 */
+.spec-card .spec-add{display:block;font-size:12px;font-weight:700;opacity:.8;margin-top:2px;}
+.mi-optprice-hint{width:100%;font-size:11px;color:#4A4848;margin-bottom:4px;}
+.mi-optprice-row{display:flex;align-items:center;gap:6px;width:100%;margin-bottom:5px;}
+.mi-optprice-row .mi-pill{flex:1;text-align:center;}
+.mi-optprice{width:88px;flex-shrink:0;border:1px solid #E7D6B0;border-radius:6px;height:26px;padding:0 6px;font-size:12px;font-family:"Noto Sans SC",sans-serif;background:#fff;color:#8D0505;}
+.sd-opt-row .sd-opt-price{flex:0 0 96px;}
 .mi-spec-rm:hover{opacity:1;}
 .mi-add-wrap{display:flex;justify-content:center;margin-bottom:18px;}
 .mi-add-round{background:#F5E9D4;border:none;border-radius:1000px;color:#8D0505;font-weight:700;font-size:16px;width:59px;height:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;}
@@ -593,6 +621,19 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
 .sd-opts{flex:1;display:flex;flex-wrap:wrap;gap:6px;padding:0 12px;}
 .mi-pill{background:#FFDE5B;color:#8D0505;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;}
 .mi-pill.soldout{background:#D9D9D9;color:#8A8A8A;text-decoration:line-through;}
+/* 销售渠道打钩（商品表单 + 规格组表单共用） */
+.ch-box{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+.ch-chk{display:flex;align-items:center;gap:6px;border:1.5px solid #F5E9D4;background:#fff;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:700;color:#4A4848;cursor:pointer;user-select:none;}
+.ch-chk input{width:auto;margin:0;accent-color:#8D0505;cursor:pointer;}
+.ch-chk.on{border-color:#8D0505;background:#FFFDD6;color:#8D0505;}
+.ch-hint{font-size:11px;color:#4A4848;margin:4px 0 8px;}
+/* 销售方式列表 */
+.ch-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #F5E9D4;}
+.ch-row:last-child{border-bottom:none;}
+.ch-row .ch-nm{font-weight:700;color:#8D0505;font-size:15px;min-width:120px;}
+.ch-row .ch-code{font-size:12px;color:#4A4848;font-family:monospace;min-width:90px;}
+.ch-tag{background:#B6F3FF;color:#8D0505;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;}
+.ch-tag.off{background:#D9D9D9;color:#8A8A8A;}
 
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-thumb{background:rgba(141,5,5,.15);border-radius:3px;}
@@ -646,8 +687,13 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
   <!-- CART -->
   <div class="cart">
     <div class="cart-top">
-      <input class="cart-top-box" id="ctTable" placeholder="桌号 Table" style="border:none;text-align:center;">
-      <input class="cart-top-box" id="ctCustomer" placeholder="顾客 Customer" style="border:none;text-align:center;background:#eee;color:#666;">
+      <div class="cart-top-row">
+        <input class="cart-top-box" id="ctTable" placeholder="桌号 Table" style="border:none;text-align:center;">
+        <input class="cart-top-box" id="ctCustomer" placeholder="会员电话 Phone" style="border:none;text-align:center;"
+               onkeydown="if(event.key==='Enter')posFindMember()" onblur="posFindMember()">
+</div>
+      <!-- 输入电话后带出会员资料（Figma 97:14）；没找到/未输入时整块不占位 -->
+      <div class="cart-mem" id="ctMemberBar"></div>
 </div>
     <div class="cart-cols">
       <span class="col-qty">Qty</span>
@@ -657,6 +703,11 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
     <div class="cart-empty" id="cartEmpty"><span style="font-size:38px"></span>选择商品开始点单</div>
     <div class="cart-items-wrap" id="cartItems" style="display:none"></div>
     <div class="cart-footer">
+      <!-- 用了会员券才出现；点 × 撤销 -->
+      <div class="cf-disc" id="cartDiscRow" style="display:none">
+        <span id="cartDiscName"></span>
+        <span><b id="cartDiscAmt">-RM 0.00</b><button class="cf-disc-x" onclick="posClearCoupon()">✕</button></span>
+</div>
       <div class="cf-row1">
         <div class="cf-total-lbl">Total</div>
         <div class="cf-total-rm" id="cartRM">RM 0</div>
@@ -675,6 +726,11 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       <button class="ta-plus" onclick="qtyAdjust(1)"></button>
       <button class="ta-num" id="taNum" onclick="openQtySlot()">0</button>
       <button class="ta-minus" onclick="qtyAdjust(-1)"></button>
+</div>
+    <!-- Figma 99:282：Voucher 带未使用券数量角标，Top up 柜台充值 -->
+    <div class="ta-mbtns">
+      <button class="ta-mbtn" onclick="posOpenVoucher()">Voucher<span class="ta-badge" id="ctVoucherBadge" style="display:none">0</span></button>
+      <button class="ta-mbtn" onclick="posOpenTopup()">Top up</button>
 </div>
 </div>
 
@@ -791,6 +847,25 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
 </div>
 </div>
 
+<!-- 收银台：会员优惠券 -->
+<div class="modal-bg" id="pvBg" onclick="if(event.target===this)closePosVoucher()">
+  <div class="mm-box" style="width:760px">
+    <div class="mm-hd"><h3 id="pvTitle"></h3><button class="mm-cl" onclick="closePosVoucher()">✕</button></div>
+    <div class="mm-body md-scroll" id="pvBody"></div>
+  </div>
+</div>
+
+<!-- 收银台：柜台充值 -->
+<div class="modal-bg" id="tuBg" onclick="if(event.target===this)closePosTopup()">
+  <div class="mm-box" style="width:520px">
+    <div class="mm-hd"><h3 id="tuTitle"></h3><button class="mm-cl" onclick="closePosTopup()">✕</button></div>
+    <div class="mm-body">
+      <div id="tuBody"></div>
+      <button class="mfs" onclick="posDoTopup()">确认收款并到账</button>
+    </div>
+  </div>
+</div>
+
 <!-- 抽奖奖品编辑 MODAL -->
 <div class="modal-bg" id="dpBg" onclick="if(event.target===this)closeDrawPrize()">
   <div class="mm-box">
@@ -868,6 +943,10 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
 </div>
       <label class="mi-lbl">产品描述*</label>
       <textarea class="mi-desc" id="miDesc" placeholder="产品简介"></textarea>
+      <!-- 销售渠道：不适合打包/外送的品项在这里取消勾选，顾客小程序切到那个模式就看不到 -->
+      <label class="mi-lbl">销售渠道</label>
+      <div class="ch-hint">一个都不勾 = 全渠道开放</div>
+      <div class="ch-box" id="miChannels"></div>
       <div id="miSpecGroups"></div>
       <div class="mi-add-wrap"><button type="button" class="mi-add-round" onclick="miAddSpecGroup()">＋</button></div>
       <label class="mi-lbl">金额*</label>
@@ -904,10 +983,29 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
         <label class="sd-req-opt"><input type="radio" name="sdRequired" value="1" checked> 必填 <span style="color:#8D0505">*</span></label>
         <label class="sd-req-opt"><input type="radio" name="sdRequired" value="0"> 选填 <span style="color:#4A4848">(optional)</span></label>
       </div>
+      <label class="mfl">销售渠道</label>
+      <div class="ch-hint">这组规格开放给哪些点餐方式。一个都不勾 = 全渠道开放</div>
+      <div class="ch-box" id="sdChannels"></div>
       <label class="mfl">选项</label>
       <div id="sdOptRows"></div>
       <div class="mi-add-wrap"><button type="button" class="mi-add-round" onclick="sdAddOptRow()">＋</button></div>
       <button class="mfs" onclick="saveSD()">保存 Save</button>
+</div>
+</div>
+</div>
+
+<!-- SALES CHANNEL MODAL — 销售方式：新增/编辑 -->
+<div class="modal-bg" id="chBg" onclick="if(event.target===this)closeCH()">
+  <div class="mm-box">
+    <div class="mm-hd"><h3 id="chTitle">新增渠道</h3><button class="mm-cl" onclick="closeCH()">✕</button></div>
+    <div class="mm-body">
+      <label class="mfl">渠道名称 *</label><input class="mfi" id="chName" placeholder="如：预订 / 团购">
+      <label class="mfl">English</label><input class="mfi" id="chNameEn" placeholder="如：Pre-order">
+      <label class="mfl">代号 *</label>
+      <div class="mfh" id="chCodeHint">英文小写代号，保存后不能改</div>
+      <input class="mfi" id="chCode" placeholder="如：booking">
+      <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="chEnabled" checked style="width:auto;margin:0;"> 启用</label>
+      <button class="mfs" onclick="saveCH()">保存 Save</button>
 </div>
 </div>
 </div>
@@ -1009,12 +1107,48 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
     <div class="mm-body">
       <label class="mfl">优惠券名称 *</label><input class="mfi" id="cpnName" placeholder="如：新人优惠券">
       <label class="mfl">类型 *</label>
-      <select class="mfi" id="cpnType"><option value="fixed_off">减固定金额 RM</option><option value="percent_off">打折（百分比）</option></select>
-      <label class="mfl" id="cpnValueLbl">优惠数值 *</label><input class="mfi" id="cpnValue" type="number" step="0.1" placeholder="0">
-      <label class="mfl">最低消费门槛</label>
-      <div class="mfh">留空/0 = 无门槛</div>
-      <input class="mfi" id="cpnMinSpend" type="number" step="0.1" placeholder="0">
-      <label class="mfl">有效天数（发放后多少天内有效）*</label><input class="mfi" id="cpnValidDays" type="number" step="1" placeholder="30">
+      <select class="mfi" id="cpnType" onchange="cpnSyncType()">
+        <option value="fixed_off">现金兑换 · 现金折扣（减 RM）</option>
+        <option value="percent_off">现金兑换 · 百分比折扣（打折）</option>
+        <option value="dessert">甜品兑换（换指定商品）</option>
+      </select>
+      <!-- 现金/百分比券：整单打折，还是只对某一件商品打折 -->
+      <div id="cpnScopeWrap">
+        <label class="mfl">适用范围 *</label>
+        <select class="mfi" id="cpnScope" onchange="cpnSyncType()">
+          <option value="order">整单（按购物车小计算）</option>
+          <option value="item">指定单品（只打那件商品，一份）</option>
+        </select>
+      </div>
+      <!-- 甜品券绑兑换的商品；单品券绑打折的商品。核销时店员不会认错 -->
+      <div id="cpnItemWrap" style="display:none">
+        <label class="mfl" id="cpnItemLbl">兑换商品 *</label>
+        <div class="mfh" id="cpnItemHint" style="display:none">顾客买多份也只打一份，取购物车里最便宜的那份</div>
+        <select class="mfi" id="cpnMenuItem"></select>
+      </div>
+      <div id="cpnValueWrap">
+        <label class="mfl" id="cpnValueLbl">优惠数值 *</label><input class="mfi" id="cpnValue" type="number" step="0.1" placeholder="0">
+        <label class="mfl">最低消费门槛</label>
+        <div class="mfh">留空/0 = 无门槛。门槛看的是整单小计，跟适用范围无关</div>
+        <input class="mfi" id="cpnMinSpend" type="number" step="0.1" placeholder="0">
+      </div>
+      <label class="mfl">有效期 *</label>
+      <select class="mfi" id="cpnExpMode" onchange="cpnSyncExp()">
+        <option value="days">期限内（发放后 N 天）</option>
+        <option value="forever">永久有效（不过期）</option>
+      </select>
+      <div id="cpnDaysWrap">
+        <label class="mfl">有效天数</label><input class="mfi" id="cpnValidDays" type="number" step="1" min="1" placeholder="30">
+      </div>
+      <label class="mfl">发放时间</label>
+      <div class="mfh">控制「什么时候能拿到这张券」（商城上架/后台发放）。两个都留空 = 不限时间。与上面的「有效期」不同，有效期管的是拿到之后多久过期</div>
+      <div style="display:flex;gap:8px">
+        <input class="mfi" id="cpnIssueFrom" type="datetime-local" style="flex:1">
+        <input class="mfi" id="cpnIssueUntil" type="datetime-local" style="flex:1">
+      </div>
+      <label class="mfl">积分商城售价（Coin）</label>
+      <div class="mfh">填了才会出现在小程序积分商城；留空/0 = 不在商城出售，只能后台手动发放</div>
+      <input class="mfi" id="cpnCoinPrice" type="number" step="1" min="0" placeholder="留空＝不上架">
       <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="cpnEnabled" checked style="width:auto;margin:0;"> 启用（停用后不能再发放）</label>
       <button class="mfs" onclick="saveCpn()">保存 Save</button>
 </div>
@@ -1061,11 +1195,11 @@ function setCloudStatus(s){
 setTimeout(function(){ setCloudStatus(db?'connecting':'offline'); },0);
 /* 订单对象 <-> 数据库行（只映射数据库已有的列，tender/change/customerName 等不入库）*/
 function orderToRow(o){return{id:o.id,order_num:o.orderNum,receipt_no:o.receiptNo!=null?o.receiptNo:null,kind_seq:o.kindSeq!=null?o.kindSeq:null,created_at:o.createdAt,items:o.items||[],
-  total:o.total||0,pay_method:o.payMethod,status:o.status,source:o.source,table_name:o.tableName,ta_mode:o.taMode,member_id:o.memberId||null,device_id:o.deviceId||null,
+  total:o.total||0,pay_method:o.payMethod,status:o.status,source:o.source,table_name:o.tableName,ta_mode:o.taMode,member_id:o.memberId||null,device_id:o.deviceId||null,coupon_id:o.couponId||null,discount:Number(o.discount)||0,
   delivery_info:o.deliveryInfo||null};}
 function rowToOrder(r){return{id:r.id,orderNum:r.order_num||(r.id?String(r.id).slice(-4):''),receiptNo:r.receipt_no!=null?r.receipt_no:null,kindSeq:r.kind_seq!=null?r.kind_seq:null,createdAt:r.created_at,
   items:r.items||[],total:Number(r.total)||0,payMethod:r.pay_method||'counter',status:r.status||'pending',
-  source:r.source||'app',tableName:r.table_name||'',taMode:r.ta_mode||'',memberId:r.member_id||null,deviceId:r.device_id||null,deliveryInfo:r.delivery_info||null};}
+  source:r.source||'app',tableName:r.table_name||'',taMode:r.ta_mode||'',memberId:r.member_id||null,deviceId:r.device_id||null,couponId:r.coupon_id||null,discount:Number(r.discount)||0,deliveryInfo:r.delivery_info||null};}
 /* ── 取号：永久收据号 receiptNo + 当天订单号 orderNum ──
    优先用 Supabase rpc_next_order_num（跨设备唯一/按天重置）；离线或失败时本地兜底。 */
 function _setOrderNums(o,rc,on,ks){ o.receiptNo=rc; o.orderNum=String(on).padStart(4,'0'); if(ks!=null) o.kindSeq=ks; }
@@ -1210,6 +1344,58 @@ function subscribeSpecDefs(){
   db.channel('specdefs-pos').on('postgres_changes',{event:'*',schema:'public',table:'spec_defs'},function(){ loadSpecDefs(); }).subscribe();
 }
 
+/* ── 销售渠道（后台"销售方式"维护；商品和规格组勾选开放给哪些渠道）──
+   内置 dinein/pickup/delivery 的 code 跟小程序的 currentMode 一一对应，所以 code 锁死不给改。
+   自建渠道现在只是后台标签，小程序还没有对应的下单入口。 */
+var _salesChannels=[];
+var CH_BUILTIN=[{code:'dinein',name:'堂食',name_en:'Dine In',builtin:true,enabled:true,sort_order:10},
+                {code:'pickup',name:'自取',name_en:'Pickup',builtin:true,enabled:true,sort_order:20},
+                {code:'delivery',name:'外卖',name_en:'Delivery',builtin:true,enabled:true,sort_order:30}];
+async function loadChannels(){
+  if(!db){ _salesChannels=CH_BUILTIN.slice(); return; }
+  try{
+    var res=await db.from('sales_channels').select('*').order('sort_order');
+    if(res.error) throw res.error;
+    // 表还没建（SQL 没跑）时退回内置三个，后台照样能用，只是不能自建渠道
+    _salesChannels=(res.data&&res.data.length)?res.data:CH_BUILTIN.slice();
+    try{ if(document.getElementById('adminView').style.display==='flex' && document.getElementById('asi-menu') && document.getElementById('asi-menu').classList.contains('a')) renderMenuAdmin(); }catch(e){}
+  }catch(e){ _salesChannels=CH_BUILTIN.slice(); }
+}
+function subscribeChannels(){
+  if(!db) return;
+  try{ db.channel('channels-pos').on('postgres_changes',{event:'*',schema:'public',table:'sales_channels'},function(){ loadChannels(); }).subscribe(); }catch(e){}
+}
+/* 打钩区：一个都不勾 = 全渠道开放，所以停用的渠道也照列，免得取消勾选后无处恢复 */
+function _chBoxHtml(boxId, selected){
+  var sel=selected||[];
+  return (_salesChannels||[]).map(function(c){
+    var on=sel.indexOf(c.code)>=0;
+    return'<label class="ch-chk'+(on?' on':'')+'" data-code="'+esc(c.code)+'">'
+      +'<input type="checkbox"'+(on?' checked':'')+' onchange="_chSyncChk(this)"> '+esc(c.name)
+      +(c.enabled===false?'<span style="font-size:11px;color:#8A8A8A">（停用）</span>':'')+'</label>';
+  }).join('');
+}
+function _chSyncChk(input){ input.closest('.ch-chk').classList.toggle('on', input.checked); }
+function _chFill(boxId, selected){ var b=document.getElementById(boxId); if(b) b.innerHTML=_chBoxHtml(boxId, selected); }
+/* 全勾 = 没限制，存 null，跟「一个都不勾」一样是全渠道，省得以后加渠道时老商品被漏掉 */
+function _chCollect(boxId){
+  var box=document.getElementById(boxId); if(!box) return null;
+  var picked=[];
+  box.querySelectorAll('.ch-chk').forEach(function(l){
+    if(l.querySelector('input').checked) picked.push(l.getAttribute('data-code'));
+  });
+  if(!picked.length || picked.length===(_salesChannels||[]).length) return null;
+  return picked;
+}
+/* 列表上展示某行的开放渠道 */
+function _chTagsHtml(channels){
+  if(!channels || !channels.length) return '<span class="mi-pill">全渠道</span>';
+  return channels.map(function(code){
+    var c=(_salesChannels||[]).find(function(x){return x.code===code;});
+    return'<span class="mi-pill">'+esc(c?c.name:code)+'</span>';
+  }).join(' ');
+}
+
 /* ── STATE ── */
 var cart=[],selIdx=-1,payMethod='cash',taMode=true;
 var _orders=gj('pm_orders',[]);
@@ -1337,6 +1523,18 @@ function _posItemSpecs(it){
   return [];
 }
 function _specDefById(id){ return (_specDefs||[]).find(function(x){return String(x.id)===String(id);}); }
+/* ── 规格加价 ──
+   两层：规格库 option_prices 是建议加价（默认），商品 specs[i].prices 逐商品覆盖。
+   商品那层没写这个选项就跟默认走，所以「大杯 +2」在规格库填一次，
+   只有收 3 块的那个商品才单独改。 */
+function _optAdd(g, value){
+  if(g && g.prices && g.prices[value]!=null) return Number(g.prices[value])||0;
+  var d=g&&g.defId?_specDefById(g.defId):null;
+  if(d && d.option_prices && d.option_prices[value]!=null) return Number(d.option_prices[value])||0;
+  return 0;
+}
+function _specsAdd(specs){ return (specs||[]).reduce(function(s,x){ return s+(Number(x.add)||0); },0); }
+function _addTxt(n){ return n>0 ? ('+'+n.toFixed(2)) : (n<0 ? n.toFixed(2) : ''); }
 function _posOptSold(defId,value){ if(!defId)return false; var d=_specDefById(defId); return !!(d&&(d.sold_out_options||[]).indexOf(value)>=0); }
 /* 规格组是否必填：看规格库 spec_defs.required（无 defId 的旧口味组按必填处理） */
 function _groupRequired(g){ if(!g)return true; if(g.defId){ var d=_specDefById(g.defId); return d?d.required!==false:true; } return true; }
@@ -1360,15 +1558,23 @@ function addItem(cat,i){
   var groups=_posItemSpecs(it);
   var hasChoice = groups.length>1 || groups.some(function(g){return (g.options||[]).length>1;});
   if(hasChoice){ showSpecPicker(cat,i); return; } // 有规格→进规格选择页（要点 OK）
-  _cartAdd(it, []);                               // 无规格→点选即加入
+  // 只有一个选项的必填组没得选，但该加的钱还是要加上
+  var auto=groups.filter(function(g){ return (g.options||[]).length===1 && _groupRequired(g); })
+    .map(function(g){ return {defId:g.defId||null,name:g.name,value:g.options[0],add:_optAdd(g,g.options[0])}; });
+  _cartAdd(it, auto);                             // 无规格→点选即加入
   hideitems();renderCart();showN('已加入：'+it.name);
 }
 function _cartAdd(it, specs){
-  var specText=(specs||[]).map(function(s){return s.value;}).filter(Boolean).join(' · ');
+  // 行价 = 商品基础价 + 选中选项的加价；规格文字也带上「L +2.00」，收据才对得上账
+  var specText=(specs||[]).map(function(s){
+    var a=Number(s.add)||0; return s.value ? (s.value+(a?(' '+_addTxt(a)):'')) : '';
+  }).filter(Boolean).join(' · ');
+  var price=(Number(it.price)||0)+_specsAdd(specs);
   for(var j=0;j<cart.length;j++){
     if(cart[j].name===it.name && (cart[j].specText||'')===specText){ cart[j].qty++; return; }
   }
-  cart.push({name:it.name,name_cn:it.name_cn,price:it.price,qty:1,specs:specs||[],specText:specText,flavor:specText});
+  cart.push({id:it.id||null,name:it.name,name_cn:it.name_cn,price:price,basePrice:Number(it.price)||0,
+    qty:1,specs:specs||[],specText:specText,flavor:specText});
 }
 /* ── 规格选择：每屏一组规格，面包屑逐段累积、底部 Back/OK 翻页，点选项高亮、
    最后一组 OK 加入购物车。选填组默认「不需要」、可跳过不选（Figma 389-219/394-290/394-318）── */
@@ -1392,7 +1598,9 @@ function _renderSpecPicker(){
   cards+=(g.options||[]).map(function(o,oi){
     var sold=_posOptSold(g.defId,o);
     var cls='item-card spec-card'+(c.sel[c.step]===oi?' sel':'')+(sold?' sold':'');
-    return '<div class="'+cls+'" '+(sold?'':'onclick="pickSpecOpt('+oi+')"')+'><div class="ic-name">'+esc(o)+'</div></div>';
+    var a=_optAdd(g,o);
+    return '<div class="'+cls+'" '+(sold?'':'onclick="pickSpecOpt('+oi+')"')+'><div class="ic-name">'+esc(o)
+      +(a?'<span class="spec-add">'+_addTxt(a)+'</span>':'')+'</div></div>';
   }).join('');
   document.getElementById('itemGrid').innerHTML='<div class="spec-opts">'+cards+'</div>';
   document.getElementById('itemOkBtn').style.display=''; // 规格页都有 OK
@@ -1412,7 +1620,11 @@ function specBack(){ var c=_specCtx; if(c && c.step>0){ c.step--; _renderSpecPic
 function confirmSpecAdd(){
   var c=_specCtx; var it=MENU[c.cat].items[c.idx];
   var chosen=[];
-  c.groups.forEach(function(g,gi){ if(c.sel[gi]===SKIP_SEL) return; chosen.push({defId:g.defId||null,name:g.name,value:(g.options||[])[c.sel[gi]]}); });
+  c.groups.forEach(function(g,gi){
+    if(c.sel[gi]===SKIP_SEL) return;
+    var v=(g.options||[])[c.sel[gi]];
+    chosen.push({defId:g.defId||null,name:g.name,value:v,add:_optAdd(g,v)});
+  });
   var label=chosen.map(function(s){return s.value;}).filter(Boolean).join(' · ');
   _cartAdd(it, chosen);
   hideitems();renderCart();showN('已加入：'+it.name+(label?'（'+label+'）':''));
@@ -1420,11 +1632,17 @@ function confirmSpecAdd(){
 
 /* ── CART ── */
 function renderCart(){
-  var tot=cart.reduce(function(s,it){return s+it.qty*it.price;},0);
+  var sub=cart.reduce(function(s,it){return s+it.qty*it.price;},0);
+  // 券可能因购物车变动而失效（不满门槛/指定甜品被删），失效就自动撤销
+  if(_posCoupon && !_posCouponOk(_posCoupon, sub)) _posCoupon=null;
+  var disc=_posCoupon?_posCouponDisc(_posCoupon, sub):0;
+  var tot=Math.max(0, sub-disc);
+  _renderCartDisc(disc);
   var el=document.getElementById('cartItems');
   var empty=document.getElementById('cartEmpty');
   if(selIdx>=cart.length) selIdx=-1;
   if(!cart.length){
+    _posCoupon=null; _renderCartDisc(0);
     empty.style.display='flex';el.style.display='none';
     document.getElementById('cartRM').textContent='RM 0';
     document.getElementById('cartCnt').textContent='0 Items';
@@ -1501,7 +1719,9 @@ function updTenderDisplay(){
 function showPayment(){
   if(!cart.length){showN('购物车是空的');return;}
   _payPendId=null;   // 收银台结账：确保不会误用待付款队列的结算分支
-  payTotalAmount=cart.reduce(function(s,it){return s+it.qty*it.price;},0);
+  var _sub=cart.reduce(function(s,it){return s+it.qty*it.price;},0);
+  var _disc=_posCoupon?_posCouponDisc(_posCoupon,_sub):0;
+  payTotalAmount=Math.max(0,_sub-_disc);   // 用券后按折后金额收钱
   payMethod='cash';
   tenderInput='';
   document.getElementById('payAmt').textContent=payTotalAmount.toFixed(2);
@@ -1547,7 +1767,10 @@ function confirmPayment(){
   _pendingOrder={id:'o'+Date.now(),orderNum:'',createdAt:new Date().toISOString(),
     items:cart.map(function(i){return{name:i.name,name_cn:i.name_cn,price:i.price,qty:i.qty,specs:i.specs||[],flavor:i.specText||i.flavor||""};}),
     total:payTotalAmount,payMethod:payMethod,tender:tender,change:change,
+    couponId:(_posCoupon?_posCoupon.id:null),
+    discount:(_posCoupon?_posCouponDisc(_posCoupon, cart.reduce(function(s,it){return s+it.qty*it.price;},0)):0),
     tableName:tbl,customerName:cust,source:'pos',status:'paid',
+    memberId:(_posMember?_posMember.id:null),   // 绑了会员才会在 markPaid/结账后结算 XP+Coin
     taMode:taMode?'dine-in':'takeaway'};
   _pendingNums=assignOrderNums(_pendingOrder);   // 取号（永久收据号 + 当天订单号）
 
@@ -1580,9 +1803,18 @@ function askPrint(yes){
     // 保存订单：本地缓存 + 广播 + 写云端（跨设备）——等取号完成后再入库，云端存的是最终号
     _orders.unshift(o);sj('pm_orders',_orders);pmBroadcastOrders();
     if(db) db.from('orders').insert(orderToRow(o)).then(function(res){ if(res&&res.error) console.error('pos order insert',res.error); }).catch(function(e){ console.error('pos order insert',e); });
+    // 柜台单是直接 status:'paid' 落库、不经过 markPaid，所以 XP/Coin 要在这里结算，
+    // 否则绑了会员也白绑
+    if(db && o.memberId) db.rpc('rpc_on_order_completed',{p_member_id:o.memberId,p_order_id:o.id,p_amount:o.total})
+      .catch(function(e){ console.error('rpc_on_order_completed',e); });
+    // 券到这一步才正式核销——挂在购物车时不扣，中途取消不会白烧
+    if(db && o.couponId) db.rpc('rpc_pos_use_coupon',{p_member_coupon_id:o.couponId,p_order_id:o.id})
+      .then(function(res){ if(res&&res.error) console.error('pos use coupon',res.error); })
+      .catch(function(e){ console.error('pos use coupon',e); });
     if(yes) printRec(o);
     // 清空购物车
     cart=[];selIdx=-1;
+    _posMember=null; _posCoupon=null; try{ _renderPosMember(); }catch(e){}
     document.getElementById('ctTable').value='';
     document.getElementById('ctCustomer').value='';
     renderCart();updPend();
@@ -1872,6 +2104,183 @@ function _confirmPendPay(tender,change){
   document.getElementById('changeBg').classList.add('show');
 }
 function reprO(id){var o=_orders.find(function(x){return x.id===id;});if(o)printRec(o);}
+
+/* ══════════ 收银台会员 ══════════
+   原本 POS 单从不设 member_id，柜台消费不累积 XP/Coin（markPaid 里是
+   if(o.memberId) 才结算）。输入电话绑定会员后这个洞就补上了。 */
+var _posMember=null;
+function posFindMember(){
+  var raw=(document.getElementById('ctCustomer').value||'').trim();
+  var digits=raw.replace(/\D/g,'');
+  if(!digits){ _posMember=null; _renderPosMember(); return; }
+  if(!db){ _posMember=null; _renderPosMember('未连接云端，无法查会员'); return; }
+  db.rpc('rpc_pos_find_member',{p_phone:digits}).then(function(res){
+    if(res.error){ _posMember=null; _renderPosMember('查询失败'); return; }
+    _posMember=(res.data&&res.data[0])||null;
+    _renderPosMember(_posMember?null:'非会员（该号码未注册）');
+  }).catch(function(e){ _posMember=null; _renderPosMember('网络错误'); });
+}
+function _renderPosMember(msg){
+  var bar=document.getElementById('ctMemberBar');
+  var badge=document.getElementById('ctVoucherBadge');
+  if(!bar) return;
+  if(!_posMember){
+    bar.innerHTML=msg?('<span class="warn">'+esc(msg)+'</span>'):'';
+    if(badge) badge.style.display='none';
+    return;
+  }
+  var m=_posMember;
+  bar.innerHTML='<span class="r">'+(m.coins||0)+' Coins<br>'+(m.xp||0)+' XP</span>'
+    +'<span class="nm">'+esc(m.nickname||m.phone)+'</span>'
+    +(m.level_name?(' <span class="lv" style="color:'+esc(m.level_color||'#8D0505')+'">（'+esc(m.level_name)+'）</span>'):'')
+    +'<br><span style="font-size:12px;color:#4A4848">余额 RM '+Number(m.wallet_balance||0).toFixed(2)+'</span>';
+  if(badge){
+    var n=m.unused_coupons||0;
+    badge.textContent=n; badge.style.display=n>0?'flex':'none';
+  }
+}
+function _posNeedMember(){
+  if(!_posMember){ showN('请先在「会员电话」输入顾客手机号'); return false; }
+  return true;
+}
+
+/* ── Voucher：看该会员没用的券，可当场核销 ── */
+function posOpenVoucher(){
+  if(!_posNeedMember()) return;
+  document.getElementById('pvTitle').textContent=(_posMember.nickname||_posMember.phone)+' 的优惠券';
+  document.getElementById('pvBody').innerHTML='<div style="text-align:center;padding:30px;color:#4A4848">加载中…</div>';
+  document.getElementById('pvBg').classList.add('show');
+  db.rpc('rpc_pos_member_coupons',{p_member_id:_posMember.id}).then(function(res){
+    if(res.error){ document.getElementById('pvBody').innerHTML='<div style="padding:20px;color:#8D0505">读取失败</div>'; return; }
+    _posVouchers=res.data||[];
+    _renderPosVoucher(_posVouchers);
+  }).catch(function(e){ document.getElementById('pvBody').innerHTML='<div style="padding:20px;color:#8D0505">网络错误</div>'; });
+}
+function closePosVoucher(){ document.getElementById('pvBg').classList.remove('show'); }
+var _posVouchers=[];
+function _renderPosVoucher(list){
+  var box=document.getElementById('pvBody');
+  if(!list.length){ box.innerHTML='<div style="text-align:center;padding:40px;color:#4A4848">该会员没有可用的优惠券</div>'; return; }
+  box.innerHTML='<table><thead><tr><th>券名</th><th>优惠</th><th>门槛</th><th>到期</th><th>操作</th></tr></thead><tbody>'
+    +list.map(function(v){
+      var off=v.type==='percent_off'?(Number(v.value)+'% OFF'):('RM '+Number(v.value).toFixed(2)+' OFF');
+      var val=v.type==='dessert'?('兑换 '+esc(v.menu_item_name||'指定商品'))
+             :(v.menu_item_id?(esc(v.menu_item_name||'指定商品')+' '+off+'（一份）'):off);
+      var exp=v.expires_at?new Date(v.expires_at).toLocaleDateString():'永久';
+      return'<tr><td><b>'+esc(v.name)+'</b></td><td>'+val+'</td>'
+        +'<td>'+(v.type==='dessert'?'—':(Number(v.min_spend)>0?('满 RM'+Number(v.min_spend).toFixed(2)):'无门槛'))+'</td>'
+        +'<td style="font-size:12px;color:#4A4848">'+exp+'</td>'
+        +'<td>'+(_posCouponOk(v)
+            ?'<button onclick="posUseVoucher(\''+v.id+'\',\''+esc(v.name)+'\')" style="border:none;background:#1D7715;color:#fff;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:700">使用</button>'
+            :'<span style="font-size:12px;color:#8D0505">'+esc(_posCouponWhy(v,_posCartSub()))+'</span>')
+        +'</td></tr>';
+    }).join('')+'</tbody></table>'
+    +'<div style="margin-top:12px;font-size:12px;color:#4A4848">点「使用」后金额直接从购物车扣除；券在结账落单时才正式核销，中途取消不会白烧。</div>';
+}
+/* 券不在这里马上核销——先挂到购物车上算钱，结账落单时才真正核销。
+   立刻核销的话，店员取消这单券就白烧了。 */
+var _posCoupon=null;
+function _posCartSub(){ return cart.reduce(function(s,it){return s+it.qty*it.price;},0); }
+function _posCartHas(menuItemId){ return cart.some(function(it){ return it.id===menuItemId; }); }
+/* 购物车里这件商品「一份」的价钱。同一件商品可能因规格加价出现好几行，
+   取最便宜那份——服务端算的是 menu_items 的基础价，取最低才不会前端显示得比实际多减 */
+function _posItemPrice(menuItemId){
+  var p=null;
+  // 用基础价，不用含规格加价的行价——服务端 _coupon_calc 查的是 menu_items.price，
+  // 两边口径要一致：顾客加了料不该多抵。
+  cart.forEach(function(it){ if(it.id===menuItemId){
+    var v=Number(it.basePrice!=null?it.basePrice:it.price)||0; if(p===null||v<p) p=v; } });
+  return p||0;
+}
+/* 绑了商品的券＝单品券：甜品券抵全价，现金/百分比券只打那一份 */
+function _posCouponItem(v){ return !!v.menu_item_id; }
+function _posCouponOk(v, sub){
+  if(sub==null) sub=_posCartSub();
+  if(sub < (Number(v.min_spend)||0)) return false;
+  if(_posCouponItem(v) && !_posCartHas(v.menu_item_id)) return false;
+  return true;
+}
+function _posCouponWhy(v, sub){
+  if(sub < (Number(v.min_spend)||0)) return '需满 RM'+Number(v.min_spend).toFixed(2);
+  if(_posCouponItem(v) && !_posCartHas(v.menu_item_id)) return '购物车没有'+(v.menu_item_name||'该商品');
+  return '';
+}
+function _posCouponDisc(v, sub){
+  if(sub==null) sub=_posCartSub();
+  var d=0;
+  if(_posCouponItem(v)){
+    var price=_posItemPrice(v.menu_item_id);
+    if(v.type==='dessert') d=price;
+    else if(v.type==='percent_off') d=Math.round(price*(Number(v.value)||0))/100;
+    else d=Math.min(Number(v.value)||0, price);
+  }
+  else if(v.type==='percent_off'){ d=Math.round(sub*(Number(v.value)||0))/100; }
+  else { d=Number(v.value)||0; }
+  return Math.min(Math.max(d,0), sub);
+}
+function _renderCartDisc(disc){
+  var row=document.getElementById('cartDiscRow'); if(!row) return;
+  if(_posCoupon && disc>0){
+    row.style.display='flex';
+    document.getElementById('cartDiscName').textContent=_posCoupon.name;
+    document.getElementById('cartDiscAmt').textContent='-RM '+disc.toFixed(2);
+  } else { row.style.display='none'; }
+}
+function posUseVoucher(id,name){
+  var v=(_posVouchers||[]).find(function(x){ return x.id===id; });
+  if(!v) return;
+  if(!cart.length){ showN('请先点单，再用券'); return; }
+  var sub=_posCartSub();
+  if(!_posCouponOk(v, sub)){ showN('这张券用不了：'+_posCouponWhy(v, sub)); return; }
+  _posCoupon=v;
+  closePosVoucher();
+  renderCart();
+  showN('✓ 已用券：'+name+'，金额已扣');
+}
+function posClearCoupon(){ _posCoupon=null; renderCart(); showN('已撤销用券'); }
+
+/* ── Top up：柜台直接充值，不用顾客开小程序 ── */
+var POS_TOPUP_PKGS=[
+  {price:50,  bonus:50,  special:true},
+  {price:100, bonus:120},
+  {price:150, bonus:200},
+  {price:200, bonus:300},
+  {price:250, bonus:450},
+  {price:300, bonus:600}
+];
+var _tuSel=1;
+function posOpenTopup(){
+  if(!_posNeedMember()) return;
+  _tuSel=1;
+  document.getElementById('tuTitle').textContent='为 '+(_posMember.nickname||_posMember.phone)+' 充值';
+  _renderTopup();
+  document.getElementById('tuBg').classList.add('show');
+}
+function closePosTopup(){ document.getElementById('tuBg').classList.remove('show'); }
+function setTuPkg(i){ _tuSel=i; _renderTopup(); }
+function _renderTopup(){
+  var m=_posMember; if(!m) return;
+  document.getElementById('tuBody').innerHTML=
+    '<div style="font-size:13px;color:#4A4848;margin-bottom:10px">当前余额 RM '+Number(m.wallet_balance||0).toFixed(2)+' · '+(m.coins||0)+' Coin</div>'
+    +'<div class="tu-grid">'+POS_TOPUP_PKGS.map(function(p,i){
+      return'<button class="tu-pkg'+(i===_tuSel?' a':'')+'" onclick="setTuPkg('+i+')">'
+        +(p.special?'<span class="tu-tag">首充</span>':'')
+        +'<b>RM '+p.price+'</b><span>送 '+p.bonus+' Coin</span></button>';
+    }).join('')+'</div>'
+    +'<div style="margin-top:12px;font-size:13px">收款 <b>RM '+POS_TOPUP_PKGS[_tuSel].price
+      +'</b> → 余额 +RM '+POS_TOPUP_PKGS[_tuSel].price+'，赠 '+POS_TOPUP_PKGS[_tuSel].bonus+' Coin</div>';
+}
+function posDoTopup(){
+  if(!_posMember) return;
+  var p=POS_TOPUP_PKGS[_tuSel];
+  if(!confirm('确认已收到顾客 RM'+p.price+'？\n确认后立即为其钱包到账 RM'+p.price+' + '+p.bonus+' Coin。')) return;
+  db.rpc('rpc_pos_topup',{p_member_id:_posMember.id,p_price:p.price,p_bonus_coins:p.bonus,p_note:'POS 柜台充值'}).then(function(res){
+    if(res.error){ showN(''+res.error.message); return; }
+    showN('✓ 已到账，余额 RM '+Number(res.data).toFixed(2));
+    closePosTopup();
+    posFindMember();   // 刷新会员条
+  }).catch(function(e){ showN('网络错误'); });
+}
 
 /* ── DELIVERY / 叫 Lalamove 骑手 ── */
 function _lmStatusText(code){return ({ASSIGNING_DRIVER:'正在安排骑手',ON_GOING:'骑手前往取餐',PICKED_UP:'已取餐·配送中',COMPLETED:'已送达',CANCELED:'已取消',REJECTED:'骑手拒单',EXPIRED:'已过期'})[code]||(code||'处理中');}
@@ -2383,7 +2792,8 @@ function renderMemberDetail(){
   } else if(_mdTab==='coupons'){
     var ST={unused:'未使用',used:'已使用',expired:'已过期'};
     box.innerHTML=_mdRows(['券名','面额','门槛','状态','发放时间','到期'], d.coupons, function(c){
-      var val=c.type==='percent_off'?(Number(c.value)+'% off'):('RM '+Number(c.value).toFixed(2));
+      var val=c.type==='dessert'?('兑换 '+esc(c.menu_item_name||'指定商品'))
+             :(c.type==='percent_off'?(Number(c.value)+'% off'):('RM '+Number(c.value).toFixed(2)));
       return'<tr><td><b>'+esc(c.name||'')+'</b></td><td>'+val+'</td>'
         +'<td>'+(Number(c.min_spend)>0?('满 RM '+Number(c.min_spend).toFixed(2)):'无门槛')+'</td>'
         +'<td>'+(ST[c.status]||esc(c.status||''))+'</td>'
@@ -2654,16 +3064,37 @@ function loadLoyaltyCoupons(){
     db.rpc('rpc_admin_list_member_coupons',{p_search:null}).then(function(res){ if(!res.error) _loyaltyMemberCoupons=res.data||[]; })
   ]).then(function(){ renderLoyaltyCouponsBody(); }).catch(function(e){});
 }
-function _cpnValTxt(c){ return c.type==='percent_off' ? (c.value+'% OFF') : ('RM'+c.value+' OFF'); }
+/* 券面文案：甜品券显示兑换的商品名，现金券按现金/百分比两种显示，
+   绑了商品的现金/百分比券要把商品名带上——不然「20% OFF」看不出是整单还是单品 */
+function _cpnValTxt(c){
+  if(c.type==='dessert') return '兑换：'+esc(c.menu_item_name||_menuName(c.menu_item_id)||'指定商品');
+  var off=c.type==='percent_off' ? (c.value+'% OFF') : ('RM'+c.value+' OFF');
+  return c.menu_item_id ? (esc(c.menu_item_name||_menuName(c.menu_item_id)||'指定商品')+' '+off) : off;
+}
+function _menuName(id){ var r=(_menuRows||[]).find(function(x){return x.id===id;}); return r?r.name:''; }
+var _CPN_TYPE_CN={fixed_off:'现金折扣',percent_off:'百分比折扣',dessert:'甜品兑换'};
+/* 发放窗口文案，并标出当前是否在窗口内 */
+function _cpnIssueTxt(c){
+  var d=function(s){ try{ return new Date(s).toLocaleDateString(); }catch(e){ return '?'; } };
+  if(!c.issue_from && !c.issue_until) return '<span style="color:#4A4848">不限</span>';
+  var now=Date.now();
+  var live=(!c.issue_from||now>=new Date(c.issue_from).getTime())&&(!c.issue_until||now<=new Date(c.issue_until).getTime());
+  var txt=(c.issue_from?d(c.issue_from):'不限')+' ~ '+(c.issue_until?d(c.issue_until):'不限');
+  return txt+(live?'':'<br><span style="color:#8D0505">（当前不可发放）</span>');
+}
 function renderLoyaltyCouponsBody(){
   var body=document.getElementById('loyaltyBody'); if(!body) return;
   var html='<div style="display:flex;justify-content:flex-end;margin-bottom:14px"><button onclick="openCpn()" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:700;font-size:13px">＋ 新增优惠券</button></div>';
-  html+='<div class="tx-card" style="margin-bottom:18px"><div class="tx-ch"><h3>优惠券模板</h3></div><table><thead><tr><th>名称</th><th>优惠</th><th>门槛</th><th>有效期</th><th>状态</th><th>操作</th></tr></thead><tbody>';
-  if(!_loyaltyCoupons.length){ html+='<tr><td colspan="6" style="text-align:center;padding:30px;color:#4A4848">暂无优惠券</td></tr>'; }
+  html+='<div class="tx-card" style="margin-bottom:18px"><div class="tx-ch"><h3>优惠券模板</h3></div><table><thead><tr><th>名称</th><th>类型</th><th>优惠</th><th>门槛</th><th>有效期</th><th>发放时间</th><th>商城售价</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+  if(!_loyaltyCoupons.length){ html+='<tr><td colspan="9" style="text-align:center;padding:30px;color:#4A4848">暂无优惠券</td></tr>'; }
   else{
     _loyaltyCoupons.forEach(function(c){
-      html+='<tr'+(c.enabled?'':' style="opacity:.5"')+'><td><b>'+esc(c.name)+'</b></td><td>'+_cpnValTxt(c)+'</td>'
-        +'<td>'+(c.min_spend>0?('满 RM'+c.min_spend):'无门槛')+'</td><td>'+c.valid_days+' 天</td>'
+      html+='<tr'+(c.enabled?'':' style="opacity:.5"')+'><td><b>'+esc(c.name)+'</b></td>'
+        +'<td>'+(_CPN_TYPE_CN[c.type]||esc(c.type||''))+'</td><td>'+_cpnValTxt(c)+'</td>'
+        +'<td>'+(c.type==='dessert'?'—':(c.min_spend>0?('满 RM'+c.min_spend):'无门槛'))+'</td>'
+        +'<td>'+(Number(c.valid_days)>0?(c.valid_days+' 天'):'<b>永久</b>')+'</td>'
+        +'<td style="font-size:12px">'+_cpnIssueTxt(c)+'</td>'
+        +'<td>'+(c.coin_price?('<b>'+c.coin_price+' Coin</b>'):'<span style="color:#4A4848">未上架</span>')+'</td>'
         +'<td>'+(c.enabled?'<span style="color:#1D7715">启用</span>':'<span style="color:#8D0505">停用</span>')+'</td>'
         +'<td style="white-space:nowrap">'
         +'<button onclick="openCpnIssue(\''+c.id+'\',\''+esc(c.name)+'\')" style="border:none;background:#FFDE5B;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">发放</button>'
@@ -2696,30 +3127,85 @@ function cpnSearch(){
     renderLoyaltyCouponsBody();
   }).catch(function(e){showN('网络错误');});
 }
+/* 甜品券没有「优惠数值/门槛」，改填「兑换哪件商品」——按类型切换表单 */
+/* datetime-local 用的是本地时间且没有时区，直接塞 ISO 字符串会显示不出来 */
+function _toLocalInput(iso){
+  if(!iso) return '';
+  try{ var d=new Date(iso); var p=function(n){return String(n).padStart(2,'0');};
+    return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());
+  }catch(e){ return ''; }
+}
+function _fromLocalInput(v){ return v ? new Date(v).toISOString() : null; }
+function cpnSyncExp(){
+  document.getElementById('cpnDaysWrap').style.display=
+    document.getElementById('cpnExpMode').value==='forever'?'none':'block';
+}
+function cpnSyncType(){
+  var type=document.getElementById('cpnType').value;
+  var isDessert=type==='dessert';
+  // 甜品券天生就是单品券，没有「整单」这个选项，所以范围下拉只给现金/百分比券看
+  var isItem=isDessert||document.getElementById('cpnScope').value==='item';
+  document.getElementById('cpnScopeWrap').style.display=isDessert?'none':'block';
+  document.getElementById('cpnItemWrap').style.display=isItem?'block':'none';
+  document.getElementById('cpnItemLbl').textContent=isDessert?'兑换商品 *':'打折商品 *';
+  document.getElementById('cpnItemHint').style.display=isDessert?'none':'block';
+  document.getElementById('cpnValueWrap').style.display=isDessert?'none':'block';
+  document.getElementById('cpnValueLbl').textContent=
+    type==='percent_off' ? (isItem?'折扣百分比 *（20 = 这件商品减 20%）':'折扣百分比 *（20 = 减 20%）')
+                         : (isItem?'优惠金额 RM *（超过商品单价按单价算）':'优惠金额 RM *');
+}
 function openCpn(id){
   _cpnEditId=id||null;
   var c=id?_loyaltyCoupons.find(function(x){return x.id===id;}):null;
   document.getElementById('cpnTitle').textContent=id?'编辑优惠券':'新增优惠券';
   document.getElementById('cpnName').value=c?c.name:'';
   document.getElementById('cpnType').value=c?c.type:'fixed_off';
+  document.getElementById('cpnScope').value=(c&&c.type!=='dessert'&&c.menu_item_id)?'item':'order';
   document.getElementById('cpnValue').value=c?c.value:'';
   document.getElementById('cpnMinSpend').value=c?c.min_spend:0;
-  document.getElementById('cpnValidDays').value=c?c.valid_days:30;
+  var forever=!!c && !(Number(c.valid_days)>0);
+  document.getElementById('cpnExpMode').value=forever?'forever':'days';
+  document.getElementById('cpnValidDays').value=(c&&Number(c.valid_days)>0)?c.valid_days:30;
+  cpnSyncExp();
+  document.getElementById('cpnCoinPrice').value=(c&&c.coin_price)?c.coin_price:'';
+  document.getElementById('cpnIssueFrom').value=_toLocalInput(c&&c.issue_from);
+  document.getElementById('cpnIssueUntil').value=_toLocalInput(c&&c.issue_until);
   document.getElementById('cpnEnabled').checked=c?c.enabled:true;
+  // 商品下拉用收银台已经加载好的菜单，不再另外请求
+  var opts='<option value="">— 请选择商品 —</option>';
+  (_menuRows||[]).slice().sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);}).forEach(function(r){
+    opts+='<option value="'+r.id+'"'+((c&&c.menu_item_id===r.id)?' selected':'')+'>'+esc(r.name)+(r.en?(' / '+esc(r.en)):'')+'</option>';
+  });
+  document.getElementById('cpnMenuItem').innerHTML=opts;
+  cpnSyncType();
   document.getElementById('cpnBg').classList.add('show');
 }
 function closeCpn(){document.getElementById('cpnBg').classList.remove('show');}
 function saveCpn(){
   var name=document.getElementById('cpnName').value.trim();
   if(!name){showN('请填写优惠券名称');return;}
+  var type=document.getElementById('cpnType').value;
+  var isDessert=type==='dessert';
+  // 甜品券必绑商品；现金/百分比券绑不绑取决于适用范围（绑了＝只打那件商品）
+  var isItem=isDessert||document.getElementById('cpnScope').value==='item';
   var value=parseFloat(document.getElementById('cpnValue').value);
-  if(isNaN(value)||value<=0){showN('优惠数值无效');return;}
+  var menuItemId=document.getElementById('cpnMenuItem').value||null;
+  if(isItem && !menuItemId){showN(isDessert?'请选择要兑换的商品':'请选择要打折的商品');return;}
+  if(!isDessert && (isNaN(value)||value<=0)){showN('优惠数值无效');return;}
+  var forever=document.getElementById('cpnExpMode').value==='forever';
   var validDays=parseInt(document.getElementById('cpnValidDays').value);
-  if(!validDays||validDays<1){showN('请填写有效天数');return;}
+  if(!forever && (!validDays||validDays<1)){showN('请填写有效天数');return;}
+  var coinRaw=document.getElementById('cpnCoinPrice').value.trim();
   var payload={
-    name:name, type:document.getElementById('cpnType').value, value:value,
-    min_spend:parseFloat(document.getElementById('cpnMinSpend').value)||0,
-    valid_days:validDays, enabled:document.getElementById('cpnEnabled').checked
+    name:name, type:type,
+    value:isDessert?0:value,
+    min_spend:isDessert?0:(parseFloat(document.getElementById('cpnMinSpend').value)||0),
+    valid_days:forever?null:validDays,   // null = 永久有效
+    enabled:document.getElementById('cpnEnabled').checked,
+    coin_price:coinRaw===''?null:(parseInt(coinRaw,10)||0),
+    issue_from:_fromLocalInput(document.getElementById('cpnIssueFrom').value),
+    issue_until:_fromLocalInput(document.getElementById('cpnIssueUntil').value),
+    menu_item_id:isItem?menuItemId:null
   };
   var q=_cpnEditId?db.from('coupons').update(payload).eq('id',_cpnEditId):db.from('coupons').insert(payload);
   q.then(function(res){if(res.error){showN(''+res.error.message);return;}showN('已保存');closeCpn();loadLoyaltyCoupons();}).catch(function(e){showN('网络错误');});
@@ -2805,9 +3291,11 @@ function renderMenuAdmin(){
   var tabsHtml='<div class="ma-tabs">'
     +'<button class="ma-tab'+(_menuAdminTab==='items'?' a':'')+'" onclick="setMenuAdminTab(\'items\')">商品管理</button>'
     +'<button class="ma-tab'+(_menuAdminTab==='specs'?' a':'')+'" onclick="setMenuAdminTab(\'specs\')">规格管理</button>'
+    +'<button class="ma-tab'+(_menuAdminTab==='channels'?' a':'')+'" onclick="setMenuAdminTab(\'channels\')">销售方式</button>'
     +'</div>';
   var html='<div class="page-title">菜单管理 · Menu</div>'+tabsHtml;
   if(_menuAdminTab==='specs'){ el.innerHTML=html+specDefsAdminHtml(); return; }
+  if(_menuAdminTab==='channels'){ el.innerHTML=html+channelsAdminHtml(); return; }
   var rows=(_menuRows||[]).slice().sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
   html+='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">改价 / 上下架 / 加新品 / 删除——保存后<b>顾客小程序实时更新</b>。「下架」的品项顾客端不显示。</div>';
   POS_CATS.forEach(function(c){
@@ -2815,18 +3303,19 @@ function renderMenuAdmin(){
     html+='<div class="tx-card" style="margin-bottom:16px"><div class="tx-ch" style="display:flex;justify-content:space-between;align-items:center">'
       +'<h3>'+POS_CATN[c][0]+' <span style="color:#4A4848;font-size:13px">'+POS_CATN[c][1]+'</span></h3>'
       +'<button onclick="menuAdd(\''+c+'\')" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px">＋ 加新品</button></div>'
-      +'<table><thead><tr><th>中文名</th><th>English</th><th>价格 RM</th><th>状态</th><th>操作</th></tr></thead><tbody>'
+      +'<table><thead><tr><th>中文名</th><th>English</th><th>价格 RM</th><th>销售渠道</th><th>状态</th><th>操作</th></tr></thead><tbody>'
       +(items.length?items.map(function(r){
         return'<tr'+(r.sold_out?' style="opacity:.5"':'')+'>'
           +'<td><b>'+esc(r.name)+'</b></td><td style="font-size:12px;color:#4A4848">'+esc(r.en||'')+'</td>'
           +'<td>'+Number(r.price).toFixed(1)+'</td>'
+          +'<td>'+_chTagsHtml(r.channels)+'</td>'
           +'<td>'+(r.sold_out?'<span style="color:#8D0505">已下架</span>':'<span style="color:#1D7715">在售</span>')+'</td>'
           +'<td style="white-space:nowrap">'
           +'<button onclick="menuEdit(\''+r.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">改</button>'
           +'<button onclick="menuToggleSold(\''+r.id+'\','+(r.sold_out?'true':'false')+')" style="border:none;background:#FFDE5B;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">'+(r.sold_out?'上架':'下架')+'</button>'
           +'<button onclick="menuDel(\''+r.id+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">删</button>'
           +'</td></tr>';
-      }).join(''):'<tr><td colspan="5" style="text-align:center;padding:16px;color:#4A4848">（暂无品项，点「＋ 加新品」）</td></tr>')
+      }).join(''):'<tr><td colspan="6" style="text-align:center;padding:16px;color:#4A4848">（暂无品项，点「＋ 加新品」）</td></tr>')
       +'</tbody></table></div>';
   });
   el.innerHTML=html;
@@ -2852,6 +3341,7 @@ function specDefsAdminHtml(){
           var isSold=soldSet.indexOf(o)>=0;
           return'<span class="mi-pill'+(isSold?' soldout':'')+'">'+esc(o)+(isSold?' 下架':'')+'</span>';
         }).join('')+'</div>'
+        +'<div style="white-space:nowrap;font-size:11px;color:#4A4848;margin-right:10px">'+_chTagsHtml(r.channels)+'</div>'
         +'<div style="white-space:nowrap">'
         +'<button onclick="sdEdit(\''+r.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">改</button>'
         +'<button onclick="sdDel(\''+r.id+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">删</button>'
@@ -2861,15 +3351,115 @@ function specDefsAdminHtml(){
   html+='</div>';
   return html;
 }
+/* ── 销售方式（菜单管理页签之一）：维护渠道本身。商品/规格组的打钩跟着这张表走 ── */
+function _chAfterWrite(res,msg){ if(res&&res.error){showN(''+(res.error.message||'操作失败'));return;} showN(msg); loadChannels().then(function(){renderMenuAdmin();}); }
+function channelsAdminHtml(){
+  var rows=(_salesChannels||[]).slice().sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
+  var html='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">维护点餐方式本身。商品管理和规格管理里的「销售渠道」打钩就是从这张表来的——在这里加一个渠道，那两处会同步多出一个选项。<br>'
+    +'<b>堂食 / 自取 / 外卖</b> 是内置渠道，代号跟顾客小程序的三个下单入口一一对应：可以改名、排序，但代号不能改、也不能删。'
+    +'自建的渠道目前只是后台标签——小程序还没有对应的下单入口，勾了不会让商品在顾客端多出一种卖法。</div>'
+    +'<div class="tx-card" style="margin-bottom:16px"><div class="tx-ch" style="display:flex;justify-content:space-between;align-items:center">'
+    +'<h3>销售方式</h3><button onclick="chAdd()" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px">＋ 新增渠道</button></div>';
+  if(!rows.length){
+    html+='<div style="text-align:center;padding:30px;color:#4A4848">（暂无渠道，点「＋ 新增渠道」）</div>';
+  }else{
+    rows.forEach(function(r){
+      // 统计一下有多少商品/规格组是专门指定了这个渠道的，改名/停用前心里有数
+      var nItem=(_menuRows||[]).filter(function(x){return (x.channels||[]).indexOf(r.code)>=0;}).length;
+      var nSpec=(_specDefs||[]).filter(function(x){return (x.channels||[]).indexOf(r.code)>=0;}).length;
+      html+='<div class="ch-row"><div class="ch-nm">'+esc(r.name)+'</div>'
+        +'<div class="ch-code">'+esc(r.code)+'</div>'
+        +'<div style="flex:1;font-size:12px;color:#4A4848">'+esc(r.name_en||'')
+        +'<span style="margin-left:10px">指定了这个渠道的：商品 '+nItem+' 个 · 规格组 '+nSpec+' 个</span></div>'
+        +'<span class="ch-tag'+(r.enabled===false?' off':'')+'">'+(r.builtin?'内置 · 对接小程序':(r.enabled===false?'已停用':'自建'))+'</span>'
+        +'<div style="white-space:nowrap">'
+        +'<button onclick="chEdit(\''+r.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;margin-left:8px;cursor:pointer;font-size:12px;font-weight:700">改</button>'
+        +(r.builtin?'':'<button onclick="chDel(\''+r.id+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 10px;margin-left:4px;cursor:pointer;font-size:12px;font-weight:700">删</button>')
+        +'</div></div>';
+    });
+  }
+  html+='</div>';
+  return html;
+}
+var _chEditId=null;
+function chAdd(){
+  if(!db){showN('未连接云端');return;}
+  _chEditId=null;
+  document.getElementById('chTitle').textContent='新增渠道';
+  document.getElementById('chName').value='';
+  document.getElementById('chNameEn').value='';
+  document.getElementById('chCode').value='';
+  document.getElementById('chCode').disabled=false;
+  document.getElementById('chCodeHint').textContent='英文小写代号，保存后不能改。自建渠道小程序暂时用不到，先当后台标签';
+  document.getElementById('chEnabled').checked=true;
+  document.getElementById('chBg').classList.add('show');
+}
+function chEdit(id){
+  if(!db){showN('未连接云端');return;}
+  var r=(_salesChannels||[]).find(function(x){return String(x.id)===String(id);});if(!r)return;
+  _chEditId=id;
+  document.getElementById('chTitle').textContent='编辑渠道';
+  document.getElementById('chName').value=r.name||'';
+  document.getElementById('chNameEn').value=r.name_en||'';
+  document.getElementById('chCode').value=r.code||'';
+  document.getElementById('chCode').disabled=true;   // 代号是商品/规格组存的引用，改了会全部对不上
+  document.getElementById('chCodeHint').textContent=r.builtin
+    ? '内置渠道，代号跟小程序的下单入口绑死，不能改'
+    : '代号已被商品/规格组引用，不能改';
+  document.getElementById('chEnabled').checked=r.enabled!==false;
+  document.getElementById('chBg').classList.add('show');
+}
+function closeCH(){document.getElementById('chBg').classList.remove('show');}
+function saveCH(){
+  if(!db){showN('未连接云端');return;}
+  var name=document.getElementById('chName').value.trim();
+  if(!name){showN('请填写渠道名称');return;}
+  var payload={name:name, name_en:document.getElementById('chNameEn').value.trim()||null,
+    enabled:document.getElementById('chEnabled').checked};
+  if(_chEditId){
+    db.from('sales_channels').update(payload).eq('id',_chEditId)
+      .then(function(res){_chAfterWrite(res,'已保存');}).catch(function(e){showN('网络错误');});
+  }else{
+    var code=document.getElementById('chCode').value.trim().toLowerCase();
+    if(!/^[a-z][a-z0-9_]*$/.test(code)){showN('代号只能用小写英文/数字/下划线，且以字母开头');return;}
+    if((_salesChannels||[]).some(function(x){return x.code===code;})){showN('这个代号已经有了');return;}
+    var maxSo=(_salesChannels||[]).reduce(function(m,r){return Math.max(m,r.sort_order||0);},0);
+    payload.code=code; payload.builtin=false; payload.sort_order=maxSo+10;
+    db.from('sales_channels').insert(payload)
+      .then(function(res){_chAfterWrite(res,'已添加：'+name);}).catch(function(e){showN('网络错误');});
+  }
+  closeCH();
+}
+/* 删渠道要顺手把商品/规格组里残留的引用清掉，否则那条 code 会永远留在 channels 里，
+   看不见也删不掉，还会让「全渠道」的判断永远差一个 */
+function chDel(id){
+  if(!db){showN('未连接云端');return;}
+  var r=(_salesChannels||[]).find(function(x){return String(x.id)===String(id);});if(!r)return;
+  if(r.builtin){showN('内置渠道不能删');return;}
+  var items=(_menuRows||[]).filter(function(x){return (x.channels||[]).indexOf(r.code)>=0;});
+  var defs=(_specDefs||[]).filter(function(x){return (x.channels||[]).indexOf(r.code)>=0;});
+  if(!confirm('确定删除渠道「'+r.name+'」？\n会同时从 '+items.length+' 个商品、'+defs.length+' 个规格组里去掉这个勾。'))return;
+  var strip=function(x){ return (x.channels||[]).filter(function(c){return c!==r.code;}); };
+  Promise.all(
+    items.map(function(x){ var left=strip(x); return db.from('menu_items').update({channels:left.length?left:null}).eq('id',x.id); })
+    .concat(defs.map(function(x){ var left=strip(x); return db.from('spec_defs').update({channels:left.length?left:null}).eq('id',x.id); }))
+  ).then(function(){
+    return db.from('sales_channels').delete().eq('id',id);
+  }).then(function(res){
+    loadMenu(); loadSpecDefs(); _chAfterWrite(res,'已删除');
+  }).catch(function(e){showN('网络错误');});
+}
+
 var _sdEditId=null;
-function _sdOptRowHtml(value, soldOut){
+function _sdOptRowHtml(value, soldOut, price){
   soldOut=!!soldOut;
-  return'<div class="sd-opt-row" data-soldout="'+(soldOut?'1':'0')+'"><input class="mfi" value="'+esc(value||'')+'" placeholder="选项，如 M / L / XL">'
+  return'<div class="sd-opt-row" data-soldout="'+(soldOut?'1':'0')+'"><input class="mfi sd-opt-name" value="'+esc(value||'')+'" placeholder="选项，如 M / L / XL">'
+    +'<input class="mfi sd-opt-price" type="number" step="0.1" value="'+(price!=null?esc(price):'')+'" placeholder="加价 RM" title="默认加价，商品可以逐个覆盖">'
     +'<button type="button" class="sd-opt-toggle'+(soldOut?' is-soldout':'')+'" onclick="_sdToggleOptRow(this)">'+(soldOut?'已下架':'下架')+'</button>'
     +'<button type="button" class="mi-spec-rm" onclick="this.parentElement.remove()">✕</button></div>';
 }
-function sdAddOptRow(value, soldOut){
-  document.getElementById('sdOptRows').insertAdjacentHTML('beforeend',_sdOptRowHtml(value, soldOut));
+function sdAddOptRow(value, soldOut, price){
+  document.getElementById('sdOptRows').insertAdjacentHTML('beforeend',_sdOptRowHtml(value, soldOut, price));
 }
 function _sdToggleOptRow(btn){
   var row=btn.closest('.sd-opt-row');
@@ -2879,14 +3469,17 @@ function _sdToggleOptRow(btn){
   btn.classList.toggle('is-soldout', soldOut);
 }
 function _sdCollectOptions(){
-  var rows=document.querySelectorAll('#sdOptRows .sd-opt-row'), options=[], soldOut=[];
+  var rows=document.querySelectorAll('#sdOptRows .sd-opt-row'), options=[], soldOut=[], prices={};
   for(var i=0;i<rows.length;i++){
-    var v=rows[i].querySelector('input').value.trim();
+    var v=rows[i].querySelector('.sd-opt-name').value.trim();
     if(!v) continue;
     options.push(v);
     if(rows[i].getAttribute('data-soldout')==='1') soldOut.push(v);
+    // 加价留空 = 不加价；填 0 跟留空一样，都不用存
+    var p=rows[i].querySelector('.sd-opt-price').value.trim();
+    if(p!=='' && Number(p)) prices[v]=Number(p);
   }
-  return {options:options, soldOut:soldOut};
+  return {options:options, soldOut:soldOut, prices:Object.keys(prices).length?prices:null};
 }
 function sdAdd(){
   if(!db){showN('未连接云端');return;}
@@ -2894,6 +3487,7 @@ function sdAdd(){
   document.getElementById('sdTitle').textContent='新增规格';
   document.getElementById('sdName').value='';
   document.querySelector('input[name="sdRequired"][value="1"]').checked=true;
+  _chFill('sdChannels', null);
   document.getElementById('sdOptRows').innerHTML='';
   document.getElementById('sdBg').classList.add('show');
 }
@@ -2904,10 +3498,12 @@ function sdEdit(id){
   document.getElementById('sdTitle').textContent='编辑规格';
   document.getElementById('sdName').value=r.name||'';
   document.querySelector('input[name="sdRequired"][value="'+(r.required===false?'0':'1')+'"]').checked=true;
+  _chFill('sdChannels', r.channels);
   document.getElementById('sdOptRows').innerHTML='';
   var soldSet={};
   (r.sold_out_options||[]).forEach(function(v){ soldSet[v]=true; });
-  (r.options||[]).forEach(function(o){ sdAddOptRow(o, !!soldSet[o]); });
+  var op=r.option_prices||{};
+  (r.options||[]).forEach(function(o){ sdAddOptRow(o, !!soldSet[o], op[o]!=null?op[o]:null); });
   document.getElementById('sdBg').classList.add('show');
 }
 function closeSD(){document.getElementById('sdBg').classList.remove('show');}
@@ -2925,8 +3521,13 @@ function _syncItemsForSpecDef(defId, oldOptions, newName, newOptions){
       var stored=g.options||[];
       // 商品原本勾选、且规格库仍保留的选项（保住有意排除的子集）；再并上全新选项
       var merged=newOptions.filter(function(o){return stored.indexOf(o)>=0 || oldOptions.indexOf(o)<0;});
-      if(g.name!==newName || JSON.stringify(stored)!==JSON.stringify(merged)) changed=true;
-      return {defId:g.defId,name:newName,options:merged};
+      // 商品自己覆盖的加价要留着，只丢掉规格库里已经删掉的选项
+      var prices=null;
+      if(g.prices){ prices={}; merged.forEach(function(o){ if(g.prices[o]!=null) prices[o]=g.prices[o]; });
+        if(!Object.keys(prices).length) prices=null; }
+      if(g.name!==newName || JSON.stringify(stored)!==JSON.stringify(merged)
+         || JSON.stringify(g.prices||null)!==JSON.stringify(prices)) changed=true;
+      return {defId:g.defId,name:newName,options:merged,prices:prices};
     });
     if(changed) updates.push({id:r.id,specs:specs});
   });
@@ -2942,7 +3543,8 @@ function saveSD(){
   var collected=_sdCollectOptions();
   if(!collected.options.length){showN('请至少填写一个选项');return;}
   var reqEl=document.querySelector('input[name="sdRequired"]:checked');
-  var payload={name:name,options:collected.options,sold_out_options:collected.soldOut,required:!reqEl||reqEl.value==='1'};
+  var payload={name:name,options:collected.options,sold_out_options:collected.soldOut,required:!reqEl||reqEl.value==='1',
+    channels:_chCollect('sdChannels'), option_prices:collected.prices};
   if(_sdEditId){
     var oldDef=(_specDefs||[]).find(function(x){return String(x.id)===String(_sdEditId);});
     var oldOptions=oldDef?(oldDef.options||[]).slice():[];
@@ -3103,21 +3705,30 @@ function _miSpecDefOptionsHtml(selectedDefId){
     return'<option value="'+esc(d.id)+'"'+(String(d.id)===String(selectedDefId)?' selected':'')+'>'+esc(d.name)+'</option>';
   }).join('');
 }
-function _miSpecCountHtml(def){
+/* 每个选项一行：名字 + 加价输入框。输入框留空 = 跟规格库的默认加价走（占位符就是默认值），
+   填了数字就是这个商品自己的价——同一个「大杯」在不同商品收不同钱靠的就是这里。 */
+function _miSpecCountHtml(def, prices){
   if(!def) return '<div class="mi-spec-count-empty">—</div>';
-  var opts=def.options||[]; var soldSet=def.sold_out_options||[];
-  var pills=opts.map(function(o){var s=soldSet.indexOf(o)>=0;return '<span class="mi-pill'+(s?' soldout':'')+'">'+esc(o)+(s?' 下架':'')+'</span>';}).join('');
+  var opts=def.options||[], soldSet=def.sold_out_options||[], dflt=def.option_prices||{}, own=prices||{};
+  var rows=opts.map(function(o){
+    var s=soldSet.indexOf(o)>=0;
+    var d=Number(dflt[o])||0;
+    return '<div class="mi-optprice-row" data-opt="'+esc(o)+'">'
+      +'<span class="mi-pill'+(s?' soldout':'')+'">'+esc(o)+(s?' 下架':'')+'</span>'
+      +'<input class="mi-optprice" type="number" step="0.1" value="'+(own[o]!=null?esc(own[o]):'')+'" placeholder="'+(d?('默认 +'+d.toFixed(2)):'不加价')+'">'
+      +'</div>';
+  }).join('');
   return '<details class="mi-spec-count"><summary>共 '+opts.length+' 个选项</summary>'
-    +'<div class="mi-spec-count-panel">'+pills+'</div></details>';
+    +'<div class="mi-spec-count-panel"><div class="mi-optprice-hint">加价 RM，留空＝跟规格库默认</div>'+rows+'</div></details>';
 }
-function _miSpecRowHtml(defId){
+function _miSpecRowHtml(defId, prices){
   var def=(_specDefs||[]).find(function(d){return String(d.id)===String(defId);});
   return'<div class="mi-spec-row">'
     +'<div class="mi-spec-col"><label class="mi-lbl mi-spec-lbl">规格</label>'
       +'<select class="mi-spec-select" onchange="_miOnSpecDefChange(this)"><option value="">选择规格…</option>'+_miSpecDefOptionsHtml(defId)+'</select></div>'
     +'<div class="mi-spec-dash">—</div>'
     +'<div class="mi-spec-col"><label class="mi-lbl">选项</label>'
-      +'<div class="mi-spec-count-wrap">'+_miSpecCountHtml(def)+'</div></div>'
+      +'<div class="mi-spec-count-wrap">'+_miSpecCountHtml(def, prices)+'</div></div>'
     +'<button type="button" class="mi-spec-rm" onclick="this.parentElement.remove();_miRelabelSpecRows()">✕</button>'
     +'</div>';
 }
@@ -3131,8 +3742,8 @@ function _miRelabelSpecRows(){
   var lbls=document.querySelectorAll('#miSpecGroups .mi-spec-lbl');
   for(var i=0;i<lbls.length;i++){ lbls[i].textContent='规格'+(i+1); }
 }
-function miAddSpecGroup(defId){
-  document.getElementById('miSpecGroups').insertAdjacentHTML('beforeend',_miSpecRowHtml(defId));
+function miAddSpecGroup(defId, prices){
+  document.getElementById('miSpecGroups').insertAdjacentHTML('beforeend',_miSpecRowHtml(defId, prices));
   _miRelabelSpecRows();
 }
 function _miCollectSpecGroups(){
@@ -3142,7 +3753,13 @@ function _miCollectSpecGroups(){
     var defId=defSel.value; if(!defId) continue;
     // 商品固定采用该规格库的全部选项（子集不再逐商品维护，统一由规格管理控制）
     var def=(_specDefs||[]).find(function(d){return String(d.id)===String(defId);});
-    out.push({defId:defId,name:def?def.name:'',options:def?(def.options||[]).slice():[]});
+    var prices={};
+    rows[i].querySelectorAll('.mi-optprice-row').forEach(function(pr){
+      var v=pr.querySelector('.mi-optprice').value.trim();
+      if(v!=='') prices[pr.getAttribute('data-opt')]=Number(v)||0;   // 明确填 0 = 这个商品这一项不加价
+    });
+    out.push({defId:defId,name:def?def.name:'',options:def?(def.options||[]).slice():[],
+      prices:Object.keys(prices).length?prices:null});
   }
   return out;
 }
@@ -3156,6 +3773,7 @@ function menuAdd(cat){
   document.getElementById('miEn').value='';
   document.getElementById('miPrice').value='';
   document.getElementById('miDesc').value='';
+  _chFill('miChannels', null);
   document.getElementById('miSpecGroups').innerHTML='';
   document.getElementById('miBg').classList.add('show');
 }
@@ -3170,8 +3788,9 @@ function menuEdit(id){
   document.getElementById('miEn').value=r.en||'';
   document.getElementById('miPrice').value=r.price!=null?r.price:'';
   document.getElementById('miDesc').value=r.descr||'';
+  _chFill('miChannels', r.channels);
   document.getElementById('miSpecGroups').innerHTML='';
-  (r.specs||[]).forEach(function(g){ miAddSpecGroup(g.defId); });
+  (r.specs||[]).forEach(function(g){ miAddSpecGroup(g.defId, g.prices); });
   document.getElementById('miBg').classList.add('show');
 }
 function closeMI(){document.getElementById('miBg').classList.remove('show');}
@@ -3186,6 +3805,7 @@ function saveMI(){
   var specGroups=_miCollectSpecGroups();
   var doSave=function(){
     var payload={name:name,en:en,price:price,descr:desc,specs:specGroups,image_url:_miImageUrl||null,
+      channels:_chCollect('miChannels'),
       flavors:(specGroups.length&&specGroups[0].options.length)?specGroups[0].options:['Original']};
     if(_miEditId){
       db.from('menu_items').update(payload).eq('id',_miEditId)
@@ -3307,10 +3927,12 @@ function subscribeOrders(){
 /* 云端启动：拉菜单 + 拉订单（首次不弹提示）+ 订阅实时 */
 loadMenu();
 loadSpecDefs();
+loadChannels();
 loadOrdersFromCloud(false);
 subscribeOrders();
 subscribeMenu();
 subscribeSpecDefs();
+subscribeChannels();
 
 /* 响应式：把 1366x768 的设计等比缩放贴合实际屏幕/平板分辨率 */
 (function(){

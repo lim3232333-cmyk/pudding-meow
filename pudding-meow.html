@@ -461,6 +461,7 @@
     padding:0 16px; box-sizing:border-box; flex-shrink:0;
   }
   .flavor-pill:not(.active):not(.soldout):hover{ background:#F5E9D4; }
+  .flavor-pill .pill-add{ margin-left:5px; font-size:11px; font-weight:700; opacity:.85; }
   .flavor-pill:not(.soldout):active,
   .flavor-pill.active{ background:var(--red); color:var(--cream2); }
   .flavor-pill.soldout, .flavor-pill.soldout.active{ background:#D9D9D9; color:#9A9A9A; border-color:#D9D9D9; cursor:not-allowed; text-decoration:line-through; }
@@ -721,7 +722,7 @@
   .rc-tx-empty{ padding:32px 0; text-align:center; color:var(--muted); font-size:12px; }
 
   /* ===== 会员：积分商城 Points Mall ===== */
-  .pm-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:var(--cream2); z-index:300; display:none; flex-direction:column; overflow-y:auto; }
+  .pm-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:var(--cream2); z-index:361;   /* 高于结算页 345：结算页点优惠卷会把商城叠上来 */ display:none; flex-direction:column; overflow-y:auto; }
   .pm-screen.show{ display:flex; }
   .pm-hero{ position:relative; width:100%; height:196px; background:var(--red); flex-shrink:0; }
   .pm-hero-divider{ position:absolute; left:0; top:198px; width:100%; height:2px; background:var(--blue); z-index:1; }
@@ -738,6 +739,9 @@
   .pm-tab.active{ color:var(--yellow); }
   .pm-tab.active::after{ content:''; position:absolute; left:50%; bottom:0; transform:translateX(-50%); width:80px; height:2px; background:var(--yellow); }
   .pm-body{ position:relative; z-index:2; margin-top:22px; padding:0 16px calc(34px + env(safe-area-inset-bottom, 0px)); display:flex; flex-direction:column; gap:12px; }
+  .pm-empty{ text-align:center; padding:48px 20px; font-size:13px; color:var(--muted); }
+  .pm-use-btn{ margin-top:8px; background:var(--yellow); color:var(--red); border:none; border-radius:999px; padding:5px 16px; font-size:12px; font-weight:700; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }
+  .pm-use-no{ display:inline-block; margin-top:8px; font-size:10.5px; opacity:.75; }
   .pm-item-card{ background:#fff; border-radius:12px; padding:16px; display:flex; align-items:center; justify-content:space-between; box-sizing:border-box; box-shadow:0 4px 10px rgba(0,0,0,.25); }
   .pm-item-img{ width:80px; height:80px; border-radius:16px; background:#D9D9D9; flex-shrink:0; overflow:hidden; }
   .pm-item-img-logo{ background:var(--red); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; box-sizing:border-box; padding:8px; }
@@ -1328,6 +1332,7 @@
         <div class="pm-tab active" data-cat="all" onclick="selectPmTab('all',this)">全部</div>
         <div class="pm-tab" data-cat="coupon" onclick="selectPmTab('coupon',this)">优惠卷</div>
         <div class="pm-tab" data-cat="dessert" onclick="selectPmTab('dessert',this)">甜品兑换</div>
+        <div class="pm-tab" data-cat="mine" onclick="selectPmTab('mine',this)">我的</div>
 </div>
 </div>
     <div class="pm-body" id="pmList"></div>
@@ -1434,7 +1439,7 @@
         <div class="ck-sec-label">我的订单</div>
         <div class="ck-items" id="ckItems"></div>
       </div>
-      <div class="ck-coupon">
+      <div class="ck-coupon" onclick="openCouponsFromCheckout()" style="cursor:pointer">
         <div class="ck-coupon-l">
           <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>
           <span>优惠卷</span>
@@ -1728,12 +1733,14 @@ function orderToRow(o){
   return { id:o.id, order_num:o.orderNum, receipt_no:o.receiptNo!=null?o.receiptNo:null, kind_seq:o.kindSeq!=null?o.kindSeq:null, created_at:o.createdAt, items:o.items||[],
     total:o.total||0, pay_method:o.payMethod, status:o.status,
     source:o.source, table_name:o.tableName, ta_mode:o.taMode, member_id:o.memberId||null, device_id:o.deviceId||null,
+    coupon_id:o.couponId||null, discount:Number(o.discount)||0,
     delivery_info:o.deliveryInfo||null };
 }
 function rowToOrder(r){
   return { id:r.id, orderNum:r.order_num||(r.id?String(r.id).slice(-4):''), receiptNo:r.receipt_no!=null?r.receipt_no:null, kindSeq:r.kind_seq!=null?r.kind_seq:null, createdAt:r.created_at,
     items:r.items||[], total:Number(r.total)||0, payMethod:r.pay_method||'counter',
     status:r.status||'pending', source:r.source||'app', tableName:r.table_name||'', taMode:r.ta_mode||'',
+    couponId:r.coupon_id||null, discount:Number(r.discount)||0,
     memberId:r.member_id||null, deviceId:r.device_id||null, deliveryInfo:r.delivery_info||null };
 }
 /* 取号：永久收据号 receiptNo + 当天订单号 orderNum。优先 Supabase RPC（跨设备唯一/按天重置），离线兜底本地 */
@@ -1803,6 +1810,7 @@ function selectMode(el){
   document.querySelectorAll('.hc-card').forEach(c=>c.classList.remove('active'));
   el.classList.add('active');
   currentMode = el.dataset.mode;
+  refilterMenuForMode();
   if(currentMode==='dinein'){ openDine(); return; }       // 堂食先选座号+人数
   if(currentMode==='delivery'){ openDelivery(); return; } // 外卖先填地址+算运费
   setTimeout(()=>{
@@ -1849,6 +1857,7 @@ function confirmDine(){
   if(!dineTable) return;
   onDinePaxInput();   // 同步输入框里最新的人数（可能没触发失焦）
   currentMode='dinein';
+  refilterMenuForMode();
   _dineInfo={table:dineTable, pax:dinePax};
   closeDine();
   setTimeout(()=>{ switchTab('menu'); syncMenuMode(); }, 60);
@@ -2027,6 +2036,7 @@ function setMenuMode(el){
   document.querySelectorAll('#seg button').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
   currentMode = el.dataset.mode;
+  refilterMenuForMode();
   updateMenuTableInfo();
 }
 /* 页头第二行（Figma 547:1199）：堂食显示桌号+人数，外卖显示收货地址，自取显示模式说明 */
@@ -2201,6 +2211,7 @@ function _dvFetchQuote(){
 function confirmDelivery(){
   if(!_dvActiveAddr || !_dvCoords) return;   // 选好带定位的地址就能前往点单；配送费后台算好后写进 _deliveryInfo
   currentMode='delivery';
+  refilterMenuForMode();
   var a=_dvActiveAddr;
   _deliveryInfo={
     address:_addrFullText(a),
@@ -2329,14 +2340,21 @@ var CAT_META = {
 /* 当前生效的菜单（先用兜底，云端拉到后替换）*/
 var menu = MENU_FALLBACK;
 
+/* 销售渠道：channels 为空 = 全渠道开放；有值就得包含当前点餐方式（currentMode 就是渠道 code）。
+   店里有些品项不适合打包/外送（冰淇淋会化、吐司会软），后台勾掉后这里直接不给看见。 */
+function _openInMode(channels, mode){
+  if(!channels || !channels.length) return true;
+  return channels.indexOf(mode||currentMode) >= 0;
+}
 /* 把 menu_items 表的行组装成 menu 对象结构（已售罄的品项对顾客隐藏 = 下架）*/
-function buildMenuFromRows(rows){
+function buildMenuFromRows(rows, mode){
   var m = {};
   CAT_ORDER.forEach(function(c){ if(CAT_META[c]) m[c] = {cn:CAT_META[c].cn, en:CAT_META[c].en, items:[]}; });
   (rows||[]).slice().sort(function(a,b){ return (a.sort_order||0)-(b.sort_order||0); }).forEach(function(r){
     if(r.sold_out) return;
+    if(!_openInMode(r.channels, mode)) return;
     var c = r.cat; if(!m[c]) m[c] = {cn:(CAT_META[c]?CAT_META[c].cn:c), en:(CAT_META[c]?CAT_META[c].en:c), items:[]};
-    m[c].items.push({ name:r.name, en:r.en||'', price:Number(r.price)||0, desc:r.descr||'',
+    m[c].items.push({ id:r.id, name:r.name, en:r.en||'', price:Number(r.price)||0, desc:r.descr||'',
       flavors:(r.flavors && r.flavors.length)?r.flavors:['Original'], specs:r.specs||[], image:r.image_url||'' });
   });
   Object.keys(m).forEach(function(c){ if(!m[c].items.length) delete m[c]; });
@@ -2346,7 +2364,11 @@ function buildMenuFromRows(rows){
    否则看旧的 flavors——只有多于一个口味才当作一组显示。没配规格、或只有单一/默认
    'Original'（后台没加规格时会写入的兜底值）时返回空，不显示任何规格 pill、直接加入。 */
 function _itemSpecs(it){
-  if(it && it.specs && it.specs.length) return it.specs;
+  // 规格组也能限定渠道（如「加冰淇淋」只开放堂食），不开放的组当前模式下整组不显示
+  if(it && it.specs && it.specs.length) return it.specs.filter(function(g){
+    var def = g && g.defId ? _specDefsById[g.defId] : null;
+    return !def || _openInMode(def.channels);
+  });
   var flavors = (it && it.flavors && it.flavors.length) ? it.flavors : [];
   if(flavors.length > 1) return [{ defId:null, name:'', options:flavors }];
   return [];
@@ -2368,9 +2390,25 @@ function _isOptionSoldOut(defId, value){
   var def = _specDefsById[defId];
   return !!(def && (def.sold_out_options||[]).indexOf(value) >= 0);
 }
+/* ── 规格加价 ──
+   两层：规格库 option_prices 是建议加价（默认），商品 specs[i].prices 逐商品覆盖。
+   商品那层没写这个选项就跟默认走。行价 = 商品基础价 + 选中选项的加价之和。
+   优惠券一律按基础价算（服务端 _coupon_calc 查 menu_items.price），加的料顾客自付。 */
+function _optAdd(g, value){
+  if(g && g.prices && g.prices[value]!=null) return Number(g.prices[value])||0;
+  var d = g && g.defId ? _specDefsById[g.defId] : null;
+  if(d && d.option_prices && d.option_prices[value]!=null) return Number(d.option_prices[value])||0;
+  return 0;
+}
+function _specsAdd(specs){ return (specs||[]).reduce(function(s,x){ return s+(Number(x.add)||0); },0); }
+function _addTxt(n){ return n>0 ? ('+RM'+n.toFixed(2)) : (n<0 ? ('RM'+n.toFixed(2)) : ''); }
 /* 购物车/订单条目展示用：新的 specs 数组只显示值；兼容历史订单里的旧 flavor 字符串字段 */
 function specsDisplay(it){
-  if(it && it.specs && it.specs.length) return it.specs.map(function(s){ return s.value; }).filter(Boolean).join(SPEC_SEP);
+  // 带上加价（「L +RM2.00」），不然收据上只看到 L，对不上为什么比菜单价贵
+  if(it && it.specs && it.specs.length) return it.specs.map(function(s){
+    var a=Number(s.add)||0;
+    return s.value ? (s.value + (a?(' '+_addTxt(a)):'')) : '';
+  }).filter(Boolean).join(SPEC_SEP);
   return (it && it.flavor) ||'';
 }
 function applyMenu(m){
@@ -2382,8 +2420,11 @@ function applyMenu(m){
 }
 function loadMenuCache(){
   try{ var raw=localStorage.getItem('pm_menu_cache'); if(!raw) return null;
-    var m=buildMenuFromRows(JSON.parse(raw)); return Object.keys(m).length?m:null; }catch(e){ return null; }
+    _menuRawRows=JSON.parse(raw);
+    var m=buildMenuFromRows(_menuRawRows); return Object.keys(m).length?m:null; }catch(e){ return null; }
 }
+/* 原始行留一份：切换堂食/自取/外卖时要按新模式重新过滤销售渠道，不用再请求一次 */
+var _menuRawRows=[];
 /* 从云端拉菜单；失败则用缓存、再退到写死菜单 */
 async function loadMenu(){
   if(!db){ setCloudStatus('offline'); applyMenu(loadMenuCache() || MENU_FALLBACK); return; }
@@ -2392,12 +2433,57 @@ async function loadMenu(){
     if(res.error) throw res.error;
     setCloudStatus('online');
     try{ localStorage.setItem('pm_menu_cache', JSON.stringify(res.data||[])); }catch(e){}
-    var m = buildMenuFromRows(res.data||[]);
+    _menuRawRows = res.data||[];
+    var m = buildMenuFromRows(_menuRawRows);
     applyMenu(Object.keys(m).length ? m : (loadMenuCache() || MENU_FALLBACK));
   }catch(e){
     setCloudStatus('offline');
     applyMenu(loadMenuCache() || MENU_FALLBACK);
   }
+}
+/* 切换点餐方式后重建菜单：不开放这个渠道的品项要消失，购物车里已经加了的也得清掉，
+   否则结算时会带上一个这个模式根本不卖的东西。 */
+function refilterMenuForMode(){
+  if(_menuRawRows && _menuRawRows.length){
+    var m = buildMenuFromRows(_menuRawRows);
+    if(Object.keys(m).length) applyMenu(m);
+  }
+  var blocked = {};
+  (_menuRawRows||[]).forEach(function(r){ if(!_openInMode(r.channels)) blocked[r.id]=r.name; });
+  var dropped = [];
+  Object.keys(cart).forEach(function(k){
+    var it=cart[k]; if(!it) return;
+    // 商品本身不开放，或者它选中的某组规格不开放（如「加冰淇淋」只做堂食），都得拿掉
+    var bad = (it.id && blocked[it.id]) ? blocked[it.id] : null;
+    if(!bad && it.specs) it.specs.forEach(function(s){
+      var def = s && s.defId ? _specDefsById[s.defId] : null;
+      if(def && !_openInMode(def.channels)) bad = it.name+'（'+(s.value||def.name)+'）';
+    });
+    if(bad){ dropped.push(bad); delete cart[k]; }
+  });
+  if(dropped.length){
+    var label={dinein:'堂食',pickup:'自取',delivery:'外卖'}[currentMode]||'这个方式';
+    alert(dropped.join('、')+' 不支持'+label+'，已从购物车移除。');
+  }
+  _remapCartKeys();
+  try{ renderItems(); }catch(e){}
+  try{ updateCartBadge(); }catch(e){}
+}
+/* 购物车的键是 分类|序号|规格下标——序号是菜单里的位置。过滤掉几个品项后序号会整体前移，
+   不重映射的话商品卡上的数量角标就会加到别的商品头上。按商品 id 重新算一次位置。 */
+function _remapCartKeys(){
+  var pos={};
+  Object.keys(menu).forEach(function(cat){
+    (menu[cat].items||[]).forEach(function(it,i){ if(it.id) pos[it.id]=cat+'|'+i; });
+  });
+  var next={};
+  Object.keys(cart).forEach(function(k){
+    var c=cart[k], parts=k.split('|');
+    var head=(c && c.id && pos[c.id]) ? pos[c.id] : (parts[0]+'|'+parts[1]);
+    var nk=head+'|'+parts.slice(2).join('|');
+    if(next[nk]) next[nk].qty+=c.qty; else next[nk]=c;
+  });
+  cart=next;
 }
 
 let activeCat ='special';
@@ -2544,13 +2630,82 @@ function renderCheckout(){
   _ckSyncPayRows();
   var sub=0; Object.values(cart).forEach(function(c){ sub+=c.qty*c.price; });
   var fee=isDv?(_deliveryInfo.fee||0):0;
-  var total=sub+fee;
+  // 选中的券若已不适用（改了购物车导致不满门槛/甜品没了），自动取消，避免算出不该有的折扣
+  if(_ckCoupon && _couponUsable(_ckCoupon, sub).ok===false) _ckCoupon=null;
+  var disc=_ckCoupon?_couponDiscount(_ckCoupon, sub):0;
+  var total=Math.max(0, sub+fee-disc);
   document.getElementById('ckSubtotal').textContent='RM '+sub.toFixed(2);
   document.getElementById('ckFee').textContent='RM '+fee.toFixed(2);
-  document.getElementById('ckDiscount').textContent='-RM 0.00';
+  document.getElementById('ckDiscount').textContent='-RM '+disc.toFixed(2);
   document.getElementById('ckTotal').textContent='RM '+total.toFixed(2);
   document.getElementById('ckPayBtn').textContent='立即支付 RM'+total.toFixed(2);
+  _ckRenderCouponRow(disc);
 }
+/* ===== 结算页优惠券 =====
+   折扣在前端算一份只为显示；下单时由 rpc_consume_coupon 在服务端重算并核销，
+   以服务端返回的金额为准——anon key 是公开的，前端传上来的数字不能信。 */
+var _ckCoupon=null;
+function _cartItemIds(){
+  return Object.values(cart).map(function(c){ return c.id; }).filter(Boolean);
+}
+function _cartSubtotal(){ var s=0; Object.values(cart).forEach(function(c){ s+=c.qty*c.price; }); return s; }
+/* 绑了商品的券＝单品券：甜品券抵掉那一份的全价，现金/百分比券只打那一份 */
+function _couponItem(mc){ return !!mc.menu_item_id; }
+/* 购物车里这件商品「一份」的价钱。规格加价会让同一商品出现好几行，取最便宜那份——
+   服务端按 menu_items 的基础价算，取最低才不会显示得比实际多减 */
+function _cartItemPrice(menuItemId){
+  var p=null;
+  // 用基础价，不用含规格加价的行价——服务端 _coupon_calc 查的是 menu_items.price，
+  // 两边口径要一致：顾客加了料不该多抵。
+  Object.values(cart).forEach(function(c){ if(c.id===menuItemId){
+    var v=Number(c.basePrice!=null?c.basePrice:c.price)||0; if(p===null||v<p) p=v; } });
+  return p||0;
+}
+/* 这张券在当前购物车能不能用 */
+function _couponUsable(mc, sub){
+  if(!mc || mc.status!=='unused') return {ok:false, why:'已使用或已失效'};
+  if(mc.expires_at && new Date(mc.expires_at) < new Date()) return {ok:false, why:'已过期'};
+  if(sub < (Number(mc.min_spend)||0)) return {ok:false, why:'需满 RM'+Number(mc.min_spend).toFixed(2)};
+  if(mc.type==='dessert' && !mc.menu_item_id) return {ok:false, why:'未绑定商品'};
+  if(_couponItem(mc) && _cartItemIds().indexOf(mc.menu_item_id)<0){
+    return {ok:false, why:'购物车没有'+(mc.menu_item_name||'该商品')};
+  }
+  return {ok:true};
+}
+function _couponDiscount(mc, sub){
+  var d=0;
+  if(_couponItem(mc)){
+    var price=_cartItemPrice(mc.menu_item_id);
+    if(mc.type==='dessert') d=price;
+    else if(mc.type==='percent_off') d=Math.round(price*(Number(mc.value)||0))/100;
+    else d=Math.min(Number(mc.value)||0, price);
+  } else if(mc.type==='percent_off'){
+    d=Math.round(sub*(Number(mc.value)||0))/100;
+  } else {
+    d=Number(mc.value)||0;
+  }
+  return Math.min(Math.max(d,0), sub);
+}
+function _ckRenderCouponRow(disc){
+  var r=document.getElementById('ckCouponR'); if(!r) return;
+  if(_ckCoupon){
+    r.innerHTML='<span style="background:var(--yellow);color:var(--red);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700">-RM '+disc.toFixed(2)+'</span>'
+      +'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:6px"><path d="m9 18 6-6-6-6"/></svg>';
+  } else {
+    r.innerHTML='<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
+  }
+}
+/* 在积分商城「我的」里点「使用」 */
+function useCouponForOrder(mcId){
+  var mc=_myCoupons.find(function(x){ return x.id===mcId; });
+  if(!mc) return;
+  var u=_couponUsable(mc, _cartSubtotal());
+  if(!u.ok){ alert('这张券现在用不了：'+u.why); return; }
+  _ckCoupon=mc;
+  closePointsMall();
+  renderCheckout();
+}
+function clearCkCoupon(){ _ckCoupon=null; renderCheckout(); }
 function _ckSyncPayRows(){
   var isDinein = currentMode==='dinein';
   var online = currentMode==='delivery' || currentMode==='pickup';
@@ -2600,6 +2755,23 @@ function selectPay(method){
 function confirmOrder(){
   var entries = Object.entries(cart);
   if(!entries.length){ alert('购物车是空的！'); return; }
+  // 选了券：先在服务端核销拿到权威折扣，再落单。顺序不能反——
+  // 先落单后核销的话，核销失败时折扣已经给出去了。
+  if(_ckCoupon && db && _memberId && _memberToken){
+    var _oid='o'+Date.now();
+    db.rpc('rpc_consume_coupon',{p_member_id:_memberId, p_session_token:_memberToken,
+      p_member_coupon_id:_ckCoupon.id, p_order_id:_oid,
+      p_subtotal:_cartSubtotal(), p_item_ids:_cartItemIds()}).then(function(res){
+      if(res.error){ alert('优惠券用不了：'+res.error.message); _ckCoupon=null; renderCheckout(); return; }
+      _doConfirmOrder(Number(res.data)||0, _ckCoupon.id, _oid);
+    }).catch(function(e){ console.error('rpc_consume_coupon', e); alert('网络错误，请重试'); });
+    return;
+  }
+  _doConfirmOrder(0, null, null);
+}
+function _doConfirmOrder(discount, couponId, presetId){
+  var entries = Object.entries(cart);
+  if(!entries.length){ alert('购物车是空的！'); return; }
 
   var total = 0;
   var items = entries.map(function(e){
@@ -2610,6 +2782,8 @@ function confirmOrder(){
   // 外卖：把 Lalamove 配送费计入总额（deliveryFee 单独存一份，方便小票/后台拆分显示）
   var deliveryFee = (currentMode==='delivery' && _deliveryInfo) ? (_deliveryInfo.fee||0) : 0;
   total += deliveryFee;
+  discount = Math.min(Math.max(Number(discount)||0, 0), total);   // 服务端算的折扣，兜底夹一次防负数
+  total -= discount;
 
   // 余额支付：先做客户端预检（余额够不够、有没有登录联网），不够就直接拦下，不建单
   if(selectedPay==='wallet'){
@@ -2620,7 +2794,9 @@ function confirmOrder(){
 
   var modeLabel = {dinein:'堂食', pickup:'自取', delivery:'外卖'}[currentMode] ||'自取';
   var order = {
-    id:'o'+Date.now(),
+    id: presetId || ('o'+Date.now()),   // 有券时用核销时那个 id，两边要对上
+    couponId: couponId || null,
+    discount: discount,
     orderNum: '',              // 取号后填入（当天流水号）
     createdAt: new Date().toISOString(),
     items: items,
@@ -2713,7 +2889,8 @@ function closeSuccess(type){
   var id = type==='tng' ?'successTng' : type==='hitpay' ?'successHitpay' :'successCounter';
   try{ document.getElementById(id).classList.remove('show'); }catch(e){}
   // 清购物车
-  cart = {};
+  cart = {}; _ckCoupon=null;   // 券已在下单时核销，清掉选中状态
+  
   // 安全刷新点单页
   try{ renderCats(); }catch(e){}
   try{ renderItems(); }catch(e){}
@@ -2780,7 +2957,8 @@ function _sheetSpecGroupHtml(group, gi){
   const selIdx = sheetSpecSel[gi];
   const pills = (group.options||[]).map((o,oi)=>{
     const soldOut = _isOptionSoldOut(group.defId, o);
-    return `<button class="flavor-pill${oi===selIdx?' active':''}${soldOut?' soldout':''}" data-gi="${gi}" data-oi="${oi}"${soldOut?' disabled':''} onclick="selectSpecOption(${gi},${oi})">${o}</button>`;
+    const add = _optAdd(group, o);
+    return `<button class="flavor-pill${oi===selIdx?' active':''}${soldOut?' soldout':''}" data-gi="${gi}" data-oi="${oi}"${soldOut?' disabled':''} onclick="selectSpecOption(${gi},${oi})">${o}${add?`<span class="pill-add">${_addTxt(add)}</span>`:''}</button>`;
   }).join('');
   return `<div class="sheet-spec-group" data-gi="${gi}">${label}<div class="sheet-pill-row">${pills}</div></div>`;
 }
@@ -2832,11 +3010,20 @@ function changeSheetQty(delta){
   document.getElementById('sheetQty').textContent = sheetQty;
 }
 
+/* 详情页当前单价 = 商品基础价 + 已选规格的加价 */
+function _sheetUnitPrice(){
+  const it = menu[sheetCat].items[sheetIdx];
+  const specs = _itemSpecs(it);
+  let add = 0;
+  specs.forEach((g,gi)=>{ if(sheetSpecSel[gi]>=0) add += _optAdd(g, g.options[sheetSpecSel[gi]]); });
+  return (Number(it.price)||0) + add;
+}
 function refreshSheetFooter(){
   const it = menu[sheetCat].items[sheetIdx];
   const specs = _itemSpecs(it);
   const label = specs.map((g,gi)=> sheetSpecSel[gi]>=0 ? g.options[sheetSpecSel[gi]] : null).filter(Boolean).join(SPEC_SEP);
-  document.getElementById('sheetPrice').textContent ='RM' + it.price.toFixed(1);
+  // 价格跟着选中的规格实时变，顾客点「加大杯」立刻看到贵了多少
+  document.getElementById('sheetPrice').textContent ='RM' + _sheetUnitPrice().toFixed(1);
   document.getElementById('sheetFlavorLabel').textContent = label ? (label +'，') :'';
   document.getElementById('sheetQty').textContent = sheetQty;
   // 含 * 的必填规格组全部选中，才启用「加入购物车」；optional 不影响
@@ -2850,10 +3037,12 @@ function confirmAddToCart(){
   const specs = _itemSpecs(it);
   const allReq = specs.every((g,gi)=> !_sheetGroupRequired(g) || sheetSpecSel[gi]>=0);
   if(!allReq) return;   // 必填规格未选完，禁止加入
-  const chosen = specs.map((g,gi)=> sheetSpecSel[gi]>=0 ? { defId:g.defId||null, name:g.name, value:g.options[sheetSpecSel[gi]] } : null).filter(Boolean);
+  const chosen = specs.map((g,gi)=> sheetSpecSel[gi]>=0
+    ? { defId:g.defId||null, name:g.name, value:g.options[sheetSpecSel[gi]], add:_optAdd(g, g.options[sheetSpecSel[gi]]) } : null).filter(Boolean);
   const key = sheetCat +'|' + sheetIdx +'|' + sheetSpecSel.join(',');
   const cur = cart[key]?.qty || 0;
-  cart[key] = { name: it.name, en: it.en, price: it.price, image: it.image||'', specs: chosen, qty: cur + sheetQty };
+  cart[key] = { id: it.id||null, name: it.name, en: it.en, price: it.price + _specsAdd(chosen), basePrice: it.price,
+    image: it.image||'', specs: chosen, qty: cur + sheetQty };
   renderItems();
   renderCartPanel();
   closeSheet();
@@ -3156,8 +3345,11 @@ function reorder(){
           var sel = specs.map(function(g){ return g.options.indexOf(_matchSpecValue(g, it.specs, it.flavor)); });
           var key = cat+'|'+idx+'|'+sel.join(',');
           var cur = cart[key]?cart[key].qty:0;
-          var chosen = specs.map(function(g,gi){ return {defId:g.defId||null, name:g.name, value:g.options[sel[gi]]}; });
-          cart[key] = {name:item.name, en:item.en, price:item.price, image:item.image||'', specs:chosen, qty:cur+it.qty};
+          // 加价按当前菜单重算，不照抄旧订单——那张单上的价可能早就改了
+          var chosen = specs.map(function(g,gi){ var v=g.options[sel[gi]];
+            return {defId:g.defId||null, name:g.name, value:v, add:_optAdd(g,v)}; });
+          cart[key] = {id:item.id||null, name:item.name, en:item.en, price:item.price+_specsAdd(chosen),
+            basePrice:item.price, image:item.image||'', specs:chosen, qty:cur+it.qty};
         }
       });
     });
@@ -3478,13 +3670,17 @@ function loadMyCoupons(){
       return;
     }
     box.innerHTML = list.map(function(c){
-      var valTxt = c.type==='percent_off' ? (c.value+'% OFF') : ('RM'+c.value);
-      var condTxt = c.min_spend>0 ? ('满 RM'+c.min_spend+' 可用') :'无门槛';
-      var expTxt ='有效期至 '+new Date(c.expires_at).toLocaleDateString();
+      var valTxt = c.type==='dessert' ? '兑换'
+                 : (c.type==='percent_off' ? (c.value+'% OFF') : ('RM'+c.value));
+      // 左边红票根位置窄，只放短标签；完整条件放右边那行
+      var tagTxt = c.type==='dessert' ? '甜品' : (c.menu_item_id ? '单品' :'OFF');
+      var condTxt = _couponCondTxt(c);
+      // expires_at 为空 = 永久有效（POS 建券时可选）
+      var expTxt = c.expires_at ? ('有效期至 '+new Date(c.expires_at).toLocaleDateString()) :'永久有效';
       var usedCls = c.status!=='unused' ?' used' :'';
       var statusTxt = c.status==='used' ?'（已使用）' : (c.status==='expired' ?'（已过期）' :'');
       return'<div class="mem-coupon-ticket'+usedCls+'">'
-        +'<div class="mem-coupon-value"><b>'+valTxt+'</b><span>'+condTxt+'</span></div>'
+        +'<div class="mem-coupon-value"><b>'+valTxt+'</b><span>'+tagTxt+'</span></div>'
         +'<div class="mem-coupon-info"><div class="mem-coupon-name">'+c.name+statusTxt+'</div><div class="mem-coupon-cond">'+condTxt+'</div><div class="mem-coupon-exp">'+expTxt+'</div></div>'
         +'</div>';
     }).join('');
@@ -3604,27 +3800,71 @@ function loadWalletLedger(){
   }).catch(function(e){ box.innerHTML ='<div class="rc-tx-empty">暂无交易记录</div>'; });
 }
 
-/* ===== 积分商城 Points Mall ===== */
-var POINTS_MALL_ITEMS = [
-  { name:'布蕾曲奇', coin:600, cat:'dessert', img:null },
-  { name:'RM 5 优惠卷', coin:500, cat:'coupon', img:'logo' }
-];
-var _pmTab ='all';
-function _pmItemHtml(it){
-  var imgHtml = it.img==='logo'
-    ?'<div class="pm-item-img pm-item-img-logo"><img alt=""><span>Total Price</span></div>'
-    :'<div class="pm-item-img"></div>';
-  return'<div class="pm-item-card">'+imgHtml
-    +'<div class="pm-item-info"><div class="pm-item-name">'+it.name+'</div>'
-    +'<div class="pm-item-coin-row"><span class="pm-item-coin-dot"></span><span class="pm-item-coin-txt">'+it.coin+' Coin</span></div></div>'
-    +'<button class="pm-item-redeem" onclick="memComingSoon()">兑换</button></div>';
+/* ===== 积分商城 Points Mall =====
+   商品就是优惠券模板本身：POS「优惠券管理」里填了「积分商城售价（Coin）」的券会出现在这里。
+   兑换走 rpc_redeem_coupon（服务端扣币发券，前端不碰余额），兑到的券进「我的」。 */
+var _pmTab='all', _mallItems=[], _myCoupons=[], _mallLoading=false;
+function _pmCatOf(c){ return c.type==='dessert' ? 'dessert' : 'coupon'; }
+/* 券面文案：甜品券显示兑换的商品，现金券分现金/百分比。
+   绑了商品的现金/百分比券是单品券，得把商品名带上，不然看不出是整单还是单品 */
+function _pmValTxt(c){
+  if(c.type==='dessert') return _esc(c.menu_item_name||'指定商品');
+  var off=c.type==='percent_off' ? (c.value+'% OFF') : ('RM '+Number(c.value||0).toFixed(2)+' OFF');
+  return c.menu_item_id ? (_esc(c.menu_item_name||'指定商品')+' '+off) : off;
+}
+/* 券的使用条件一行：单品券写清楚打哪件商品、只打一份 */
+function _couponCondTxt(c){
+  if(c.type==='dessert') return _esc(c.menu_item_name||'指定商品');
+  if(c.menu_item_id) return '仅 '+_esc(c.menu_item_name||'指定商品')+'（一份）';
+  return Number(c.min_spend)>0 ? ('满 RM'+Number(c.min_spend).toFixed(2)+'可用') : '无门槛';
+}
+function _pmImg(c){
+  if(c.menu_item_image) return '<div class="pm-item-img" style="background-image:url(\''+_esc(c.menu_item_image)+'\');background-size:cover;background-position:center"></div>';
+  return '<div class="pm-item-img pm-item-img-logo"><img alt=""><span>'+_pmValTxt(c)+'</span></div>';
+}
+function _pmItemHtml(c){
+  var afford=!_memberProfile || (_memberProfile.coins||0) >= c.coin_price;
+  return'<div class="pm-item-card">'+_pmImg(c)
+    +'<div class="pm-item-info"><div class="pm-item-name">'+_esc(c.name)+'</div>'
+    +'<div class="pm-item-coin-row"><span class="pm-item-coin-dot"></span><span class="pm-item-coin-txt">'+c.coin_price+' Coin</span></div></div>'
+    +'<button class="pm-item-redeem"'+(afford?'':' style="opacity:.45"')+' onclick="redeemMallCoupon(\''+c.id+'\')">兑换</button></div>';
+}
+/* 「我的」：已兑到手的券。未使用的排在前面 */
+var _pmFromCheckout=false;
+function _pmMineHtml(mc){
+  var ST={unused:'未使用',used:'已使用',expired:'已过期'};
+  var exp='永久有效';
+  if(mc.expires_at){ try{ exp=new Date(mc.expires_at).toLocaleDateString()+' 到期'; }catch(e){ exp=''; } }
+  return'<div class="mem-coupon-ticket'+(mc.status==='unused'?'':' used')+'">'
+    +'<div class="mem-coupon-value"><b>'+(mc.type==='dessert'?'兑换':(mc.type==='percent_off'?(mc.value+'%'):('RM'+mc.value)))+'</b>'
+    +'<span>'+(mc.type==='dessert'?'甜品':(mc.menu_item_id?'单品':'OFF'))+'</span></div>'
+    +'<div class="mem-coupon-info"><div class="mem-coupon-name">'+_esc(mc.name)+'</div>'
+    +'<div class="mem-coupon-cond">'+_couponCondTxt(mc)+'</div>'
+    +'<div class="mem-coupon-exp">'+(ST[mc.status]||mc.status)+' · '+exp+'</div>'
+    +_pmUseBtn(mc)+'</div></div>';
+}
+/* 从结算页进来才显示「使用」；不可用的说明原因，别让顾客点了才知道 */
+function _pmUseBtn(mc){
+  if(!_pmFromCheckout || mc.status!=='unused') return '';
+  var u=_couponUsable(mc, _cartSubtotal());
+  return u.ok
+    ? '<button class="pm-use-btn" onclick="useCouponForOrder(\''+mc.id+'\')">使用</button>'
+    : '<span class="pm-use-no">'+_esc(u.why)+'</span>';
 }
 function renderPointsMallList(){
-  var list = POINTS_MALL_ITEMS.filter(function(it){ return _pmTab==='all' || it.cat===_pmTab; });
-  document.getElementById('pmList').innerHTML = list.map(_pmItemHtml).join('');
-  var brandLogo = document.getElementById('brandLogoImg');
+  var box=document.getElementById('pmList');
+  if(_mallLoading){ box.innerHTML='<div class="pm-empty">加载中…</div>'; return; }
+  if(_pmTab==='mine'){
+    box.innerHTML=_myCoupons.length
+      ? _myCoupons.map(_pmMineHtml).join('')
+      : '<div class="pm-empty">还没有优惠券，去上面兑换一张吧</div>';
+    return;
+  }
+  var list=_mallItems.filter(function(c){ return _pmTab==='all' || _pmCatOf(c)===_pmTab; });
+  box.innerHTML = list.length ? list.map(_pmItemHtml).join('') : '<div class="pm-empty">暂无可兑换的商品</div>';
+  var brandLogo=document.getElementById('brandLogoImg');
   if(brandLogo && brandLogo.src){
-    document.querySelectorAll('.pm-item-img-logo img').forEach(function(img){ if(!img.src) img.src = brandLogo.src; });
+    document.querySelectorAll('.pm-item-img-logo img').forEach(function(img){ if(!img.src) img.src=brandLogo.src; });
   }
 }
 function selectPmTab(cat, el){
@@ -3632,16 +3872,59 @@ function selectPmTab(cat, el){
   document.querySelectorAll('#pmTabs .pm-tab').forEach(function(t){ t.classList.toggle('active', t===el); });
   renderPointsMallList();
 }
-function openPointsMall(){
+function loadMallData(){
+  if(!db) return Promise.resolve();
+  _mallLoading=true; renderPointsMallList();
+  return Promise.all([
+    db.rpc('rpc_list_mall_coupons').then(function(r){ if(!r.error) _mallItems=r.data||[]; }),
+    db.rpc('rpc_get_my_coupons',{p_member_id:_memberId,p_session_token:_memberToken}).then(function(r){ if(!r.error) _myCoupons=r.data||[]; })
+  ]).then(function(){ _mallLoading=false; renderPointsMallList(); })
+   .catch(function(e){ _mallLoading=false; renderPointsMallList(); });
+}
+function redeemMallCoupon(id){
+  var c=_mallItems.find(function(x){return x.id===id;});
+  if(!c) return;
+  if(!db || !_memberId || !_memberToken){ alert('请先登录会员'); return; }
+  // 只在确实拿到了会员资料时才本地预检；资料没加载出来就别拦，交给服务端判定（它才是权威）
+  if(_memberProfile && (_memberProfile.coins||0) < c.coin_price){
+    alert('Coin 不足：需要 '+c.coin_price+'，当前 '+(_memberProfile.coins||0)); return;
+  }
+  if(!confirm('用 '+c.coin_price+' Coin 兑换「'+c.name+'」？')) return;
+  db.rpc('rpc_redeem_coupon',{p_member_id:_memberId,p_session_token:_memberToken,p_coupon_id:id}).then(function(res){
+    if(res.error){ alert('兑换失败：'+res.error.message); return; }
+    // 服务端已扣币发券，这里重新拉一次余额和券列表
+    return refreshMemberProfile().then(function(){
+      document.getElementById('pmCoinBalance').textContent=(_memberProfile&&_memberProfile.coins)||0;
+      return loadMallData();
+    }).then(function(){
+      alert('兑换成功！可在「我的」里查看');
+      try{ renderProfileScreen(); }catch(e){}
+    });
+  }).catch(function(e){ alert('网络错误，请重试'); });
+}
+/* 结算页点「优惠卷」→ 直接进积分商城的「我的」，在那里挑券。
+   商城 z-index 361 高于结算页 345，所以是叠上来的；关掉商城就回到结算页。 */
+function openCouponsFromCheckout(){
+  if(!_memberId || !_memberToken){ alert('请先登录会员才能使用优惠券'); return; }
+  if(_ckCoupon && confirm('已选「'+_ckCoupon.name+'」，要取消这张券吗？')){ clearCkCoupon(); return; }
+  _pmFromCheckout=true;
+  openPointsMall('mine');
+}
+function openPointsMall(tab){
   if(!_memberId || !_memberToken){ alert('请先登录会员'); return; }
-  _pmTab ='all';
-  document.querySelectorAll('#pmTabs .pm-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.cat==='all'); });
+  _pmTab = tab||'all';
+  document.querySelectorAll('#pmTabs .pm-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.cat===_pmTab); });
   document.getElementById('pmCoinBalance').textContent = _memberProfile ? (_memberProfile.coins||0) :0;
-  renderPointsMallList();
   document.getElementById('pmScreen').classList.add('show');
+  // 会员资料可能还没拉过（直接进商城的情况），补一次，余额和「买得起吗」的置灰才准
+  (_memberProfile ? Promise.resolve() : refreshMemberProfile()).then(function(){
+    document.getElementById('pmCoinBalance').textContent = (_memberProfile&&_memberProfile.coins)||0;
+    return loadMallData();
+  });
 }
 function closePointsMall(){
   document.getElementById('pmScreen').classList.remove('show');
+  _pmFromCheckout=false;
 }
 (function(){
   var startX=0, startY=0, tracking=false;
