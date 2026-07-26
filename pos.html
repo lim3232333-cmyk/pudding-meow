@@ -146,10 +146,11 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 .cr-amt{width:73px;display:flex;align-items:center;justify-content:center;font-weight:400;font-size:20px;color:#000;flex-shrink:0;}
 .cart-empty{position:absolute;left:0;top:167px;width:413px;height:431px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#4A4848;font-size:18px;gap:12px;}
 /* Total footer — y:601, h:75, border-top 4px */
-.cart-footer{position:absolute;left:0;top:601px;width:413px;height:75px;border-top:4px solid #F5E9D4;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;}
+.cart-footer{position:absolute;left:0;top:588px;width:413px;height:88px;border-top:4px solid #F5E9D4;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;}
 .cf-row1{display:flex;align-items:center;justify-content:space-between;width:100%;}
 .cf-total-lbl{width:75px;text-align:center;font-weight:400;font-size:20px;color:#000;}
-.cf-total-rm{width:125px;text-align:center;font-weight:700;font-size:32px;color:#8D0505;}
+/* hug：宽度跟着内容走 + 不换行，否则「RM 15.00」会在固定 125px 里断成两行 */
+.cf-total-rm{width:auto;padding-right:18px;text-align:right;white-space:nowrap;font-weight:700;font-size:32px;color:#8D0505;}
 .cf-count{width:125px;text-align:right;padding-right:18px;font-weight:400;font-size:20px;color:#000;}
 
 /* T/A CONTROL PANEL — x:413, y:91, w:134, h:578, border 4px, padding 20px 10px, gap 20px */
@@ -171,6 +172,8 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 .cart-mem .lv{font-weight:700;}
 .cart-mem .r{float:right;text-align:right;font-weight:700;}
 .cart-mem .warn{color:#8D0505;font-weight:700;}
+.cf-disc{width:100%;box-sizing:border-box;padding:0 18px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#8D0505;font-weight:700;margin-bottom:3px;}
+.cf-disc-x{margin-left:8px;border:none;background:#F5E9D4;color:#8D0505;border-radius:6px;padding:1px 6px;font-size:11px;cursor:pointer;}
 .tu-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
 .tu-pkg{position:relative;padding:12px 6px;background:#fff;border:2px solid #F0E6C8;border-radius:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:"Noto Sans SC",sans-serif;}
 .tu-pkg b{font-size:18px;color:#8D0505;}
@@ -680,6 +683,11 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
     <div class="cart-empty" id="cartEmpty"><span style="font-size:38px"></span>选择商品开始点单</div>
     <div class="cart-items-wrap" id="cartItems" style="display:none"></div>
     <div class="cart-footer">
+      <!-- 用了会员券才出现；点 × 撤销 -->
+      <div class="cf-disc" id="cartDiscRow" style="display:none">
+        <span id="cartDiscName"></span>
+        <span><b id="cartDiscAmt">-RM 0.00</b><button class="cf-disc-x" onclick="posClearCoupon()">✕</button></span>
+</div>
       <div class="cf-row1">
         <div class="cf-total-lbl">Total</div>
         <div class="cf-total-rm" id="cartRM">RM 0</div>
@@ -1494,11 +1502,17 @@ function confirmSpecAdd(){
 
 /* ── CART ── */
 function renderCart(){
-  var tot=cart.reduce(function(s,it){return s+it.qty*it.price;},0);
+  var sub=cart.reduce(function(s,it){return s+it.qty*it.price;},0);
+  // 券可能因购物车变动而失效（不满门槛/指定甜品被删），失效就自动撤销
+  if(_posCoupon && !_posCouponOk(_posCoupon, sub)) _posCoupon=null;
+  var disc=_posCoupon?_posCouponDisc(_posCoupon, sub):0;
+  var tot=Math.max(0, sub-disc);
+  _renderCartDisc(disc);
   var el=document.getElementById('cartItems');
   var empty=document.getElementById('cartEmpty');
   if(selIdx>=cart.length) selIdx=-1;
   if(!cart.length){
+    _posCoupon=null; _renderCartDisc(0);
     empty.style.display='flex';el.style.display='none';
     document.getElementById('cartRM').textContent='RM 0';
     document.getElementById('cartCnt').textContent='0 Items';
@@ -1575,7 +1589,9 @@ function updTenderDisplay(){
 function showPayment(){
   if(!cart.length){showN('购物车是空的');return;}
   _payPendId=null;   // 收银台结账：确保不会误用待付款队列的结算分支
-  payTotalAmount=cart.reduce(function(s,it){return s+it.qty*it.price;},0);
+  var _sub=cart.reduce(function(s,it){return s+it.qty*it.price;},0);
+  var _disc=_posCoupon?_posCouponDisc(_posCoupon,_sub):0;
+  payTotalAmount=Math.max(0,_sub-_disc);   // 用券后按折后金额收钱
   payMethod='cash';
   tenderInput='';
   document.getElementById('payAmt').textContent=payTotalAmount.toFixed(2);
@@ -1621,6 +1637,8 @@ function confirmPayment(){
   _pendingOrder={id:'o'+Date.now(),orderNum:'',createdAt:new Date().toISOString(),
     items:cart.map(function(i){return{name:i.name,name_cn:i.name_cn,price:i.price,qty:i.qty,specs:i.specs||[],flavor:i.specText||i.flavor||""};}),
     total:payTotalAmount,payMethod:payMethod,tender:tender,change:change,
+    couponId:(_posCoupon?_posCoupon.id:null),
+    discount:(_posCoupon?_posCouponDisc(_posCoupon, cart.reduce(function(s,it){return s+it.qty*it.price;},0)):0),
     tableName:tbl,customerName:cust,source:'pos',status:'paid',
     memberId:(_posMember?_posMember.id:null),   // 绑了会员才会在 markPaid/结账后结算 XP+Coin
     taMode:taMode?'dine-in':'takeaway'};
@@ -1659,10 +1677,14 @@ function askPrint(yes){
     // 否则绑了会员也白绑
     if(db && o.memberId) db.rpc('rpc_on_order_completed',{p_member_id:o.memberId,p_order_id:o.id,p_amount:o.total})
       .catch(function(e){ console.error('rpc_on_order_completed',e); });
+    // 券到这一步才正式核销——挂在购物车时不扣，中途取消不会白烧
+    if(db && o.couponId) db.rpc('rpc_pos_use_coupon',{p_member_coupon_id:o.couponId,p_order_id:o.id})
+      .then(function(res){ if(res&&res.error) console.error('pos use coupon',res.error); })
+      .catch(function(e){ console.error('pos use coupon',e); });
     if(yes) printRec(o);
     // 清空购物车
     cart=[];selIdx=-1;
-    _posMember=null; try{ _renderPosMember(); }catch(e){}
+    _posMember=null; _posCoupon=null; try{ _renderPosMember(); }catch(e){}
     document.getElementById('ctTable').value='';
     document.getElementById('ctCustomer').value='';
     renderCart();updPend();
@@ -2000,10 +2022,12 @@ function posOpenVoucher(){
   document.getElementById('pvBg').classList.add('show');
   db.rpc('rpc_pos_member_coupons',{p_member_id:_posMember.id}).then(function(res){
     if(res.error){ document.getElementById('pvBody').innerHTML='<div style="padding:20px;color:#8D0505">读取失败</div>'; return; }
-    _renderPosVoucher(res.data||[]);
+    _posVouchers=res.data||[];
+    _renderPosVoucher(_posVouchers);
   }).catch(function(e){ document.getElementById('pvBody').innerHTML='<div style="padding:20px;color:#8D0505">网络错误</div>'; });
 }
 function closePosVoucher(){ document.getElementById('pvBg').classList.remove('show'); }
+var _posVouchers=[];
 function _renderPosVoucher(list){
   var box=document.getElementById('pvBody');
   if(!list.length){ box.innerHTML='<div style="text-align:center;padding:40px;color:#4A4848">该会员没有可用的优惠券</div>'; return; }
@@ -2015,19 +2039,59 @@ function _renderPosVoucher(list){
       return'<tr><td><b>'+esc(v.name)+'</b></td><td>'+val+'</td>'
         +'<td>'+(v.type==='dessert'?'—':(Number(v.min_spend)>0?('满 RM'+Number(v.min_spend).toFixed(2)):'无门槛'))+'</td>'
         +'<td style="font-size:12px;color:#4A4848">'+exp+'</td>'
-        +'<td><button onclick="posUseVoucher(\''+v.id+'\',\''+esc(v.name)+'\')" style="border:none;background:#1D7715;color:#fff;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:700">核销</button></td></tr>';
+        +'<td>'+(_posCouponOk(v)
+            ?'<button onclick="posUseVoucher(\''+v.id+'\',\''+esc(v.name)+'\')" style="border:none;background:#1D7715;color:#fff;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:700">使用</button>'
+            :'<span style="font-size:12px;color:#8D0505">'+esc(_posCouponWhy(v,_posCartSub()))+'</span>')
+        +'</td></tr>';
     }).join('')+'</tbody></table>'
-    +'<div style="margin-top:12px;font-size:12px;color:#4A4848">核销后这张券即作废。折扣金额请在收款时手动扣除。</div>';
+    +'<div style="margin-top:12px;font-size:12px;color:#4A4848">点「使用」后金额直接从购物车扣除；券在结账落单时才正式核销，中途取消不会白烧。</div>';
+}
+/* 券不在这里马上核销——先挂到购物车上算钱，结账落单时才真正核销。
+   立刻核销的话，店员取消这单券就白烧了。 */
+var _posCoupon=null;
+function _posCartSub(){ return cart.reduce(function(s,it){return s+it.qty*it.price;},0); }
+function _posCartHas(menuItemId){ return cart.some(function(it){ return it.id===menuItemId; }); }
+function _posCouponOk(v, sub){
+  if(sub==null) sub=_posCartSub();
+  if(sub < (Number(v.min_spend)||0)) return false;
+  if(v.type==='dessert' && !_posCartHas(v.menu_item_id)) return false;
+  return true;
+}
+function _posCouponWhy(v, sub){
+  if(sub < (Number(v.min_spend)||0)) return '需满 RM'+Number(v.min_spend).toFixed(2);
+  if(v.type==='dessert' && !_posCartHas(v.menu_item_id)) return '购物车没有'+(v.menu_item_name||'该商品');
+  return '';
+}
+function _posCouponDisc(v, sub){
+  if(sub==null) sub=_posCartSub();
+  var d=0;
+  if(v.type==='dessert'){
+    var it=cart.find(function(x){ return x.id===v.menu_item_id; });
+    d=it?Number(it.price)||0:0;
+  } else if(v.type==='percent_off'){ d=Math.round(sub*(Number(v.value)||0))/100; }
+  else { d=Number(v.value)||0; }
+  return Math.min(Math.max(d,0), sub);
+}
+function _renderCartDisc(disc){
+  var row=document.getElementById('cartDiscRow'); if(!row) return;
+  if(_posCoupon && disc>0){
+    row.style.display='flex';
+    document.getElementById('cartDiscName').textContent=_posCoupon.name;
+    document.getElementById('cartDiscAmt').textContent='-RM '+disc.toFixed(2);
+  } else { row.style.display='none'; }
 }
 function posUseVoucher(id,name){
-  if(!confirm('确定核销「'+name+'」？核销后该券作废，记得在收款金额里扣掉。')) return;
-  db.rpc('rpc_pos_use_coupon',{p_member_coupon_id:id,p_order_id:null}).then(function(res){
-    if(res.error){ showN(''+res.error.message); return; }
-    showN('✓ 已核销：'+name);
-    posFindMember();       // 刷新角标数量
-    posOpenVoucher();      // 重拉列表
-  }).catch(function(e){ showN('网络错误'); });
+  var v=(_posVouchers||[]).find(function(x){ return x.id===id; });
+  if(!v) return;
+  if(!cart.length){ showN('请先点单，再用券'); return; }
+  var sub=_posCartSub();
+  if(!_posCouponOk(v, sub)){ showN('这张券用不了：'+_posCouponWhy(v, sub)); return; }
+  _posCoupon=v;
+  closePosVoucher();
+  renderCart();
+  showN('✓ 已用券：'+name+'，金额已扣');
 }
+function posClearCoupon(){ _posCoupon=null; renderCart(); showN('已撤销用券'); }
 
 /* ── Top up：柜台直接充值，不用顾客开小程序 ── */
 var POS_TOPUP_PKGS=[
