@@ -241,14 +241,16 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 .mb-who{display:flex;align-items:center;gap:8px;}
 .mb-av{width:28px;height:28px;border-radius:50%;flex-shrink:0;object-fit:cover;display:flex;align-items:center;justify-content:center;}
 .mb-av-ph{background:#8D0505;color:#FFDE5B;font-weight:700;font-size:13px;}
-.md-card{background:#fff;border-radius:20px;width:1080px;max-height:700px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);}
-.md-head{background:#8D0505;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;color:#FFFFD5;font-size:20px;font-weight:700;}
-.md-head button{background:rgba(255,255,255,.2);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:18px;cursor:pointer;flex-shrink:0;}
-.md-sum{display:flex;gap:10px;padding:14px 20px 0;flex-shrink:0;flex-wrap:wrap;}
+/* 会员详情：就地展开在搜索框下方，不用弹窗。没选会员时 :empty 整块不占位 */
+.md-panel{background:#fff;border-radius:14px;padding:14px 16px;margin-bottom:14px;box-shadow:0 2px 12px rgba(141,5,5,.10);}
+.md-panel:empty{display:none;}
+.md-hd{display:flex;justify-content:space-between;align-items:center;color:#8D0505;font-size:18px;margin-bottom:12px;}
+.md-x{border:none;background:#FFDE5B;color:#8D0505;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;}
+.md-sum{display:flex;gap:10px;flex-wrap:wrap;}
 .md-kpi{flex:1;min-width:120px;background:#FFFFD5;border-radius:10px;padding:8px 12px;}
 .md-kpi .l{font-size:11px;color:#4A4848;}
 .md-kpi .v{font-size:18px;font-weight:700;color:#8D0505;}
-.md-scroll{flex:1;overflow-y:auto;padding:0 20px 20px;}
+.md-scroll{max-height:300px;overflow-y:auto;margin-top:10px;}
 .md-scroll table{width:100%;border-collapse:collapse;}
 .md-scroll th{position:sticky;top:0;background:#FFFDF0;text-align:left;font-size:12px;color:#4A4848;padding:8px 6px;border-bottom:2px solid #F0E6C8;}
 .md-scroll td{padding:9px 6px;font-size:13px;border-bottom:1px solid #F5EFE0;}
@@ -809,16 +811,6 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       <label class="mfl" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="dpEnabled" checked style="width:auto"> 启用</label>
       <button class="mfs" onclick="saveDrawPrize()">保存 Save</button>
     </div>
-  </div>
-</div>
-
-<!-- 会员详情 MODAL：点会员列表某一行打开 -->
-<div class="modal-bg" id="mdBg" onclick="if(event.target===this)closeMemberDetail()">
-  <div class="md-card">
-    <div class="md-head"><span id="mdTitle"></span><button onclick="closeMemberDetail()">✕</button></div>
-    <div class="md-sum" id="mdSummary"></div>
-    <div class="ma-tabs" id="mdTabs" style="padding:12px 20px 0;margin:0"></div>
-    <div class="md-scroll" id="mdBody"></div>
   </div>
 </div>
 
@@ -2281,7 +2273,8 @@ function loadLoyaltyMembers(kw){
 }
 function renderLoyaltyMembersBody(){
   var body=document.getElementById('loyaltyBody'); if(!body) return;
-  var html='<div style="margin-bottom:14px"><input class="mfi" style="max-width:280px;display:inline-block" id="loyaltySearchBox" placeholder="搜索手机号/昵称，回车查询" onkeydown="if(event.key===\'Enter\')loyaltySearch()"></div>';
+  var html='<div style="margin-bottom:14px"><input class="mfi" style="max-width:280px;display:inline-block" id="loyaltySearchBox" placeholder="搜索手机号/昵称，回车查询" onkeydown="if(event.key===\'Enter\')loyaltySearch()"></div>'
+    +'<div id="mdPanel" class="md-panel"></div>';   // 会员详情就地展开，紧贴搜索框下方
   html+='<div class="tx-card"><table><thead><tr><th>会员</th><th>手机号</th><th>等级</th><th>XP</th><th>Coin</th><th>储值余额</th><th>累计消费</th><th>消费次数</th><th>最后消费</th><th>注册时间</th><th>操作</th></tr></thead><tbody>';
   if(!_loyaltyMembers.length){
     html+='<tr><td colspan="11" style="text-align:center;padding:30px;color:#4A4848">暂无会员</td></tr>';
@@ -2315,14 +2308,14 @@ function openMemberDetail(id){
   _mdMember=_loyaltyMembers.find(function(m){return m.id===id;});
   if(!_mdMember) return;
   _mdData=null; _mdTab='orders';
-  document.getElementById('mdBg').classList.add('show');
   renderMemberDetail();
+  try{ document.getElementById('mdPanel').scrollIntoView({block:'nearest',behavior:'smooth'}); }catch(e){}
   db.rpc('rpc_admin_member_detail',{p_member_id:id}).then(function(res){
     if(res.error){ showN('读取会员记录失败'); return; }
     _mdData=res.data||{}; renderMemberDetail();
   }).catch(function(e){ showN('网络错误'); });
 }
-function closeMemberDetail(){ document.getElementById('mdBg').classList.remove('show'); }
+function closeMemberDetail(){ _mdMember=null; _mdData=null; var p=document.getElementById('mdPanel'); if(p) p.innerHTML=''; }
 function setMdTab(t){ _mdTab=t; renderMemberDetail(); }
 function _mdDate(s){ try{ var d=new Date(s); return d.toLocaleDateString()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }catch(e){ return '—'; } }
 function _mdSign(n){ n=Number(n)||0; return (n>0?'+':'')+n; }
@@ -2331,24 +2324,31 @@ function _mdRows(cols, rows, render){
   return '<table><thead><tr>'+cols.map(function(c){return'<th>'+c+'</th>';}).join('')+'</tr></thead><tbody>'
     +rows.map(render).join('')+'</tbody></table>';
 }
+/* 就地展开在搜索框下方（不是弹窗）：整块重绘进 #mdPanel */
 function renderMemberDetail(){
-  var m=_mdMember; if(!m) return;
+  var panel=document.getElementById('mdPanel'); if(!panel) return;
+  var m=_mdMember;
+  if(!m){ panel.innerHTML=''; return; }
   var lvl=_loyaltyLevels.find(function(l){return l.id===m.level_id;});
-  document.getElementById('mdTitle').innerHTML=esc(m.nickname||'—')+' <span style="font-weight:400;font-size:14px;opacity:.8">'+esc(m.phone)+'</span>';
-  document.getElementById('mdSummary').innerHTML=
-     '<div class="md-kpi"><div class="l">等级</div><div class="v">'+(lvl?esc(lvl.name_cn):'—')+'</div></div>'
+  panel.innerHTML=
+     '<div class="md-hd"><span><b>'+esc(m.nickname||'—')+'</b> <span style="font-weight:400;font-size:13px;opacity:.75">'+esc(m.phone)+'</span></span>'
+    +'<button class="md-x" onclick="closeMemberDetail()">✕ 收起</button></div>'
+    +'<div class="md-sum">'
+    +'<div class="md-kpi"><div class="l">等级</div><div class="v">'+(lvl?esc(lvl.name_cn):'—')+'</div></div>'
     +'<div class="md-kpi"><div class="l">XP</div><div class="v">'+(m.xp||0)+'</div></div>'
     +'<div class="md-kpi"><div class="l">Coin</div><div class="v">'+(m.coins||0)+'</div></div>'
     +'<div class="md-kpi"><div class="l">储值余额</div><div class="v">RM '+Number(m.wallet_balance||0).toFixed(2)+'</div></div>'
     +'<div class="md-kpi"><div class="l">累计消费</div><div class="v">RM '+Number(m.total_spent||0).toFixed(2)+'</div></div>'
-    +'<div class="md-kpi"><div class="l">消费次数</div><div class="v">'+(m.order_count||0)+'</div></div>';
-  document.getElementById('mdTabs').innerHTML=_MD_TABS.map(function(t){
-    return'<button class="ma-tab'+(_mdTab===t[0]?' a':'')+'" onclick="setMdTab(\''+t[0]+'\')">'+t[1]+'</button>';
-  }).join('');
+    +'<div class="md-kpi"><div class="l">消费次数</div><div class="v">'+(m.order_count||0)+'</div></div>'
+    +'</div>'
+    +'<div class="ma-tabs" style="margin:12px 0 0">'+_MD_TABS.map(function(t){
+        return'<button class="ma-tab'+(_mdTab===t[0]?' a':'')+'" onclick="setMdTab(\''+t[0]+'\')">'+t[1]+'</button>';
+      }).join('')+'</div>'
+    +'<div class="md-scroll" id="mdBody"></div>';
   var box=document.getElementById('mdBody');
   if(_mdTab==='notes'){
     box.innerHTML='<div style="padding:4px 2px"><label class="mfl">店员备注</label>'
-      +'<textarea class="mfi" id="mdNotes" rows="5" style="resize:vertical">'+esc(m.notes||'')+'</textarea>'
+      +'<textarea class="mfi" id="mdNotes" rows="4" style="resize:vertical">'+esc(m.notes||'')+'</textarea>'
       +'<button class="mfs" onclick="saveMemberNotes()">保存备注</button></div>';
     return;
   }
