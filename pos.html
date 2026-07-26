@@ -127,7 +127,8 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 /* CART PANEL — x:0, y:91, w:413, h:676 */
 .cart{position:absolute;left:0;top:91px;width:413px;height:676px;background:#FFFFD5;border-right:1px solid #F5E9D4;}
 /* Top section — Frame24, h:123 */
-.cart-top{position:absolute;left:0;top:0;width:413px;height:123px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start;border-bottom:1px solid #F5E9D4;}
+.cart-top{position:absolute;left:0;top:0;width:413px;height:123px;padding:10px 14px;display:flex;flex-direction:column;gap:6px;border-bottom:1px solid #F5E9D4;overflow:hidden;}
+.cart-top-row{display:flex;gap:10px;align-items:flex-start;flex-shrink:0;}
 .cart-top-box{flex:1;height:55px;background:#D9D9D9;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#666;}
 /* Column headers — Frame14, y:123, h:44 */
 .cart-cols{position:absolute;left:0;top:123px;width:413px;height:44px;border-bottom:2px solid #F5E9D4;display:flex;align-items:center;}
@@ -163,6 +164,23 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 /* on state (take-away): dot moves right */
 .ta-switch.on::after{left:auto;right:5.06%;}
 .ta-mode{display:none;}
+/* ── 收银台会员条（Figma 97:14）+ 控制栏 Voucher/Top up（99:282）── */
+.cart-mem{flex:1;min-height:0;padding:5px 9px;background:#FFF9C4;border-radius:10px;font-size:13px;line-height:1.4;color:#202055;overflow:hidden;}
+.cart-mem:empty{display:none;}
+.cart-mem .nm{font-weight:700;color:#202055;}
+.cart-mem .lv{font-weight:700;}
+.cart-mem .r{float:right;text-align:right;font-weight:700;}
+.cart-mem .warn{color:#8D0505;font-weight:700;}
+.tu-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.tu-pkg{position:relative;padding:12px 6px;background:#fff;border:2px solid #F0E6C8;border-radius:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:"Noto Sans SC",sans-serif;}
+.tu-pkg b{font-size:18px;color:#8D0505;}
+.tu-pkg span{font-size:12px;color:#4A4848;}
+.tu-pkg.a{border-color:#8D0505;background:#FFFDF0;}
+.tu-tag{position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#FFDE5B;color:#8D0505;font-size:10px;font-weight:700;padding:1px 8px;border-radius:999px;}
+.ta-mbtns{width:114px;display:flex;flex-direction:column;gap:10px;margin-top:14px;flex-shrink:0;}
+.ta-mbtn{position:relative;width:114px;height:44px;background:#202055;color:#fff;border:none;border-radius:1000px;font-weight:700;font-size:15px;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
+.ta-mbtn:active{opacity:.85;}
+.ta-badge{position:absolute;top:-6px;right:-2px;min-width:22px;height:22px;padding:0 5px;box-sizing:border-box;background:#B6F3FF;color:#202055;border-radius:999px;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;}
 /* Frame23 — w:114, h:125, column, gap:6 */
 .ta-controls{width:114px;height:125px;display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0;}
 /* plus pill — 114×39, red bg #8D0505, white + */
@@ -646,8 +664,13 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
   <!-- CART -->
   <div class="cart">
     <div class="cart-top">
-      <input class="cart-top-box" id="ctTable" placeholder="桌号 Table" style="border:none;text-align:center;">
-      <input class="cart-top-box" id="ctCustomer" placeholder="顾客 Customer" style="border:none;text-align:center;background:#eee;color:#666;">
+      <div class="cart-top-row">
+        <input class="cart-top-box" id="ctTable" placeholder="桌号 Table" style="border:none;text-align:center;">
+        <input class="cart-top-box" id="ctCustomer" placeholder="会员电话 Phone" style="border:none;text-align:center;"
+               onkeydown="if(event.key==='Enter')posFindMember()" onblur="posFindMember()">
+</div>
+      <!-- 输入电话后带出会员资料（Figma 97:14）；没找到/未输入时整块不占位 -->
+      <div class="cart-mem" id="ctMemberBar"></div>
 </div>
     <div class="cart-cols">
       <span class="col-qty">Qty</span>
@@ -675,6 +698,11 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       <button class="ta-plus" onclick="qtyAdjust(1)"></button>
       <button class="ta-num" id="taNum" onclick="openQtySlot()">0</button>
       <button class="ta-minus" onclick="qtyAdjust(-1)"></button>
+</div>
+    <!-- Figma 99:282：Voucher 带未使用券数量角标，Top up 柜台充值 -->
+    <div class="ta-mbtns">
+      <button class="ta-mbtn" onclick="posOpenVoucher()">Voucher<span class="ta-badge" id="ctVoucherBadge" style="display:none">0</span></button>
+      <button class="ta-mbtn" onclick="posOpenTopup()">Top up</button>
 </div>
 </div>
 
@@ -789,6 +817,25 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       <button class="slot-btn slot-ok" onclick="confirmQtySlot()">OK</button>
 </div>
 </div>
+</div>
+
+<!-- 收银台：会员优惠券 -->
+<div class="modal-bg" id="pvBg" onclick="if(event.target===this)closePosVoucher()">
+  <div class="mm-box" style="width:760px">
+    <div class="mm-hd"><h3 id="pvTitle"></h3><button class="mm-cl" onclick="closePosVoucher()">✕</button></div>
+    <div class="mm-body md-scroll" id="pvBody"></div>
+  </div>
+</div>
+
+<!-- 收银台：柜台充值 -->
+<div class="modal-bg" id="tuBg" onclick="if(event.target===this)closePosTopup()">
+  <div class="mm-box" style="width:520px">
+    <div class="mm-hd"><h3 id="tuTitle"></h3><button class="mm-cl" onclick="closePosTopup()">✕</button></div>
+    <div class="mm-body">
+      <div id="tuBody"></div>
+      <button class="mfs" onclick="posDoTopup()">确认收款并到账</button>
+    </div>
+  </div>
 </div>
 
 <!-- 抽奖奖品编辑 MODAL -->
@@ -1575,6 +1622,7 @@ function confirmPayment(){
     items:cart.map(function(i){return{name:i.name,name_cn:i.name_cn,price:i.price,qty:i.qty,specs:i.specs||[],flavor:i.specText||i.flavor||""};}),
     total:payTotalAmount,payMethod:payMethod,tender:tender,change:change,
     tableName:tbl,customerName:cust,source:'pos',status:'paid',
+    memberId:(_posMember?_posMember.id:null),   // 绑了会员才会在 markPaid/结账后结算 XP+Coin
     taMode:taMode?'dine-in':'takeaway'};
   _pendingNums=assignOrderNums(_pendingOrder);   // 取号（永久收据号 + 当天订单号）
 
@@ -1607,9 +1655,14 @@ function askPrint(yes){
     // 保存订单：本地缓存 + 广播 + 写云端（跨设备）——等取号完成后再入库，云端存的是最终号
     _orders.unshift(o);sj('pm_orders',_orders);pmBroadcastOrders();
     if(db) db.from('orders').insert(orderToRow(o)).then(function(res){ if(res&&res.error) console.error('pos order insert',res.error); }).catch(function(e){ console.error('pos order insert',e); });
+    // 柜台单是直接 status:'paid' 落库、不经过 markPaid，所以 XP/Coin 要在这里结算，
+    // 否则绑了会员也白绑
+    if(db && o.memberId) db.rpc('rpc_on_order_completed',{p_member_id:o.memberId,p_order_id:o.id,p_amount:o.total})
+      .catch(function(e){ console.error('rpc_on_order_completed',e); });
     if(yes) printRec(o);
     // 清空购物车
     cart=[];selIdx=-1;
+    _posMember=null; try{ _renderPosMember(); }catch(e){}
     document.getElementById('ctTable').value='';
     document.getElementById('ctCustomer').value='';
     renderCart();updPend();
@@ -1899,6 +1952,125 @@ function _confirmPendPay(tender,change){
   document.getElementById('changeBg').classList.add('show');
 }
 function reprO(id){var o=_orders.find(function(x){return x.id===id;});if(o)printRec(o);}
+
+/* ══════════ 收银台会员 ══════════
+   原本 POS 单从不设 member_id，柜台消费不累积 XP/Coin（markPaid 里是
+   if(o.memberId) 才结算）。输入电话绑定会员后这个洞就补上了。 */
+var _posMember=null;
+function posFindMember(){
+  var raw=(document.getElementById('ctCustomer').value||'').trim();
+  var digits=raw.replace(/\D/g,'');
+  if(!digits){ _posMember=null; _renderPosMember(); return; }
+  if(!db){ _posMember=null; _renderPosMember('未连接云端，无法查会员'); return; }
+  db.rpc('rpc_pos_find_member',{p_phone:digits}).then(function(res){
+    if(res.error){ _posMember=null; _renderPosMember('查询失败'); return; }
+    _posMember=(res.data&&res.data[0])||null;
+    _renderPosMember(_posMember?null:'非会员（该号码未注册）');
+  }).catch(function(e){ _posMember=null; _renderPosMember('网络错误'); });
+}
+function _renderPosMember(msg){
+  var bar=document.getElementById('ctMemberBar');
+  var badge=document.getElementById('ctVoucherBadge');
+  if(!bar) return;
+  if(!_posMember){
+    bar.innerHTML=msg?('<span class="warn">'+esc(msg)+'</span>'):'';
+    if(badge) badge.style.display='none';
+    return;
+  }
+  var m=_posMember;
+  bar.innerHTML='<span class="r">'+(m.coins||0)+' Coins<br>'+(m.xp||0)+' XP</span>'
+    +'<span class="nm">'+esc(m.nickname||m.phone)+'</span>'
+    +(m.level_name?(' <span class="lv" style="color:'+esc(m.level_color||'#8D0505')+'">（'+esc(m.level_name)+'）</span>'):'')
+    +'<br><span style="font-size:12px;color:#4A4848">余额 RM '+Number(m.wallet_balance||0).toFixed(2)+'</span>';
+  if(badge){
+    var n=m.unused_coupons||0;
+    badge.textContent=n; badge.style.display=n>0?'flex':'none';
+  }
+}
+function _posNeedMember(){
+  if(!_posMember){ showN('请先在「会员电话」输入顾客手机号'); return false; }
+  return true;
+}
+
+/* ── Voucher：看该会员没用的券，可当场核销 ── */
+function posOpenVoucher(){
+  if(!_posNeedMember()) return;
+  document.getElementById('pvTitle').textContent=(_posMember.nickname||_posMember.phone)+' 的优惠券';
+  document.getElementById('pvBody').innerHTML='<div style="text-align:center;padding:30px;color:#4A4848">加载中…</div>';
+  document.getElementById('pvBg').classList.add('show');
+  db.rpc('rpc_pos_member_coupons',{p_member_id:_posMember.id}).then(function(res){
+    if(res.error){ document.getElementById('pvBody').innerHTML='<div style="padding:20px;color:#8D0505">读取失败</div>'; return; }
+    _renderPosVoucher(res.data||[]);
+  }).catch(function(e){ document.getElementById('pvBody').innerHTML='<div style="padding:20px;color:#8D0505">网络错误</div>'; });
+}
+function closePosVoucher(){ document.getElementById('pvBg').classList.remove('show'); }
+function _renderPosVoucher(list){
+  var box=document.getElementById('pvBody');
+  if(!list.length){ box.innerHTML='<div style="text-align:center;padding:40px;color:#4A4848">该会员没有可用的优惠券</div>'; return; }
+  box.innerHTML='<table><thead><tr><th>券名</th><th>优惠</th><th>门槛</th><th>到期</th><th>操作</th></tr></thead><tbody>'
+    +list.map(function(v){
+      var val=v.type==='dessert'?('兑换 '+esc(v.menu_item_name||'指定商品'))
+             :(v.type==='percent_off'?(Number(v.value)+'% OFF'):('RM '+Number(v.value).toFixed(2)+' OFF'));
+      var exp=v.expires_at?new Date(v.expires_at).toLocaleDateString():'永久';
+      return'<tr><td><b>'+esc(v.name)+'</b></td><td>'+val+'</td>'
+        +'<td>'+(v.type==='dessert'?'—':(Number(v.min_spend)>0?('满 RM'+Number(v.min_spend).toFixed(2)):'无门槛'))+'</td>'
+        +'<td style="font-size:12px;color:#4A4848">'+exp+'</td>'
+        +'<td><button onclick="posUseVoucher(\''+v.id+'\',\''+esc(v.name)+'\')" style="border:none;background:#1D7715;color:#fff;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:700">核销</button></td></tr>';
+    }).join('')+'</tbody></table>'
+    +'<div style="margin-top:12px;font-size:12px;color:#4A4848">核销后这张券即作废。折扣金额请在收款时手动扣除。</div>';
+}
+function posUseVoucher(id,name){
+  if(!confirm('确定核销「'+name+'」？核销后该券作废，记得在收款金额里扣掉。')) return;
+  db.rpc('rpc_pos_use_coupon',{p_member_coupon_id:id,p_order_id:null}).then(function(res){
+    if(res.error){ showN(''+res.error.message); return; }
+    showN('✓ 已核销：'+name);
+    posFindMember();       // 刷新角标数量
+    posOpenVoucher();      // 重拉列表
+  }).catch(function(e){ showN('网络错误'); });
+}
+
+/* ── Top up：柜台直接充值，不用顾客开小程序 ── */
+var POS_TOPUP_PKGS=[
+  {price:50,  bonus:50,  special:true},
+  {price:100, bonus:120},
+  {price:150, bonus:200},
+  {price:200, bonus:300},
+  {price:250, bonus:450},
+  {price:300, bonus:600}
+];
+var _tuSel=1;
+function posOpenTopup(){
+  if(!_posNeedMember()) return;
+  _tuSel=1;
+  document.getElementById('tuTitle').textContent='为 '+(_posMember.nickname||_posMember.phone)+' 充值';
+  _renderTopup();
+  document.getElementById('tuBg').classList.add('show');
+}
+function closePosTopup(){ document.getElementById('tuBg').classList.remove('show'); }
+function setTuPkg(i){ _tuSel=i; _renderTopup(); }
+function _renderTopup(){
+  var m=_posMember; if(!m) return;
+  document.getElementById('tuBody').innerHTML=
+    '<div style="font-size:13px;color:#4A4848;margin-bottom:10px">当前余额 RM '+Number(m.wallet_balance||0).toFixed(2)+' · '+(m.coins||0)+' Coin</div>'
+    +'<div class="tu-grid">'+POS_TOPUP_PKGS.map(function(p,i){
+      return'<button class="tu-pkg'+(i===_tuSel?' a':'')+'" onclick="setTuPkg('+i+')">'
+        +(p.special?'<span class="tu-tag">首充</span>':'')
+        +'<b>RM '+p.price+'</b><span>送 '+p.bonus+' Coin</span></button>';
+    }).join('')+'</div>'
+    +'<div style="margin-top:12px;font-size:13px">收款 <b>RM '+POS_TOPUP_PKGS[_tuSel].price
+      +'</b> → 余额 +RM '+POS_TOPUP_PKGS[_tuSel].price+'，赠 '+POS_TOPUP_PKGS[_tuSel].bonus+' Coin</div>';
+}
+function posDoTopup(){
+  if(!_posMember) return;
+  var p=POS_TOPUP_PKGS[_tuSel];
+  if(!confirm('确认已收到顾客 RM'+p.price+'？\n确认后立即为其钱包到账 RM'+p.price+' + '+p.bonus+' Coin。')) return;
+  db.rpc('rpc_pos_topup',{p_member_id:_posMember.id,p_price:p.price,p_bonus_coins:p.bonus,p_note:'POS 柜台充值'}).then(function(res){
+    if(res.error){ showN(''+res.error.message); return; }
+    showN('✓ 已到账，余额 RM '+Number(res.data).toFixed(2));
+    closePosTopup();
+    posFindMember();   // 刷新会员条
+  }).catch(function(e){ showN('网络错误'); });
+}
 
 /* ── DELIVERY / 叫 Lalamove 骑手 ── */
 function _lmStatusText(code){return ({ASSIGNING_DRIVER:'正在安排骑手',ON_GOING:'骑手前往取餐',PICKED_UP:'已取餐·配送中',COMPLETED:'已送达',CANCELED:'已取消',REJECTED:'骑手拒单',EXPIRED:'已过期'})[code]||(code||'处理中');}
