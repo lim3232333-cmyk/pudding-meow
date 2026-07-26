@@ -739,6 +739,8 @@
   .pm-tab.active::after{ content:''; position:absolute; left:50%; bottom:0; transform:translateX(-50%); width:80px; height:2px; background:var(--yellow); }
   .pm-body{ position:relative; z-index:2; margin-top:22px; padding:0 16px calc(34px + env(safe-area-inset-bottom, 0px)); display:flex; flex-direction:column; gap:12px; }
   .pm-empty{ text-align:center; padding:48px 20px; font-size:13px; color:var(--muted); }
+  .pm-use-btn{ margin-top:8px; background:var(--yellow); color:var(--red); border:none; border-radius:999px; padding:5px 16px; font-size:12px; font-weight:700; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }
+  .pm-use-no{ display:inline-block; margin-top:8px; font-size:10.5px; opacity:.75; }
   .pm-item-card{ background:#fff; border-radius:12px; padding:16px; display:flex; align-items:center; justify-content:space-between; box-sizing:border-box; box-shadow:0 4px 10px rgba(0,0,0,.25); }
   .pm-item-img{ width:80px; height:80px; border-radius:16px; background:#D9D9D9; flex-shrink:0; overflow:hidden; }
   .pm-item-img-logo{ background:var(--red); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; box-sizing:border-box; padding:8px; }
@@ -1730,12 +1732,14 @@ function orderToRow(o){
   return { id:o.id, order_num:o.orderNum, receipt_no:o.receiptNo!=null?o.receiptNo:null, kind_seq:o.kindSeq!=null?o.kindSeq:null, created_at:o.createdAt, items:o.items||[],
     total:o.total||0, pay_method:o.payMethod, status:o.status,
     source:o.source, table_name:o.tableName, ta_mode:o.taMode, member_id:o.memberId||null, device_id:o.deviceId||null,
+    coupon_id:o.couponId||null, discount:Number(o.discount)||0,
     delivery_info:o.deliveryInfo||null };
 }
 function rowToOrder(r){
   return { id:r.id, orderNum:r.order_num||(r.id?String(r.id).slice(-4):''), receiptNo:r.receipt_no!=null?r.receipt_no:null, kindSeq:r.kind_seq!=null?r.kind_seq:null, createdAt:r.created_at,
     items:r.items||[], total:Number(r.total)||0, payMethod:r.pay_method||'counter',
     status:r.status||'pending', source:r.source||'app', tableName:r.table_name||'', taMode:r.ta_mode||'',
+    couponId:r.coupon_id||null, discount:Number(r.discount)||0,
     memberId:r.member_id||null, deviceId:r.device_id||null, deliveryInfo:r.delivery_info||null };
 }
 /* 取号：永久收据号 receiptNo + 当天订单号 orderNum。优先 Supabase RPC（跨设备唯一/按天重置），离线兜底本地 */
@@ -2338,7 +2342,7 @@ function buildMenuFromRows(rows){
   (rows||[]).slice().sort(function(a,b){ return (a.sort_order||0)-(b.sort_order||0); }).forEach(function(r){
     if(r.sold_out) return;
     var c = r.cat; if(!m[c]) m[c] = {cn:(CAT_META[c]?CAT_META[c].cn:c), en:(CAT_META[c]?CAT_META[c].en:c), items:[]};
-    m[c].items.push({ name:r.name, en:r.en||'', price:Number(r.price)||0, desc:r.descr||'',
+    m[c].items.push({ id:r.id, name:r.name, en:r.en||'', price:Number(r.price)||0, desc:r.descr||'',
       flavors:(r.flavors && r.flavors.length)?r.flavors:['Original'], specs:r.specs||[], image:r.image_url||'' });
   });
   Object.keys(m).forEach(function(c){ if(!m[c].items.length) delete m[c]; });
@@ -2546,13 +2550,69 @@ function renderCheckout(){
   _ckSyncPayRows();
   var sub=0; Object.values(cart).forEach(function(c){ sub+=c.qty*c.price; });
   var fee=isDv?(_deliveryInfo.fee||0):0;
-  var total=sub+fee;
+  // 选中的券若已不适用（改了购物车导致不满门槛/甜品没了），自动取消，避免算出不该有的折扣
+  if(_ckCoupon && _couponUsable(_ckCoupon, sub).ok===false) _ckCoupon=null;
+  var disc=_ckCoupon?_couponDiscount(_ckCoupon, sub):0;
+  var total=Math.max(0, sub+fee-disc);
   document.getElementById('ckSubtotal').textContent='RM '+sub.toFixed(2);
   document.getElementById('ckFee').textContent='RM '+fee.toFixed(2);
-  document.getElementById('ckDiscount').textContent='-RM 0.00';
+  document.getElementById('ckDiscount').textContent='-RM '+disc.toFixed(2);
   document.getElementById('ckTotal').textContent='RM '+total.toFixed(2);
   document.getElementById('ckPayBtn').textContent='立即支付 RM'+total.toFixed(2);
+  _ckRenderCouponRow(disc);
 }
+/* ===== 结算页优惠券 =====
+   折扣在前端算一份只为显示；下单时由 rpc_consume_coupon 在服务端重算并核销，
+   以服务端返回的金额为准——anon key 是公开的，前端传上来的数字不能信。 */
+var _ckCoupon=null;
+function _cartItemIds(){
+  return Object.values(cart).map(function(c){ return c.id; }).filter(Boolean);
+}
+function _cartSubtotal(){ var s=0; Object.values(cart).forEach(function(c){ s+=c.qty*c.price; }); return s; }
+/* 这张券在当前购物车能不能用 */
+function _couponUsable(mc, sub){
+  if(!mc || mc.status!=='unused') return {ok:false, why:'已使用或已失效'};
+  if(mc.expires_at && new Date(mc.expires_at) < new Date()) return {ok:false, why:'已过期'};
+  if(sub < (Number(mc.min_spend)||0)) return {ok:false, why:'需满 RM'+Number(mc.min_spend).toFixed(2)};
+  if(mc.type==='dessert'){
+    if(!mc.menu_item_id) return {ok:false, why:'未绑定商品'};
+    if(_cartItemIds().indexOf(mc.menu_item_id)<0) return {ok:false, why:'购物车没有'+(mc.menu_item_name||'该商品')};
+  }
+  return {ok:true};
+}
+function _couponDiscount(mc, sub){
+  var d=0;
+  if(mc.type==='dessert'){
+    // 抵掉购物车里那件商品的单价
+    var it=Object.values(cart).find(function(c){ return c.id===mc.menu_item_id; });
+    d=it?Number(it.price)||0:0;
+  } else if(mc.type==='percent_off'){
+    d=Math.round(sub*(Number(mc.value)||0))/100;
+  } else {
+    d=Number(mc.value)||0;
+  }
+  return Math.min(Math.max(d,0), sub);
+}
+function _ckRenderCouponRow(disc){
+  var r=document.getElementById('ckCouponR'); if(!r) return;
+  if(_ckCoupon){
+    r.innerHTML='<span style="background:var(--yellow);color:var(--red);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700">-RM '+disc.toFixed(2)+'</span>'
+      +'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:6px"><path d="m9 18 6-6-6-6"/></svg>';
+  } else {
+    r.innerHTML='<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
+  }
+}
+/* 在积分商城「我的」里点「使用」 */
+function useCouponForOrder(mcId){
+  var mc=_myCoupons.find(function(x){ return x.id===mcId; });
+  if(!mc) return;
+  var u=_couponUsable(mc, _cartSubtotal());
+  if(!u.ok){ alert('这张券现在用不了：'+u.why); return; }
+  _ckCoupon=mc;
+  closePointsMall();
+  renderCheckout();
+}
+function clearCkCoupon(){ _ckCoupon=null; renderCheckout(); }
 function _ckSyncPayRows(){
   var isDinein = currentMode==='dinein';
   var online = currentMode==='delivery' || currentMode==='pickup';
@@ -2602,6 +2662,23 @@ function selectPay(method){
 function confirmOrder(){
   var entries = Object.entries(cart);
   if(!entries.length){ alert('购物车是空的！'); return; }
+  // 选了券：先在服务端核销拿到权威折扣，再落单。顺序不能反——
+  // 先落单后核销的话，核销失败时折扣已经给出去了。
+  if(_ckCoupon && db && _memberId && _memberToken){
+    var _oid='o'+Date.now();
+    db.rpc('rpc_consume_coupon',{p_member_id:_memberId, p_session_token:_memberToken,
+      p_member_coupon_id:_ckCoupon.id, p_order_id:_oid,
+      p_subtotal:_cartSubtotal(), p_item_ids:_cartItemIds()}).then(function(res){
+      if(res.error){ alert('优惠券用不了：'+res.error.message); _ckCoupon=null; renderCheckout(); return; }
+      _doConfirmOrder(Number(res.data)||0, _ckCoupon.id, _oid);
+    }).catch(function(e){ console.error('rpc_consume_coupon', e); alert('网络错误，请重试'); });
+    return;
+  }
+  _doConfirmOrder(0, null, null);
+}
+function _doConfirmOrder(discount, couponId, presetId){
+  var entries = Object.entries(cart);
+  if(!entries.length){ alert('购物车是空的！'); return; }
 
   var total = 0;
   var items = entries.map(function(e){
@@ -2612,6 +2689,8 @@ function confirmOrder(){
   // 外卖：把 Lalamove 配送费计入总额（deliveryFee 单独存一份，方便小票/后台拆分显示）
   var deliveryFee = (currentMode==='delivery' && _deliveryInfo) ? (_deliveryInfo.fee||0) : 0;
   total += deliveryFee;
+  discount = Math.min(Math.max(Number(discount)||0, 0), total);   // 服务端算的折扣，兜底夹一次防负数
+  total -= discount;
 
   // 余额支付：先做客户端预检（余额够不够、有没有登录联网），不够就直接拦下，不建单
   if(selectedPay==='wallet'){
@@ -2622,7 +2701,9 @@ function confirmOrder(){
 
   var modeLabel = {dinein:'堂食', pickup:'自取', delivery:'外卖'}[currentMode] ||'自取';
   var order = {
-    id:'o'+Date.now(),
+    id: presetId || ('o'+Date.now()),   // 有券时用核销时那个 id，两边要对上
+    couponId: couponId || null,
+    discount: discount,
     orderNum: '',              // 取号后填入（当天流水号）
     createdAt: new Date().toISOString(),
     items: items,
@@ -2715,7 +2796,8 @@ function closeSuccess(type){
   var id = type==='tng' ?'successTng' : type==='hitpay' ?'successHitpay' :'successCounter';
   try{ document.getElementById(id).classList.remove('show'); }catch(e){}
   // 清购物车
-  cart = {};
+  cart = {}; _ckCoupon=null;   // 券已在下单时核销，清掉选中状态
+  
   // 安全刷新点单页
   try{ renderCats(); }catch(e){}
   try{ renderItems(); }catch(e){}
@@ -2855,7 +2937,7 @@ function confirmAddToCart(){
   const chosen = specs.map((g,gi)=> sheetSpecSel[gi]>=0 ? { defId:g.defId||null, name:g.name, value:g.options[sheetSpecSel[gi]] } : null).filter(Boolean);
   const key = sheetCat +'|' + sheetIdx +'|' + sheetSpecSel.join(',');
   const cur = cart[key]?.qty || 0;
-  cart[key] = { name: it.name, en: it.en, price: it.price, image: it.image||'', specs: chosen, qty: cur + sheetQty };
+  cart[key] = { id: it.id||null, name: it.name, en: it.en, price: it.price, image: it.image||'', specs: chosen, qty: cur + sheetQty };
   renderItems();
   renderCartPanel();
   closeSheet();
@@ -3159,7 +3241,7 @@ function reorder(){
           var key = cat+'|'+idx+'|'+sel.join(',');
           var cur = cart[key]?cart[key].qty:0;
           var chosen = specs.map(function(g,gi){ return {defId:g.defId||null, name:g.name, value:g.options[sel[gi]]}; });
-          cart[key] = {name:item.name, en:item.en, price:item.price, image:item.image||'', specs:chosen, qty:cur+it.qty};
+          cart[key] = {id:item.id||null, name:item.name, en:item.en, price:item.price, image:item.image||'', specs:chosen, qty:cur+it.qty};
         }
       });
     });
@@ -3631,6 +3713,7 @@ function _pmItemHtml(c){
     +'<button class="pm-item-redeem"'+(afford?'':' style="opacity:.45"')+' onclick="redeemMallCoupon(\''+c.id+'\')">兑换</button></div>';
 }
 /* 「我的」：已兑到手的券。未使用的排在前面 */
+var _pmFromCheckout=false;
 function _pmMineHtml(mc){
   var ST={unused:'未使用',used:'已使用',expired:'已过期'};
   var exp='永久有效';
@@ -3642,7 +3725,16 @@ function _pmMineHtml(mc){
     +'<div class="mem-coupon-cond">'+(mc.type==='dessert'
         ? _esc(mc.menu_item_name||'指定商品')
         : (Number(mc.min_spend)>0?('满 RM'+Number(mc.min_spend).toFixed(2)+'可用'):'无门槛'))+'</div>'
-    +'<div class="mem-coupon-exp">'+(ST[mc.status]||mc.status)+' · '+exp+'</div></div></div>';
+    +'<div class="mem-coupon-exp">'+(ST[mc.status]||mc.status)+' · '+exp+'</div>'
+    +_pmUseBtn(mc)+'</div></div>';
+}
+/* 从结算页进来才显示「使用」；不可用的说明原因，别让顾客点了才知道 */
+function _pmUseBtn(mc){
+  if(!_pmFromCheckout || mc.status!=='unused') return '';
+  var u=_couponUsable(mc, _cartSubtotal());
+  return u.ok
+    ? '<button class="pm-use-btn" onclick="useCouponForOrder(\''+mc.id+'\')">使用</button>'
+    : '<span class="pm-use-no">'+_esc(u.why)+'</span>';
 }
 function renderPointsMallList(){
   var box=document.getElementById('pmList');
@@ -3699,6 +3791,8 @@ function redeemMallCoupon(id){
    商城 z-index 361 高于结算页 345，所以是叠上来的；关掉商城就回到结算页。 */
 function openCouponsFromCheckout(){
   if(!_memberId || !_memberToken){ alert('请先登录会员才能使用优惠券'); return; }
+  if(_ckCoupon && confirm('已选「'+_ckCoupon.name+'」，要取消这张券吗？')){ clearCkCoupon(); return; }
+  _pmFromCheckout=true;
   openPointsMall('mine');
 }
 function openPointsMall(tab){
@@ -3715,6 +3809,7 @@ function openPointsMall(tab){
 }
 function closePointsMall(){
   document.getElementById('pmScreen').classList.remove('show');
+  _pmFromCheckout=false;
 }
 (function(){
   var startX=0, startY=0, tracking=false;

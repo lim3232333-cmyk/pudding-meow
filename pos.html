@@ -1033,6 +1033,12 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       <div id="cpnDaysWrap">
         <label class="mfl">有效天数</label><input class="mfi" id="cpnValidDays" type="number" step="1" min="1" placeholder="30">
       </div>
+      <label class="mfl">发放时间</label>
+      <div class="mfh">控制「什么时候能拿到这张券」（商城上架/后台发放）。两个都留空 = 不限时间。与上面的「有效期」不同，有效期管的是拿到之后多久过期</div>
+      <div style="display:flex;gap:8px">
+        <input class="mfi" id="cpnIssueFrom" type="datetime-local" style="flex:1">
+        <input class="mfi" id="cpnIssueUntil" type="datetime-local" style="flex:1">
+      </div>
       <label class="mfl">积分商城售价（Coin）</label>
       <div class="mfh">填了才会出现在小程序积分商城；留空/0 = 不在商城出售，只能后台手动发放</div>
       <input class="mfi" id="cpnCoinPrice" type="number" step="1" min="0" placeholder="留空＝不上架">
@@ -1082,11 +1088,11 @@ function setCloudStatus(s){
 setTimeout(function(){ setCloudStatus(db?'connecting':'offline'); },0);
 /* 订单对象 <-> 数据库行（只映射数据库已有的列，tender/change/customerName 等不入库）*/
 function orderToRow(o){return{id:o.id,order_num:o.orderNum,receipt_no:o.receiptNo!=null?o.receiptNo:null,kind_seq:o.kindSeq!=null?o.kindSeq:null,created_at:o.createdAt,items:o.items||[],
-  total:o.total||0,pay_method:o.payMethod,status:o.status,source:o.source,table_name:o.tableName,ta_mode:o.taMode,member_id:o.memberId||null,device_id:o.deviceId||null,
+  total:o.total||0,pay_method:o.payMethod,status:o.status,source:o.source,table_name:o.tableName,ta_mode:o.taMode,member_id:o.memberId||null,device_id:o.deviceId||null,coupon_id:o.couponId||null,discount:Number(o.discount)||0,
   delivery_info:o.deliveryInfo||null};}
 function rowToOrder(r){return{id:r.id,orderNum:r.order_num||(r.id?String(r.id).slice(-4):''),receiptNo:r.receipt_no!=null?r.receipt_no:null,kindSeq:r.kind_seq!=null?r.kind_seq:null,createdAt:r.created_at,
   items:r.items||[],total:Number(r.total)||0,payMethod:r.pay_method||'counter',status:r.status||'pending',
-  source:r.source||'app',tableName:r.table_name||'',taMode:r.ta_mode||'',memberId:r.member_id||null,deviceId:r.device_id||null,deliveryInfo:r.delivery_info||null};}
+  source:r.source||'app',tableName:r.table_name||'',taMode:r.ta_mode||'',memberId:r.member_id||null,deviceId:r.device_id||null,couponId:r.coupon_id||null,discount:Number(r.discount)||0,deliveryInfo:r.delivery_info||null};}
 /* ── 取号：永久收据号 receiptNo + 当天订单号 orderNum ──
    优先用 Supabase rpc_next_order_num（跨设备唯一/按天重置）；离线或失败时本地兜底。 */
 function _setOrderNums(o,rc,on,ks){ o.receiptNo=rc; o.orderNum=String(on).padStart(4,'0'); if(ks!=null) o.kindSeq=ks; }
@@ -2683,17 +2689,27 @@ function _cpnValTxt(c){
 }
 function _menuName(id){ var r=(_menuRows||[]).find(function(x){return x.id===id;}); return r?r.name:''; }
 var _CPN_TYPE_CN={fixed_off:'现金折扣',percent_off:'百分比折扣',dessert:'甜品兑换'};
+/* 发放窗口文案，并标出当前是否在窗口内 */
+function _cpnIssueTxt(c){
+  var d=function(s){ try{ return new Date(s).toLocaleDateString(); }catch(e){ return '?'; } };
+  if(!c.issue_from && !c.issue_until) return '<span style="color:#4A4848">不限</span>';
+  var now=Date.now();
+  var live=(!c.issue_from||now>=new Date(c.issue_from).getTime())&&(!c.issue_until||now<=new Date(c.issue_until).getTime());
+  var txt=(c.issue_from?d(c.issue_from):'不限')+' ~ '+(c.issue_until?d(c.issue_until):'不限');
+  return txt+(live?'':'<br><span style="color:#8D0505">（当前不可发放）</span>');
+}
 function renderLoyaltyCouponsBody(){
   var body=document.getElementById('loyaltyBody'); if(!body) return;
   var html='<div style="display:flex;justify-content:flex-end;margin-bottom:14px"><button onclick="openCpn()" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:700;font-size:13px">＋ 新增优惠券</button></div>';
-  html+='<div class="tx-card" style="margin-bottom:18px"><div class="tx-ch"><h3>优惠券模板</h3></div><table><thead><tr><th>名称</th><th>类型</th><th>优惠</th><th>门槛</th><th>有效期</th><th>商城售价</th><th>状态</th><th>操作</th></tr></thead><tbody>';
-  if(!_loyaltyCoupons.length){ html+='<tr><td colspan="8" style="text-align:center;padding:30px;color:#4A4848">暂无优惠券</td></tr>'; }
+  html+='<div class="tx-card" style="margin-bottom:18px"><div class="tx-ch"><h3>优惠券模板</h3></div><table><thead><tr><th>名称</th><th>类型</th><th>优惠</th><th>门槛</th><th>有效期</th><th>发放时间</th><th>商城售价</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+  if(!_loyaltyCoupons.length){ html+='<tr><td colspan="9" style="text-align:center;padding:30px;color:#4A4848">暂无优惠券</td></tr>'; }
   else{
     _loyaltyCoupons.forEach(function(c){
       html+='<tr'+(c.enabled?'':' style="opacity:.5"')+'><td><b>'+esc(c.name)+'</b></td>'
         +'<td>'+(_CPN_TYPE_CN[c.type]||esc(c.type||''))+'</td><td>'+_cpnValTxt(c)+'</td>'
         +'<td>'+(c.type==='dessert'?'—':(c.min_spend>0?('满 RM'+c.min_spend):'无门槛'))+'</td>'
         +'<td>'+(Number(c.valid_days)>0?(c.valid_days+' 天'):'<b>永久</b>')+'</td>'
+        +'<td style="font-size:12px">'+_cpnIssueTxt(c)+'</td>'
         +'<td>'+(c.coin_price?('<b>'+c.coin_price+' Coin</b>'):'<span style="color:#4A4848">未上架</span>')+'</td>'
         +'<td>'+(c.enabled?'<span style="color:#1D7715">启用</span>':'<span style="color:#8D0505">停用</span>')+'</td>'
         +'<td style="white-space:nowrap">'
@@ -2728,6 +2744,14 @@ function cpnSearch(){
   }).catch(function(e){showN('网络错误');});
 }
 /* 甜品券没有「优惠数值/门槛」，改填「兑换哪件商品」——按类型切换表单 */
+/* datetime-local 用的是本地时间且没有时区，直接塞 ISO 字符串会显示不出来 */
+function _toLocalInput(iso){
+  if(!iso) return '';
+  try{ var d=new Date(iso); var p=function(n){return String(n).padStart(2,'0');};
+    return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());
+  }catch(e){ return ''; }
+}
+function _fromLocalInput(v){ return v ? new Date(v).toISOString() : null; }
 function cpnSyncExp(){
   document.getElementById('cpnDaysWrap').style.display=
     document.getElementById('cpnExpMode').value==='forever'?'none':'block';
@@ -2752,6 +2776,8 @@ function openCpn(id){
   document.getElementById('cpnValidDays').value=(c&&Number(c.valid_days)>0)?c.valid_days:30;
   cpnSyncExp();
   document.getElementById('cpnCoinPrice').value=(c&&c.coin_price)?c.coin_price:'';
+  document.getElementById('cpnIssueFrom').value=_toLocalInput(c&&c.issue_from);
+  document.getElementById('cpnIssueUntil').value=_toLocalInput(c&&c.issue_until);
   document.getElementById('cpnEnabled').checked=c?c.enabled:true;
   // 商品下拉用收银台已经加载好的菜单，不再另外请求
   var opts='<option value="">— 请选择商品 —</option>';
@@ -2786,6 +2812,8 @@ function saveCpn(){
     valid_days:forever?null:validDays,   // null = 永久有效
     enabled:document.getElementById('cpnEnabled').checked,
     coin_price:coinRaw===''?null:(parseInt(coinRaw,10)||0),
+    issue_from:_fromLocalInput(document.getElementById('cpnIssueFrom').value),
+    issue_until:_fromLocalInput(document.getElementById('cpnIssueUntil').value),
     menu_item_id:isDessert?menuItemId:null
   };
   var q=_cpnEditId?db.from('coupons').update(payload).eq('id',_cpnEditId):db.from('coupons').insert(payload);
