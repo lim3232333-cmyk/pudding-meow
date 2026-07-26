@@ -721,7 +721,7 @@
   .rc-tx-empty{ padding:32px 0; text-align:center; color:var(--muted); font-size:12px; }
 
   /* ===== 会员：积分商城 Points Mall ===== */
-  .pm-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:var(--cream2); z-index:300; display:none; flex-direction:column; overflow-y:auto; }
+  .pm-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:var(--cream2); z-index:361;   /* 高于结算页 345：结算页点优惠卷会把商城叠上来 */ display:none; flex-direction:column; overflow-y:auto; }
   .pm-screen.show{ display:flex; }
   .pm-hero{ position:relative; width:100%; height:196px; background:var(--red); flex-shrink:0; }
   .pm-hero-divider{ position:absolute; left:0; top:198px; width:100%; height:2px; background:var(--blue); z-index:1; }
@@ -1436,7 +1436,7 @@
         <div class="ck-sec-label">我的订单</div>
         <div class="ck-items" id="ckItems"></div>
       </div>
-      <div class="ck-coupon">
+      <div class="ck-coupon" onclick="openCouponsFromCheckout()" style="cursor:pointer">
         <div class="ck-coupon-l">
           <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>
           <span>优惠卷</span>
@@ -3695,10 +3695,16 @@ function redeemMallCoupon(id){
     });
   }).catch(function(e){ alert('网络错误，请重试'); });
 }
-function openPointsMall(){
+/* 结算页点「优惠卷」→ 直接进积分商城的「我的」，在那里挑券。
+   商城 z-index 361 高于结算页 345，所以是叠上来的；关掉商城就回到结算页。 */
+function openCouponsFromCheckout(){
+  if(!_memberId || !_memberToken){ alert('请先登录会员才能使用优惠券'); return; }
+  openPointsMall('mine');
+}
+function openPointsMall(tab){
   if(!_memberId || !_memberToken){ alert('请先登录会员'); return; }
-  _pmTab ='all';
-  document.querySelectorAll('#pmTabs .pm-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.cat==='all'); });
+  _pmTab = tab||'all';
+  document.querySelectorAll('#pmTabs .pm-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.cat===_pmTab); });
   document.getElementById('pmCoinBalance').textContent = _memberProfile ? (_memberProfile.coins||0) :0;
   document.getElementById('pmScreen').classList.add('show');
   // 会员资料可能还没拉过（直接进商城的情况），补一次，余额和「买得起吗」的置灰才准
