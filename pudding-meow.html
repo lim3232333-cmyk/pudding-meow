@@ -634,11 +634,8 @@
   .md-table{ width:100%; border-collapse:collapse; margin-top:26px; border-radius:8px; overflow:hidden; font-size:11px; }
   .md-table th{ background:var(--red); color:#fff; font-weight:700; padding:8px 4px; text-align:center; }
   .md-table td{ padding:9px 4px; text-align:center; color:var(--red); border:1px solid #F0E6C8; background:#FFFDF0; line-height:1.3; }
-  .md-table td.md-lvl{ font-weight:700; color:#fff; }
-  .md-lvl-1{ background:#E68A2B !important; }
-  .md-lvl-2{ background:#B8B8B8 !important; }
-  .md-lvl-3{ background:#FFDE5B !important; color:var(--red) !important; }
-  .md-lvl-4{ background:#5A5A5A !important; }
+  /* 底色和字色都由 renderMemberDetail() 按 member_levels.color_hex 内联写入 */
+  .md-table td.md-lvl{ font-weight:700; }
 
   /* ---- 会员专属礼 横幅 ---- */
   .mem-promo-banner{ background:var(--red); border-radius:16px; padding:16px; margin-top:12px; text-align:center; }
@@ -1440,22 +1437,14 @@
       <div class="md-title">会员明细</div>
     </div>
     <div class="md-body">
+      <!-- 规则和等级表都从云端读（xp_rules / coin_rules / member_levels），POS 后台改了这里跟着变 -->
       <div class="md-rules-h">规则：</div>
-      <ol class="md-rules">
-        <li>每消费 RM1 = 1 Paw Coin</li>
-        <li>会员可以通过消费、邀请好友、每日签到、幸运抽奖来获得 Paw Coin 和 XP 值。</li>
-        <li>会员等级分为：</li>
-      </ol>
+      <ol class="md-rules" id="mdRules"></ol>
       <table class="md-table">
         <thead>
-          <tr><th>等级/权益</th><th>生日</th><th>Coin倍率</th><th>幸运抽奖</th><th>会员日</th></tr>
+          <tr><th>等级</th><th>升级所需</th><th>权益</th></tr>
         </thead>
-        <tbody>
-          <tr><td class="md-lvl md-lvl-1">新生小猫</td><td>100 Coin</td><td>1x</td><td>1次/月</td><td>1.5x Coin</td></tr>
-          <tr><td class="md-lvl md-lvl-2">幼猫</td><td>200 Coin</td><td>1.2x</td><td>2次/月</td><td>1.5x Coin</td></tr>
-          <tr><td class="md-lvl md-lvl-3">青年猫</td><td>300 Coin</td><td>1.5x</td><td>3次/月</td><td>2x Coin·抽奖1次</td></tr>
-          <tr><td class="md-lvl md-lvl-4">布丁喵</td><td>500 Coin</td><td>2x</td><td>5次/月</td><td>3x Coin·抽奖1次</td></tr>
-        </tbody>
+        <tbody id="mdLevels"></tbody>
       </table>
     </div>
   </div>
@@ -3389,8 +3378,74 @@ function renderProfileScreen(){
 function memComingSoon(){ alert('敬请期待'); }
 
 /* ===== 会员明细页（Figma 319:187）：规则 + 等级权益表 ===== */
-function openMemberDetail(){ document.getElementById('mdScreen').classList.add('show'); }
+/* 会员明细页的「规则」和「等级权益表」原本是写死的 HTML，POS 后台改了不会变。
+   改成从 xp_rules / coin_rules / member_levels 三张表读——它们本来就给了 anon 读权限、
+   也已经在 realtime 发布里（supabase-membership.sql），所以能直接订阅，不用额外建表。 */
+var _xpRules=[], _coinRules=[];
+function loadLoyaltyRules(){
+  if(!db) return Promise.resolve();
+  return Promise.all([
+    db.from('xp_rules').select('*').then(function(r){ if(!r.error) _xpRules=r.data||[]; }),
+    db.from('coin_rules').select('*').then(function(r){ if(!r.error) _coinRules=r.data||[]; })
+  ]).catch(function(e){});
+}
+/* 等级底色由后台自填（color_hex），浅色底上白字看不清（例如青年猫的黄 #FFDE5B），
+   按亮度自动切深/浅字色 */
+function _fgOn(hex){
+  var m=/^#?([0-9a-f]{6})$/i.exec(String(hex||''));
+  if(!m) return '#fff';
+  var n=parseInt(m[1],16), r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+  return (0.299*r+0.587*g+0.114*b) > 160 ? '#8D0505' : '#fff';
+}
+function _ruleLine(r, unit, valKey){
+  var cap = r.daily_cap ? '（每日上限 '+r.daily_cap+'）' : '';
+  return _esc(r.name)+'：+'+r[valKey]+' '+unit+cap;
+}
+function renderMemberDetail(){
+  var rulesEl=document.getElementById('mdRules'), lvlEl=document.getElementById('mdLevels');
+  if(!rulesEl||!lvlEl) return;
+  var lines=[];
+  _xpRules.filter(function(r){return r.enabled!==false;}).forEach(function(r){ lines.push(_ruleLine(r,'XP','xp_value')); });
+  _coinRules.filter(function(r){return r.enabled!==false;}).forEach(function(r){ lines.push(_ruleLine(r,'Coin','coin_value')); });
+  // 拉不到云端规则时退回原来那两句静态说明，页面不至于空白
+  rulesEl.innerHTML = lines.length
+    ? lines.map(function(t){return '<li>'+t+'</li>';}).join('')
+    : '<li>每消费 RM1 = 1 Paw Coin</li><li>会员可以通过消费、邀请好友、每日签到、幸运抽奖来获得 Paw Coin 和 XP 值。</li>';
+  lvlEl.innerHTML = _memberLevels.length
+    ? _memberLevels.map(function(l){
+        var perks = Array.isArray(l.perks) ? l.perks : [];
+        return '<tr>'
+          +'<td class="md-lvl" style="background:'+_esc(l.color_hex||'#8D0505')+';color:'+_fgOn(l.color_hex)+'">'+(l.badge_icon?_esc(l.badge_icon)+' ':'')+_esc(l.name_cn||'')+'</td>'
+          +'<td>'+(l.xp_required||0)+' XP</td>'
+          +'<td>'+(perks.length?perks.map(_esc).join('<br>'):'—')+'</td>'
+          +'</tr>';
+      }).join('')
+    : '<tr><td colspan="3">暂无等级资料</td></tr>';
+}
+function openMemberDetail(){
+  document.getElementById('mdScreen').classList.add('show');
+  renderMemberDetail();   // 先用缓存渲染，拉到最新再重绘一次
+  Promise.all([_memberLevels.length?Promise.resolve():loadMemberLevels(), loadLoyaltyRules()]).then(renderMemberDetail);
+}
 function closeMemberDetail(){ document.getElementById('mdScreen').classList.remove('show'); }
+/* 等级/规则是全店配置（不含个人数据），anon 可读，直接订阅这三张表即可实时同步。
+   变了要同时重绘：会员明细页 + 会员卡（等级门槛一改，成长值进度条 207/800 的分母就变了） */
+var _loyaltyChannel=null;
+function subscribeLoyaltyConfig(){
+  if(!db) return;
+  if(_loyaltyChannel){ try{ db.removeChannel(_loyaltyChannel); }catch(e){} _loyaltyChannel=null; }
+  var onChange=function(){
+    Promise.all([loadMemberLevels(), loadLoyaltyRules()]).then(function(){
+      try{ renderMemberDetail(); }catch(e){}
+      try{ renderProfileScreen(); }catch(e){}   // 重算成长值进度条
+    });
+  };
+  _loyaltyChannel = db.channel('loyalty-config')
+    .on('postgres_changes', {event:'*', schema:'public', table:'member_levels'}, onChange)
+    .on('postgres_changes', {event:'*', schema:'public', table:'xp_rules'}, onChange)
+    .on('postgres_changes', {event:'*', schema:'public', table:'coin_rules'}, onChange)
+    .subscribe();
+}
 
 /* ===== 切换语言页（Figma 567:618）：中文/English 选择器。
    目前仅记录偏好(localStorage['pm_lang'])并高亮当前语言；English 全量翻译为后续工作 ===== */
@@ -3851,6 +3906,8 @@ loadOrdersFromCloud().then(function(){ try{ renderOrdersList(); }catch(e){} });
 subscribeOrders();
 /* 会员数据即时刷新：会话是从 localStorage 恢复的，启动时也要订阅一次门铃 */
 try{ subscribeMemberEvents(); }catch(e){}
+/* 等级/成长值规则改动也实时同步（全店配置，与是否登录无关） */
+try{ subscribeLoyaltyConfig(); }catch(e){}
 
 /* ===== HitPay 支付返回：从 URL 上的 pm_hitpay 参数识别客人刚从收银页跳回来。
    实际付款状态由 hitpay-webhook 异步更新 DB，这里已有的 subscribeOrders()
