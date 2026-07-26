@@ -235,6 +235,24 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 .modal-bg{position:fixed;left:0;top:0;width:1366px;height:768px;background:rgba(0,0,0,.5);z-index:400;display:none;align-items:center;justify-content:center;}
 .modal-bg.show{display:flex;}
 
+/* ═══════ 会员详情 ═══════ */
+.mb-row{cursor:pointer;}
+.mb-row:hover{background:#FFFDF0;}
+.mb-who{display:flex;align-items:center;gap:8px;}
+.mb-av{width:28px;height:28px;border-radius:50%;flex-shrink:0;object-fit:cover;display:flex;align-items:center;justify-content:center;}
+.mb-av-ph{background:#8D0505;color:#FFDE5B;font-weight:700;font-size:13px;}
+.md-card{background:#fff;border-radius:20px;width:1080px;max-height:700px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.md-head{background:#8D0505;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;color:#FFFFD5;font-size:20px;font-weight:700;}
+.md-head button{background:rgba(255,255,255,.2);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:18px;cursor:pointer;flex-shrink:0;}
+.md-sum{display:flex;gap:10px;padding:14px 20px 0;flex-shrink:0;flex-wrap:wrap;}
+.md-kpi{flex:1;min-width:120px;background:#FFFFD5;border-radius:10px;padding:8px 12px;}
+.md-kpi .l{font-size:11px;color:#4A4848;}
+.md-kpi .v{font-size:18px;font-weight:700;color:#8D0505;}
+.md-scroll{flex:1;overflow-y:auto;padding:0 20px 20px;}
+.md-scroll table{width:100%;border-collapse:collapse;}
+.md-scroll th{position:sticky;top:0;background:#FFFDF0;text-align:left;font-size:12px;color:#4A4848;padding:8px 6px;border-bottom:2px solid #F0E6C8;}
+.md-scroll td{padding:9px 6px;font-size:13px;border-bottom:1px solid #F5EFE0;}
+
 /* ═══════ PENDING PAYMENT — Figma 533:282 ═══════ */
 .pend-card{width:762px;max-height:700px;background:#FFFFD5;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);}
 .pend-head{flex-shrink:0;height:66px;padding:24px 29px;background:#8D0505;border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:space-between;}
@@ -769,6 +787,16 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       <button class="slot-btn slot-ok" onclick="confirmQtySlot()">OK</button>
 </div>
 </div>
+</div>
+
+<!-- 会员详情 MODAL：点会员列表某一行打开 -->
+<div class="modal-bg" id="mdBg" onclick="if(event.target===this)closeMemberDetail()">
+  <div class="md-card">
+    <div class="md-head"><span id="mdTitle"></span><button onclick="closeMemberDetail()">✕</button></div>
+    <div class="md-sum" id="mdSummary"></div>
+    <div class="ma-tabs" id="mdTabs" style="padding:12px 20px 0;margin:0"></div>
+    <div class="md-scroll" id="mdBody"></div>
+  </div>
 </div>
 
 <!-- PENDING MODAL -->
@@ -2140,21 +2168,123 @@ function loadLoyaltyMembers(kw){
 function renderLoyaltyMembersBody(){
   var body=document.getElementById('loyaltyBody'); if(!body) return;
   var html='<div style="margin-bottom:14px"><input class="mfi" style="max-width:280px;display:inline-block" id="loyaltySearchBox" placeholder="搜索手机号/昵称，回车查询" onkeydown="if(event.key===\'Enter\')loyaltySearch()"></div>';
-  html+='<div class="tx-card"><table><thead><tr><th>昵称</th><th>手机号</th><th>等级</th><th>XP</th><th>Meow Coin</th><th>Meow Wallet</th><th>注册时间</th><th>操作</th></tr></thead><tbody>';
+  html+='<div class="tx-card"><table><thead><tr><th>会员</th><th>手机号</th><th>等级</th><th>XP</th><th>Coin</th><th>储值余额</th><th>累计消费</th><th>消费次数</th><th>最后消费</th><th>注册时间</th><th>操作</th></tr></thead><tbody>';
   if(!_loyaltyMembers.length){
-    html+='<tr><td colspan="8" style="text-align:center;padding:30px;color:#4A4848">暂无会员</td></tr>';
+    html+='<tr><td colspan="11" style="text-align:center;padding:30px;color:#4A4848">暂无会员</td></tr>';
   }else{
     _loyaltyMembers.forEach(function(m){
       var lvl=_loyaltyLevels.find(function(l){return l.id===m.level_id;});
-      html+='<tr><td><b>'+esc(m.nickname||'—')+'</b></td><td>'+esc(m.phone)+'</td>'
+      var av=m.avatar_url
+        ? '<img src="'+esc(m.avatar_url)+'" class="mb-av" alt="">'
+        : '<span class="mb-av mb-av-ph">'+esc((m.nickname||m.phone||'?').slice(0,1))+'</span>';
+      html+='<tr class="mb-row" onclick="openMemberDetail(\''+m.id+'\')">'
+        +'<td><div class="mb-who">'+av+'<b>'+esc(m.nickname||'—')+'</b></div></td>'
+        +'<td>'+esc(m.phone)+'</td>'
         +'<td>'+(lvl?('<span style="color:'+lvl.color_hex+';font-weight:700">'+(lvl.badge_icon||'')+''+esc(lvl.name_cn)+'</span>'):'—')+'</td>'
-        +'<td>'+(m.xp||0)+'</td><td>'+(m.coins||0)+'</td><td>RM '+Number(m.wallet_balance||0).toFixed(1)+'</td>'
+        +'<td>'+(m.xp||0)+'</td><td>'+(m.coins||0)+'</td>'
+        +'<td>RM '+Number(m.wallet_balance||0).toFixed(2)+'</td>'
+        +'<td><b>RM '+Number(m.total_spent||0).toFixed(2)+'</b></td>'
+        +'<td>'+(m.order_count||0)+'</td>'
+        +'<td style="font-size:12px;color:#4A4848">'+(m.last_order_at?new Date(m.last_order_at).toLocaleDateString():'—')+'</td>'
         +'<td style="font-size:12px;color:#4A4848">'+new Date(m.created_at).toLocaleDateString()+'</td>'
-        +'<td><button onclick="openAdj(\''+m.id+'\',\''+esc(m.nickname||m.phone)+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">调整余额</button></td></tr>';
+        +'<td><button onclick="event.stopPropagation();openAdj(\''+m.id+'\',\''+esc(m.nickname||m.phone)+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">调整余额</button></td></tr>';
     });
   }
   html+='</tbody></table></div>';
   body.innerHTML=html;
+}
+
+/* ---- 会员详情：点列表某一行打开，看该会员的六种记录 + 备注 ---- */
+var _mdMember=null, _mdData=null, _mdTab='orders';
+var _MD_TABS=[['orders','消费记录'],['wallet','储值记录'],['coins','Coin 记录'],['draws','抽奖记录'],['coupons','优惠券'],['xp','成长记录'],['notes','备注']];
+function openMemberDetail(id){
+  _mdMember=_loyaltyMembers.find(function(m){return m.id===id;});
+  if(!_mdMember) return;
+  _mdData=null; _mdTab='orders';
+  document.getElementById('mdBg').classList.add('show');
+  renderMemberDetail();
+  db.rpc('rpc_admin_member_detail',{p_member_id:id}).then(function(res){
+    if(res.error){ showN('读取会员记录失败'); return; }
+    _mdData=res.data||{}; renderMemberDetail();
+  }).catch(function(e){ showN('网络错误'); });
+}
+function closeMemberDetail(){ document.getElementById('mdBg').classList.remove('show'); }
+function setMdTab(t){ _mdTab=t; renderMemberDetail(); }
+function _mdDate(s){ try{ var d=new Date(s); return d.toLocaleDateString()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }catch(e){ return '—'; } }
+function _mdSign(n){ n=Number(n)||0; return (n>0?'+':'')+n; }
+function _mdRows(cols, rows, render){
+  if(!rows || !rows.length) return '<div style="text-align:center;padding:40px;color:#4A4848">暂无记录</div>';
+  return '<table><thead><tr>'+cols.map(function(c){return'<th>'+c+'</th>';}).join('')+'</tr></thead><tbody>'
+    +rows.map(render).join('')+'</tbody></table>';
+}
+function renderMemberDetail(){
+  var m=_mdMember; if(!m) return;
+  var lvl=_loyaltyLevels.find(function(l){return l.id===m.level_id;});
+  document.getElementById('mdTitle').innerHTML=esc(m.nickname||'—')+' <span style="font-weight:400;font-size:14px;opacity:.8">'+esc(m.phone)+'</span>';
+  document.getElementById('mdSummary').innerHTML=
+     '<div class="md-kpi"><div class="l">等级</div><div class="v">'+(lvl?esc(lvl.name_cn):'—')+'</div></div>'
+    +'<div class="md-kpi"><div class="l">XP</div><div class="v">'+(m.xp||0)+'</div></div>'
+    +'<div class="md-kpi"><div class="l">Coin</div><div class="v">'+(m.coins||0)+'</div></div>'
+    +'<div class="md-kpi"><div class="l">储值余额</div><div class="v">RM '+Number(m.wallet_balance||0).toFixed(2)+'</div></div>'
+    +'<div class="md-kpi"><div class="l">累计消费</div><div class="v">RM '+Number(m.total_spent||0).toFixed(2)+'</div></div>'
+    +'<div class="md-kpi"><div class="l">消费次数</div><div class="v">'+(m.order_count||0)+'</div></div>';
+  document.getElementById('mdTabs').innerHTML=_MD_TABS.map(function(t){
+    return'<button class="ma-tab'+(_mdTab===t[0]?' a':'')+'" onclick="setMdTab(\''+t[0]+'\')">'+t[1]+'</button>';
+  }).join('');
+  var box=document.getElementById('mdBody');
+  if(_mdTab==='notes'){
+    box.innerHTML='<div style="padding:4px 2px"><label class="mfl">店员备注</label>'
+      +'<textarea class="mfi" id="mdNotes" rows="5" style="resize:vertical">'+esc(m.notes||'')+'</textarea>'
+      +'<button class="mfs" onclick="saveMemberNotes()">保存备注</button></div>';
+    return;
+  }
+  if(!_mdData){ box.innerHTML='<div style="text-align:center;padding:40px;color:#4A4848">加载中…</div>'; return; }
+  var d=_mdData;
+  if(_mdTab==='orders'){
+    box.innerHTML=_mdRows(['时间','单号','取餐码','金额','付款方式','状态'], d.orders, function(o){
+      return'<tr><td>'+_mdDate(o.created_at)+'</td><td><b>#'+esc(o.order_num||'')+'</b></td>'
+        +'<td>'+esc(_orderTypeLabel({tableName:o.table_name,orderNum:o.order_num,taMode:o.ta_mode,kindSeq:o.kind_seq}))+'</td>'
+        +'<td><b>RM '+Number(o.total||0).toFixed(2)+'</b></td><td>'+esc(o.pay_method||'—')+'</td><td>'+esc(o.status||'')+'</td></tr>';
+    });
+  } else if(_mdTab==='wallet'){
+    box.innerHTML=_mdRows(['时间','变动','原因','关联'], d.wallet, function(w){
+      var pos=Number(w.delta)>0;
+      return'<tr><td>'+_mdDate(w.created_at)+'</td>'
+        +'<td style="color:'+(pos?'#1D7715':'#8D0505')+';font-weight:700">'+(pos?'+':'')+'RM '+Math.abs(Number(w.delta)).toFixed(2)+'</td>'
+        +'<td>'+esc(w.reason||'')+'</td><td style="font-size:12px;color:#4A4848">'+esc(w.ref_id||'—')+'</td></tr>';
+    });
+  } else if(_mdTab==='coins'||_mdTab==='xp'){
+    var rows=_mdTab==='coins'?d.coins:d.xp;
+    box.innerHTML=_mdRows(['时间','变动','原因','关联'], rows, function(r){
+      var pos=Number(r.delta)>0;
+      return'<tr><td>'+_mdDate(r.created_at)+'</td>'
+        +'<td style="color:'+(pos?'#1D7715':'#8D0505')+';font-weight:700">'+_mdSign(r.delta)+'</td>'
+        +'<td>'+esc(r.reason||'')+'</td><td style="font-size:12px;color:#4A4848">'+esc(r.ref_id||'—')+'</td></tr>';
+    });
+  } else if(_mdTab==='draws'){
+    box.innerHTML=_mdRows(['时间','奖品','类型','数值'], d.draws, function(x){
+      return'<tr><td>'+_mdDate(x.created_at)+'</td><td><b>'+esc(x.prize_label||'')+'</b></td>'
+        +'<td>'+esc(x.prize_type||'')+'</td><td>'+(x.prize_value==null?'—':x.prize_value)+'</td></tr>';
+    });
+  } else if(_mdTab==='coupons'){
+    var ST={unused:'未使用',used:'已使用',expired:'已过期'};
+    box.innerHTML=_mdRows(['券名','面额','门槛','状态','发放时间','到期'], d.coupons, function(c){
+      var val=c.type==='percent_off'?(Number(c.value)+'% off'):('RM '+Number(c.value).toFixed(2));
+      return'<tr><td><b>'+esc(c.name||'')+'</b></td><td>'+val+'</td>'
+        +'<td>'+(Number(c.min_spend)>0?('满 RM '+Number(c.min_spend).toFixed(2)):'无门槛')+'</td>'
+        +'<td>'+(ST[c.status]||esc(c.status||''))+'</td>'
+        +'<td style="font-size:12px;color:#4A4848">'+_mdDate(c.issued_at)+'</td>'
+        +'<td style="font-size:12px;color:#4A4848">'+_mdDate(c.expires_at)+'</td></tr>';
+    });
+  }
+}
+function saveMemberNotes(){
+  if(!_mdMember) return;
+  var v=document.getElementById('mdNotes').value;
+  db.rpc('rpc_admin_set_member_notes',{p_member_id:_mdMember.id,p_notes:v}).then(function(res){
+    if(res.error){ showN(''+res.error.message); return; }
+    _mdMember.notes=v.trim()||null; showN('备注已保存');
+  }).catch(function(e){ showN('网络错误'); });
 }
 function loyaltySearch(){loadLoyaltyMembers(document.getElementById('loyaltySearchBox').value.trim());}
 var _adjMemberId=null;
