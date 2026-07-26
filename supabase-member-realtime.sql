@@ -42,10 +42,16 @@ as $$
 declare mid uuid;
 begin
   -- DELETE 取 OLD，其余取 NEW；members 表主键是 id，明细表用 member_id
+  --
+  -- 这里必须用 if 分支逐条赋值，不能写成
+  --   mid := case when tg_table_name='members' then new.id else new.member_id end;
+  -- plpgsql 会把整个 case 当一条 SQL 表达式去解析，两个分支的字段引用都要落到
+  -- 记录的真实类型上。触发器挂在 members 上时 new.member_id 这一支解析不了，
+  -- 直接报 record "new" has no field "member_id"——case 挡不住，它不是惰性求值。
   if (tg_op = 'DELETE') then
-    mid := case when tg_table_name = 'members' then old.id else old.member_id end;
+    if (tg_table_name = 'members') then mid := old.id; else mid := old.member_id; end if;
   else
-    mid := case when tg_table_name = 'members' then new.id else new.member_id end;
+    if (tg_table_name = 'members') then mid := new.id; else mid := new.member_id; end if;
   end if;
 
   if mid is null then
