@@ -95,5 +95,15 @@ grant execute on function public.rpc_pos_find_member(text) to anon;
 grant execute on function public.rpc_pos_member_coupons(uuid) to anon;
 grant execute on function public.rpc_pos_topup(uuid, numeric, int, text) to anon;
 
+-- PostgREST 会缓存一份函数清单，新建的函数有时不会马上出现在缓存里，
+-- 前端就会收到「Could not find the function ... in the schema cache」。
+-- 主动通知它重新加载，省得干等。
+select pg_notify('pgrst', 'reload schema');
+
 -- 完成。收银台输入电话即可带出会员，结账时订单会带上 member_id，
 -- 顾客在柜台消费也能累积 XP / Coin。
+--
+-- 跑完还是查不到会员的话，在 SQL Editor 里跑这句确认函数在不在：
+--   select proname, pg_get_function_identity_arguments(oid)
+--     from pg_proc where proname like 'rpc_pos_%';
+-- 应该看到 rpc_pos_find_member(text) / rpc_pos_member_coupons(uuid) / rpc_pos_topup(uuid, numeric, integer, text)
