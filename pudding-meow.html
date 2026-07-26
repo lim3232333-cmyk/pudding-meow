@@ -461,6 +461,7 @@
     padding:0 16px; box-sizing:border-box; flex-shrink:0;
   }
   .flavor-pill:not(.active):not(.soldout):hover{ background:#F5E9D4; }
+  .flavor-pill .pill-add{ margin-left:5px; font-size:11px; font-weight:700; opacity:.85; }
   .flavor-pill:not(.soldout):active,
   .flavor-pill.active{ background:var(--red); color:var(--cream2); }
   .flavor-pill.soldout, .flavor-pill.soldout.active{ background:#D9D9D9; color:#9A9A9A; border-color:#D9D9D9; cursor:not-allowed; text-decoration:line-through; }
@@ -2389,9 +2390,25 @@ function _isOptionSoldOut(defId, value){
   var def = _specDefsById[defId];
   return !!(def && (def.sold_out_options||[]).indexOf(value) >= 0);
 }
+/* ── 规格加价 ──
+   两层：规格库 option_prices 是建议加价（默认），商品 specs[i].prices 逐商品覆盖。
+   商品那层没写这个选项就跟默认走。行价 = 商品基础价 + 选中选项的加价之和。
+   优惠券一律按基础价算（服务端 _coupon_calc 查 menu_items.price），加的料顾客自付。 */
+function _optAdd(g, value){
+  if(g && g.prices && g.prices[value]!=null) return Number(g.prices[value])||0;
+  var d = g && g.defId ? _specDefsById[g.defId] : null;
+  if(d && d.option_prices && d.option_prices[value]!=null) return Number(d.option_prices[value])||0;
+  return 0;
+}
+function _specsAdd(specs){ return (specs||[]).reduce(function(s,x){ return s+(Number(x.add)||0); },0); }
+function _addTxt(n){ return n>0 ? ('+RM'+n.toFixed(2)) : (n<0 ? ('RM'+n.toFixed(2)) : ''); }
 /* 购物车/订单条目展示用：新的 specs 数组只显示值；兼容历史订单里的旧 flavor 字符串字段 */
 function specsDisplay(it){
-  if(it && it.specs && it.specs.length) return it.specs.map(function(s){ return s.value; }).filter(Boolean).join(SPEC_SEP);
+  // 带上加价（「L +RM2.00」），不然收据上只看到 L，对不上为什么比菜单价贵
+  if(it && it.specs && it.specs.length) return it.specs.map(function(s){
+    var a=Number(s.add)||0;
+    return s.value ? (s.value + (a?(' '+_addTxt(a)):'')) : '';
+  }).filter(Boolean).join(SPEC_SEP);
   return (it && it.flavor) ||'';
 }
 function applyMenu(m){
@@ -2638,7 +2655,10 @@ function _couponItem(mc){ return !!mc.menu_item_id; }
    服务端按 menu_items 的基础价算，取最低才不会显示得比实际多减 */
 function _cartItemPrice(menuItemId){
   var p=null;
-  Object.values(cart).forEach(function(c){ if(c.id===menuItemId){ var v=Number(c.price)||0; if(p===null||v<p) p=v; } });
+  // 用基础价，不用含规格加价的行价——服务端 _coupon_calc 查的是 menu_items.price，
+  // 两边口径要一致：顾客加了料不该多抵。
+  Object.values(cart).forEach(function(c){ if(c.id===menuItemId){
+    var v=Number(c.basePrice!=null?c.basePrice:c.price)||0; if(p===null||v<p) p=v; } });
   return p||0;
 }
 /* 这张券在当前购物车能不能用 */
@@ -2937,7 +2957,8 @@ function _sheetSpecGroupHtml(group, gi){
   const selIdx = sheetSpecSel[gi];
   const pills = (group.options||[]).map((o,oi)=>{
     const soldOut = _isOptionSoldOut(group.defId, o);
-    return `<button class="flavor-pill${oi===selIdx?' active':''}${soldOut?' soldout':''}" data-gi="${gi}" data-oi="${oi}"${soldOut?' disabled':''} onclick="selectSpecOption(${gi},${oi})">${o}</button>`;
+    const add = _optAdd(group, o);
+    return `<button class="flavor-pill${oi===selIdx?' active':''}${soldOut?' soldout':''}" data-gi="${gi}" data-oi="${oi}"${soldOut?' disabled':''} onclick="selectSpecOption(${gi},${oi})">${o}${add?`<span class="pill-add">${_addTxt(add)}</span>`:''}</button>`;
   }).join('');
   return `<div class="sheet-spec-group" data-gi="${gi}">${label}<div class="sheet-pill-row">${pills}</div></div>`;
 }
@@ -2989,11 +3010,20 @@ function changeSheetQty(delta){
   document.getElementById('sheetQty').textContent = sheetQty;
 }
 
+/* 详情页当前单价 = 商品基础价 + 已选规格的加价 */
+function _sheetUnitPrice(){
+  const it = menu[sheetCat].items[sheetIdx];
+  const specs = _itemSpecs(it);
+  let add = 0;
+  specs.forEach((g,gi)=>{ if(sheetSpecSel[gi]>=0) add += _optAdd(g, g.options[sheetSpecSel[gi]]); });
+  return (Number(it.price)||0) + add;
+}
 function refreshSheetFooter(){
   const it = menu[sheetCat].items[sheetIdx];
   const specs = _itemSpecs(it);
   const label = specs.map((g,gi)=> sheetSpecSel[gi]>=0 ? g.options[sheetSpecSel[gi]] : null).filter(Boolean).join(SPEC_SEP);
-  document.getElementById('sheetPrice').textContent ='RM' + it.price.toFixed(1);
+  // 价格跟着选中的规格实时变，顾客点「加大杯」立刻看到贵了多少
+  document.getElementById('sheetPrice').textContent ='RM' + _sheetUnitPrice().toFixed(1);
   document.getElementById('sheetFlavorLabel').textContent = label ? (label +'，') :'';
   document.getElementById('sheetQty').textContent = sheetQty;
   // 含 * 的必填规格组全部选中，才启用「加入购物车」；optional 不影响
@@ -3007,10 +3037,12 @@ function confirmAddToCart(){
   const specs = _itemSpecs(it);
   const allReq = specs.every((g,gi)=> !_sheetGroupRequired(g) || sheetSpecSel[gi]>=0);
   if(!allReq) return;   // 必填规格未选完，禁止加入
-  const chosen = specs.map((g,gi)=> sheetSpecSel[gi]>=0 ? { defId:g.defId||null, name:g.name, value:g.options[sheetSpecSel[gi]] } : null).filter(Boolean);
+  const chosen = specs.map((g,gi)=> sheetSpecSel[gi]>=0
+    ? { defId:g.defId||null, name:g.name, value:g.options[sheetSpecSel[gi]], add:_optAdd(g, g.options[sheetSpecSel[gi]]) } : null).filter(Boolean);
   const key = sheetCat +'|' + sheetIdx +'|' + sheetSpecSel.join(',');
   const cur = cart[key]?.qty || 0;
-  cart[key] = { id: it.id||null, name: it.name, en: it.en, price: it.price, image: it.image||'', specs: chosen, qty: cur + sheetQty };
+  cart[key] = { id: it.id||null, name: it.name, en: it.en, price: it.price + _specsAdd(chosen), basePrice: it.price,
+    image: it.image||'', specs: chosen, qty: cur + sheetQty };
   renderItems();
   renderCartPanel();
   closeSheet();
@@ -3313,8 +3345,11 @@ function reorder(){
           var sel = specs.map(function(g){ return g.options.indexOf(_matchSpecValue(g, it.specs, it.flavor)); });
           var key = cat+'|'+idx+'|'+sel.join(',');
           var cur = cart[key]?cart[key].qty:0;
-          var chosen = specs.map(function(g,gi){ return {defId:g.defId||null, name:g.name, value:g.options[sel[gi]]}; });
-          cart[key] = {id:item.id||null, name:item.name, en:item.en, price:item.price, image:item.image||'', specs:chosen, qty:cur+it.qty};
+          // 加价按当前菜单重算，不照抄旧订单——那张单上的价可能早就改了
+          var chosen = specs.map(function(g,gi){ var v=g.options[sel[gi]];
+            return {defId:g.defId||null, name:g.name, value:v, add:_optAdd(g,v)}; });
+          cart[key] = {id:item.id||null, name:item.name, en:item.en, price:item.price+_specsAdd(chosen),
+            basePrice:item.price, image:item.image||'', specs:chosen, qty:cur+it.qty};
         }
       });
     });

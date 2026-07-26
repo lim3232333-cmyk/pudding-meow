@@ -595,6 +595,13 @@ details.mi-spec-count>summary::after{content:'▾';margin-left:8px;font-size:11p
 details.mi-spec-count[open]>summary::after{content:'▴';}
 .mi-spec-count-panel{position:absolute;left:0;right:0;top:36px;z-index:8;background:#FFFDF0;border:1px solid #E7D6B0;border-radius:8px;padding:8px;display:flex;flex-wrap:wrap;gap:5px;box-shadow:0 6px 18px rgba(0,0,0,.15);max-height:200px;overflow-y:auto;}
 .mi-spec-rm{flex-shrink:0;width:26px;height:26px;border:none;background:transparent;color:#8D0505;cursor:pointer;font-size:14px;opacity:.6;}
+/* 商品表单里逐个选项的加价覆盖 */
+.spec-card .spec-add{display:block;font-size:12px;font-weight:700;opacity:.8;margin-top:2px;}
+.mi-optprice-hint{width:100%;font-size:11px;color:#4A4848;margin-bottom:4px;}
+.mi-optprice-row{display:flex;align-items:center;gap:6px;width:100%;margin-bottom:5px;}
+.mi-optprice-row .mi-pill{flex:1;text-align:center;}
+.mi-optprice{width:88px;flex-shrink:0;border:1px solid #E7D6B0;border-radius:6px;height:26px;padding:0 6px;font-size:12px;font-family:"Noto Sans SC",sans-serif;background:#fff;color:#8D0505;}
+.sd-opt-row .sd-opt-price{flex:0 0 96px;}
 .mi-spec-rm:hover{opacity:1;}
 .mi-add-wrap{display:flex;justify-content:center;margin-bottom:18px;}
 .mi-add-round{background:#F5E9D4;border:none;border-radius:1000px;color:#8D0505;font-weight:700;font-size:16px;width:59px;height:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;}
@@ -1516,6 +1523,18 @@ function _posItemSpecs(it){
   return [];
 }
 function _specDefById(id){ return (_specDefs||[]).find(function(x){return String(x.id)===String(id);}); }
+/* ── 规格加价 ──
+   两层：规格库 option_prices 是建议加价（默认），商品 specs[i].prices 逐商品覆盖。
+   商品那层没写这个选项就跟默认走，所以「大杯 +2」在规格库填一次，
+   只有收 3 块的那个商品才单独改。 */
+function _optAdd(g, value){
+  if(g && g.prices && g.prices[value]!=null) return Number(g.prices[value])||0;
+  var d=g&&g.defId?_specDefById(g.defId):null;
+  if(d && d.option_prices && d.option_prices[value]!=null) return Number(d.option_prices[value])||0;
+  return 0;
+}
+function _specsAdd(specs){ return (specs||[]).reduce(function(s,x){ return s+(Number(x.add)||0); },0); }
+function _addTxt(n){ return n>0 ? ('+'+n.toFixed(2)) : (n<0 ? n.toFixed(2) : ''); }
 function _posOptSold(defId,value){ if(!defId)return false; var d=_specDefById(defId); return !!(d&&(d.sold_out_options||[]).indexOf(value)>=0); }
 /* 规格组是否必填：看规格库 spec_defs.required（无 defId 的旧口味组按必填处理） */
 function _groupRequired(g){ if(!g)return true; if(g.defId){ var d=_specDefById(g.defId); return d?d.required!==false:true; } return true; }
@@ -1539,15 +1558,23 @@ function addItem(cat,i){
   var groups=_posItemSpecs(it);
   var hasChoice = groups.length>1 || groups.some(function(g){return (g.options||[]).length>1;});
   if(hasChoice){ showSpecPicker(cat,i); return; } // 有规格→进规格选择页（要点 OK）
-  _cartAdd(it, []);                               // 无规格→点选即加入
+  // 只有一个选项的必填组没得选，但该加的钱还是要加上
+  var auto=groups.filter(function(g){ return (g.options||[]).length===1 && _groupRequired(g); })
+    .map(function(g){ return {defId:g.defId||null,name:g.name,value:g.options[0],add:_optAdd(g,g.options[0])}; });
+  _cartAdd(it, auto);                             // 无规格→点选即加入
   hideitems();renderCart();showN('已加入：'+it.name);
 }
 function _cartAdd(it, specs){
-  var specText=(specs||[]).map(function(s){return s.value;}).filter(Boolean).join(' · ');
+  // 行价 = 商品基础价 + 选中选项的加价；规格文字也带上「L +2.00」，收据才对得上账
+  var specText=(specs||[]).map(function(s){
+    var a=Number(s.add)||0; return s.value ? (s.value+(a?(' '+_addTxt(a)):'')) : '';
+  }).filter(Boolean).join(' · ');
+  var price=(Number(it.price)||0)+_specsAdd(specs);
   for(var j=0;j<cart.length;j++){
     if(cart[j].name===it.name && (cart[j].specText||'')===specText){ cart[j].qty++; return; }
   }
-  cart.push({name:it.name,name_cn:it.name_cn,price:it.price,qty:1,specs:specs||[],specText:specText,flavor:specText});
+  cart.push({id:it.id||null,name:it.name,name_cn:it.name_cn,price:price,basePrice:Number(it.price)||0,
+    qty:1,specs:specs||[],specText:specText,flavor:specText});
 }
 /* ── 规格选择：每屏一组规格，面包屑逐段累积、底部 Back/OK 翻页，点选项高亮、
    最后一组 OK 加入购物车。选填组默认「不需要」、可跳过不选（Figma 389-219/394-290/394-318）── */
@@ -1571,7 +1598,9 @@ function _renderSpecPicker(){
   cards+=(g.options||[]).map(function(o,oi){
     var sold=_posOptSold(g.defId,o);
     var cls='item-card spec-card'+(c.sel[c.step]===oi?' sel':'')+(sold?' sold':'');
-    return '<div class="'+cls+'" '+(sold?'':'onclick="pickSpecOpt('+oi+')"')+'><div class="ic-name">'+esc(o)+'</div></div>';
+    var a=_optAdd(g,o);
+    return '<div class="'+cls+'" '+(sold?'':'onclick="pickSpecOpt('+oi+')"')+'><div class="ic-name">'+esc(o)
+      +(a?'<span class="spec-add">'+_addTxt(a)+'</span>':'')+'</div></div>';
   }).join('');
   document.getElementById('itemGrid').innerHTML='<div class="spec-opts">'+cards+'</div>';
   document.getElementById('itemOkBtn').style.display=''; // 规格页都有 OK
@@ -1591,7 +1620,11 @@ function specBack(){ var c=_specCtx; if(c && c.step>0){ c.step--; _renderSpecPic
 function confirmSpecAdd(){
   var c=_specCtx; var it=MENU[c.cat].items[c.idx];
   var chosen=[];
-  c.groups.forEach(function(g,gi){ if(c.sel[gi]===SKIP_SEL) return; chosen.push({defId:g.defId||null,name:g.name,value:(g.options||[])[c.sel[gi]]}); });
+  c.groups.forEach(function(g,gi){
+    if(c.sel[gi]===SKIP_SEL) return;
+    var v=(g.options||[])[c.sel[gi]];
+    chosen.push({defId:g.defId||null,name:g.name,value:v,add:_optAdd(g,v)});
+  });
   var label=chosen.map(function(s){return s.value;}).filter(Boolean).join(' · ');
   _cartAdd(it, chosen);
   hideitems();renderCart();showN('已加入：'+it.name+(label?'（'+label+'）':''));
@@ -2153,7 +2186,10 @@ function _posCartHas(menuItemId){ return cart.some(function(it){ return it.id===
    取最便宜那份——服务端算的是 menu_items 的基础价，取最低才不会前端显示得比实际多减 */
 function _posItemPrice(menuItemId){
   var p=null;
-  cart.forEach(function(it){ if(it.id===menuItemId){ var v=Number(it.price)||0; if(p===null||v<p) p=v; } });
+  // 用基础价，不用含规格加价的行价——服务端 _coupon_calc 查的是 menu_items.price，
+  // 两边口径要一致：顾客加了料不该多抵。
+  cart.forEach(function(it){ if(it.id===menuItemId){
+    var v=Number(it.basePrice!=null?it.basePrice:it.price)||0; if(p===null||v<p) p=v; } });
   return p||0;
 }
 /* 绑了商品的券＝单品券：甜品券抵全价，现金/百分比券只打那一份 */
@@ -3415,14 +3451,15 @@ function chDel(id){
 }
 
 var _sdEditId=null;
-function _sdOptRowHtml(value, soldOut){
+function _sdOptRowHtml(value, soldOut, price){
   soldOut=!!soldOut;
-  return'<div class="sd-opt-row" data-soldout="'+(soldOut?'1':'0')+'"><input class="mfi" value="'+esc(value||'')+'" placeholder="选项，如 M / L / XL">'
+  return'<div class="sd-opt-row" data-soldout="'+(soldOut?'1':'0')+'"><input class="mfi sd-opt-name" value="'+esc(value||'')+'" placeholder="选项，如 M / L / XL">'
+    +'<input class="mfi sd-opt-price" type="number" step="0.1" value="'+(price!=null?esc(price):'')+'" placeholder="加价 RM" title="默认加价，商品可以逐个覆盖">'
     +'<button type="button" class="sd-opt-toggle'+(soldOut?' is-soldout':'')+'" onclick="_sdToggleOptRow(this)">'+(soldOut?'已下架':'下架')+'</button>'
     +'<button type="button" class="mi-spec-rm" onclick="this.parentElement.remove()">✕</button></div>';
 }
-function sdAddOptRow(value, soldOut){
-  document.getElementById('sdOptRows').insertAdjacentHTML('beforeend',_sdOptRowHtml(value, soldOut));
+function sdAddOptRow(value, soldOut, price){
+  document.getElementById('sdOptRows').insertAdjacentHTML('beforeend',_sdOptRowHtml(value, soldOut, price));
 }
 function _sdToggleOptRow(btn){
   var row=btn.closest('.sd-opt-row');
@@ -3432,14 +3469,17 @@ function _sdToggleOptRow(btn){
   btn.classList.toggle('is-soldout', soldOut);
 }
 function _sdCollectOptions(){
-  var rows=document.querySelectorAll('#sdOptRows .sd-opt-row'), options=[], soldOut=[];
+  var rows=document.querySelectorAll('#sdOptRows .sd-opt-row'), options=[], soldOut=[], prices={};
   for(var i=0;i<rows.length;i++){
-    var v=rows[i].querySelector('input').value.trim();
+    var v=rows[i].querySelector('.sd-opt-name').value.trim();
     if(!v) continue;
     options.push(v);
     if(rows[i].getAttribute('data-soldout')==='1') soldOut.push(v);
+    // 加价留空 = 不加价；填 0 跟留空一样，都不用存
+    var p=rows[i].querySelector('.sd-opt-price').value.trim();
+    if(p!=='' && Number(p)) prices[v]=Number(p);
   }
-  return {options:options, soldOut:soldOut};
+  return {options:options, soldOut:soldOut, prices:Object.keys(prices).length?prices:null};
 }
 function sdAdd(){
   if(!db){showN('未连接云端');return;}
@@ -3462,7 +3502,8 @@ function sdEdit(id){
   document.getElementById('sdOptRows').innerHTML='';
   var soldSet={};
   (r.sold_out_options||[]).forEach(function(v){ soldSet[v]=true; });
-  (r.options||[]).forEach(function(o){ sdAddOptRow(o, !!soldSet[o]); });
+  var op=r.option_prices||{};
+  (r.options||[]).forEach(function(o){ sdAddOptRow(o, !!soldSet[o], op[o]!=null?op[o]:null); });
   document.getElementById('sdBg').classList.add('show');
 }
 function closeSD(){document.getElementById('sdBg').classList.remove('show');}
@@ -3480,8 +3521,13 @@ function _syncItemsForSpecDef(defId, oldOptions, newName, newOptions){
       var stored=g.options||[];
       // 商品原本勾选、且规格库仍保留的选项（保住有意排除的子集）；再并上全新选项
       var merged=newOptions.filter(function(o){return stored.indexOf(o)>=0 || oldOptions.indexOf(o)<0;});
-      if(g.name!==newName || JSON.stringify(stored)!==JSON.stringify(merged)) changed=true;
-      return {defId:g.defId,name:newName,options:merged};
+      // 商品自己覆盖的加价要留着，只丢掉规格库里已经删掉的选项
+      var prices=null;
+      if(g.prices){ prices={}; merged.forEach(function(o){ if(g.prices[o]!=null) prices[o]=g.prices[o]; });
+        if(!Object.keys(prices).length) prices=null; }
+      if(g.name!==newName || JSON.stringify(stored)!==JSON.stringify(merged)
+         || JSON.stringify(g.prices||null)!==JSON.stringify(prices)) changed=true;
+      return {defId:g.defId,name:newName,options:merged,prices:prices};
     });
     if(changed) updates.push({id:r.id,specs:specs});
   });
@@ -3498,7 +3544,7 @@ function saveSD(){
   if(!collected.options.length){showN('请至少填写一个选项');return;}
   var reqEl=document.querySelector('input[name="sdRequired"]:checked');
   var payload={name:name,options:collected.options,sold_out_options:collected.soldOut,required:!reqEl||reqEl.value==='1',
-    channels:_chCollect('sdChannels')};
+    channels:_chCollect('sdChannels'), option_prices:collected.prices};
   if(_sdEditId){
     var oldDef=(_specDefs||[]).find(function(x){return String(x.id)===String(_sdEditId);});
     var oldOptions=oldDef?(oldDef.options||[]).slice():[];
@@ -3659,21 +3705,30 @@ function _miSpecDefOptionsHtml(selectedDefId){
     return'<option value="'+esc(d.id)+'"'+(String(d.id)===String(selectedDefId)?' selected':'')+'>'+esc(d.name)+'</option>';
   }).join('');
 }
-function _miSpecCountHtml(def){
+/* 每个选项一行：名字 + 加价输入框。输入框留空 = 跟规格库的默认加价走（占位符就是默认值），
+   填了数字就是这个商品自己的价——同一个「大杯」在不同商品收不同钱靠的就是这里。 */
+function _miSpecCountHtml(def, prices){
   if(!def) return '<div class="mi-spec-count-empty">—</div>';
-  var opts=def.options||[]; var soldSet=def.sold_out_options||[];
-  var pills=opts.map(function(o){var s=soldSet.indexOf(o)>=0;return '<span class="mi-pill'+(s?' soldout':'')+'">'+esc(o)+(s?' 下架':'')+'</span>';}).join('');
+  var opts=def.options||[], soldSet=def.sold_out_options||[], dflt=def.option_prices||{}, own=prices||{};
+  var rows=opts.map(function(o){
+    var s=soldSet.indexOf(o)>=0;
+    var d=Number(dflt[o])||0;
+    return '<div class="mi-optprice-row" data-opt="'+esc(o)+'">'
+      +'<span class="mi-pill'+(s?' soldout':'')+'">'+esc(o)+(s?' 下架':'')+'</span>'
+      +'<input class="mi-optprice" type="number" step="0.1" value="'+(own[o]!=null?esc(own[o]):'')+'" placeholder="'+(d?('默认 +'+d.toFixed(2)):'不加价')+'">'
+      +'</div>';
+  }).join('');
   return '<details class="mi-spec-count"><summary>共 '+opts.length+' 个选项</summary>'
-    +'<div class="mi-spec-count-panel">'+pills+'</div></details>';
+    +'<div class="mi-spec-count-panel"><div class="mi-optprice-hint">加价 RM，留空＝跟规格库默认</div>'+rows+'</div></details>';
 }
-function _miSpecRowHtml(defId){
+function _miSpecRowHtml(defId, prices){
   var def=(_specDefs||[]).find(function(d){return String(d.id)===String(defId);});
   return'<div class="mi-spec-row">'
     +'<div class="mi-spec-col"><label class="mi-lbl mi-spec-lbl">规格</label>'
       +'<select class="mi-spec-select" onchange="_miOnSpecDefChange(this)"><option value="">选择规格…</option>'+_miSpecDefOptionsHtml(defId)+'</select></div>'
     +'<div class="mi-spec-dash">—</div>'
     +'<div class="mi-spec-col"><label class="mi-lbl">选项</label>'
-      +'<div class="mi-spec-count-wrap">'+_miSpecCountHtml(def)+'</div></div>'
+      +'<div class="mi-spec-count-wrap">'+_miSpecCountHtml(def, prices)+'</div></div>'
     +'<button type="button" class="mi-spec-rm" onclick="this.parentElement.remove();_miRelabelSpecRows()">✕</button>'
     +'</div>';
 }
@@ -3687,8 +3742,8 @@ function _miRelabelSpecRows(){
   var lbls=document.querySelectorAll('#miSpecGroups .mi-spec-lbl');
   for(var i=0;i<lbls.length;i++){ lbls[i].textContent='规格'+(i+1); }
 }
-function miAddSpecGroup(defId){
-  document.getElementById('miSpecGroups').insertAdjacentHTML('beforeend',_miSpecRowHtml(defId));
+function miAddSpecGroup(defId, prices){
+  document.getElementById('miSpecGroups').insertAdjacentHTML('beforeend',_miSpecRowHtml(defId, prices));
   _miRelabelSpecRows();
 }
 function _miCollectSpecGroups(){
@@ -3698,7 +3753,13 @@ function _miCollectSpecGroups(){
     var defId=defSel.value; if(!defId) continue;
     // 商品固定采用该规格库的全部选项（子集不再逐商品维护，统一由规格管理控制）
     var def=(_specDefs||[]).find(function(d){return String(d.id)===String(defId);});
-    out.push({defId:defId,name:def?def.name:'',options:def?(def.options||[]).slice():[]});
+    var prices={};
+    rows[i].querySelectorAll('.mi-optprice-row').forEach(function(pr){
+      var v=pr.querySelector('.mi-optprice').value.trim();
+      if(v!=='') prices[pr.getAttribute('data-opt')]=Number(v)||0;   // 明确填 0 = 这个商品这一项不加价
+    });
+    out.push({defId:defId,name:def?def.name:'',options:def?(def.options||[]).slice():[],
+      prices:Object.keys(prices).length?prices:null});
   }
   return out;
 }
@@ -3729,7 +3790,7 @@ function menuEdit(id){
   document.getElementById('miDesc').value=r.descr||'';
   _chFill('miChannels', r.channels);
   document.getElementById('miSpecGroups').innerHTML='';
-  (r.specs||[]).forEach(function(g){ miAddSpecGroup(g.defId); });
+  (r.specs||[]).forEach(function(g){ miAddSpecGroup(g.defId, g.prices); });
   document.getElementById('miBg').classList.add('show');
 }
 function closeMI(){document.getElementById('miBg').classList.remove('show');}
