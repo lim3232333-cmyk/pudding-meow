@@ -3046,6 +3046,44 @@ function subscribeOrders(){
     .subscribe();
 }
 
+/* 会员数据即时刷新：订阅 member_events「门铃表」。
+   不能直接订阅 members——它有意不给 anon 任何 RLS policy（anon key 是公开的，
+   放开就等于公开整个会员库），而 realtime 走 RLS，订了也收不到。
+   门铃表只有 (member_id, updated_at)，不含个人资料；收到通知后仍旧用鉴权的
+   rpc_get_my_profile 去取真实数据。见 supabase-member-realtime.sql。 */
+var _memberChannel = null;
+function subscribeMemberEvents(){
+  if(_memberChannel){ try{ db.removeChannel(_memberChannel); }catch(e){} _memberChannel = null; }
+  if(!db || !_memberId || !_memberToken) return;
+  _memberChannel = db.channel('member-events-'+_memberId)
+    .on('postgres_changes', {event:'*', schema:'public', table:'member_events', filter:'member_id=eq.'+_memberId}, function(){
+      _refreshMemberNow();
+    })
+    .subscribe();
+}
+/* 拉最新会员资料并重绘会员卡；充值页开着的话余额也一起刷新 */
+function _refreshMemberNow(){
+  if(!db || !_memberId || !_memberToken) return Promise.resolve();
+  return refreshMemberProfile().then(function(){
+    try{ renderProfileScreen(); }catch(e){}
+    try{ _ckSyncPayRows(); }catch(e){}   // 余额变了，结算页的「余额支付」行要跟着更新
+    try{
+      var rc=document.getElementById('rcScreen');
+      if(rc && rc.classList.contains('show') && _memberProfile){
+        document.getElementById('rcBalance').textContent=Number(_memberProfile.wallet_balance||0).toFixed(2);
+      }
+    }catch(e){}
+  }).catch(function(e){});
+}
+/* 兜底：手机息屏/切走时 websocket 可能被系统掐掉，期间的变动收不到通知，
+   所以回到前台时主动补拉一次 */
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState==='visible' && _memberId && _memberToken){
+    try{ subscribeMemberEvents(); }catch(e){}
+    _refreshMemberNow();
+  }
+});
+
 function fmtDate(ts){
   try{
     var d = new Date(ts);
@@ -3214,11 +3252,13 @@ function _memSaveSession(id, token){
   _memberId = id; _memberToken = token;
   try{ localStorage.setItem('pm_member_id', id); localStorage.setItem('pm_member_token', token); }catch(e){}
   _orders = []; try{ subscribeOrders(); }catch(e){}
+  try{ subscribeMemberEvents(); }catch(e){}   // 换人了，门铃要重新按新 member_id 订阅
 }
 function _memClearSession(){
   _memberId = null; _memberToken = null; _memberProfile = null;
   try{ localStorage.removeItem('pm_member_id'); localStorage.removeItem('pm_member_token'); }catch(e){}
   _orders = []; try{ subscribeOrders(); }catch(e){}
+  try{ subscribeMemberEvents(); }catch(e){}   // 退出登录：内部会因 _memberId 为空而退订
 }
 function memSwitchAuthTab(tab){
   document.getElementById('memTabLogin').classList.toggle('active', tab==='login');
@@ -3809,6 +3849,8 @@ function closeDrawHistory(){
 /* ===== 云端订单初始化：拉一次 + 订阅实时（放在最后，确保 _orders 等已就绪）===== */
 loadOrdersFromCloud().then(function(){ try{ renderOrdersList(); }catch(e){} });
 subscribeOrders();
+/* 会员数据即时刷新：会话是从 localStorage 恢复的，启动时也要订阅一次门铃 */
+try{ subscribeMemberEvents(); }catch(e){}
 
 /* ===== HitPay 支付返回：从 URL 上的 pm_hitpay 参数识别客人刚从收银页跳回来。
    实际付款状态由 hitpay-webhook 异步更新 DB，这里已有的 subscribeOrders()
