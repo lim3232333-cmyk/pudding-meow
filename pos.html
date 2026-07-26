@@ -789,6 +789,29 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
 </div>
 </div>
 
+<!-- 抽奖奖品编辑 MODAL -->
+<div class="modal-bg" id="dpBg" onclick="if(event.target===this)closeDrawPrize()">
+  <div class="mm-box">
+    <div class="mm-hd"><h3 id="dpTitle">新增奖品</h3><button class="mm-cl" onclick="closeDrawPrize()">✕</button></div>
+    <div class="mm-body">
+      <label class="mfl">奖品名称 *</label><input class="mfi" id="dpLabel" placeholder="如：100 Coin / 任意商品">
+      <label class="mfl">类型</label><select class="mfi" id="dpType"></select>
+      <label class="mfl">数值</label>
+      <div class="mfh">Coin / XP 填数量；实物、再来一次、谢谢参与留空</div>
+      <input class="mfi" id="dpValue" type="number" step="1" placeholder="留空">
+      <label class="mfl">权重</label>
+      <div class="mfh">数字越大越容易抽中。概率 = 本权重 ÷ 所有有效奖品权重合计</div>
+      <input class="mfi" id="dpWeight" type="number" step="1" min="0" placeholder="1">
+      <label class="mfl">库存</label>
+      <div class="mfh">留空＝不限量；填 0 则不再中出</div>
+      <input class="mfi" id="dpStock" type="number" step="1" min="0" placeholder="留空＝不限量">
+      <label class="mfl">排序</label><input class="mfi" id="dpSort" type="number" step="1" placeholder="0">
+      <label class="mfl" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="dpEnabled" checked style="width:auto"> 启用</label>
+      <button class="mfs" onclick="saveDrawPrize()">保存 Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- 会员详情 MODAL：点会员列表某一行打开 -->
 <div class="modal-bg" id="mdBg" onclick="if(event.target===this)closeMemberDetail()">
   <div class="md-card">
@@ -2141,7 +2164,7 @@ function setLoyaltyTab(t){_loyaltyTab=t;renderLoyaltyAdmin();}
 function renderLoyaltyAdmin(){
   var el=document.getElementById('adminContent');
   if(!db){el.innerHTML='<div class="page-title">会员运营 Loyalty</div><div style="padding:30px;color:#8D0505">未连接云端（Supabase 未配置或离线），无法管理会员系统。</div>';return;}
-  var tabs=[['members','会员列表'],['levels','等级设置'],['xp','成长值规则'],['coin','金币规则'],['checkin','签到奖励'],['referrals','邀请规则'],['coupons','优惠券管理']];
+  var tabs=[['members','会员列表'],['levels','等级设置'],['xp','成长值规则'],['coin','金币规则'],['checkin','签到奖励'],['referrals','邀请规则'],['coupons','优惠券管理'],['draw','幸运抽奖']];
   var html='<div class="page-title">会员运营 · Loyalty</div>'
     +'<div class="ma-tabs">'+tabs.map(function(t){return'<button class="ma-tab'+(_loyaltyTab===t[0]?' a':'')+'" onclick="setLoyaltyTab(\''+t[0]+'\')">'+t[1]+'</button>';}).join('')+'</div>';
   el.innerHTML=html+'<div id="loyaltyBody">加载中…</div>';
@@ -2152,6 +2175,97 @@ function renderLoyaltyAdmin(){
   else if(_loyaltyTab==='checkin') loadLoyaltyMilestones();
   else if(_loyaltyTab==='referrals') loadLoyaltyReferralRules();
   else if(_loyaltyTab==='coupons') loadLoyaltyCoupons();
+  else if(_loyaltyTab==='draw') loadLoyaltyDraw();
+}
+
+/* ---- 幸运抽奖：统计 + 奖品/概率/库存 ---- */
+var _drawPrizes=[], _drawStats=null, _drawEditId=null;
+var _DRAW_TYPES=[['coin','Coin'],['xp','XP'],['item','实物/商品'],['redraw','再来一次'],['none','谢谢参与']];
+function loadLoyaltyDraw(){
+  Promise.all([
+    db.from('lucky_draw_prizes').select('*').order('sort_order').then(function(r){ if(!r.error) _drawPrizes=r.data||[]; }),
+    db.rpc('rpc_admin_draw_stats').then(function(r){ if(!r.error) _drawStats=r.data||null; })
+  ]).then(renderLoyaltyDrawBody).catch(function(e){ showN('网络错误'); });
+}
+function renderLoyaltyDrawBody(){
+  var body=document.getElementById('loyaltyBody'); if(!body) return;
+  var s=_drawStats||{};
+  // 概率 = 该奖品权重 ÷ 所有「启用且还有库存」的奖品权重合计
+  var pool=_drawPrizes.filter(function(p){ return p.enabled && (p.stock==null||p.stock>0); });
+  var totalW=pool.reduce(function(t,p){ return t+(Number(p.weight)||0); },0);
+  var html='<div class="kpi-row" style="margin-bottom:14px">'
+    +'<div class="kpi"><div class="l">今日参与人数</div><div class="v">'+(s.today_members||0)+'</div></div>'
+    +'<div class="kpi"><div class="l">今日抽奖次数</div><div class="v">'+(s.today_draws||0)+'</div></div>'
+    +'<div class="kpi"><div class="l">中奖率（历史）</div><div class="v">'+(s.win_rate!=null?s.win_rate:0)+'%</div></div>'
+    +'<div class="kpi"><div class="l">奖品库存</div><div class="v">'+(s.stock_left||0)+'<span style="font-size:12px;font-weight:400;color:#4A4848"> + '+(s.unlimited_count||0)+' 项不限量</span></div></div>'
+    +'</div>';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+    +'<div style="font-size:13px;color:#4A4848">概率 = 权重 ÷ 有效奖品权重合计（合计 '+totalW+'）。库存留空＝不限量，设 0 则不再中出。</div>'
+    +'<button class="add-btn" onclick="openDrawPrize()">+ 新增奖品</button></div>';
+  html+='<div class="tx-card"><table><thead><tr><th>奖品</th><th>类型</th><th>数值</th><th>权重</th><th>中出概率</th><th>库存</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+  if(!_drawPrizes.length){
+    html+='<tr><td colspan="8" style="text-align:center;padding:30px;color:#4A4848">暂无奖品</td></tr>';
+  }else{
+    _drawPrizes.forEach(function(p){
+      var active=p.enabled && (p.stock==null||p.stock>0);
+      var pct=(active&&totalW)?(100*(Number(p.weight)||0)/totalW):0;
+      var t=_DRAW_TYPES.find(function(x){return x[0]===p.type;});
+      html+='<tr'+(active?'':' style="opacity:.5"')+'>'
+        +'<td><b>'+esc(p.label)+'</b></td>'
+        +'<td>'+(t?t[1]:esc(p.type))+'</td>'
+        +'<td>'+(p.value==null?'—':p.value)+'</td>'
+        +'<td>'+(p.weight||0)+'</td>'
+        +'<td><b>'+pct.toFixed(1)+'%</b></td>'
+        +'<td>'+(p.stock==null?'<span style="color:#4A4848">不限</span>':(p.stock>0?p.stock:'<span style="color:#8D0505">已抽完</span>'))+'</td>'
+        +'<td>'+(p.enabled?'启用':'<span style="color:#8D0505">停用</span>')+'</td>'
+        +'<td><button onclick="openDrawPrize(\''+p.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">编辑</button> '
+        +'<button onclick="delDrawPrize(\''+p.id+'\')" style="border:none;background:#FFDE5B;color:#8D0505;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">删除</button></td></tr>';
+    });
+  }
+  html+='</tbody></table></div>';
+  body.innerHTML=html;
+}
+function openDrawPrize(id){
+  _drawEditId=id||null;
+  var p=id?_drawPrizes.find(function(x){return x.id===id;}):null;
+  document.getElementById('dpTitle').textContent=p?'编辑奖品':'新增奖品';
+  document.getElementById('dpLabel').value=p?p.label:'';
+  document.getElementById('dpType').innerHTML=_DRAW_TYPES.map(function(t){
+    return'<option value="'+t[0]+'"'+((p&&p.type===t[0])?' selected':'')+'>'+t[1]+'</option>';
+  }).join('');
+  document.getElementById('dpValue').value=(p&&p.value!=null)?p.value:'';
+  document.getElementById('dpWeight').value=p?p.weight:1;
+  document.getElementById('dpStock').value=(p&&p.stock!=null)?p.stock:'';
+  document.getElementById('dpSort').value=p?p.sort_order:(_drawPrizes.length?Math.max.apply(null,_drawPrizes.map(function(x){return x.sort_order;}))+1:0);
+  document.getElementById('dpEnabled').checked=p?!!p.enabled:true;
+  document.getElementById('dpBg').classList.add('show');
+}
+function closeDrawPrize(){ document.getElementById('dpBg').classList.remove('show'); }
+function saveDrawPrize(){
+  var label=document.getElementById('dpLabel').value.trim();
+  if(!label){ showN('请填写奖品名称'); return; }
+  var vRaw=document.getElementById('dpValue').value.trim();
+  var sRaw=document.getElementById('dpStock').value.trim();
+  var payload={
+    label:label, type:document.getElementById('dpType').value,
+    value:vRaw===''?null:(parseInt(vRaw,10)||0),
+    weight:parseInt(document.getElementById('dpWeight').value,10)||1,
+    stock:sRaw===''?null:(parseInt(sRaw,10)||0),          // 留空＝不限量
+    sort_order:parseInt(document.getElementById('dpSort').value,10)||0,
+    enabled:document.getElementById('dpEnabled').checked
+  };
+  var q=_drawEditId?db.from('lucky_draw_prizes').update(payload).eq('id',_drawEditId):db.from('lucky_draw_prizes').insert(payload);
+  q.then(function(res){
+    if(res.error){ showN(''+res.error.message); return; }
+    showN('已保存'); closeDrawPrize(); loadLoyaltyDraw();
+  }).catch(function(e){ showN('网络错误'); });
+}
+function delDrawPrize(id){
+  if(!confirm('确定删除该奖品？已抽出的纪录不受影响。')) return;
+  db.from('lucky_draw_prizes').delete().eq('id',id).then(function(res){
+    if(res.error){ showN(''+res.error.message); return; }
+    showN('已删除'); loadLoyaltyDraw();
+  }).catch(function(e){ showN('网络错误'); });
 }
 
 /* ---- 会员列表 ---- */
