@@ -3480,9 +3480,12 @@ function loadMyCoupons(){
       return;
     }
     box.innerHTML = list.map(function(c){
-      var valTxt = c.type==='percent_off' ? (c.value+'% OFF') : ('RM'+c.value);
-      var condTxt = c.min_spend>0 ? ('满 RM'+c.min_spend+' 可用') :'无门槛';
-      var expTxt ='有效期至 '+new Date(c.expires_at).toLocaleDateString();
+      var valTxt = c.type==='dessert' ? '兑换'
+                 : (c.type==='percent_off' ? (c.value+'% OFF') : ('RM'+c.value));
+      var condTxt = c.type==='dessert' ? _esc(c.menu_item_name||'指定商品')
+                  : (c.min_spend>0 ? ('满 RM'+c.min_spend+' 可用') :'无门槛');
+      // expires_at 为空 = 永久有效（POS 建券时可选）
+      var expTxt = c.expires_at ? ('有效期至 '+new Date(c.expires_at).toLocaleDateString()) :'永久有效';
       var usedCls = c.status!=='unused' ?' used' :'';
       var statusTxt = c.status==='used' ?'（已使用）' : (c.status==='expired' ?'（已过期）' :'');
       return'<div class="mem-coupon-ticket'+usedCls+'">'
@@ -3630,7 +3633,8 @@ function _pmItemHtml(c){
 /* 「我的」：已兑到手的券。未使用的排在前面 */
 function _pmMineHtml(mc){
   var ST={unused:'未使用',used:'已使用',expired:'已过期'};
-  var exp=''; try{ exp=new Date(mc.expires_at).toLocaleDateString(); }catch(e){}
+  var exp='永久有效';
+  if(mc.expires_at){ try{ exp=new Date(mc.expires_at).toLocaleDateString()+' 到期'; }catch(e){ exp=''; } }
   return'<div class="mem-coupon-ticket'+(mc.status==='unused'?'':' used')+'">'
     +'<div class="mem-coupon-value"><b>'+(mc.type==='dessert'?'兑换':(mc.type==='percent_off'?(mc.value+'%'):('RM'+mc.value)))+'</b>'
     +'<span>'+(mc.type==='dessert'?'甜品':'OFF')+'</span></div>'
@@ -3638,7 +3642,7 @@ function _pmMineHtml(mc){
     +'<div class="mem-coupon-cond">'+(mc.type==='dessert'
         ? _esc(mc.menu_item_name||'指定商品')
         : (Number(mc.min_spend)>0?('满 RM'+Number(mc.min_spend).toFixed(2)+'可用'):'无门槛'))+'</div>'
-    +'<div class="mem-coupon-exp">'+(ST[mc.status]||mc.status)+' · '+exp+' 到期</div></div></div>';
+    +'<div class="mem-coupon-exp">'+(ST[mc.status]||mc.status)+' · '+exp+'</div></div></div>';
 }
 function renderPointsMallList(){
   var box=document.getElementById('pmList');

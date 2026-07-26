@@ -1025,7 +1025,14 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
         <div class="mfh">留空/0 = 无门槛</div>
         <input class="mfi" id="cpnMinSpend" type="number" step="0.1" placeholder="0">
       </div>
-      <label class="mfl">有效天数（发放后多少天内有效）*</label><input class="mfi" id="cpnValidDays" type="number" step="1" placeholder="30">
+      <label class="mfl">有效期 *</label>
+      <select class="mfi" id="cpnExpMode" onchange="cpnSyncExp()">
+        <option value="days">期限内（发放后 N 天）</option>
+        <option value="forever">永久有效（不过期）</option>
+      </select>
+      <div id="cpnDaysWrap">
+        <label class="mfl">有效天数</label><input class="mfi" id="cpnValidDays" type="number" step="1" min="1" placeholder="30">
+      </div>
       <label class="mfl">积分商城售价（Coin）</label>
       <div class="mfh">填了才会出现在小程序积分商城；留空/0 = 不在商城出售，只能后台手动发放</div>
       <input class="mfi" id="cpnCoinPrice" type="number" step="1" min="0" placeholder="留空＝不上架">
@@ -2685,7 +2692,8 @@ function renderLoyaltyCouponsBody(){
     _loyaltyCoupons.forEach(function(c){
       html+='<tr'+(c.enabled?'':' style="opacity:.5"')+'><td><b>'+esc(c.name)+'</b></td>'
         +'<td>'+(_CPN_TYPE_CN[c.type]||esc(c.type||''))+'</td><td>'+_cpnValTxt(c)+'</td>'
-        +'<td>'+(c.type==='dessert'?'—':(c.min_spend>0?('满 RM'+c.min_spend):'无门槛'))+'</td><td>'+c.valid_days+' 天</td>'
+        +'<td>'+(c.type==='dessert'?'—':(c.min_spend>0?('满 RM'+c.min_spend):'无门槛'))+'</td>'
+        +'<td>'+(Number(c.valid_days)>0?(c.valid_days+' 天'):'<b>永久</b>')+'</td>'
         +'<td>'+(c.coin_price?('<b>'+c.coin_price+' Coin</b>'):'<span style="color:#4A4848">未上架</span>')+'</td>'
         +'<td>'+(c.enabled?'<span style="color:#1D7715">启用</span>':'<span style="color:#8D0505">停用</span>')+'</td>'
         +'<td style="white-space:nowrap">'
@@ -2720,6 +2728,10 @@ function cpnSearch(){
   }).catch(function(e){showN('网络错误');});
 }
 /* 甜品券没有「优惠数值/门槛」，改填「兑换哪件商品」——按类型切换表单 */
+function cpnSyncExp(){
+  document.getElementById('cpnDaysWrap').style.display=
+    document.getElementById('cpnExpMode').value==='forever'?'none':'block';
+}
 function cpnSyncType(){
   var isDessert=document.getElementById('cpnType').value==='dessert';
   document.getElementById('cpnItemWrap').style.display=isDessert?'block':'none';
@@ -2735,7 +2747,10 @@ function openCpn(id){
   document.getElementById('cpnType').value=c?c.type:'fixed_off';
   document.getElementById('cpnValue').value=c?c.value:'';
   document.getElementById('cpnMinSpend').value=c?c.min_spend:0;
-  document.getElementById('cpnValidDays').value=c?c.valid_days:30;
+  var forever=!!c && !(Number(c.valid_days)>0);
+  document.getElementById('cpnExpMode').value=forever?'forever':'days';
+  document.getElementById('cpnValidDays').value=(c&&Number(c.valid_days)>0)?c.valid_days:30;
+  cpnSyncExp();
   document.getElementById('cpnCoinPrice').value=(c&&c.coin_price)?c.coin_price:'';
   document.getElementById('cpnEnabled').checked=c?c.enabled:true;
   // 商品下拉用收银台已经加载好的菜单，不再另外请求
@@ -2760,14 +2775,16 @@ function saveCpn(){
   } else {
     if(isNaN(value)||value<=0){showN('优惠数值无效');return;}
   }
+  var forever=document.getElementById('cpnExpMode').value==='forever';
   var validDays=parseInt(document.getElementById('cpnValidDays').value);
-  if(!validDays||validDays<1){showN('请填写有效天数');return;}
+  if(!forever && (!validDays||validDays<1)){showN('请填写有效天数');return;}
   var coinRaw=document.getElementById('cpnCoinPrice').value.trim();
   var payload={
     name:name, type:type,
     value:isDessert?0:value,
     min_spend:isDessert?0:(parseFloat(document.getElementById('cpnMinSpend').value)||0),
-    valid_days:validDays, enabled:document.getElementById('cpnEnabled').checked,
+    valid_days:forever?null:validDays,   // null = 永久有效
+    enabled:document.getElementById('cpnEnabled').checked,
     coin_price:coinRaw===''?null:(parseInt(coinRaw,10)||0),
     menu_item_id:isDessert?menuItemId:null
   };
