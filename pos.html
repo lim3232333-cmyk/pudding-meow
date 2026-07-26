@@ -235,6 +235,26 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 .modal-bg{position:fixed;left:0;top:0;width:1366px;height:768px;background:rgba(0,0,0,.5);z-index:400;display:none;align-items:center;justify-content:center;}
 .modal-bg.show{display:flex;}
 
+/* ═══════ 会员详情 ═══════ */
+.mb-row{cursor:pointer;}
+.mb-row:hover{background:#FFFDF0;}
+.mb-who{display:flex;align-items:center;gap:8px;}
+.mb-av{width:28px;height:28px;border-radius:50%;flex-shrink:0;object-fit:cover;display:flex;align-items:center;justify-content:center;}
+.mb-av-ph{background:#8D0505;color:#FFDE5B;font-weight:700;font-size:13px;}
+/* 会员详情：就地展开在搜索框下方，不用弹窗。没选会员时 :empty 整块不占位 */
+.md-panel{background:#fff;border-radius:14px;padding:14px 16px;margin-bottom:14px;box-shadow:0 2px 12px rgba(141,5,5,.10);}
+.md-panel:empty{display:none;}
+.md-hd{display:flex;justify-content:space-between;align-items:center;color:#8D0505;font-size:18px;margin-bottom:12px;}
+.md-x{border:none;background:#FFDE5B;color:#8D0505;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;}
+.md-sum{display:flex;gap:10px;flex-wrap:wrap;}
+.md-kpi{flex:1;min-width:120px;background:#FFFFD5;border-radius:10px;padding:8px 12px;}
+.md-kpi .l{font-size:11px;color:#4A4848;}
+.md-kpi .v{font-size:18px;font-weight:700;color:#8D0505;}
+.md-scroll{max-height:300px;overflow-y:auto;margin-top:10px;}
+.md-scroll table{width:100%;border-collapse:collapse;}
+.md-scroll th{position:sticky;top:0;background:#FFFDF0;text-align:left;font-size:12px;color:#4A4848;padding:8px 6px;border-bottom:2px solid #F0E6C8;}
+.md-scroll td{padding:9px 6px;font-size:13px;border-bottom:1px solid #F5EFE0;}
+
 /* ═══════ PENDING PAYMENT — Figma 533:282 ═══════ */
 .pend-card{width:762px;max-height:700px;background:#FFFFD5;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);}
 .pend-head{flex-shrink:0;height:66px;padding:24px 29px;background:#8D0505;border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:space-between;}
@@ -769,6 +789,29 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       <button class="slot-btn slot-ok" onclick="confirmQtySlot()">OK</button>
 </div>
 </div>
+</div>
+
+<!-- 抽奖奖品编辑 MODAL -->
+<div class="modal-bg" id="dpBg" onclick="if(event.target===this)closeDrawPrize()">
+  <div class="mm-box">
+    <div class="mm-hd"><h3 id="dpTitle">新增奖品</h3><button class="mm-cl" onclick="closeDrawPrize()">✕</button></div>
+    <div class="mm-body">
+      <label class="mfl">奖品名称 *</label><input class="mfi" id="dpLabel" placeholder="如：100 Coin / 任意商品">
+      <label class="mfl">类型</label><select class="mfi" id="dpType"></select>
+      <label class="mfl">数值</label>
+      <div class="mfh">Coin / XP 填数量；实物、再来一次、谢谢参与留空</div>
+      <input class="mfi" id="dpValue" type="number" step="1" placeholder="留空">
+      <label class="mfl">权重</label>
+      <div class="mfh">数字越大越容易抽中。概率 = 本权重 ÷ 所有有效奖品权重合计</div>
+      <input class="mfi" id="dpWeight" type="number" step="1" min="0" placeholder="1">
+      <label class="mfl">库存</label>
+      <div class="mfh">留空＝不限量；填 0 则不再中出</div>
+      <input class="mfi" id="dpStock" type="number" step="1" min="0" placeholder="留空＝不限量">
+      <label class="mfl">排序</label><input class="mfi" id="dpSort" type="number" step="1" placeholder="0">
+      <label class="mfl" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="dpEnabled" checked style="width:auto"> 启用</label>
+      <button class="mfs" onclick="saveDrawPrize()">保存 Save</button>
+    </div>
+  </div>
 </div>
 
 <!-- PENDING MODAL -->
@@ -2113,7 +2156,7 @@ function setLoyaltyTab(t){_loyaltyTab=t;renderLoyaltyAdmin();}
 function renderLoyaltyAdmin(){
   var el=document.getElementById('adminContent');
   if(!db){el.innerHTML='<div class="page-title">会员运营 Loyalty</div><div style="padding:30px;color:#8D0505">未连接云端（Supabase 未配置或离线），无法管理会员系统。</div>';return;}
-  var tabs=[['members','会员列表'],['levels','等级设置'],['xp','成长值规则'],['coin','金币规则'],['checkin','签到奖励'],['referrals','邀请规则'],['coupons','优惠券管理']];
+  var tabs=[['members','会员列表'],['levels','等级设置'],['xp','成长值规则'],['coin','金币规则'],['checkin','签到奖励'],['referrals','邀请规则'],['coupons','优惠券管理'],['draw','幸运抽奖']];
   var html='<div class="page-title">会员运营 · Loyalty</div>'
     +'<div class="ma-tabs">'+tabs.map(function(t){return'<button class="ma-tab'+(_loyaltyTab===t[0]?' a':'')+'" onclick="setLoyaltyTab(\''+t[0]+'\')">'+t[1]+'</button>';}).join('')+'</div>';
   el.innerHTML=html+'<div id="loyaltyBody">加载中…</div>';
@@ -2124,6 +2167,97 @@ function renderLoyaltyAdmin(){
   else if(_loyaltyTab==='checkin') loadLoyaltyMilestones();
   else if(_loyaltyTab==='referrals') loadLoyaltyReferralRules();
   else if(_loyaltyTab==='coupons') loadLoyaltyCoupons();
+  else if(_loyaltyTab==='draw') loadLoyaltyDraw();
+}
+
+/* ---- 幸运抽奖：统计 + 奖品/概率/库存 ---- */
+var _drawPrizes=[], _drawStats=null, _drawEditId=null;
+var _DRAW_TYPES=[['coin','Coin'],['xp','XP'],['item','实物/商品'],['redraw','再来一次'],['none','谢谢参与']];
+function loadLoyaltyDraw(){
+  Promise.all([
+    db.from('lucky_draw_prizes').select('*').order('sort_order').then(function(r){ if(!r.error) _drawPrizes=r.data||[]; }),
+    db.rpc('rpc_admin_draw_stats').then(function(r){ if(!r.error) _drawStats=r.data||null; })
+  ]).then(renderLoyaltyDrawBody).catch(function(e){ showN('网络错误'); });
+}
+function renderLoyaltyDrawBody(){
+  var body=document.getElementById('loyaltyBody'); if(!body) return;
+  var s=_drawStats||{};
+  // 概率 = 该奖品权重 ÷ 所有「启用且还有库存」的奖品权重合计
+  var pool=_drawPrizes.filter(function(p){ return p.enabled && (p.stock==null||p.stock>0); });
+  var totalW=pool.reduce(function(t,p){ return t+(Number(p.weight)||0); },0);
+  var html='<div class="kpi-row" style="margin-bottom:14px">'
+    +'<div class="kpi"><div class="l">今日参与人数</div><div class="v">'+(s.today_members||0)+'</div></div>'
+    +'<div class="kpi"><div class="l">今日抽奖次数</div><div class="v">'+(s.today_draws||0)+'</div></div>'
+    +'<div class="kpi"><div class="l">中奖率（历史）</div><div class="v">'+(s.win_rate!=null?s.win_rate:0)+'%</div></div>'
+    +'<div class="kpi"><div class="l">奖品库存</div><div class="v">'+(s.stock_left||0)+'<span style="font-size:12px;font-weight:400;color:#4A4848"> + '+(s.unlimited_count||0)+' 项不限量</span></div></div>'
+    +'</div>';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+    +'<div style="font-size:13px;color:#4A4848">概率 = 权重 ÷ 有效奖品权重合计（合计 '+totalW+'）。库存留空＝不限量，设 0 则不再中出。</div>'
+    +'<button class="add-btn" onclick="openDrawPrize()">+ 新增奖品</button></div>';
+  html+='<div class="tx-card"><table><thead><tr><th>奖品</th><th>类型</th><th>数值</th><th>权重</th><th>中出概率</th><th>库存</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+  if(!_drawPrizes.length){
+    html+='<tr><td colspan="8" style="text-align:center;padding:30px;color:#4A4848">暂无奖品</td></tr>';
+  }else{
+    _drawPrizes.forEach(function(p){
+      var active=p.enabled && (p.stock==null||p.stock>0);
+      var pct=(active&&totalW)?(100*(Number(p.weight)||0)/totalW):0;
+      var t=_DRAW_TYPES.find(function(x){return x[0]===p.type;});
+      html+='<tr'+(active?'':' style="opacity:.5"')+'>'
+        +'<td><b>'+esc(p.label)+'</b></td>'
+        +'<td>'+(t?t[1]:esc(p.type))+'</td>'
+        +'<td>'+(p.value==null?'—':p.value)+'</td>'
+        +'<td>'+(p.weight||0)+'</td>'
+        +'<td><b>'+pct.toFixed(1)+'%</b></td>'
+        +'<td>'+(p.stock==null?'<span style="color:#4A4848">不限</span>':(p.stock>0?p.stock:'<span style="color:#8D0505">已抽完</span>'))+'</td>'
+        +'<td>'+(p.enabled?'启用':'<span style="color:#8D0505">停用</span>')+'</td>'
+        +'<td><button onclick="openDrawPrize(\''+p.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">编辑</button> '
+        +'<button onclick="delDrawPrize(\''+p.id+'\')" style="border:none;background:#FFDE5B;color:#8D0505;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">删除</button></td></tr>';
+    });
+  }
+  html+='</tbody></table></div>';
+  body.innerHTML=html;
+}
+function openDrawPrize(id){
+  _drawEditId=id||null;
+  var p=id?_drawPrizes.find(function(x){return x.id===id;}):null;
+  document.getElementById('dpTitle').textContent=p?'编辑奖品':'新增奖品';
+  document.getElementById('dpLabel').value=p?p.label:'';
+  document.getElementById('dpType').innerHTML=_DRAW_TYPES.map(function(t){
+    return'<option value="'+t[0]+'"'+((p&&p.type===t[0])?' selected':'')+'>'+t[1]+'</option>';
+  }).join('');
+  document.getElementById('dpValue').value=(p&&p.value!=null)?p.value:'';
+  document.getElementById('dpWeight').value=p?p.weight:1;
+  document.getElementById('dpStock').value=(p&&p.stock!=null)?p.stock:'';
+  document.getElementById('dpSort').value=p?p.sort_order:(_drawPrizes.length?Math.max.apply(null,_drawPrizes.map(function(x){return x.sort_order;}))+1:0);
+  document.getElementById('dpEnabled').checked=p?!!p.enabled:true;
+  document.getElementById('dpBg').classList.add('show');
+}
+function closeDrawPrize(){ document.getElementById('dpBg').classList.remove('show'); }
+function saveDrawPrize(){
+  var label=document.getElementById('dpLabel').value.trim();
+  if(!label){ showN('请填写奖品名称'); return; }
+  var vRaw=document.getElementById('dpValue').value.trim();
+  var sRaw=document.getElementById('dpStock').value.trim();
+  var payload={
+    label:label, type:document.getElementById('dpType').value,
+    value:vRaw===''?null:(parseInt(vRaw,10)||0),
+    weight:parseInt(document.getElementById('dpWeight').value,10)||1,
+    stock:sRaw===''?null:(parseInt(sRaw,10)||0),          // 留空＝不限量
+    sort_order:parseInt(document.getElementById('dpSort').value,10)||0,
+    enabled:document.getElementById('dpEnabled').checked
+  };
+  var q=_drawEditId?db.from('lucky_draw_prizes').update(payload).eq('id',_drawEditId):db.from('lucky_draw_prizes').insert(payload);
+  q.then(function(res){
+    if(res.error){ showN(''+res.error.message); return; }
+    showN('已保存'); closeDrawPrize(); loadLoyaltyDraw();
+  }).catch(function(e){ showN('网络错误'); });
+}
+function delDrawPrize(id){
+  if(!confirm('确定删除该奖品？已抽出的纪录不受影响。')) return;
+  db.from('lucky_draw_prizes').delete().eq('id',id).then(function(res){
+    if(res.error){ showN(''+res.error.message); return; }
+    showN('已删除'); loadLoyaltyDraw();
+  }).catch(function(e){ showN('网络错误'); });
 }
 
 /* ---- 会员列表 ---- */
@@ -2139,22 +2273,132 @@ function loadLoyaltyMembers(kw){
 }
 function renderLoyaltyMembersBody(){
   var body=document.getElementById('loyaltyBody'); if(!body) return;
-  var html='<div style="margin-bottom:14px"><input class="mfi" style="max-width:280px;display:inline-block" id="loyaltySearchBox" placeholder="搜索手机号/昵称，回车查询" onkeydown="if(event.key===\'Enter\')loyaltySearch()"></div>';
-  html+='<div class="tx-card"><table><thead><tr><th>昵称</th><th>手机号</th><th>等级</th><th>XP</th><th>Meow Coin</th><th>Meow Wallet</th><th>注册时间</th><th>操作</th></tr></thead><tbody>';
+  var html='<div style="margin-bottom:14px"><input class="mfi" style="max-width:280px;display:inline-block" id="loyaltySearchBox" placeholder="搜索手机号/昵称，回车查询" onkeydown="if(event.key===\'Enter\')loyaltySearch()"></div>'
+    +'<div id="mdPanel" class="md-panel"></div>';   // 会员详情就地展开，紧贴搜索框下方
+  html+='<div class="tx-card"><table><thead><tr><th>会员</th><th>手机号</th><th>等级</th><th>XP</th><th>Coin</th><th>储值余额</th><th>累计消费</th><th>消费次数</th><th>最后消费</th><th>注册时间</th><th>操作</th></tr></thead><tbody>';
   if(!_loyaltyMembers.length){
-    html+='<tr><td colspan="8" style="text-align:center;padding:30px;color:#4A4848">暂无会员</td></tr>';
+    html+='<tr><td colspan="11" style="text-align:center;padding:30px;color:#4A4848">暂无会员</td></tr>';
   }else{
     _loyaltyMembers.forEach(function(m){
       var lvl=_loyaltyLevels.find(function(l){return l.id===m.level_id;});
-      html+='<tr><td><b>'+esc(m.nickname||'—')+'</b></td><td>'+esc(m.phone)+'</td>'
+      var av=m.avatar_url
+        ? '<img src="'+esc(m.avatar_url)+'" class="mb-av" alt="">'
+        : '<span class="mb-av mb-av-ph">'+esc((m.nickname||m.phone||'?').slice(0,1))+'</span>';
+      html+='<tr class="mb-row" onclick="openMemberDetail(\''+m.id+'\')">'
+        +'<td><div class="mb-who">'+av+'<b>'+esc(m.nickname||'—')+'</b></div></td>'
+        +'<td>'+esc(m.phone)+'</td>'
         +'<td>'+(lvl?('<span style="color:'+lvl.color_hex+';font-weight:700">'+(lvl.badge_icon||'')+''+esc(lvl.name_cn)+'</span>'):'—')+'</td>'
-        +'<td>'+(m.xp||0)+'</td><td>'+(m.coins||0)+'</td><td>RM '+Number(m.wallet_balance||0).toFixed(1)+'</td>'
+        +'<td>'+(m.xp||0)+'</td><td>'+(m.coins||0)+'</td>'
+        +'<td>RM '+Number(m.wallet_balance||0).toFixed(2)+'</td>'
+        +'<td><b>RM '+Number(m.total_spent||0).toFixed(2)+'</b></td>'
+        +'<td>'+(m.order_count||0)+'</td>'
+        +'<td style="font-size:12px;color:#4A4848">'+(m.last_order_at?new Date(m.last_order_at).toLocaleDateString():'—')+'</td>'
         +'<td style="font-size:12px;color:#4A4848">'+new Date(m.created_at).toLocaleDateString()+'</td>'
-        +'<td><button onclick="openAdj(\''+m.id+'\',\''+esc(m.nickname||m.phone)+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">调整余额</button></td></tr>';
+        +'<td><button onclick="event.stopPropagation();openAdj(\''+m.id+'\',\''+esc(m.nickname||m.phone)+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">调整余额</button></td></tr>';
     });
   }
   html+='</tbody></table></div>';
   body.innerHTML=html;
+}
+
+/* ---- 会员详情：点列表某一行打开，看该会员的六种记录 + 备注 ---- */
+var _mdMember=null, _mdData=null, _mdTab='orders';
+var _MD_TABS=[['orders','消费记录'],['wallet','储值记录'],['coins','Coin 记录'],['draws','抽奖记录'],['coupons','优惠券'],['xp','成长记录'],['notes','备注']];
+function openMemberDetail(id){
+  _mdMember=_loyaltyMembers.find(function(m){return m.id===id;});
+  if(!_mdMember) return;
+  _mdData=null; _mdTab='orders';
+  renderMemberDetail();
+  try{ document.getElementById('mdPanel').scrollIntoView({block:'nearest',behavior:'smooth'}); }catch(e){}
+  db.rpc('rpc_admin_member_detail',{p_member_id:id}).then(function(res){
+    if(res.error){ showN('读取会员记录失败'); return; }
+    _mdData=res.data||{}; renderMemberDetail();
+  }).catch(function(e){ showN('网络错误'); });
+}
+function closeMemberDetail(){ _mdMember=null; _mdData=null; var p=document.getElementById('mdPanel'); if(p) p.innerHTML=''; }
+function setMdTab(t){ _mdTab=t; renderMemberDetail(); }
+function _mdDate(s){ try{ var d=new Date(s); return d.toLocaleDateString()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }catch(e){ return '—'; } }
+function _mdSign(n){ n=Number(n)||0; return (n>0?'+':'')+n; }
+function _mdRows(cols, rows, render){
+  if(!rows || !rows.length) return '<div style="text-align:center;padding:40px;color:#4A4848">暂无记录</div>';
+  return '<table><thead><tr>'+cols.map(function(c){return'<th>'+c+'</th>';}).join('')+'</tr></thead><tbody>'
+    +rows.map(render).join('')+'</tbody></table>';
+}
+/* 就地展开在搜索框下方（不是弹窗）：整块重绘进 #mdPanel */
+function renderMemberDetail(){
+  var panel=document.getElementById('mdPanel'); if(!panel) return;
+  var m=_mdMember;
+  if(!m){ panel.innerHTML=''; return; }
+  var lvl=_loyaltyLevels.find(function(l){return l.id===m.level_id;});
+  panel.innerHTML=
+     '<div class="md-hd"><span><b>'+esc(m.nickname||'—')+'</b> <span style="font-weight:400;font-size:13px;opacity:.75">'+esc(m.phone)+'</span></span>'
+    +'<button class="md-x" onclick="closeMemberDetail()">✕ 收起</button></div>'
+    +'<div class="md-sum">'
+    +'<div class="md-kpi"><div class="l">等级</div><div class="v">'+(lvl?esc(lvl.name_cn):'—')+'</div></div>'
+    +'<div class="md-kpi"><div class="l">XP</div><div class="v">'+(m.xp||0)+'</div></div>'
+    +'<div class="md-kpi"><div class="l">Coin</div><div class="v">'+(m.coins||0)+'</div></div>'
+    +'<div class="md-kpi"><div class="l">储值余额</div><div class="v">RM '+Number(m.wallet_balance||0).toFixed(2)+'</div></div>'
+    +'<div class="md-kpi"><div class="l">累计消费</div><div class="v">RM '+Number(m.total_spent||0).toFixed(2)+'</div></div>'
+    +'<div class="md-kpi"><div class="l">消费次数</div><div class="v">'+(m.order_count||0)+'</div></div>'
+    +'</div>'
+    +'<div class="ma-tabs" style="margin:12px 0 0">'+_MD_TABS.map(function(t){
+        return'<button class="ma-tab'+(_mdTab===t[0]?' a':'')+'" onclick="setMdTab(\''+t[0]+'\')">'+t[1]+'</button>';
+      }).join('')+'</div>'
+    +'<div class="md-scroll" id="mdBody"></div>';
+  var box=document.getElementById('mdBody');
+  if(_mdTab==='notes'){
+    box.innerHTML='<div style="padding:4px 2px"><label class="mfl">店员备注</label>'
+      +'<textarea class="mfi" id="mdNotes" rows="4" style="resize:vertical">'+esc(m.notes||'')+'</textarea>'
+      +'<button class="mfs" onclick="saveMemberNotes()">保存备注</button></div>';
+    return;
+  }
+  if(!_mdData){ box.innerHTML='<div style="text-align:center;padding:40px;color:#4A4848">加载中…</div>'; return; }
+  var d=_mdData;
+  if(_mdTab==='orders'){
+    box.innerHTML=_mdRows(['时间','单号','取餐码','金额','付款方式','状态'], d.orders, function(o){
+      return'<tr><td>'+_mdDate(o.created_at)+'</td><td><b>#'+esc(o.order_num||'')+'</b></td>'
+        +'<td>'+esc(_orderTypeLabel({tableName:o.table_name,orderNum:o.order_num,taMode:o.ta_mode,kindSeq:o.kind_seq}))+'</td>'
+        +'<td><b>RM '+Number(o.total||0).toFixed(2)+'</b></td><td>'+esc(o.pay_method||'—')+'</td><td>'+esc(o.status||'')+'</td></tr>';
+    });
+  } else if(_mdTab==='wallet'){
+    box.innerHTML=_mdRows(['时间','变动','原因','关联'], d.wallet, function(w){
+      var pos=Number(w.delta)>0;
+      return'<tr><td>'+_mdDate(w.created_at)+'</td>'
+        +'<td style="color:'+(pos?'#1D7715':'#8D0505')+';font-weight:700">'+(pos?'+':'')+'RM '+Math.abs(Number(w.delta)).toFixed(2)+'</td>'
+        +'<td>'+esc(w.reason||'')+'</td><td style="font-size:12px;color:#4A4848">'+esc(w.ref_id||'—')+'</td></tr>';
+    });
+  } else if(_mdTab==='coins'||_mdTab==='xp'){
+    var rows=_mdTab==='coins'?d.coins:d.xp;
+    box.innerHTML=_mdRows(['时间','变动','原因','关联'], rows, function(r){
+      var pos=Number(r.delta)>0;
+      return'<tr><td>'+_mdDate(r.created_at)+'</td>'
+        +'<td style="color:'+(pos?'#1D7715':'#8D0505')+';font-weight:700">'+_mdSign(r.delta)+'</td>'
+        +'<td>'+esc(r.reason||'')+'</td><td style="font-size:12px;color:#4A4848">'+esc(r.ref_id||'—')+'</td></tr>';
+    });
+  } else if(_mdTab==='draws'){
+    box.innerHTML=_mdRows(['时间','奖品','类型','数值'], d.draws, function(x){
+      return'<tr><td>'+_mdDate(x.created_at)+'</td><td><b>'+esc(x.prize_label||'')+'</b></td>'
+        +'<td>'+esc(x.prize_type||'')+'</td><td>'+(x.prize_value==null?'—':x.prize_value)+'</td></tr>';
+    });
+  } else if(_mdTab==='coupons'){
+    var ST={unused:'未使用',used:'已使用',expired:'已过期'};
+    box.innerHTML=_mdRows(['券名','面额','门槛','状态','发放时间','到期'], d.coupons, function(c){
+      var val=c.type==='percent_off'?(Number(c.value)+'% off'):('RM '+Number(c.value).toFixed(2));
+      return'<tr><td><b>'+esc(c.name||'')+'</b></td><td>'+val+'</td>'
+        +'<td>'+(Number(c.min_spend)>0?('满 RM '+Number(c.min_spend).toFixed(2)):'无门槛')+'</td>'
+        +'<td>'+(ST[c.status]||esc(c.status||''))+'</td>'
+        +'<td style="font-size:12px;color:#4A4848">'+_mdDate(c.issued_at)+'</td>'
+        +'<td style="font-size:12px;color:#4A4848">'+_mdDate(c.expires_at)+'</td></tr>';
+    });
+  }
+}
+function saveMemberNotes(){
+  if(!_mdMember) return;
+  var v=document.getElementById('mdNotes').value;
+  db.rpc('rpc_admin_set_member_notes',{p_member_id:_mdMember.id,p_notes:v}).then(function(res){
+    if(res.error){ showN(''+res.error.message); return; }
+    _mdMember.notes=v.trim()||null; showN('备注已保存');
+  }).catch(function(e){ showN('网络错误'); });
 }
 function loyaltySearch(){loadLoyaltyMembers(document.getElementById('loyaltySearchBox').value.trim());}
 var _adjMemberId=null;
