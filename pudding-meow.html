@@ -1809,6 +1809,7 @@ function selectMode(el){
   document.querySelectorAll('.hc-card').forEach(c=>c.classList.remove('active'));
   el.classList.add('active');
   currentMode = el.dataset.mode;
+  refilterMenuForMode();
   if(currentMode==='dinein'){ openDine(); return; }       // 堂食先选座号+人数
   if(currentMode==='delivery'){ openDelivery(); return; } // 外卖先填地址+算运费
   setTimeout(()=>{
@@ -1855,6 +1856,7 @@ function confirmDine(){
   if(!dineTable) return;
   onDinePaxInput();   // 同步输入框里最新的人数（可能没触发失焦）
   currentMode='dinein';
+  refilterMenuForMode();
   _dineInfo={table:dineTable, pax:dinePax};
   closeDine();
   setTimeout(()=>{ switchTab('menu'); syncMenuMode(); }, 60);
@@ -2033,6 +2035,7 @@ function setMenuMode(el){
   document.querySelectorAll('#seg button').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
   currentMode = el.dataset.mode;
+  refilterMenuForMode();
   updateMenuTableInfo();
 }
 /* 页头第二行（Figma 547:1199）：堂食显示桌号+人数，外卖显示收货地址，自取显示模式说明 */
@@ -2207,6 +2210,7 @@ function _dvFetchQuote(){
 function confirmDelivery(){
   if(!_dvActiveAddr || !_dvCoords) return;   // 选好带定位的地址就能前往点单；配送费后台算好后写进 _deliveryInfo
   currentMode='delivery';
+  refilterMenuForMode();
   var a=_dvActiveAddr;
   _deliveryInfo={
     address:_addrFullText(a),
@@ -2335,12 +2339,19 @@ var CAT_META = {
 /* 当前生效的菜单（先用兜底，云端拉到后替换）*/
 var menu = MENU_FALLBACK;
 
+/* 销售渠道：channels 为空 = 全渠道开放；有值就得包含当前点餐方式（currentMode 就是渠道 code）。
+   店里有些品项不适合打包/外送（冰淇淋会化、吐司会软），后台勾掉后这里直接不给看见。 */
+function _openInMode(channels, mode){
+  if(!channels || !channels.length) return true;
+  return channels.indexOf(mode||currentMode) >= 0;
+}
 /* 把 menu_items 表的行组装成 menu 对象结构（已售罄的品项对顾客隐藏 = 下架）*/
-function buildMenuFromRows(rows){
+function buildMenuFromRows(rows, mode){
   var m = {};
   CAT_ORDER.forEach(function(c){ if(CAT_META[c]) m[c] = {cn:CAT_META[c].cn, en:CAT_META[c].en, items:[]}; });
   (rows||[]).slice().sort(function(a,b){ return (a.sort_order||0)-(b.sort_order||0); }).forEach(function(r){
     if(r.sold_out) return;
+    if(!_openInMode(r.channels, mode)) return;
     var c = r.cat; if(!m[c]) m[c] = {cn:(CAT_META[c]?CAT_META[c].cn:c), en:(CAT_META[c]?CAT_META[c].en:c), items:[]};
     m[c].items.push({ id:r.id, name:r.name, en:r.en||'', price:Number(r.price)||0, desc:r.descr||'',
       flavors:(r.flavors && r.flavors.length)?r.flavors:['Original'], specs:r.specs||[], image:r.image_url||'' });
@@ -2352,7 +2363,11 @@ function buildMenuFromRows(rows){
    否则看旧的 flavors——只有多于一个口味才当作一组显示。没配规格、或只有单一/默认
    'Original'（后台没加规格时会写入的兜底值）时返回空，不显示任何规格 pill、直接加入。 */
 function _itemSpecs(it){
-  if(it && it.specs && it.specs.length) return it.specs;
+  // 规格组也能限定渠道（如「加冰淇淋」只开放堂食），不开放的组当前模式下整组不显示
+  if(it && it.specs && it.specs.length) return it.specs.filter(function(g){
+    var def = g && g.defId ? _specDefsById[g.defId] : null;
+    return !def || _openInMode(def.channels);
+  });
   var flavors = (it && it.flavors && it.flavors.length) ? it.flavors : [];
   if(flavors.length > 1) return [{ defId:null, name:'', options:flavors }];
   return [];
@@ -2388,8 +2403,11 @@ function applyMenu(m){
 }
 function loadMenuCache(){
   try{ var raw=localStorage.getItem('pm_menu_cache'); if(!raw) return null;
-    var m=buildMenuFromRows(JSON.parse(raw)); return Object.keys(m).length?m:null; }catch(e){ return null; }
+    _menuRawRows=JSON.parse(raw);
+    var m=buildMenuFromRows(_menuRawRows); return Object.keys(m).length?m:null; }catch(e){ return null; }
 }
+/* 原始行留一份：切换堂食/自取/外卖时要按新模式重新过滤销售渠道，不用再请求一次 */
+var _menuRawRows=[];
 /* 从云端拉菜单；失败则用缓存、再退到写死菜单 */
 async function loadMenu(){
   if(!db){ setCloudStatus('offline'); applyMenu(loadMenuCache() || MENU_FALLBACK); return; }
@@ -2398,12 +2416,57 @@ async function loadMenu(){
     if(res.error) throw res.error;
     setCloudStatus('online');
     try{ localStorage.setItem('pm_menu_cache', JSON.stringify(res.data||[])); }catch(e){}
-    var m = buildMenuFromRows(res.data||[]);
+    _menuRawRows = res.data||[];
+    var m = buildMenuFromRows(_menuRawRows);
     applyMenu(Object.keys(m).length ? m : (loadMenuCache() || MENU_FALLBACK));
   }catch(e){
     setCloudStatus('offline');
     applyMenu(loadMenuCache() || MENU_FALLBACK);
   }
+}
+/* 切换点餐方式后重建菜单：不开放这个渠道的品项要消失，购物车里已经加了的也得清掉，
+   否则结算时会带上一个这个模式根本不卖的东西。 */
+function refilterMenuForMode(){
+  if(_menuRawRows && _menuRawRows.length){
+    var m = buildMenuFromRows(_menuRawRows);
+    if(Object.keys(m).length) applyMenu(m);
+  }
+  var blocked = {};
+  (_menuRawRows||[]).forEach(function(r){ if(!_openInMode(r.channels)) blocked[r.id]=r.name; });
+  var dropped = [];
+  Object.keys(cart).forEach(function(k){
+    var it=cart[k]; if(!it) return;
+    // 商品本身不开放，或者它选中的某组规格不开放（如「加冰淇淋」只做堂食），都得拿掉
+    var bad = (it.id && blocked[it.id]) ? blocked[it.id] : null;
+    if(!bad && it.specs) it.specs.forEach(function(s){
+      var def = s && s.defId ? _specDefsById[s.defId] : null;
+      if(def && !_openInMode(def.channels)) bad = it.name+'（'+(s.value||def.name)+'）';
+    });
+    if(bad){ dropped.push(bad); delete cart[k]; }
+  });
+  if(dropped.length){
+    var label={dinein:'堂食',pickup:'自取',delivery:'外卖'}[currentMode]||'这个方式';
+    alert(dropped.join('、')+' 不支持'+label+'，已从购物车移除。');
+  }
+  _remapCartKeys();
+  try{ renderItems(); }catch(e){}
+  try{ updateCartBadge(); }catch(e){}
+}
+/* 购物车的键是 分类|序号|规格下标——序号是菜单里的位置。过滤掉几个品项后序号会整体前移，
+   不重映射的话商品卡上的数量角标就会加到别的商品头上。按商品 id 重新算一次位置。 */
+function _remapCartKeys(){
+  var pos={};
+  Object.keys(menu).forEach(function(cat){
+    (menu[cat].items||[]).forEach(function(it,i){ if(it.id) pos[it.id]=cat+'|'+i; });
+  });
+  var next={};
+  Object.keys(cart).forEach(function(k){
+    var c=cart[k], parts=k.split('|');
+    var head=(c && c.id && pos[c.id]) ? pos[c.id] : (parts[0]+'|'+parts[1]);
+    var nk=head+'|'+parts.slice(2).join('|');
+    if(next[nk]) next[nk].qty+=c.qty; else next[nk]=c;
+  });
+  cart=next;
 }
 
 let activeCat ='special';
