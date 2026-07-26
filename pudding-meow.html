@@ -2569,23 +2569,33 @@ function _cartItemIds(){
   return Object.values(cart).map(function(c){ return c.id; }).filter(Boolean);
 }
 function _cartSubtotal(){ var s=0; Object.values(cart).forEach(function(c){ s+=c.qty*c.price; }); return s; }
+/* 绑了商品的券＝单品券：甜品券抵掉那一份的全价，现金/百分比券只打那一份 */
+function _couponItem(mc){ return !!mc.menu_item_id; }
+/* 购物车里这件商品「一份」的价钱。规格加价会让同一商品出现好几行，取最便宜那份——
+   服务端按 menu_items 的基础价算，取最低才不会显示得比实际多减 */
+function _cartItemPrice(menuItemId){
+  var p=null;
+  Object.values(cart).forEach(function(c){ if(c.id===menuItemId){ var v=Number(c.price)||0; if(p===null||v<p) p=v; } });
+  return p||0;
+}
 /* 这张券在当前购物车能不能用 */
 function _couponUsable(mc, sub){
   if(!mc || mc.status!=='unused') return {ok:false, why:'已使用或已失效'};
   if(mc.expires_at && new Date(mc.expires_at) < new Date()) return {ok:false, why:'已过期'};
   if(sub < (Number(mc.min_spend)||0)) return {ok:false, why:'需满 RM'+Number(mc.min_spend).toFixed(2)};
-  if(mc.type==='dessert'){
-    if(!mc.menu_item_id) return {ok:false, why:'未绑定商品'};
-    if(_cartItemIds().indexOf(mc.menu_item_id)<0) return {ok:false, why:'购物车没有'+(mc.menu_item_name||'该商品')};
+  if(mc.type==='dessert' && !mc.menu_item_id) return {ok:false, why:'未绑定商品'};
+  if(_couponItem(mc) && _cartItemIds().indexOf(mc.menu_item_id)<0){
+    return {ok:false, why:'购物车没有'+(mc.menu_item_name||'该商品')};
   }
   return {ok:true};
 }
 function _couponDiscount(mc, sub){
   var d=0;
-  if(mc.type==='dessert'){
-    // 抵掉购物车里那件商品的单价
-    var it=Object.values(cart).find(function(c){ return c.id===mc.menu_item_id; });
-    d=it?Number(it.price)||0:0;
+  if(_couponItem(mc)){
+    var price=_cartItemPrice(mc.menu_item_id);
+    if(mc.type==='dessert') d=price;
+    else if(mc.type==='percent_off') d=Math.round(price*(Number(mc.value)||0))/100;
+    else d=Math.min(Number(mc.value)||0, price);
   } else if(mc.type==='percent_off'){
     d=Math.round(sub*(Number(mc.value)||0))/100;
   } else {
@@ -3564,14 +3574,15 @@ function loadMyCoupons(){
     box.innerHTML = list.map(function(c){
       var valTxt = c.type==='dessert' ? '兑换'
                  : (c.type==='percent_off' ? (c.value+'% OFF') : ('RM'+c.value));
-      var condTxt = c.type==='dessert' ? _esc(c.menu_item_name||'指定商品')
-                  : (c.min_spend>0 ? ('满 RM'+c.min_spend+' 可用') :'无门槛');
+      // 左边红票根位置窄，只放短标签；完整条件放右边那行
+      var tagTxt = c.type==='dessert' ? '甜品' : (c.menu_item_id ? '单品' :'OFF');
+      var condTxt = _couponCondTxt(c);
       // expires_at 为空 = 永久有效（POS 建券时可选）
       var expTxt = c.expires_at ? ('有效期至 '+new Date(c.expires_at).toLocaleDateString()) :'永久有效';
       var usedCls = c.status!=='unused' ?' used' :'';
       var statusTxt = c.status==='used' ?'（已使用）' : (c.status==='expired' ?'（已过期）' :'');
       return'<div class="mem-coupon-ticket'+usedCls+'">'
-        +'<div class="mem-coupon-value"><b>'+valTxt+'</b><span>'+condTxt+'</span></div>'
+        +'<div class="mem-coupon-value"><b>'+valTxt+'</b><span>'+tagTxt+'</span></div>'
         +'<div class="mem-coupon-info"><div class="mem-coupon-name">'+c.name+statusTxt+'</div><div class="mem-coupon-cond">'+condTxt+'</div><div class="mem-coupon-exp">'+expTxt+'</div></div>'
         +'</div>';
     }).join('');
@@ -3696,10 +3707,18 @@ function loadWalletLedger(){
    兑换走 rpc_redeem_coupon（服务端扣币发券，前端不碰余额），兑到的券进「我的」。 */
 var _pmTab='all', _mallItems=[], _myCoupons=[], _mallLoading=false;
 function _pmCatOf(c){ return c.type==='dessert' ? 'dessert' : 'coupon'; }
-/* 券面文案：甜品券显示兑换的商品，现金券分现金/百分比 */
+/* 券面文案：甜品券显示兑换的商品，现金券分现金/百分比。
+   绑了商品的现金/百分比券是单品券，得把商品名带上，不然看不出是整单还是单品 */
 function _pmValTxt(c){
   if(c.type==='dessert') return _esc(c.menu_item_name||'指定商品');
-  return c.type==='percent_off' ? (c.value+'% OFF') : ('RM '+Number(c.value||0).toFixed(2)+' OFF');
+  var off=c.type==='percent_off' ? (c.value+'% OFF') : ('RM '+Number(c.value||0).toFixed(2)+' OFF');
+  return c.menu_item_id ? (_esc(c.menu_item_name||'指定商品')+' '+off) : off;
+}
+/* 券的使用条件一行：单品券写清楚打哪件商品、只打一份 */
+function _couponCondTxt(c){
+  if(c.type==='dessert') return _esc(c.menu_item_name||'指定商品');
+  if(c.menu_item_id) return '仅 '+_esc(c.menu_item_name||'指定商品')+'（一份）';
+  return Number(c.min_spend)>0 ? ('满 RM'+Number(c.min_spend).toFixed(2)+'可用') : '无门槛';
 }
 function _pmImg(c){
   if(c.menu_item_image) return '<div class="pm-item-img" style="background-image:url(\''+_esc(c.menu_item_image)+'\');background-size:cover;background-position:center"></div>';
@@ -3720,11 +3739,9 @@ function _pmMineHtml(mc){
   if(mc.expires_at){ try{ exp=new Date(mc.expires_at).toLocaleDateString()+' 到期'; }catch(e){ exp=''; } }
   return'<div class="mem-coupon-ticket'+(mc.status==='unused'?'':' used')+'">'
     +'<div class="mem-coupon-value"><b>'+(mc.type==='dessert'?'兑换':(mc.type==='percent_off'?(mc.value+'%'):('RM'+mc.value)))+'</b>'
-    +'<span>'+(mc.type==='dessert'?'甜品':'OFF')+'</span></div>'
+    +'<span>'+(mc.type==='dessert'?'甜品':(mc.menu_item_id?'单品':'OFF'))+'</span></div>'
     +'<div class="mem-coupon-info"><div class="mem-coupon-name">'+_esc(mc.name)+'</div>'
-    +'<div class="mem-coupon-cond">'+(mc.type==='dessert'
-        ? _esc(mc.menu_item_name||'指定商品')
-        : (Number(mc.min_spend)>0?('满 RM'+Number(mc.min_spend).toFixed(2)+'可用'):'无门槛'))+'</div>'
+    +'<div class="mem-coupon-cond">'+_couponCondTxt(mc)+'</div>'
     +'<div class="mem-coupon-exp">'+(ST[mc.status]||mc.status)+' · '+exp+'</div>'
     +_pmUseBtn(mc)+'</div></div>';
 }

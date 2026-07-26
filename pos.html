@@ -1069,15 +1069,24 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
         <option value="percent_off">现金兑换 · 百分比折扣（打折）</option>
         <option value="dessert">甜品兑换（换指定商品）</option>
       </select>
-      <!-- 甜品券：绑定菜单里的某个商品，核销时店员不会认错 -->
+      <!-- 现金/百分比券：整单打折，还是只对某一件商品打折 -->
+      <div id="cpnScopeWrap">
+        <label class="mfl">适用范围 *</label>
+        <select class="mfi" id="cpnScope" onchange="cpnSyncType()">
+          <option value="order">整单（按购物车小计算）</option>
+          <option value="item">指定单品（只打那件商品，一份）</option>
+        </select>
+      </div>
+      <!-- 甜品券绑兑换的商品；单品券绑打折的商品。核销时店员不会认错 -->
       <div id="cpnItemWrap" style="display:none">
-        <label class="mfl">兑换商品 *</label>
+        <label class="mfl" id="cpnItemLbl">兑换商品 *</label>
+        <div class="mfh" id="cpnItemHint" style="display:none">顾客买多份也只打一份，取购物车里最便宜的那份</div>
         <select class="mfi" id="cpnMenuItem"></select>
       </div>
       <div id="cpnValueWrap">
         <label class="mfl" id="cpnValueLbl">优惠数值 *</label><input class="mfi" id="cpnValue" type="number" step="0.1" placeholder="0">
         <label class="mfl">最低消费门槛</label>
-        <div class="mfh">留空/0 = 无门槛</div>
+        <div class="mfh">留空/0 = 无门槛。门槛看的是整单小计，跟适用范围无关</div>
         <input class="mfi" id="cpnMinSpend" type="number" step="0.1" placeholder="0">
       </div>
       <label class="mfl">有效期 *</label>
@@ -2033,8 +2042,9 @@ function _renderPosVoucher(list){
   if(!list.length){ box.innerHTML='<div style="text-align:center;padding:40px;color:#4A4848">该会员没有可用的优惠券</div>'; return; }
   box.innerHTML='<table><thead><tr><th>券名</th><th>优惠</th><th>门槛</th><th>到期</th><th>操作</th></tr></thead><tbody>'
     +list.map(function(v){
+      var off=v.type==='percent_off'?(Number(v.value)+'% OFF'):('RM '+Number(v.value).toFixed(2)+' OFF');
       var val=v.type==='dessert'?('兑换 '+esc(v.menu_item_name||'指定商品'))
-             :(v.type==='percent_off'?(Number(v.value)+'% OFF'):('RM '+Number(v.value).toFixed(2)+' OFF'));
+             :(v.menu_item_id?(esc(v.menu_item_name||'指定商品')+' '+off+'（一份）'):off);
       var exp=v.expires_at?new Date(v.expires_at).toLocaleDateString():'永久';
       return'<tr><td><b>'+esc(v.name)+'</b></td><td>'+val+'</td>'
         +'<td>'+(v.type==='dessert'?'—':(Number(v.min_spend)>0?('满 RM'+Number(v.min_spend).toFixed(2)):'无门槛'))+'</td>'
@@ -2051,24 +2061,36 @@ function _renderPosVoucher(list){
 var _posCoupon=null;
 function _posCartSub(){ return cart.reduce(function(s,it){return s+it.qty*it.price;},0); }
 function _posCartHas(menuItemId){ return cart.some(function(it){ return it.id===menuItemId; }); }
+/* 购物车里这件商品「一份」的价钱。同一件商品可能因规格加价出现好几行，
+   取最便宜那份——服务端算的是 menu_items 的基础价，取最低才不会前端显示得比实际多减 */
+function _posItemPrice(menuItemId){
+  var p=null;
+  cart.forEach(function(it){ if(it.id===menuItemId){ var v=Number(it.price)||0; if(p===null||v<p) p=v; } });
+  return p||0;
+}
+/* 绑了商品的券＝单品券：甜品券抵全价，现金/百分比券只打那一份 */
+function _posCouponItem(v){ return !!v.menu_item_id; }
 function _posCouponOk(v, sub){
   if(sub==null) sub=_posCartSub();
   if(sub < (Number(v.min_spend)||0)) return false;
-  if(v.type==='dessert' && !_posCartHas(v.menu_item_id)) return false;
+  if(_posCouponItem(v) && !_posCartHas(v.menu_item_id)) return false;
   return true;
 }
 function _posCouponWhy(v, sub){
   if(sub < (Number(v.min_spend)||0)) return '需满 RM'+Number(v.min_spend).toFixed(2);
-  if(v.type==='dessert' && !_posCartHas(v.menu_item_id)) return '购物车没有'+(v.menu_item_name||'该商品');
+  if(_posCouponItem(v) && !_posCartHas(v.menu_item_id)) return '购物车没有'+(v.menu_item_name||'该商品');
   return '';
 }
 function _posCouponDisc(v, sub){
   if(sub==null) sub=_posCartSub();
   var d=0;
-  if(v.type==='dessert'){
-    var it=cart.find(function(x){ return x.id===v.menu_item_id; });
-    d=it?Number(it.price)||0:0;
-  } else if(v.type==='percent_off'){ d=Math.round(sub*(Number(v.value)||0))/100; }
+  if(_posCouponItem(v)){
+    var price=_posItemPrice(v.menu_item_id);
+    if(v.type==='dessert') d=price;
+    else if(v.type==='percent_off') d=Math.round(price*(Number(v.value)||0))/100;
+    else d=Math.min(Number(v.value)||0, price);
+  }
+  else if(v.type==='percent_off'){ d=Math.round(sub*(Number(v.value)||0))/100; }
   else { d=Number(v.value)||0; }
   return Math.min(Math.max(d,0), sub);
 }
@@ -2918,10 +2940,12 @@ function loadLoyaltyCoupons(){
     db.rpc('rpc_admin_list_member_coupons',{p_search:null}).then(function(res){ if(!res.error) _loyaltyMemberCoupons=res.data||[]; })
   ]).then(function(){ renderLoyaltyCouponsBody(); }).catch(function(e){});
 }
-/* 券面文案：甜品券显示兑换的商品名，现金券按现金/百分比两种显示 */
+/* 券面文案：甜品券显示兑换的商品名，现金券按现金/百分比两种显示，
+   绑了商品的现金/百分比券要把商品名带上——不然「20% OFF」看不出是整单还是单品 */
 function _cpnValTxt(c){
   if(c.type==='dessert') return '兑换：'+esc(c.menu_item_name||_menuName(c.menu_item_id)||'指定商品');
-  return c.type==='percent_off' ? (c.value+'% OFF') : ('RM'+c.value+' OFF');
+  var off=c.type==='percent_off' ? (c.value+'% OFF') : ('RM'+c.value+' OFF');
+  return c.menu_item_id ? (esc(c.menu_item_name||_menuName(c.menu_item_id)||'指定商品')+' '+off) : off;
 }
 function _menuName(id){ var r=(_menuRows||[]).find(function(x){return x.id===id;}); return r?r.name:''; }
 var _CPN_TYPE_CN={fixed_off:'现金折扣',percent_off:'百分比折扣',dessert:'甜品兑换'};
@@ -2993,11 +3017,18 @@ function cpnSyncExp(){
     document.getElementById('cpnExpMode').value==='forever'?'none':'block';
 }
 function cpnSyncType(){
-  var isDessert=document.getElementById('cpnType').value==='dessert';
-  document.getElementById('cpnItemWrap').style.display=isDessert?'block':'none';
+  var type=document.getElementById('cpnType').value;
+  var isDessert=type==='dessert';
+  // 甜品券天生就是单品券，没有「整单」这个选项，所以范围下拉只给现金/百分比券看
+  var isItem=isDessert||document.getElementById('cpnScope').value==='item';
+  document.getElementById('cpnScopeWrap').style.display=isDessert?'none':'block';
+  document.getElementById('cpnItemWrap').style.display=isItem?'block':'none';
+  document.getElementById('cpnItemLbl').textContent=isDessert?'兑换商品 *':'打折商品 *';
+  document.getElementById('cpnItemHint').style.display=isDessert?'none':'block';
   document.getElementById('cpnValueWrap').style.display=isDessert?'none':'block';
   document.getElementById('cpnValueLbl').textContent=
-    document.getElementById('cpnType').value==='percent_off'?'折扣百分比 *（20 = 减 20%）':'优惠金额 RM *';
+    type==='percent_off' ? (isItem?'折扣百分比 *（20 = 这件商品减 20%）':'折扣百分比 *（20 = 减 20%）')
+                         : (isItem?'优惠金额 RM *（超过商品单价按单价算）':'优惠金额 RM *');
 }
 function openCpn(id){
   _cpnEditId=id||null;
@@ -3005,6 +3036,7 @@ function openCpn(id){
   document.getElementById('cpnTitle').textContent=id?'编辑优惠券':'新增优惠券';
   document.getElementById('cpnName').value=c?c.name:'';
   document.getElementById('cpnType').value=c?c.type:'fixed_off';
+  document.getElementById('cpnScope').value=(c&&c.type!=='dessert'&&c.menu_item_id)?'item':'order';
   document.getElementById('cpnValue').value=c?c.value:'';
   document.getElementById('cpnMinSpend').value=c?c.min_spend:0;
   var forever=!!c && !(Number(c.valid_days)>0);
@@ -3030,13 +3062,12 @@ function saveCpn(){
   if(!name){showN('请填写优惠券名称');return;}
   var type=document.getElementById('cpnType').value;
   var isDessert=type==='dessert';
+  // 甜品券必绑商品；现金/百分比券绑不绑取决于适用范围（绑了＝只打那件商品）
+  var isItem=isDessert||document.getElementById('cpnScope').value==='item';
   var value=parseFloat(document.getElementById('cpnValue').value);
   var menuItemId=document.getElementById('cpnMenuItem').value||null;
-  if(isDessert){
-    if(!menuItemId){showN('请选择要兑换的商品');return;}
-  } else {
-    if(isNaN(value)||value<=0){showN('优惠数值无效');return;}
-  }
+  if(isItem && !menuItemId){showN(isDessert?'请选择要兑换的商品':'请选择要打折的商品');return;}
+  if(!isDessert && (isNaN(value)||value<=0)){showN('优惠数值无效');return;}
   var forever=document.getElementById('cpnExpMode').value==='forever';
   var validDays=parseInt(document.getElementById('cpnValidDays').value);
   if(!forever && (!validDays||validDays<1)){showN('请填写有效天数');return;}
@@ -3050,7 +3081,7 @@ function saveCpn(){
     coin_price:coinRaw===''?null:(parseInt(coinRaw,10)||0),
     issue_from:_fromLocalInput(document.getElementById('cpnIssueFrom').value),
     issue_until:_fromLocalInput(document.getElementById('cpnIssueUntil').value),
-    menu_item_id:isDessert?menuItemId:null
+    menu_item_id:isItem?menuItemId:null
   };
   var q=_cpnEditId?db.from('coupons').update(payload).eq('id',_cpnEditId):db.from('coupons').insert(payload);
   q.then(function(res){if(res.error){showN(''+res.error.message);return;}showN('已保存');closeCpn();loadLoyaltyCoupons();}).catch(function(e){showN('网络错误');});
