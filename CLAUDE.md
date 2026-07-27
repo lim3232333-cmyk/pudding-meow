@@ -29,7 +29,15 @@ Mobile-first, capped at a 390px `.phone` container. Four screens are all in the 
 `MENU_FALLBACK` (near the bottom of the script) is a hardcoded object of 6 categories — `special, classic, toast, boat, ice, drinks` — each `{cn, en, items:[{name, en, price, desc, flavors[]}]}`. It's only the offline fallback; the live `menu` is built from the cloud `menu_items` + `menu_categories` tables (see Categories below).
 
 ### Cart
-`let cart = {}` keyed by `"cat|idx|flavorIdx"` → `{name, en, price, flavor, qty}`. In-memory only, lost on refresh. After any change call `renderItems()` + `updateCartBadge()`.
+`let cart = {}` keyed by `"cat|idx|specSel.join(',')"` → `{id, name, en, price, basePrice, image, specs, qty}`. In-memory only, lost on refresh. After any change call `renderItems()` + `updateCartBadge()`.
+
+**Panel** (Figma 33:44) — `.cart-sheet` is a bottom sheet: 12px top corners, 16px gap, 100px thumb + 250px details per line, name rendered as 14px 中文 + 12px English inline, spec text below (`min-height:35px`, so lines without specs still align), a 79px −/qty/+ group, and a 1px rule after every line. The floating cart button doubles as the panel's bottom bar (`.cartbtn.s-open`) rather than being a child of the sheet.
+
+**Drag handle** — the 100×4 line at the top (`.cart-grab`, Figma 845:1064) is draggable: fling down >80px closes the panel, pull up >40px adds `.tall` (max-height 80vh → 94vh), and a small downward drag while tall returns it to normal. The sheet follows the finger only downward — letting it follow upward would drag it off the top of the screen. Its hit area is widened by a transparent `::before` because a 4px line is unhittable with a thumb.
+
+**修改 → detail sheet** — each cart line's 修改 calls `editCartLine(key)`, which parses the cart key back into `(cat, idx, specSel)` and reopens the product-detail sheet via `openSheet(cat, idx, {sel, qty})` with the original choices pre-selected and the button relabelled 保存修改. `confirmAddToCart()` then **replaces** that line (`delete cart[_editKey]`, qty = the sheet's qty, merging if the new spec collides with another line) instead of adding a second one, and reopens the cart. `closeSheet()` clears `_editKey`, so backing out leaves the line untouched. The checkout page's own 修改 is a separate path and is deliberately unchanged.
+
+**Button** (Figma 586:763) — three sizes: empty `70×70` circle, has-items `145×56` pill, panel-open `361×56` bar; radius full, `padding:0 8px 0 52px`, 去结算 pill `39px` tall with `0 24px` padding. The mascot is `63.45×70` at `left:-13px; top:-5px` so it overhangs the pill on the left — pulled in any further and it covers the `RM xx.xx`.
 
 ### Checkout — `openCheckout()` / `confirmOrder()`
 Cart → **确认订单** full-screen checkout page (`renderCheckout()`), which shows the delivery-address block only in delivery mode, and shows a **mode-gated payment method list** (`_ckSyncPayRows()`): 堂食 shows counter-only; 外卖/自取 show HitPay-only (`ckPayHitpay` row, `selectedPay='hitpay'`). `ckPayNow()` closes the checkout page and calls `confirmOrder()`, which builds an order object, `unshift`es it into `_orders`, persists to `localStorage['pm_orders']`, then calls `pmBroadcastOrders()` (see Integration). Payment branches on `selectedPay`:

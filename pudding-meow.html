@@ -256,29 +256,32 @@
   .cartbtn{
     position:fixed; right:16px; bottom:96px; z-index:201;
     display:flex; align-items:center; box-sizing:border-box;
-    height:50px; padding:0 8px 0 52px; white-space:nowrap; overflow:visible;
-    background:var(--yellow); border-radius:25px; cursor:pointer;
+    height:56px; min-width:145px; padding:0 8px 0 52px; white-space:nowrap; overflow:visible;
+    background:var(--yellow); border-radius:999px; cursor:pointer;
     box-shadow:0 4px 2px rgba(0,0,0,.25);
     transition:width .28s cubic-bezier(.4,0,.2,1), bottom .28s cubic-bezier(.4,0,.2,1);
   }
-  .cartbtn.s-empty{ width:70px; height:70px; padding:0; border-radius:50%; justify-content:center; }
-  .cartbtn.s-items{ width:150px; }
+  /* 三个尺寸取自 Figma 586:763：空 70×70 圆、加购 145×56 胶囊、展开 361×56 */
+  .cartbtn.s-empty{ width:70px; height:70px; min-width:0; padding:0; border-radius:50%; justify-content:center; }
+  .cartbtn.s-items{ width:145px; }
   /* 面板打开：大条落到面板底部当"底栏"，商品在它上面滚 */
   .cartbtn.s-open{ width:361px; bottom:20px; }
   .cartbtn.hidden{ display:none; }   /* 开产品详情弹窗时隐藏 */
   /* 图标：默认坐在胶囊左侧、略高于条（上下各探出一点）；空态时居中在圆里 */
-  .cartbtn-ico{ position:absolute; left:6px; top:-5px; width:44px; height:60px; z-index:2; pointer-events:none; }
-  .cartbtn-ico-img{ height:60px; width:auto; display:block; }
+  /* 吉祥物 63.45×70，往左探出胶囊 13px、往上探出 5px（Figma 586:678）。
+     右边缘落在 50.45，正好让开 52 的左内边距——不然会压到「RM xx.xx」 */
+  .cartbtn-ico{ position:absolute; left:-13px; top:-5px; width:63.45px; height:70px; z-index:2; pointer-events:none; }
+  .cartbtn-ico-img{ height:70px; width:auto; display:block; margin:0 auto; }
   .cartbtn.s-empty .cartbtn-ico{ left:50%; top:50%; transform:translate(-50%,-50%); width:auto; height:auto; }
   .cartbtn.s-empty .cartbtn-ico-img{ height:50px; }
   .cartbtn-badge{
-    position:absolute; top:-4px; left:1px; z-index:3; min-width:15px; height:15px; padding:0 2px; box-sizing:border-box;
+    position:absolute; top:-5px; left:7px; z-index:3; min-width:15px; height:15px; padding:0 2px; box-sizing:border-box;
     background:var(--blue); color:var(--red); border-radius:999px; font-size:10px; font-weight:700; line-height:1;
     display:flex; align-items:center; justify-content:center;
   }
   .cartbtn-total{ flex:1 0 auto; min-width:0; font-weight:700; font-size:16px; color:var(--red); overflow:hidden; text-overflow:ellipsis; }
   .cartbtn-go{
-    flex-shrink:0; margin-left:8px; width:106px; height:39px; padding:0; border:none; border-radius:20px; cursor:pointer;
+    flex-shrink:0; margin-left:8px; height:39px; padding:0 24px; border:none; border-radius:999px; cursor:pointer;
     background:var(--red); color:#fff; font-weight:700; font-size:16px;
     display:flex; align-items:center; justify-content:center; font-family:"Noto Sans SC",sans-serif;
   }
@@ -292,27 +295,40 @@
   .cart-sheet{
     position:fixed; left:50%; transform:translateX(-50%); bottom:0;
     width:393px; max-width:100vw; box-sizing:border-box;
-    background:var(--cream2); border-radius:16px 16px 0 0; z-index:200;
-    display:none; flex-direction:column; padding:16px 16px calc(100px + env(safe-area-inset-bottom, 0px)); max-height:80vh;
+    background:var(--cream2); border-radius:12px 12px 0 0; z-index:200;
+    display:none; flex-direction:column; gap:16px; padding:16px 16px calc(100px + env(safe-area-inset-bottom, 0px)); max-height:80vh;
     box-shadow:0 -6px 20px rgba(0,0,0,.3);
+    transition:transform .22s cubic-bezier(.4,0,.2,1);
   }
   .cart-sheet.show{ display:flex; }
-  .cart-head2{ position:relative; height:26px; flex-shrink:0; display:flex; align-items:center; justify-content:center; margin-bottom:16px; }
+  .cart-sheet.tall{ max-height:94vh; }            /* 顶上那条线往上拉出来的高度 */
+  /* 顶上这条线（Figma 845:1064，100×4、离顶 4）可以按住上下拖：往下收起、往上展开。
+     线本身只有 4px，手指按不准，所以用一个透明的 ::before 把可按范围撑大。 */
+  .cart-grab{ position:absolute; top:4px; left:50%; transform:translateX(-50%); width:100px; height:4px;
+    border-radius:2px; background:#D9D9D9; cursor:grab; touch-action:none; z-index:2; }
+  .cart-grab::before{ content:''; position:absolute; inset:-14px -40px; }
+  .cart-sheet.grabbing .cart-grab{ cursor:grabbing; }
+  .cart-head2{ position:relative; height:26px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
   .cart-clear{ position:absolute; left:0; font-size:12px; color:#0AC4E8; text-decoration:underline; cursor:pointer; }
   .cart-title2{ font-weight:500; font-size:16px; color:var(--red); }
   .cart-close2{ position:absolute; right:0; width:30px; height:30px; cursor:pointer; color:var(--red); }
-  .cart-scroll{ overflow-y:auto; display:flex; flex-direction:column; gap:12px; }
+  .cart-scroll{ overflow-y:auto; display:flex; flex-direction:column; gap:16px; }
   .cart-empty-msg{ padding:40px; text-align:center; font-size:13px; color:var(--muted); }
   .citem{ display:flex; gap:12px; }
   .citem-img{ width:100px; height:100px; flex-shrink:0; border-radius:16px; background:var(--red); background-size:cover; background-position:center; }
-  .citem-r{ flex:1; min-width:0; min-height:100px; display:flex; flex-direction:column; justify-content:space-between; }
-  .citem-name{ font-weight:500; font-size:14px; color:var(--red); }
-  .citem-spec{ font-weight:400; font-size:10px; line-height:1.35; color:var(--muted); margin-top:7px; white-space:pre-line; }
-  .citem-bot{ display:flex; align-items:center; justify-content:space-between; margin-top:8px; }
+  .citem-r{ flex:1; min-width:0; min-height:100px; display:flex; flex-direction:column; justify-content:space-between; gap:16px; }
+  .citem-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+  .citem-nm{ flex:1; min-width:0; max-width:200px; }
+  .citem-name{ color:var(--red); font-weight:500; }
+  .citem-name .cn{ font-size:14px; }
+  .citem-name .en{ font-size:12px; }
+  .citem-spec{ font-weight:400; font-size:10px; line-height:1.35; color:var(--muted); margin-top:7px; min-height:35px; white-space:pre-line; }
+  .citem-edit{ flex-shrink:0; font-weight:500; font-size:10px; color:#0AC4E8; text-decoration:underline; cursor:pointer; }
+  .citem-bot{ display:flex; align-items:center; justify-content:space-between; }
   .citem-price{ font-weight:700; font-size:14px; color:var(--red); }
-  .citem-qty{ display:flex; align-items:center; gap:8px; }
-  .cqbtn{ width:24px; height:24px; flex-shrink:0; border:none; border-radius:50%; background:var(--yellow); color:var(--red); font-size:18px; font-weight:700; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-  .cqnum{ font-weight:500; font-size:15px; color:var(--red); min-width:18px; text-align:center; }
+  .citem-qty{ display:flex; align-items:center; gap:8px; width:79px; flex-shrink:0; }
+  .cqbtn{ width:24.22px; height:24.22px; flex-shrink:0; border:none; border-radius:50%; background:var(--yellow); color:var(--red); font-size:20px; font-weight:700; line-height:1; padding:0; cursor:pointer; display:flex; align-items:center; justify-content:center; font-family:"Noto Sans SC",sans-serif; }
+  .cqnum{ flex:1; min-width:0; font-weight:500; font-size:15px; color:var(--red); text-align:center; }
   .citem-div{ height:1px; background:#D9D9D9; }
 
   /* success overlays */
@@ -1528,6 +1544,8 @@
   <!-- ============ cart sheet ============ -->
   <div class="cart-overlay" id="cartOverlay" onclick="toggleCart()"></div>
   <div class="cart-sheet" id="cartSheet">
+    <div class="cart-grab" id="cartGrab" onpointerdown="cartGrabDown(event)" onpointermove="cartGrabMove(event)"
+         onpointerup="cartGrabUp(event)" onpointercancel="cartGrabUp(event)"></div>
     <div class="cart-head2">
       <span class="cart-clear" onclick="clearCart()">清空购物车</span>
       <span class="cart-title2">购物车</span>
@@ -3149,11 +3167,16 @@ function renderCartSheet(){
   } else {
     scroll.innerHTML = entries.map(function(e){
       var key=e[0], c=e[1];
-      var spec=[c.en, specsDisplay(c)].filter(Boolean).join('\n');
       return '<div class="citem">'
         +'<div class="citem-img"'+(c.image?' style="background-image:url(\''+c.image+'\')"':'')+'></div>'
         +'<div class="citem-r">'
-          +'<div><div class="citem-name">'+_addrEsc(c.name)+'</div><div class="citem-spec">'+_addrEsc(spec)+'</div></div>'
+          +'<div class="citem-top">'
+            +'<div class="citem-nm">'
+              +'<div class="citem-name"><span class="cn">'+_addrEsc(c.name)+' </span><span class="en">'+_addrEsc(c.en||'')+'</span></div>'
+              +'<div class="citem-spec">'+_addrEsc(specsDisplay(c)||'')+'</div>'
+            +'</div>'
+            +'<span class="citem-edit" onclick="editCartLine(\''+key+'\')">修改</span>'
+          +'</div>'
           +'<div class="citem-bot"><span class="citem-price">RM '+(c.price*c.qty).toFixed(2)+'</span>'
             +'<span class="citem-qty">'
               +'<button class="cqbtn" onclick="changeItemQty(\''+key+'\',-1)">−</button>'
@@ -3185,6 +3208,51 @@ function updateCartBadge(){
 
 function renderCartPanel(){ updateCartBadge(); }
 
+/* ---------- 面板顶上那条线：按住上下拖 ----------
+   往下甩过 80px 松手＝收起面板；往上拉过 40px＝展开到更高（.tall）；
+   已经展开时往下拉一点（30~80）＝回到常规高度。拖的过程中面板跟手走。 */
+var _cgY=0, _cgDy=0, _cgOn=false;
+function cartGrabDown(ev){
+  _cgOn=true; _cgY=ev.clientY; _cgDy=0;
+  var s=document.getElementById('cartSheet');
+  s.style.transition='none'; s.classList.add('grabbing');
+  try{ ev.currentTarget.setPointerCapture(ev.pointerId); }catch(e){}
+}
+function cartGrabMove(ev){
+  if(!_cgOn) return;
+  _cgDy = ev.clientY - _cgY;
+  // 只有往下拖才跟手；往上顶到头就停住，不然面板会被拖出屏幕上沿
+  var dy = Math.max(0, _cgDy);
+  document.getElementById('cartSheet').style.transform='translateX(-50%) translateY('+dy+'px)';
+}
+function cartGrabUp(ev){
+  if(!_cgOn) return;
+  _cgOn=false;
+  var s=document.getElementById('cartSheet');
+  s.classList.remove('grabbing');
+  s.style.transition=''; s.style.transform='';
+  if(_cgDy > 80){ toggleCart(); return; }
+  if(_cgDy < -40){ s.classList.add('tall'); return; }
+  if(_cgDy > 30) s.classList.remove('tall');
+}
+
+/* ---------- 购物车里的「修改」：回详情页改规格 ----------
+   cart key 就是「分类|下标|各规格组选中的下标」，所以直接从 key 就能还原出
+   这一行当初选了什么。确认后是**替换**原来那一行，不是再加一份——不然点一次
+   修改就多出一杯。（结算页里的「修改」是另一套，不走这里。） */
+var _editKey = null;
+function editCartLine(key){
+  var line = cart[key]; if(!line) return;
+  var p = String(key).split('|');
+  var cat = p[0], idx = parseInt(p[1], 10);
+  var it = menu[cat] && menu[cat].items && menu[cat].items[idx];
+  // 商品可能已经下架、或切模式后这个渠道不卖了——那就别开详情页，免得开出一个空壳
+  if(!it){ alert('这个商品目前买不到了，改不了规格'); return; }
+  _editKey = key;
+  toggleCart();
+  openSheet(cat, idx, { sel:String(p[2]||'').split(',').map(Number), qty:line.qty });
+}
+
 
 /* ---------- product detail sheet ---------- */
 let sheetCat=null, sheetIdx=null, sheetSpecSel=[], sheetQty=1; // sheetSpecSel[gi] = 该规格组选中的选项下标
@@ -3207,11 +3275,22 @@ function _sheetSpecGroupHtml(group, gi){
   return `<div class="sheet-spec-group" data-gi="${gi}">${label}<div class="sheet-pill-row">${pills}</div></div>`;
 }
 
-function openSheet(cat, idx){
-  sheetCat = cat; sheetIdx = idx; sheetQty = 1;
+/* edit 只在从购物车「修改」进来时有值：{sel:[各组选中的下标], qty}，
+   把这一行原来的选择和数量填回去，按钮也换成「保存修改」。 */
+function openSheet(cat, idx, edit){
+  sheetCat = cat; sheetIdx = idx;
   const it = menu[cat].items[idx];
   const specs = _itemSpecs(it);
-  sheetSpecSel = specs.map(()=> -1);   // 打开时全部默认未选中，点击后才高亮
+  if(edit){
+    sheetSpecSel = specs.map(function(_, gi){ var v=edit.sel[gi]; return (typeof v==='number' && !isNaN(v)) ? v : -1; });
+    sheetQty = edit.qty || 1;
+  }else{
+    _editKey = null;                   // 正常从菜单进来：把上一次没走完的「修改」清掉
+    sheetSpecSel = specs.map(()=> -1); // 打开时全部默认未选中，点击后才高亮
+    sheetQty = 1;
+  }
+  var _ab = document.querySelector('.sheet-addcart');
+  if(_ab) _ab.textContent = edit ? '保存修改' :'加入购物车';
   document.getElementById('sheetName').textContent = it.name;
   document.getElementById('sheetEn').textContent = it.en;
   document.getElementById('sheetDesc').textContent = it.desc ||'';
@@ -3231,6 +3310,7 @@ function openSheet(cat, idx){
 }
 
 function closeSheet(){
+  _editKey = null;   // 改到一半退出去 = 放弃这次修改，原来那一行原样留着
   document.getElementById('productSheet').classList.remove('show');
   document.getElementById('sheetOverlay').classList.remove('show');
   var cb=document.getElementById('cartBtn'); if(cb) cb.classList.remove('hidden');
@@ -3284,12 +3364,17 @@ function confirmAddToCart(){
   const chosen = specs.map((g,gi)=> sheetSpecSel[gi]>=0
     ? { defId:g.defId||null, name:g.name, value:g.options[sheetSpecSel[gi]], add:_optAdd(g, g.options[sheetSpecSel[gi]]) } : null).filter(Boolean);
   const key = sheetCat +'|' + sheetIdx +'|' + sheetSpecSel.join(',');
-  const cur = cart[key]?.qty || 0;
+  const editing = _editKey;
+  // 改规格 = 换一行：删掉原来那一行，数量按详情页里显示的算（不是在原有数量上再加一遍）。
+  // 改完的规格如果跟车里另一行撞了，就并进那一行。
+  if(editing) delete cart[editing];
+  const cur = (editing && key === editing) ? 0 : (cart[key]?.qty || 0);
   cart[key] = { id: it.id||null, name: it.name, en: it.en, price: it.price + _specsAdd(chosen), basePrice: it.price,
     image: it.image||'', specs: chosen, qty: cur + sheetQty };
   renderItems();
   renderCartPanel();
   closeSheet();
+  if(editing) toggleCart();   // 从购物车进来的，改完送回购物车
 }
 
 renderCats();
