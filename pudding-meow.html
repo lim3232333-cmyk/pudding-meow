@@ -3667,7 +3667,12 @@ function loadMyReferrals(){
 function loadMyCoupons(){
   if(!db || !_memberId || !_memberToken) return Promise.resolve();
   return db.rpc('rpc_get_my_coupons', {p_member_id:_memberId, p_session_token:_memberToken}).then(function(res){
-    if(res.error) return;
+    if(res.error){
+      console.error('rpc_get_my_coupons:',res.error);
+      var eb=document.getElementById('memCouponList');
+      if(eb) eb.innerHTML='<div class="mem-coupon-empty">优惠券读取失败：'+_esc(res.error.message||'未知错误')+'</div>';
+      return;
+    }
     var list = res.data || [];
     var countEl = document.getElementById('memCouponCount');
     if(countEl) countEl.textContent = list.filter(function(c){ return c.status==='unused'; }).length;
@@ -3861,6 +3866,13 @@ function _pmUseBtn(mc){
 function renderPointsMallList(){
   var box=document.getElementById('pmList');
   if(_mallLoading){ box.innerHTML='<div class="pm-empty">加载中…</div>'; return; }
+  // 读失败时如实说，不要跟「真的一张都没有」混为一谈
+  if(_mallErr){
+    box.innerHTML='<div class="pm-empty" style="color:var(--red)">读取失败：'
+      +_esc(_mallErr.message||'未知错误')+(_mallErr.code?('（'+_esc(_mallErr.code)+'）'):'')
+      +'<br><span style="font-size:12px">下拉重进本页可重试</span></div>';
+    return;
+  }
   if(_pmTab==='mine'){
     box.innerHTML=_myCoupons.length
       ? _myCoupons.map(_pmMineHtml).join('')
@@ -3879,14 +3891,18 @@ function selectPmTab(cat, el){
   document.querySelectorAll('#pmTabs .pm-tab').forEach(function(t){ t.classList.toggle('active', t===el); });
   renderPointsMallList();
 }
+/* 读失败要说出来。原来是 if(!r.error) 才赋值、出错就沉默，
+   于是「我的」显示成「还没有优惠券」——明明兑换成功了，看着却像没兑到，
+   最难查的就是这种把错误伪装成空数据的写法。 */
+var _mallErr=null;
 function loadMallData(){
   if(!db) return Promise.resolve();
-  _mallLoading=true; renderPointsMallList();
+  _mallLoading=true; _mallErr=null; renderPointsMallList();
   return Promise.all([
-    db.rpc('rpc_list_mall_coupons').then(function(r){ if(!r.error) _mallItems=r.data||[]; }),
-    db.rpc('rpc_get_my_coupons',{p_member_id:_memberId,p_session_token:_memberToken}).then(function(r){ if(!r.error) _myCoupons=r.data||[]; })
+    db.rpc('rpc_list_mall_coupons').then(function(r){ if(r.error){ _mallErr=r.error; console.error('rpc_list_mall_coupons:',r.error); } else _mallItems=r.data||[]; }),
+    db.rpc('rpc_get_my_coupons',{p_member_id:_memberId,p_session_token:_memberToken}).then(function(r){ if(r.error){ _mallErr=r.error; console.error('rpc_get_my_coupons:',r.error); } else _myCoupons=r.data||[]; })
   ]).then(function(){ _mallLoading=false; renderPointsMallList(); })
-   .catch(function(e){ _mallLoading=false; renderPointsMallList(); });
+   .catch(function(e){ _mallErr=e; console.error('loadMallData:',e); _mallLoading=false; renderPointsMallList(); });
 }
 function redeemMallCoupon(id){
   var c=_mallItems.find(function(x){return x.id===id;});

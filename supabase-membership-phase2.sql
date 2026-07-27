@@ -165,8 +165,9 @@ returns table(id uuid, coupon_id uuid, name text, type text, value numeric, min_
 language plpgsql security definer as $$
 begin
   perform public._auth_member(p_member_id, p_session_token);
-  update public.member_coupons set status = 'expired'
-    where member_id = p_member_id and status = 'unused' and expires_at < now();
+  -- 别名 + 限定列：expires_at / status 也是 OUT 参数名，不限定会 ambiguous
+  update public.member_coupons mc set status = 'expired'
+    where mc.member_id = p_member_id and mc.status = 'unused' and mc.expires_at < now();
   return query select mc.id, mc.coupon_id, c.name, c.type, c.value, c.min_spend, mc.status, mc.issued_at, mc.expires_at
     from public.member_coupons mc join public.coupons c on c.id = mc.coupon_id
     where mc.member_id = p_member_id
@@ -212,7 +213,7 @@ create or replace function public.rpc_admin_list_member_coupons(p_search text de
 returns table(id uuid, member_id uuid, member_phone text, member_nickname text, coupon_name text, status text, issued_at timestamptz, expires_at timestamptz)
 language plpgsql security definer as $$
 begin
-  update public.member_coupons set status = 'expired' where status = 'unused' and expires_at < now();
+  update public.member_coupons mc set status = 'expired' where mc.status = 'unused' and mc.expires_at < now();
   return query select mc.id, mc.member_id, m.phone, m.nickname, c.name, mc.status, mc.issued_at, mc.expires_at
     from public.member_coupons mc
     join public.members m on m.id = mc.member_id
