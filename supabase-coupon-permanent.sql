@@ -125,9 +125,10 @@ set search_path = public
 as $$
 begin
   perform public._auth_member(p_member_id, p_session_token);
-  update public.member_coupons set status = 'expired'
-   where member_id = p_member_id and status = 'unused'
-     and expires_at is not null and expires_at < now();
+  -- 别名 + 限定列：expires_at / status 也是 OUT 参数名，不限定会 ambiguous
+  update public.member_coupons mc set status = 'expired'
+   where mc.member_id = p_member_id and mc.status = 'unused'
+     and mc.expires_at is not null and mc.expires_at < now();
   return query
   select mc.id, mc.coupon_id, c.name, c.type, c.value, c.min_spend,
          mc.status, mc.issued_at, mc.expires_at, mi.name, mi.image_url
@@ -148,8 +149,8 @@ security definer
 set search_path = public
 as $$
 begin
-  update public.member_coupons set status = 'expired'
-   where status = 'unused' and expires_at is not null and expires_at < now();
+  update public.member_coupons mc set status = 'expired'
+   where mc.status = 'unused' and mc.expires_at is not null and mc.expires_at < now();
   return query
   select mc.id, mc.member_id, m.phone, m.nickname, c.name, mc.status, mc.issued_at, mc.expires_at
     from public.member_coupons mc

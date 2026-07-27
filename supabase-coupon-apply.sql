@@ -236,9 +236,11 @@ set search_path = public
 as $$
 begin
   perform public._auth_member(p_member_id, p_session_token);
-  update public.member_coupons set status = 'expired'
-   where member_id = p_member_id and status = 'unused'
-     and expires_at is not null and expires_at < now();
+  -- 必须写别名 mc 并限定列：expires_at / status / id 同时也是本函数的 OUT 参数名，
+  -- 不限定的话 plpgsql 分不清是列还是变量，直接报 column reference ... is ambiguous
+  update public.member_coupons mc set status = 'expired'
+   where mc.member_id = p_member_id and mc.status = 'unused'
+     and mc.expires_at is not null and mc.expires_at < now();
   return query
   select mc.id, mc.coupon_id, c.name, c.type, c.value, c.min_spend,
          mc.status, mc.issued_at, mc.expires_at, c.menu_item_id, mi.name, mi.image_url
