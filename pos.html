@@ -659,6 +659,22 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
 .ch-tag{background:#B6F3FF;color:#8D0505;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;}
 .ch-tag.off{background:#D9D9D9;color:#8A8A8A;}
 
+/* 商品管理：分类 > 子分类 > 商品 三层嵌在一页 */
+.mg-bar{display:flex;justify-content:flex-end;margin-bottom:12px;}
+.mg-btn{border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px;font-family:"Noto Sans SC",sans-serif;}
+.mg-btn.add{background:#1D7715;color:#fff;}
+.mg-btn.edit{background:#B6F3FF;color:#8D0505;padding:4px 10px;font-size:12px;}
+.mg-btn.sold{background:#FFDE5B;color:#8D0505;padding:4px 10px;font-size:12px;}
+.mg-btn.del{background:#8D0505;color:#fff;padding:4px 10px;font-size:12px;}
+.mg-acts{display:flex;gap:6px;align-items:center;flex-shrink:0;}
+/* 左边那条蓝竖边就是「这一段是子分类」的记号，跟顾客端子分类标题条同一个蓝，
+   不然子分类头和分类头长得一样，看不出谁套谁 */
+.mg-sub{border-top:1px solid #F5E9D4;border-left:5px solid #B6F3FF;}
+.mg-subhd{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 18px;background:#F2FCFF;}
+.mg-subhd b{font-size:14px;color:#8D0505;}
+.mg-label{padding:8px 18px 0;font-size:12px;color:#4A4848;}
+.mg-note{text-align:center;color:#4A4848;font-size:13px;}
+
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-thumb{background:rgba(141,5,5,.15);border-radius:3px;}
 </style>
@@ -760,7 +776,7 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
 
   <!-- MENU CATEGORIES -->
   <div class="menu" id="menuArea">
-    <!-- 分类卡片：由 renderCatCards() 按 menu_categories 表渲染（后台「菜单管理 → 分类管理」维护）-->
+    <!-- 分类卡片：由 renderCatCards() 按 menu_categories 表渲染（后台「菜单管理 → 商品管理」维护）-->
     <div class="cat-grid" id="catGrid"></div>
     <!-- Item view overlay -->
     <div class="item-view" id="itemView">
@@ -960,7 +976,7 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
         <div class="mi-col"><label class="mi-lbl">中文名*</label><input class="mi-input" id="miName" placeholder="如：布丁芭菲杯"></div>
         <div class="mi-col"><label class="mi-lbl">English Name*</label><input class="mi-input" id="miEn" placeholder="如：Pudding Parfait"></div>
 </div>
-      <!-- 分类 / 子分类：分类在「菜单管理 → 分类管理」维护；没建子分类的分类这里只有一个「不分子分类」 -->
+      <!-- 分类 / 子分类：分类在「菜单管理 → 商品管理」维护；没建子分类的分类这里只有一个「不分子分类」 -->
       <div class="mi-row2">
         <div class="mi-col"><label class="mi-lbl">分类*</label><select class="mi-input" id="miCat" onchange="_miSyncSubcats()"></select></div>
         <div class="mi-col"><label class="mi-lbl">子分类</label><select class="mi-input" id="miSubcat"></select></div>
@@ -1356,7 +1372,7 @@ var MENU_FALLBACK={
   ]},
 };
 
-/* ── 菜单分类（后台「菜单管理 → 分类管理」维护，两级）──
+/* ── 菜单分类（后台「菜单管理 → 商品管理」维护，两级）──
    分类原本写死在这里，现在以云端 menu_categories 表为准：parent_code 为空 = 顶级分类，
    有值 = 挂在那个顶级分类下的子分类。下面这份写死的只当兜底——表还没建（SQL 没跑）
    或离线时退回它，收银台照常能开单，只是不能自己增删分类。 */
@@ -1404,7 +1420,7 @@ function renderCatCards(){
   var tops=catTops(true);
   el.innerHTML=tops.length
     ? tops.map(function(c){ return'<div class="cat-card" onclick="showItems(\''+esc(c.code)+'\')">'+esc(c.name_en||c.name)+'</div>'; }).join('')
-    : '<div style="grid-column:1/-1;padding:40px;text-align:center;color:#8D0505;font-weight:700">还没有分类，去「菜单管理 → 分类管理」加一个</div>';
+    : '<div style="grid-column:1/-1;padding:40px;text-align:center;color:#8D0505;font-weight:700">还没有分类，去「菜单管理 → 商品管理」加一个</div>';
 }
 function posMenuHasItems(m){return Object.keys(m||{}).some(function(c){return m[c].items&&m[c].items.length;});}
 function loadMenuCache(){try{var raw=localStorage.getItem('pm_menu_cache');if(!raw)return null;
@@ -3662,47 +3678,89 @@ function renderMenuAdmin(){
   if(!db){ el.innerHTML='<div class="page-title">菜单管理</div><div style="padding:30px;color:#8D0505">未连接云端（Supabase 未配置或离线），无法编辑菜单。</div>'; return; }
   var tabsHtml='<div class="ma-tabs">'
     +'<button class="ma-tab'+(_menuAdminTab==='items'?' a':'')+'" onclick="setMenuAdminTab(\'items\')">商品管理</button>'
-    +'<button class="ma-tab'+(_menuAdminTab==='cats'?' a':'')+'" onclick="setMenuAdminTab(\'cats\')">分类管理</button>'
     +'<button class="ma-tab'+(_menuAdminTab==='specs'?' a':'')+'" onclick="setMenuAdminTab(\'specs\')">规格管理</button>'
     +'<button class="ma-tab'+(_menuAdminTab==='channels'?' a':'')+'" onclick="setMenuAdminTab(\'channels\')">销售方式</button>'
     +'</div>';
   var html='<div class="page-title">菜单管理 · Menu</div>'+tabsHtml;
-  if(_menuAdminTab==='cats'){ el.innerHTML=html+catsAdminHtml(); return; }
   if(_menuAdminTab==='specs'){ el.innerHTML=html+specDefsAdminHtml(); return; }
   if(_menuAdminTab==='channels'){ el.innerHTML=html+channelsAdminHtml(); return; }
+  el.innerHTML=html+itemsAdminHtml();
+}
+
+/* 商品管理：分类 → 子分类 → 商品 一页管完。
+   原本分类另开一个页签，加个子分类要来回切两次，还得记住代号回来选；现在就地加：
+   右上角加分类，分类卡片里加子分类，子分类里加商品，加完就在你眼前那一段出现。
+
+   三层各自能长按拖动排序，但**只能在自己那一段里换位**（分类跟分类、子分类跟子分类、
+   商品跟同一段的商品）。要把商品换到别的分类/子分类，用「改」里的下拉选——
+   拖出段落边界不做支持，不然一次误拖就把商品甩到别的分类去了，还看不出来。 */
+function itemsAdminHtml(){
   var rows=(_menuRows||[]).slice().sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
-  html+='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">改价 / 上下架 / 加新品 / 删除——保存后<b>顾客小程序实时更新</b>。「下架」的品项顾客端不显示。<br>'
-    +'分类和子分类在「分类管理」里维护；每个品项属于哪个分类、哪个子分类，在「改」里选。</div>'
-    +_dsHint();
-  catTops().forEach(function(cat){
+  var tops=catTops();
+  var html='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">'
+    +'分类、子分类、商品都在这一页：右上角<b>＋ 新增分类</b>，分类里<b>＋ 子分类</b>，子分类里<b>＋ 商品</b>。<br>'
+    +'改价 / 上下架 / 删除保存后<b>顾客小程序实时更新</b>，「下架」的品项顾客端不显示。'
+    +'分类代号保存后不能改（商品行存的是代号，改了就全部对不上）。</div>';
+  if((_menuCats||[]).some(function(c){return c._local;}))
+    html+='<div class="tx-card" style="padding:16px;margin-bottom:16px;color:#8D0505;font-weight:700;line-height:1.6">云端还没有 menu_categories 表，现在显示的是代码里写死的那份，不能增删分类。<br>请先在 Supabase → SQL Editor 跑一次 <code>supabase-menu-categories.sql</code>。</div>';
+  html+=_dsHint()
+    +'<div class="mg-bar"><button class="mg-btn add" onclick="mcAdd(\'\')">＋ 新增分类</button></div>';
+  if(!tops.length) return html+'<div class="tx-card mg-note" style="padding:30px">还没有分类，点右上角「＋ 新增分类」开始。</div>';
+
+  html+='<div data-sortable="menu_categories">';
+  tops.forEach(function(cat){
     var c=cat.code;
-    var items=rows.filter(function(r){return r.cat===c;});
+    var mine=rows.filter(function(r){return r.cat===c;});
     var subs=catSubs(c);
-    html+='<div class="tx-card" style="margin-bottom:16px"><div class="tx-ch" style="display:flex;justify-content:space-between;align-items:center">'
-      +'<h3>'+esc(cat.name)+' <span style="color:#4A4848;font-size:13px">'+esc(cat.name_en||'')+'</span>'
-      +(cat.enabled===false?' <span style="color:#8D0505;font-size:13px">（已停用）</span>':'')
-      +(subs.length?' <span style="color:#4A4848;font-size:13px">· '+subs.length+' 个子分类</span>':'')+'</h3>'
-      +'<button onclick="menuAdd(\''+esc(c)+'\')" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px">＋ 加新品</button></div>'
-      +'<table><thead><tr><th>中文名</th><th>English</th><th>子分类</th><th>价格 RM</th><th>销售渠道</th><th>状态</th><th>操作</th></tr></thead>'
-      +'<tbody data-sortable="menu_items">'
-      +(items.length?items.map(function(r){
-        var sub=r.subcat?catRow(r.subcat):null;
-        return'<tr data-sid="'+esc(r.id)+'" data-so="'+(r.sort_order||0)+'"'+(r.sold_out?' style="opacity:.5"':'')+'>'
-          +'<td><b>'+esc(r.name)+'</b></td><td style="font-size:12px;color:#4A4848">'+esc(r.en||'')+'</td>'
-          +'<td style="font-size:12px">'+(r.subcat?(sub?esc(sub.name):'<span style="color:#8D0505">'+esc(r.subcat)+'（已删）</span>'):'<span style="color:#4A4848">—</span>')+'</td>'
-          +'<td>'+Number(r.price).toFixed(1)+'</td>'
-          +'<td>'+_chTagsHtml(r.channels)+'</td>'
-          +'<td>'+(r.sold_out?'<span style="color:#8D0505">已下架</span>':'<span style="color:#1D7715">在售</span>')+'</td>'
-          +'<td style="white-space:nowrap">'
-          +'<button onclick="menuEdit(\''+r.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">改</button>'
-          +'<button onclick="menuToggleSold(\''+r.id+'\','+(r.sold_out?'true':'false')+')" style="border:none;background:#FFDE5B;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">'+(r.sold_out?'上架':'下架')+'</button>'
-          +'<button onclick="menuDel(\''+r.id+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">删</button>'
-          +'</td></tr>';
-      }).join(''):'<tr><td colspan="7" style="text-align:center;padding:16px;color:#4A4848">（暂无品项，点「＋ 加新品」）</td></tr>')
-      +'</tbody></table></div>';
+    var known={}; subs.forEach(function(s){known[s.code]=1;});
+    // 子分类被停用/删掉后，挂在它下面的商品退回顶级分类平铺，不能凭空消失
+    var loose=mine.filter(function(r){return !r.subcat || !known[r.subcat];});
+    html+='<div class="tx-card" style="margin-bottom:16px" data-sid="'+esc(cat.id)+'" data-so="'+(cat.sort_order||0)+'">'
+      +'<div class="tx-ch" style="align-items:center">'
+      +'<h3>'+esc(cat.name)+' <span style="color:#4A4848;font-size:13px;font-weight:400">'+esc(cat.name_en||'')+' · '+esc(c)+'</span>'
+      +(cat.enabled===false?' <span style="color:#8D0505;font-size:13px">（已停用）</span>':'')+'</h3>'
+      +'<div class="mg-acts">'
+      +'<button class="mg-btn add" onclick="mcAdd(\''+esc(c)+'\')">＋ 子分类</button>'
+      +'<button class="mg-btn add" onclick="menuAdd(\''+esc(c)+'\',\'\')">＋ 商品</button>'
+      +'<button class="mg-btn edit" onclick="mcEdit(\''+esc(cat.id)+'\')">改</button>'
+      +'<button class="mg-btn del" onclick="mcDel(\''+esc(cat.id)+'\')">删</button>'
+      +'</div></div>';
+    // 有子分类时，没挂子分类的那几件单独标一下，免得看着像漏配
+    if(loose.length || !subs.length) html+=_mgItemsHtml(loose, subs.length?'未分子分类（顾客端直接平铺在本分类下）':'');
+    html+='<div data-sortable="menu_categories">';
+    subs.forEach(function(s){
+      html+='<div class="mg-sub" data-sid="'+esc(s.id)+'" data-so="'+(s.sort_order||0)+'">'
+        +'<div class="mg-subhd"><b>'+esc(s.name)+' <span style="font-weight:400;color:#4A4848;font-size:12px">'+esc(s.name_en||'')+' · '+esc(s.code)+'</span>'
+        +(s.enabled===false?' <span style="color:#8D0505;font-size:12px">（已停用）</span>':'')+'</b>'
+        +'<div class="mg-acts">'
+        +'<button class="mg-btn add" onclick="menuAdd(\''+esc(c)+'\',\''+esc(s.code)+'\')">＋ 商品</button>'
+        +'<button class="mg-btn edit" onclick="mcEdit(\''+esc(s.id)+'\')">改</button>'
+        +'<button class="mg-btn del" onclick="mcDel(\''+esc(s.id)+'\')">删</button>'
+        +'</div></div>'
+        +_mgItemsHtml(mine.filter(function(r){return r.subcat===s.code;}), '')
+        +'</div>';
+    });
+    html+='</div></div>';
   });
-  if(!catTops().length) html+='<div class="tx-card" style="padding:30px;text-align:center;color:#4A4848">还没有分类，先去「分类管理」加一个。</div>';
-  el.innerHTML=html;
+  return html+'</div>';
+}
+function _mgItemsHtml(items, label){
+  return (label?'<div class="mg-label">'+esc(label)+'</div>':'')
+    +'<table><thead><tr><th>中文名</th><th>English</th><th>价格 RM</th><th>销售渠道</th><th>状态</th><th>操作</th></tr></thead>'
+    +'<tbody data-sortable="menu_items">'
+    +(items.length?items.map(function(r){
+      return'<tr data-sid="'+esc(r.id)+'" data-so="'+(r.sort_order||0)+'"'+(r.sold_out?' style="opacity:.5"':'')+'>'
+        +'<td><b>'+esc(r.name)+'</b></td><td style="font-size:12px;color:#4A4848">'+esc(r.en||'')+'</td>'
+        +'<td>'+Number(r.price).toFixed(1)+'</td>'
+        +'<td>'+_chTagsHtml(r.channels)+'</td>'
+        +'<td>'+(r.sold_out?'<span style="color:#8D0505">已下架</span>':'<span style="color:#1D7715">在售</span>')+'</td>'
+        +'<td style="white-space:nowrap"><div class="mg-acts">'
+        +'<button class="mg-btn edit" onclick="menuEdit(\''+r.id+'\')">改</button>'
+        +'<button class="mg-btn sold" onclick="menuToggleSold(\''+r.id+'\','+(r.sold_out?'true':'false')+')">'+(r.sold_out?'上架':'下架')+'</button>'
+        +'<button class="mg-btn del" onclick="menuDel(\''+r.id+'\')">删</button>'
+        +'</div></td></tr>';
+    }).join(''):'<tr><td colspan="6" style="text-align:center;padding:16px;color:#4A4848">（暂无品项，点上面的「＋ 商品」）</td></tr>')
+    +'</tbody></table>';
 }
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function _menuAfterWrite(res,msg){ if(res&&res.error){showN(''+(res.error.message||'操作失败'));return;} showN(msg); loadMenu().then(function(){renderMenuAdmin();}); }
@@ -3737,49 +3795,12 @@ function specDefsAdminHtml(){
   html+='</div></div>';   // 收 [data-sortable] 和 tx-card 两层
   return html;
 }
-/* ── 分类管理（菜单管理页签之一）：维护分类本身，两级 ──
+/* ── 分类的增删改（弹窗）：入口就在商品管理那一页，分类卡片头上和右上角 ──
    顶级分类 = 小程序左侧分类栏 / 收银台首页大卡片；子分类挂在某个顶级分类下。
    商品用 menu_items.cat 认顶级、subcat 认子分类，所以 code 建好就不给改。 */
 function _mcAfterWrite(res,msg){ if(res&&res.error){showN(''+(res.error.message||'操作失败'));return;} showN(msg); loadMenuCats().then(function(){renderMenuAdmin();}); }
 function _mcCount(code,isSub){
   return (_menuRows||[]).filter(function(r){ return isSub?(r.subcat===code):(r.cat===code); }).length;
-}
-function _mcRowHtml(r,isSub){
-  var n=_mcCount(r.code,isSub);
-  return'<div class="ch-row" data-sid="'+esc(r.id)+'" data-so="'+(r.sort_order||0)+'"><div class="ch-nm">'+esc(r.name)+'</div>'
-    +'<div class="ch-code">'+esc(r.code)+'</div>'
-    +'<div style="flex:1;font-size:12px;color:#4A4848">'+esc(r.name_en||'')
-    +'<span style="margin-left:10px">'+n+' 个商品</span></div>'
-    +'<span class="ch-tag'+(r.enabled===false?' off':'')+'">'+(r.enabled===false?'已停用':'在用')+'</span>'
-    +'<div style="white-space:nowrap">'
-    +'<button onclick="mcEdit(\''+esc(r.id)+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;margin-left:8px;cursor:pointer;font-size:12px;font-weight:700">改</button>'
-    +'<button onclick="mcDel(\''+esc(r.id)+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 10px;margin-left:4px;cursor:pointer;font-size:12px;font-weight:700">删</button>'
-    +'</div></div>';
-}
-function catsAdminHtml(){
-  var tops=catTops();
-  var html='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">分类分两级：<b>顶级分类</b>是顾客小程序左边那一栏、收银台首页的大卡片；<b>子分类</b>挂在某个顶级分类下面（例如 饮料 → 奶茶 / 咖啡 / 果茶气泡），进入那个分类之后才出现。<br>'
-    +'代号保存后不能改（商品存的是代号，改了就全部对不上）；改中英文名、拖动排序、停用随时可以。停用 = 顾客端和收银台都不显示，后台还留着。</div>';
-  if((_menuCats||[]).some(function(c){return c._local;}))
-    html+='<div class="tx-card" style="padding:16px;margin-bottom:16px;color:#8D0505;font-weight:700;line-height:1.6">云端还没有 menu_categories 表，现在显示的是代码里写死的那份，不能增删。<br>请先在 Supabase → SQL Editor 跑一次 <code>supabase-menu-categories.sql</code>。</div>';
-  html+=_dsHint()
-    +'<div class="tx-card" style="margin-bottom:16px"><div class="tx-ch" style="display:flex;justify-content:space-between;align-items:center">'
-    +'<h3>顶级分类</h3><button onclick="mcAdd(\'\')" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px">＋ 新增顶级分类</button></div>'
-    +'<div data-sortable="menu_categories">'
-    +(tops.length?tops.map(function(r){return _mcRowHtml(r,false);}).join('')
-      :'<div style="text-align:center;padding:30px;color:#4A4848">（暂无分类，点「＋ 新增顶级分类」）</div>')
-    +'</div></div>';
-  tops.forEach(function(t){
-    var subs=catSubs(t.code);
-    html+='<div class="tx-card" style="margin-bottom:16px"><div class="tx-ch" style="display:flex;justify-content:space-between;align-items:center">'
-      +'<h3>'+esc(t.name)+' <span style="color:#4A4848;font-size:13px">'+esc(t.name_en||'')+' · 子分类</span></h3>'
-      +'<button onclick="mcAdd(\''+esc(t.code)+'\')" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px">＋ 新增子分类</button></div>'
-      +'<div data-sortable="menu_categories">'
-      +(subs.length?subs.map(function(r){return _mcRowHtml(r,true);}).join('')
-        :'<div style="text-align:center;padding:20px;color:#4A4848">（没有子分类，这个分类下的商品直接平铺）</div>')
-      +'</div></div>';
-  });
-  return html;
 }
 var _mcEditId=null, _mcParent='';
 function mcAdd(parentCode){
@@ -4291,17 +4312,19 @@ function _miSyncSubcats(keep){
     sel.insertAdjacentHTML('beforeend','<option value="'+esc(cur)+'">'+esc(cur)+'（子分类已删）</option>');
   sel.value=cur;
 }
-function menuAdd(cat){
+/* subcat 是从哪一段点进来的：在子分类那一栏点「＋ 商品」就预选那个子分类，
+   在分类头上点就留空（= 不分子分类，顾客端平铺在本分类下）。弹窗里还能改。 */
+function menuAdd(cat, subcat){
   if(!db){showN('未连接云端');return;}
   _miEditId=null; _miCat=cat; _miImageUrl=null; _miImageUploading=null;
-  document.getElementById('miTitle').textContent='新增品项 ·'+catName(cat);
+  document.getElementById('miTitle').textContent='新增品项 ·'+catName(cat)+(subcat?(' / '+catName(subcat)):'');
   _miApplyUploadBg(null);
   document.getElementById('miImgFile').value='';
   document.getElementById('miName').value='';
   document.getElementById('miEn').value='';
   document.getElementById('miPrice').value='';
   document.getElementById('miDesc').value='';
-  _miFillCats(cat,'');
+  _miFillCats(cat, subcat||'');
   _chFill('miChannels', null);
   document.getElementById('miSpecGroups').innerHTML='';
   document.getElementById('miBg').classList.add('show');
@@ -4405,6 +4428,7 @@ document.addEventListener('pointermove', function(ev){
   var el=document.elementFromPoint(ev.clientX, ev.clientY);
   var over=el && el.closest ? el.closest('[data-sid]') : null;
   if(!over || over===_dsRow || !_dsBox.contains(over)) return;
+  if(_dsOwn(over)!==_dsBox) return;   // 里层容器的行（商品行）不能当分类的落点
   var r=over.getBoundingClientRect();
   // 越过中线才换位，否则停在边界上会来回抖
   over.parentNode.insertBefore(_dsRow, (ev.clientY > r.top + r.height/2) ? over.nextSibling : over);
@@ -4423,9 +4447,15 @@ function _dsDrop(){
 }
 document.addEventListener('pointerup', _dsDrop);
 document.addEventListener('pointercancel', _dsDrop);
+/* 这一行归哪个容器管：取它最近的 data-sortable 祖先。
+   商品管理是「分类 > 子分类 > 商品」三层嵌套，容器套容器，
+   直接 querySelectorAll('[data-sid]') 会把里层的行也捞进来，
+   拖一下分类就会顺手把商品行按分类的表去重编号——数据全乱。 */
+function _dsOwn(row){ return row.parentNode ? row.parentNode.closest('[data-sortable]') : null; }
 function _dsSave(box){
   var table=box.getAttribute('data-sortable');
-  var rows=Array.prototype.slice.call(box.querySelectorAll('[data-sid]'));
+  var rows=Array.prototype.slice.call(box.querySelectorAll('[data-sid]'))
+    .filter(function(r){ return _dsOwn(r)===box; });
   var ups=[];
   rows.forEach(function(r,i){
     var want=(i+1)*10;
