@@ -26,7 +26,7 @@ create index if not exists orders_status_idx  on public.orders (status);
 drop table if exists public.menu_items cascade;
 create table public.menu_items (
   id          uuid primary key default gen_random_uuid(),
-  cat         text not null,                    -- special|classic|toast|boat|ice|drinks
+  cat         text not null,                    -- 顶级分类的 code（见 menu_categories，由 supabase-menu-categories.sql 建；子分类在那之后的 subcat 列）
   name        text not null,
   en          text,
   price       numeric not null default 0,

@@ -220,12 +220,18 @@ body.ds-on{user-select:none;-webkit-user-select:none;}
 
 /* MENU AREA — x:547, y:91, w:819, h:578 */
 .menu{position:absolute;left:547px;top:91px;width:819px;height:578px;background:#FFFFD5;overflow:hidden;}
-/* Category cards — 3 cols within menu area
-   Col1 x:16, Col2 x:283.67, Col3 x:551.33
-   Row1 y:16, Row2 y:203.33, Row3 y:390.67
-   Card w:251.67, h:171/171.33 */
-.cat-card{position:absolute;background:#FFDE5B;border-radius:18px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:26px;color:#000;cursor:pointer;}
+/* Category cards — 3 cols within menu area（Figma：卡片 251×171，间距 16，外边距 16）
+   分类现在是数据库里的行、数量不定，所以改成自动排版：3 列排满换行、超过一屏往下滚，
+   ≤7 个分类时跟原来那套绝对定位的位置逐像素一致 */
+.cat-grid{position:absolute;left:0;top:0;width:819px;height:578px;padding:16px;box-sizing:border-box;
+  display:grid;grid-template-columns:repeat(3,251px);grid-auto-rows:171px;gap:16px;align-content:start;overflow-y:auto;}
+.cat-card{background:#FFDE5B;border-radius:18px;display:flex;align-items:center;justify-content:center;text-align:center;padding:0 10px;font-weight:700;font-size:26px;line-height:1.15;color:#000;cursor:pointer;}
 .cat-card:active{opacity:.8;transform:scale(.98);}
+/* 子分类筛选条（进入某个分类后才有；没建子分类的分类不显示这一条）*/
+.item-sub-bar{flex-shrink:0;display:flex;gap:8px;padding:10px 16px;overflow-x:auto;border-bottom:2px solid #F5E9D4;background:#FFFFD5;}
+.item-sub-bar:empty{display:none;}
+.sub-chip{flex-shrink:0;border:2px solid #FFDE5B;background:#fff;color:#8D0505;border-radius:999px;padding:6px 16px;font-size:16px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.sub-chip.a{background:#FFDE5B;}
 /* Item grid view (replaces cat cards when clicked) */
 .item-view{position:absolute;left:0;top:0;width:819px;height:578px;background:#FFFFD5;display:none;flex-direction:column;overflow:hidden;}
 .item-view.show{display:flex;}
@@ -754,19 +760,14 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
 
   <!-- MENU CATEGORIES -->
   <div class="menu" id="menuArea">
-    <!-- 7 category cards — exact Figma positions relative to menu area -->
-    <div class="cat-card" style="left:16px;top:16px;width:251px;height:171px" onclick="showItems('special')">Special</div>
-    <div class="cat-card" style="left:284px;top:16px;width:251px;height:171px" onclick="showItems('classic')">Classic</div>
-    <div class="cat-card" style="left:552px;top:16px;width:251px;height:171px" onclick="showItems('toast')">Toast</div>
-    <div class="cat-card" style="left:16px;top:203px;width:251px;height:171px" onclick="showItems('boat')">Pudding Boat</div>
-    <div class="cat-card" style="left:284px;top:203px;width:251px;height:172px" onclick="showItems('ice')">Ice Cream Pudding</div>
-    <div class="cat-card" style="left:552px;top:203px;width:251px;height:171px" onclick="showItems('drinks')">Drinks</div>
-    <div class="cat-card" style="left:16px;top:391px;width:251px;height:171px" onclick="showItems('preorder')">Preorder</div>
+    <!-- 分类卡片：由 renderCatCards() 按 menu_categories 表渲染（后台「菜单管理 → 分类管理」维护）-->
+    <div class="cat-grid" id="catGrid"></div>
     <!-- Item view overlay -->
     <div class="item-view" id="itemView">
       <div class="item-view-head">
         <span class="item-cat-name" id="itemCatName"></span>
 </div>
+      <div class="item-sub-bar" id="itemSubBar"></div>
       <div class="item-grid-wrap"><div class="item-grid" id="itemGrid"></div></div>
       <div class="item-view-foot"><button class="item-back-btn" onclick="itemBack()">Back</button><button class="item-ok-btn" id="itemOkBtn" onclick="viewOk()" style="display:none">OK</button></div>
 </div>
@@ -959,6 +960,11 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
         <div class="mi-col"><label class="mi-lbl">中文名*</label><input class="mi-input" id="miName" placeholder="如：布丁芭菲杯"></div>
         <div class="mi-col"><label class="mi-lbl">English Name*</label><input class="mi-input" id="miEn" placeholder="如：Pudding Parfait"></div>
 </div>
+      <!-- 分类 / 子分类：分类在「菜单管理 → 分类管理」维护；没建子分类的分类这里只有一个「不分子分类」 -->
+      <div class="mi-row2">
+        <div class="mi-col"><label class="mi-lbl">分类*</label><select class="mi-input" id="miCat" onchange="_miSyncSubcats()"></select></div>
+        <div class="mi-col"><label class="mi-lbl">子分类</label><select class="mi-input" id="miSubcat"></select></div>
+</div>
       <label class="mi-lbl">产品描述*</label>
       <textarea class="mi-desc" id="miDesc" placeholder="产品简介"></textarea>
       <!-- 销售渠道：不适合打包/外送的品项在这里取消勾选，顾客小程序切到那个模式就看不到 -->
@@ -1048,6 +1054,24 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       <input class="mfi" id="chCode" placeholder="如：booking">
       <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="chEnabled" checked style="width:auto;margin:0;"> 启用</label>
       <button class="mfs" onclick="saveCH()">保存 Save</button>
+</div>
+</div>
+</div>
+
+<!-- CATEGORY MODAL — 菜单分类：新增/编辑（顶级或子分类，看从哪个「＋」进来）-->
+<div class="modal-bg" id="mcBg" onclick="if(event.target===this)closeMC()">
+  <div class="mm-box">
+    <div class="mm-hd"><h3 id="mcTitle">新增分类</h3><button class="mm-cl" onclick="closeMC()">✕</button></div>
+    <div class="mm-body">
+      <label class="mfl">归属</label>
+      <div class="mfh" id="mcParent" style="margin-bottom:10px"></div>
+      <label class="mfl">分类名称 *</label><input class="mfi" id="mcName" placeholder="如：奶茶·鲜奶">
+      <label class="mfl">English</label><input class="mfi" id="mcNameEn" placeholder="如：Milk Tea">
+      <label class="mfl">代号 *</label>
+      <div class="mfh" id="mcCodeHint">英文小写代号，保存后不能改</div>
+      <input class="mfi" id="mcCode" placeholder="如：dk_milktea">
+      <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="mcEnabled" checked style="width:auto;margin:0;"> 启用</label>
+      <button class="mfs" onclick="saveMC()">保存 Save</button>
 </div>
 </div>
 </div>
@@ -1332,42 +1356,103 @@ var MENU_FALLBACK={
   ]},
 };
 
-/* 分类顺序 + 中英名（收银网格 7 个分类按钮对应）*/
+/* ── 菜单分类（后台「菜单管理 → 分类管理」维护，两级）──
+   分类原本写死在这里，现在以云端 menu_categories 表为准：parent_code 为空 = 顶级分类，
+   有值 = 挂在那个顶级分类下的子分类。下面这份写死的只当兜底——表还没建（SQL 没跑）
+   或离线时退回它，收银台照常能开单，只是不能自己增删分类。 */
 var POS_CATS=['special','classic','toast','boat','ice','preorder','drinks'];
 var POS_CATN={special:['精选系列','Special'],classic:['经典系列','Classic'],toast:['吐司','Toast'],
   boat:['布丁船','Pudding Boat'],ice:['冰激凌布丁','Ice Cream Pudding'],preorder:['预订','Preorder'],drinks:['饮料','Drinks']};
+function _catFallback(){
+  return POS_CATS.map(function(c,i){
+    return {id:'_'+c,code:c,name:POS_CATN[c][0],name_en:POS_CATN[c][1],parent_code:null,enabled:true,sort_order:(i+1)*10,_local:true};
+  });
+}
+var _menuCats=_catFallback();
+function _catSort(a,b){ return (a.sort_order||0)-(b.sort_order||0); }
+/* onlyOn=true 只要启用的（收银台/顾客端用）；后台列表要连停用的一起显示 */
+function catTops(onlyOn){
+  var l=(_menuCats||[]).filter(function(c){ return !c.parent_code && (!onlyOn || c.enabled!==false); });
+  return l.sort(_catSort);
+}
+function catSubs(parentCode,onlyOn){
+  return (_menuCats||[]).filter(function(c){
+    return c.parent_code===parentCode && (!onlyOn || c.enabled!==false);
+  }).sort(_catSort);
+}
+function catRow(code){ return (_menuCats||[]).filter(function(c){return c.code===code;})[0]||null; }
+function catName(code){ var r=catRow(code); return r?r.name:(POS_CATN[code]?POS_CATN[code][0]:code); }
+function catNameEn(code){ var r=catRow(code); return r?(r.name_en||r.name):(POS_CATN[code]?POS_CATN[code][1]:code); }
+
 /* 当前生效菜单（先用兜底，云端拉到后替换）+ 原始行（供后台管理）*/
 var MENU=MENU_FALLBACK;
 var _menuRows=[];
 /* 云端行 -> 收银网格结构（收银网格用 name=英文、name_cn=中文）*/
 function buildPosMenuFromRows(rows){
   var m={};
-  POS_CATS.forEach(function(c){ m[c]={cn:POS_CATN[c][0],en:POS_CATN[c][1],items:[]}; });
+  catTops(true).forEach(function(c){ m[c.code]={cn:c.name,en:c.name_en||c.name,items:[]}; });
   (rows||[]).slice().sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);}).forEach(function(r){
-    var c=r.cat; if(!m[c]) m[c]={cn:c,en:c,items:[]};
-    m[c].items.push({name:r.en||r.name,name_cn:r.name,price:Number(r.price)||0,sold_out:!!r.sold_out,id:r.id,flavors:r.flavors||[],specs:r.specs||[]});
+    var c=r.cat; if(!m[c]) m[c]={cn:catName(c),en:catNameEn(c),items:[]};
+    m[c].items.push({name:r.en||r.name,name_cn:r.name,price:Number(r.price)||0,sold_out:!!r.sold_out,id:r.id,
+      subcat:r.subcat||'',flavors:r.flavors||[],specs:r.specs||[]});
   });
   return m;
+}
+/* 分类卡片：数量不定，按 menu_categories 重排一次（3 列自动换行）*/
+function renderCatCards(){
+  var el=document.getElementById('catGrid'); if(!el) return;
+  var tops=catTops(true);
+  el.innerHTML=tops.length
+    ? tops.map(function(c){ return'<div class="cat-card" onclick="showItems(\''+esc(c.code)+'\')">'+esc(c.name_en||c.name)+'</div>'; }).join('')
+    : '<div style="grid-column:1/-1;padding:40px;text-align:center;color:#8D0505;font-weight:700">还没有分类，去「菜单管理 → 分类管理」加一个</div>';
 }
 function posMenuHasItems(m){return Object.keys(m||{}).some(function(c){return m[c].items&&m[c].items.length;});}
 function loadMenuCache(){try{var raw=localStorage.getItem('pm_menu_cache');if(!raw)return null;
   var m=buildPosMenuFromRows(JSON.parse(raw));return posMenuHasItems(m)?m:null;}catch(e){return null;}}
+/* 分类和商品任一边变了都要重算一次：MENU 的分类是按 menu_categories 铺的 */
+function _applyPosMenu(){
+  var m=buildPosMenuFromRows(_menuRows);
+  MENU=posMenuHasItems(m)?m:(loadMenuCache()||MENU_FALLBACK);
+  renderCatCards();
+}
+function _menuAdminOpen(){
+  try{ return document.getElementById('adminView').style.display==='flex'
+    && document.getElementById('asi-menu') && document.getElementById('asi-menu').classList.contains('a'); }catch(e){ return false; }
+}
 async function loadMenu(){
-  if(!db){ setCloudStatus('offline'); MENU=loadMenuCache()||MENU_FALLBACK; return; }
+  if(!db){ setCloudStatus('offline'); MENU=loadMenuCache()||MENU_FALLBACK; renderCatCards(); return; }
   try{
     var res=await db.from('menu_items').select('*').order('sort_order');
     if(res.error) throw res.error;
     setCloudStatus('online');
     _menuRows=res.data||[];
     try{ localStorage.setItem('pm_menu_cache',JSON.stringify(_menuRows)); }catch(e){}
-    var m=buildPosMenuFromRows(_menuRows);
-    MENU=posMenuHasItems(m)?m:(loadMenuCache()||MENU_FALLBACK);
-    try{ if(document.getElementById('adminView').style.display==='flex' && document.getElementById('asi-menu') && document.getElementById('asi-menu').classList.contains('a')) renderMenuAdmin(); }catch(e){}
-  }catch(e){ setCloudStatus('offline'); MENU=loadMenuCache()||MENU_FALLBACK; }
+    _applyPosMenu();
+    if(_menuAdminOpen()) renderMenuAdmin();
+  }catch(e){ setCloudStatus('offline'); MENU=loadMenuCache()||MENU_FALLBACK; renderCatCards(); }
 }
 function subscribeMenu(){
   if(!db) return;
   db.channel('menu-pos').on('postgres_changes',{event:'*',schema:'public',table:'menu_items'},function(){ loadMenu(); }).subscribe();
+}
+
+/* ── 分类表（menu_categories）── 表没建/离线时退回写死的那份，收银台不至于开不了单 */
+async function loadMenuCats(){
+  if(!db){ _menuCats=_catCache()||_catFallback(); _applyPosMenu(); return; }
+  try{
+    var res=await db.from('menu_categories').select('*').order('sort_order');
+    if(res.error) throw res.error;
+    _menuCats=(res.data&&res.data.length)?res.data:_catFallback();
+    try{ localStorage.setItem('pm_cat_cache',JSON.stringify(_menuCats)); }catch(e){}
+  }catch(e){ _menuCats=_catCache()||_catFallback(); }
+  _applyPosMenu();
+  if(_menuAdminOpen()) renderMenuAdmin();
+}
+function _catCache(){ try{ var raw=localStorage.getItem('pm_cat_cache'); var a=raw?JSON.parse(raw):null;
+  return (a&&a.length)?a:null; }catch(e){ return null; } }
+function subscribeMenuCats(){
+  if(!db) return;
+  try{ db.channel('cats-pos').on('postgres_changes',{event:'*',schema:'public',table:'menu_categories'},function(){ loadMenuCats(); }).subscribe(); }catch(e){}
 }
 
 /* ── 规格库（后台"规格管理"维护，加新品/编辑时下拉选用）── */
@@ -1557,7 +1642,7 @@ function confirmQtySlot(){
 }
 
 /* ── MENU ── */
-var _curCat=null, _specCtx=null, SKIP_SEL=-1;
+var _curCat=null, _curSub=null, _specCtx=null, SKIP_SEL=-1;
 /* 规格入口：有 specs 用 specs（后台配置的多组规格），否则把 flavors 包成一个无名单组；都没有则无规格 */
 function _posItemSpecs(it){
   if(it&&it.specs&&it.specs.length) return it.specs;
@@ -1583,14 +1668,30 @@ function _groupRequired(g){ if(!g)return true; if(g.defId){ var d=_specDefById(g
 
 /* 分类页点类目直接进品项列表；品项列表点品项：无规格→直接加入，有规格→进规格选择页。 */
 function showItems(cat){
-  _curCat=cat; _specCtx=null;
-  document.getElementById('itemCatName').innerHTML='<span class="bc-cur">'+esc(MENU[cat].en)+'</span>';
-  var it=MENU[cat].items;
-  document.getElementById('itemGrid').innerHTML=it.map(function(item,i){
-    return'<div class="item-card" onclick="addItem(\''+cat+'\','+i+')"><div class="ic-name">'+esc(item.name)+'</div></div>';
-  }).join('');
+  _curCat=cat; _specCtx=null; _curSub=null;
+  renderItemList();
   document.getElementById('itemOkBtn').style.display='none'; // 品项列表无 OK：点品项直接加入或进规格页
   document.getElementById('itemView').classList.add('show');
+}
+/* 子分类筛选：点一下只看这个子分类。传给 addItem 的下标必须是品项在 MENU[cat].items
+   里的原始位置，所以这里只过滤显示、不重排数组。 */
+function subPick(code){ _curSub=code||null; renderItemList(); }
+function renderItemList(){
+  var cat=_curCat, mc=MENU[cat]||{items:[],en:catNameEn(cat)};
+  var subs=catSubs(cat,true);
+  var subName=_curSub?catNameEn(_curSub):'';
+  document.getElementById('itemCatName').innerHTML='<span class="bc-cur">'+esc(mc.en)+'</span>'
+    +(subName?'<span class="bc-cur"> · '+esc(subName)+'</span>':'');
+  document.getElementById('itemSubBar').innerHTML=subs.length
+    ? '<button class="sub-chip'+(_curSub?'':' a')+'" onclick="subPick(\'\')">全部</button>'
+      +subs.map(function(s){ return'<button class="sub-chip'+(_curSub===s.code?' a':'')+'" onclick="subPick(\''+esc(s.code)+'\')">'+esc(s.name)+'</button>'; }).join('')
+    : '';
+  var html='';
+  (mc.items||[]).forEach(function(item,i){
+    if(_curSub && (item.subcat||'')!==_curSub) return;
+    html+='<div class="item-card" onclick="addItem(\''+cat+'\','+i+')"><div class="ic-name">'+esc(item.name)+'</div></div>';
+  });
+  document.getElementById('itemGrid').innerHTML=html||'<div style="padding:30px;color:#4A4848">（这个分类下暂无品项）</div>';
 }
 function hideitems(){document.getElementById('itemView').classList.remove('show');_specCtx=null;}
 function itemBack(){ if(_specCtx){ specBack(); } else { hideitems(); } }
@@ -3561,25 +3662,34 @@ function renderMenuAdmin(){
   if(!db){ el.innerHTML='<div class="page-title">菜单管理</div><div style="padding:30px;color:#8D0505">未连接云端（Supabase 未配置或离线），无法编辑菜单。</div>'; return; }
   var tabsHtml='<div class="ma-tabs">'
     +'<button class="ma-tab'+(_menuAdminTab==='items'?' a':'')+'" onclick="setMenuAdminTab(\'items\')">商品管理</button>'
+    +'<button class="ma-tab'+(_menuAdminTab==='cats'?' a':'')+'" onclick="setMenuAdminTab(\'cats\')">分类管理</button>'
     +'<button class="ma-tab'+(_menuAdminTab==='specs'?' a':'')+'" onclick="setMenuAdminTab(\'specs\')">规格管理</button>'
     +'<button class="ma-tab'+(_menuAdminTab==='channels'?' a':'')+'" onclick="setMenuAdminTab(\'channels\')">销售方式</button>'
     +'</div>';
   var html='<div class="page-title">菜单管理 · Menu</div>'+tabsHtml;
+  if(_menuAdminTab==='cats'){ el.innerHTML=html+catsAdminHtml(); return; }
   if(_menuAdminTab==='specs'){ el.innerHTML=html+specDefsAdminHtml(); return; }
   if(_menuAdminTab==='channels'){ el.innerHTML=html+channelsAdminHtml(); return; }
   var rows=(_menuRows||[]).slice().sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
-  html+='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">改价 / 上下架 / 加新品 / 删除——保存后<b>顾客小程序实时更新</b>。「下架」的品项顾客端不显示。</div>'
+  html+='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">改价 / 上下架 / 加新品 / 删除——保存后<b>顾客小程序实时更新</b>。「下架」的品项顾客端不显示。<br>'
+    +'分类和子分类在「分类管理」里维护；每个品项属于哪个分类、哪个子分类，在「改」里选。</div>'
     +_dsHint();
-  POS_CATS.forEach(function(c){
+  catTops().forEach(function(cat){
+    var c=cat.code;
     var items=rows.filter(function(r){return r.cat===c;});
+    var subs=catSubs(c);
     html+='<div class="tx-card" style="margin-bottom:16px"><div class="tx-ch" style="display:flex;justify-content:space-between;align-items:center">'
-      +'<h3>'+POS_CATN[c][0]+' <span style="color:#4A4848;font-size:13px">'+POS_CATN[c][1]+'</span></h3>'
-      +'<button onclick="menuAdd(\''+c+'\')" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px">＋ 加新品</button></div>'
-      +'<table><thead><tr><th>中文名</th><th>English</th><th>价格 RM</th><th>销售渠道</th><th>状态</th><th>操作</th></tr></thead>'
+      +'<h3>'+esc(cat.name)+' <span style="color:#4A4848;font-size:13px">'+esc(cat.name_en||'')+'</span>'
+      +(cat.enabled===false?' <span style="color:#8D0505;font-size:13px">（已停用）</span>':'')
+      +(subs.length?' <span style="color:#4A4848;font-size:13px">· '+subs.length+' 个子分类</span>':'')+'</h3>'
+      +'<button onclick="menuAdd(\''+esc(c)+'\')" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px">＋ 加新品</button></div>'
+      +'<table><thead><tr><th>中文名</th><th>English</th><th>子分类</th><th>价格 RM</th><th>销售渠道</th><th>状态</th><th>操作</th></tr></thead>'
       +'<tbody data-sortable="menu_items">'
       +(items.length?items.map(function(r){
+        var sub=r.subcat?catRow(r.subcat):null;
         return'<tr data-sid="'+esc(r.id)+'" data-so="'+(r.sort_order||0)+'"'+(r.sold_out?' style="opacity:.5"':'')+'>'
           +'<td><b>'+esc(r.name)+'</b></td><td style="font-size:12px;color:#4A4848">'+esc(r.en||'')+'</td>'
+          +'<td style="font-size:12px">'+(r.subcat?(sub?esc(sub.name):'<span style="color:#8D0505">'+esc(r.subcat)+'（已删）</span>'):'<span style="color:#4A4848">—</span>')+'</td>'
           +'<td>'+Number(r.price).toFixed(1)+'</td>'
           +'<td>'+_chTagsHtml(r.channels)+'</td>'
           +'<td>'+(r.sold_out?'<span style="color:#8D0505">已下架</span>':'<span style="color:#1D7715">在售</span>')+'</td>'
@@ -3588,9 +3698,10 @@ function renderMenuAdmin(){
           +'<button onclick="menuToggleSold(\''+r.id+'\','+(r.sold_out?'true':'false')+')" style="border:none;background:#FFDE5B;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">'+(r.sold_out?'上架':'下架')+'</button>'
           +'<button onclick="menuDel(\''+r.id+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">删</button>'
           +'</td></tr>';
-      }).join(''):'<tr><td colspan="6" style="text-align:center;padding:16px;color:#4A4848">（暂无品项，点「＋ 加新品」）</td></tr>')
+      }).join(''):'<tr><td colspan="7" style="text-align:center;padding:16px;color:#4A4848">（暂无品项，点「＋ 加新品」）</td></tr>')
       +'</tbody></table></div>';
   });
+  if(!catTops().length) html+='<div class="tx-card" style="padding:30px;text-align:center;color:#4A4848">还没有分类，先去「分类管理」加一个。</div>';
   el.innerHTML=html;
 }
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -3626,6 +3737,125 @@ function specDefsAdminHtml(){
   html+='</div></div>';   // 收 [data-sortable] 和 tx-card 两层
   return html;
 }
+/* ── 分类管理（菜单管理页签之一）：维护分类本身，两级 ──
+   顶级分类 = 小程序左侧分类栏 / 收银台首页大卡片；子分类挂在某个顶级分类下。
+   商品用 menu_items.cat 认顶级、subcat 认子分类，所以 code 建好就不给改。 */
+function _mcAfterWrite(res,msg){ if(res&&res.error){showN(''+(res.error.message||'操作失败'));return;} showN(msg); loadMenuCats().then(function(){renderMenuAdmin();}); }
+function _mcCount(code,isSub){
+  return (_menuRows||[]).filter(function(r){ return isSub?(r.subcat===code):(r.cat===code); }).length;
+}
+function _mcRowHtml(r,isSub){
+  var n=_mcCount(r.code,isSub);
+  return'<div class="ch-row" data-sid="'+esc(r.id)+'" data-so="'+(r.sort_order||0)+'"><div class="ch-nm">'+esc(r.name)+'</div>'
+    +'<div class="ch-code">'+esc(r.code)+'</div>'
+    +'<div style="flex:1;font-size:12px;color:#4A4848">'+esc(r.name_en||'')
+    +'<span style="margin-left:10px">'+n+' 个商品</span></div>'
+    +'<span class="ch-tag'+(r.enabled===false?' off':'')+'">'+(r.enabled===false?'已停用':'在用')+'</span>'
+    +'<div style="white-space:nowrap">'
+    +'<button onclick="mcEdit(\''+esc(r.id)+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;margin-left:8px;cursor:pointer;font-size:12px;font-weight:700">改</button>'
+    +'<button onclick="mcDel(\''+esc(r.id)+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 10px;margin-left:4px;cursor:pointer;font-size:12px;font-weight:700">删</button>'
+    +'</div></div>';
+}
+function catsAdminHtml(){
+  var tops=catTops();
+  var html='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">分类分两级：<b>顶级分类</b>是顾客小程序左边那一栏、收银台首页的大卡片；<b>子分类</b>挂在某个顶级分类下面（例如 饮料 → 奶茶 / 咖啡 / 果茶气泡），进入那个分类之后才出现。<br>'
+    +'代号保存后不能改（商品存的是代号，改了就全部对不上）；改中英文名、拖动排序、停用随时可以。停用 = 顾客端和收银台都不显示，后台还留着。</div>';
+  if((_menuCats||[]).some(function(c){return c._local;}))
+    html+='<div class="tx-card" style="padding:16px;margin-bottom:16px;color:#8D0505;font-weight:700;line-height:1.6">云端还没有 menu_categories 表，现在显示的是代码里写死的那份，不能增删。<br>请先在 Supabase → SQL Editor 跑一次 <code>supabase-menu-categories.sql</code>。</div>';
+  html+=_dsHint()
+    +'<div class="tx-card" style="margin-bottom:16px"><div class="tx-ch" style="display:flex;justify-content:space-between;align-items:center">'
+    +'<h3>顶级分类</h3><button onclick="mcAdd(\'\')" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px">＋ 新增顶级分类</button></div>'
+    +'<div data-sortable="menu_categories">'
+    +(tops.length?tops.map(function(r){return _mcRowHtml(r,false);}).join('')
+      :'<div style="text-align:center;padding:30px;color:#4A4848">（暂无分类，点「＋ 新增顶级分类」）</div>')
+    +'</div></div>';
+  tops.forEach(function(t){
+    var subs=catSubs(t.code);
+    html+='<div class="tx-card" style="margin-bottom:16px"><div class="tx-ch" style="display:flex;justify-content:space-between;align-items:center">'
+      +'<h3>'+esc(t.name)+' <span style="color:#4A4848;font-size:13px">'+esc(t.name_en||'')+' · 子分类</span></h3>'
+      +'<button onclick="mcAdd(\''+esc(t.code)+'\')" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px">＋ 新增子分类</button></div>'
+      +'<div data-sortable="menu_categories">'
+      +(subs.length?subs.map(function(r){return _mcRowHtml(r,true);}).join('')
+        :'<div style="text-align:center;padding:20px;color:#4A4848">（没有子分类，这个分类下的商品直接平铺）</div>')
+      +'</div></div>';
+  });
+  return html;
+}
+var _mcEditId=null, _mcParent='';
+function mcAdd(parentCode){
+  if(!db){showN('未连接云端');return;}
+  if((_menuCats||[]).some(function(c){return c._local;})){showN('请先跑 supabase-menu-categories.sql');return;}
+  _mcEditId=null; _mcParent=parentCode||'';
+  document.getElementById('mcTitle').textContent=_mcParent?('新增子分类 ·'+catName(_mcParent)):'新增顶级分类';
+  document.getElementById('mcParent').textContent=_mcParent?(catName(_mcParent)+'（'+_mcParent+'）'):'顶级分类（不挂在其它分类下）';
+  document.getElementById('mcName').value='';
+  document.getElementById('mcNameEn').value='';
+  document.getElementById('mcCode').value='';
+  document.getElementById('mcCode').disabled=false;
+  document.getElementById('mcCodeHint').textContent='英文小写代号，如 dk_milktea。保存后不能改';
+  document.getElementById('mcEnabled').checked=true;
+  document.getElementById('mcBg').classList.add('show');
+}
+function mcEdit(id){
+  if(!db){showN('未连接云端');return;}
+  var r=(_menuCats||[]).filter(function(x){return String(x.id)===String(id);})[0]; if(!r)return;
+  _mcEditId=id; _mcParent=r.parent_code||'';
+  document.getElementById('mcTitle').textContent='编辑分类';
+  document.getElementById('mcParent').textContent=_mcParent?(catName(_mcParent)+'（'+_mcParent+'）'):'顶级分类（不挂在其它分类下）';
+  document.getElementById('mcName').value=r.name||'';
+  document.getElementById('mcNameEn').value=r.name_en||'';
+  document.getElementById('mcCode').value=r.code||'';
+  document.getElementById('mcCode').disabled=true;   // 商品行存的是代号，改了就对不上
+  document.getElementById('mcCodeHint').textContent='代号已被商品引用，不能改';
+  document.getElementById('mcEnabled').checked=r.enabled!==false;
+  document.getElementById('mcBg').classList.add('show');
+}
+function closeMC(){document.getElementById('mcBg').classList.remove('show');}
+function saveMC(){
+  if(!db){showN('未连接云端');return;}
+  var name=document.getElementById('mcName').value.trim();
+  if(!name){showN('请填写分类名称');return;}
+  var payload={name:name, name_en:document.getElementById('mcNameEn').value.trim()||null,
+    enabled:document.getElementById('mcEnabled').checked};
+  if(_mcEditId){
+    db.from('menu_categories').update(payload).eq('id',_mcEditId)
+      .then(function(res){_mcAfterWrite(res,'已保存');}).catch(function(e){showN('网络错误');});
+  }else{
+    var code=document.getElementById('mcCode').value.trim().toLowerCase();
+    if(!/^[a-z][a-z0-9_]*$/.test(code)){showN('代号只能用小写英文/数字/下划线，且以字母开头');return;}
+    if((_menuCats||[]).some(function(x){return x.code===code;})){showN('这个代号已经有了');return;}
+    var sibs=_mcParent?catSubs(_mcParent):catTops();
+    var maxSo=sibs.reduce(function(m,r){return Math.max(m,r.sort_order||0);},0);
+    payload.code=code; payload.parent_code=_mcParent||null; payload.sort_order=maxSo+10;
+    db.from('menu_categories').insert(payload)
+      .then(function(res){_mcAfterWrite(res,'已添加：'+name);}).catch(function(e){showN('网络错误');});
+  }
+  closeMC();
+}
+/* 删分类前先看有没有东西挂着：顶级分类底下还有商品或子分类就不给删（免得商品变成孤儿，
+   哪个分类都进不去）；子分类可以删，删之前把商品的 subcat 清空，商品退回顶级分类平铺 */
+function mcDel(id){
+  if(!db){showN('未连接云端');return;}
+  var r=(_menuCats||[]).filter(function(x){return String(x.id)===String(id);})[0]; if(!r)return;
+  var isSub=!!r.parent_code;
+  var n=_mcCount(r.code,isSub);
+  if(!isSub){
+    var subs=catSubs(r.code);
+    if(subs.length){showN('请先删掉它下面的 '+subs.length+' 个子分类');return;}
+    if(n){showN('还有 '+n+' 个商品在这个分类下，先移走或删掉');return;}
+    if(!confirm('确定删除分类「'+r.name+'」？'))return;
+    db.from('menu_categories').delete().eq('id',id)
+      .then(function(res){_mcAfterWrite(res,'已删除');}).catch(function(e){showN('网络错误');});
+    return;
+  }
+  if(!confirm('确定删除子分类「'+r.name+'」？\n它下面的 '+n+' 个商品会退回「'+catName(r.parent_code)+'」直接平铺，商品本身不会删。'))return;
+  db.from('menu_items').update({subcat:null}).eq('subcat',r.code).then(function(){
+    return db.from('menu_categories').delete().eq('id',id);
+  }).then(function(res){
+    loadMenu(); _mcAfterWrite(res,'已删除');
+  }).catch(function(e){showN('网络错误');});
+}
+
 /* ── 销售方式（菜单管理页签之一）：维护渠道本身。商品/规格组的打钩跟着这张表走 ── */
 function _chAfterWrite(res,msg){ if(res&&res.error){showN(''+(res.error.message||'操作失败'));return;} showN(msg); loadChannels().then(function(){renderMenuAdmin();}); }
 function channelsAdminHtml(){
@@ -4040,16 +4270,38 @@ function _miCollectSpecGroups(){
   }
   return out;
 }
+/* 分类下拉：编辑时也能改分类，所以新建的子分类可以直接把老商品挪进去。
+   商品存的分类已经被删掉时补一条「已删分类」的选项，免得一打开表单就被悄悄换成第一个分类。 */
+function _miFillCats(cat,subcat){
+  var sel=document.getElementById('miCat'), tops=catTops();
+  sel.innerHTML=tops.map(function(c){
+    return'<option value="'+esc(c.code)+'"'+(c.code===cat?' selected':'')+'>'+esc(c.name)+(c.enabled===false?'（停用）':'')+'</option>';
+  }).join('');
+  if(cat && !tops.some(function(c){return c.code===cat;}))
+    sel.insertAdjacentHTML('afterbegin','<option value="'+esc(cat)+'" selected>'+esc(cat)+'（分类已删）</option>');
+  _miSyncSubcats(subcat||'');
+}
+function _miSyncSubcats(keep){
+  var cur=(typeof keep==='string')?keep:'';
+  var sel=document.getElementById('miSubcat'), subs=catSubs(document.getElementById('miCat').value);
+  sel.innerHTML='<option value="">（不分子分类）</option>'+subs.map(function(c){
+    return'<option value="'+esc(c.code)+'">'+esc(c.name)+(c.enabled===false?'（停用）':'')+'</option>';
+  }).join('');
+  if(cur && !subs.some(function(c){return c.code===cur;}))
+    sel.insertAdjacentHTML('beforeend','<option value="'+esc(cur)+'">'+esc(cur)+'（子分类已删）</option>');
+  sel.value=cur;
+}
 function menuAdd(cat){
   if(!db){showN('未连接云端');return;}
   _miEditId=null; _miCat=cat; _miImageUrl=null; _miImageUploading=null;
-  document.getElementById('miTitle').textContent='新增品项 ·'+(POS_CATN[cat]?POS_CATN[cat][0]:cat);
+  document.getElementById('miTitle').textContent='新增品项 ·'+catName(cat);
   _miApplyUploadBg(null);
   document.getElementById('miImgFile').value='';
   document.getElementById('miName').value='';
   document.getElementById('miEn').value='';
   document.getElementById('miPrice').value='';
   document.getElementById('miDesc').value='';
+  _miFillCats(cat,'');
   _chFill('miChannels', null);
   document.getElementById('miSpecGroups').innerHTML='';
   document.getElementById('miBg').classList.add('show');
@@ -4065,6 +4317,7 @@ function menuEdit(id){
   document.getElementById('miEn').value=r.en||'';
   document.getElementById('miPrice').value=r.price!=null?r.price:'';
   document.getElementById('miDesc').value=r.descr||'';
+  _miFillCats(r.cat, r.subcat||'');
   _chFill('miChannels', r.channels);
   document.getElementById('miSpecGroups').innerHTML='';
   (r.specs||[]).forEach(function(g){ miAddSpecGroup(g.defId, g.prices); });
@@ -4080,8 +4333,11 @@ function saveMI(){
   var en=document.getElementById('miEn').value.trim();
   var desc=document.getElementById('miDesc').value.trim();
   var specGroups=_miCollectSpecGroups();
+  var cat=document.getElementById('miCat').value||_miCat;
+  if(!cat){showN('请选择分类');return;}
   var doSave=function(){
     var payload={name:name,en:en,price:price,descr:desc,specs:specGroups,image_url:_miImageUrl||null,
+      cat:cat, subcat:document.getElementById('miSubcat').value||null,
       channels:_chCollect('miChannels'),
       flavors:(specGroups.length&&specGroups[0].options.length)?specGroups[0].options:['Original']};
     if(_miEditId){
@@ -4089,7 +4345,7 @@ function saveMI(){
         .then(function(res){_menuAfterWrite(res,'已保存');}).catch(function(e){showN('网络错误');});
     }else{
       var maxSo=(_menuRows||[]).reduce(function(m,r){return Math.max(m,r.sort_order||0);},0);
-      payload.cat=_miCat; payload.sold_out=false; payload.sort_order=maxSo+10;
+      payload.sold_out=false; payload.sort_order=maxSo+10;
       db.from('menu_items').insert(payload)
         .then(function(res){_menuAfterWrite(res,'已添加：'+name);}).catch(function(e){showN('网络错误');});
     }
@@ -4121,7 +4377,8 @@ function menuDel(id){
 var _DS_HOLD=400, _DS_SLOP=8;
 var _dsTimer=null,_dsRow=null,_dsBox=null,_dsFrom=null,_dsPid=null;
 var _DS_RELOAD={menu_items:function(){return loadMenu();}, spec_defs:function(){return loadSpecDefs();},
-                sales_channels:function(){return loadChannels();}, recharge_packages:function(){return loadTopupPkgs();}};
+                sales_channels:function(){return loadChannels();}, recharge_packages:function(){return loadTopupPkgs();},
+                menu_categories:function(){return loadMenuCats();}};
 function _dsCancelHold(){ if(_dsTimer){ clearTimeout(_dsTimer); _dsTimer=null; } }
 function _dsPick(row, box, pid){
   _dsRow=row; _dsBox=box; _dsPid=pid;
@@ -4281,13 +4538,17 @@ function subscribeOrders(){
   db.channel('orders-pos').on('postgres_changes',{event:'*',schema:'public',table:'orders'},function(){ loadOrdersFromCloud(true); }).subscribe();
 }
 
-/* 云端启动：拉菜单 + 拉订单（首次不弹提示）+ 订阅实时 */
+/* 云端启动：拉分类 + 菜单 + 订单（首次不弹提示）+ 订阅实时。
+   分类和菜单谁先回来都行，两边拿到数据都会重算一次 MENU 并重画分类卡片。 */
+renderCatCards();
+loadMenuCats();
 loadMenu();
 loadSpecDefs();
 loadChannels();
 loadOrdersFromCloud(false);
 subscribeOrders();
 subscribeMenu();
+subscribeMenuCats();
 subscribeSpecDefs();
 subscribeChannels();
 

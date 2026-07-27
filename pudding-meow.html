@@ -2411,13 +2411,41 @@ var MENU_FALLBACK = {
   ]},
 };
 
-/* 分类的中英显示名（很少变，保留在代码里）；可编辑的是各分类下的「品项」 */
+/* 分类兜底：分类现在存在云端 menu_categories 表里（POS「菜单管理 → 分类管理」维护），
+   下面这份只在表没建 / 离线 / 拉不到时顶上，保证菜单页永远有东西可点。 */
 var CAT_ORDER = ['special','classic','toast','boat','ice','drinks'];
 var CAT_META = {
   special:{cn:'精选系列',en:'Special'}, classic:{cn:'经典系列',en:'Classic'},
   toast:{cn:'吐司',en:'Toast'}, boat:{cn:'布丁船',en:'Pudding Boat'},
   ice:{cn:'冰激凌布丁',en:'Ice Cream Pudding'}, drinks:{cn:'饮料',en:'Drinks'},
 };
+/* ── 分类（两级）──
+   parent_code 为空 = 顶级分类（左侧分类栏）；有值 = 挂在那个顶级分类下的子分类
+   （例如 饮料 → 奶茶 / 咖啡 / 果茶气泡）。商品用 cat 认顶级、subcat 认子分类。
+   停用（enabled=false）的分类顾客端不显示。 */
+function _catFallback(){
+  return CAT_ORDER.map(function(c,i){
+    return {id:'_'+c, code:c, name:CAT_META[c].cn, name_en:CAT_META[c].en, parent_code:null, enabled:true, sort_order:(i+1)*10};
+  });
+}
+var _menuCats = _catFallback();
+function _catSort(a,b){ return (a.sort_order||0)-(b.sort_order||0); }
+function catTops(){ return (_menuCats||[]).filter(function(c){ return !c.parent_code && c.enabled!==false; }).sort(_catSort); }
+function catSubs(parentCode){ return (_menuCats||[]).filter(function(c){ return c.parent_code===parentCode && c.enabled!==false; }).sort(_catSort); }
+function catRow(code){ return (_menuCats||[]).filter(function(c){ return c.code===code; })[0] || null; }
+function catName(code){ var r=catRow(code); return r?r.name:(CAT_META[code]?CAT_META[code].cn:code); }
+function catNameEn(code){ var r=catRow(code); return r?(r.name_en||r.name):(CAT_META[code]?CAT_META[code].en:code); }
+function _catCache(){ try{ var raw=localStorage.getItem('pm_cat_cache'); var a=raw?JSON.parse(raw):null;
+  return (a&&a.length)?a:null; }catch(e){ return null; } }
+async function loadMenuCats(){
+  if(!db){ _menuCats=_catCache()||_catFallback(); return; }
+  try{
+    var res = await db.from('menu_categories').select('*').order('sort_order');
+    if(res.error) throw res.error;
+    _menuCats = (res.data && res.data.length) ? res.data : _catFallback();
+    try{ localStorage.setItem('pm_cat_cache', JSON.stringify(_menuCats)); }catch(e){}
+  }catch(e){ _menuCats=_catCache()||_catFallback(); }
+}
 /* 当前生效的菜单（先用兜底，云端拉到后替换）*/
 var menu = MENU_FALLBACK;
 
@@ -2430,15 +2458,22 @@ function _openInMode(channels, mode){
 /* 把 menu_items 表的行组装成 menu 对象结构（已售罄的品项对顾客隐藏 = 下架）*/
 function buildMenuFromRows(rows, mode){
   var m = {};
-  CAT_ORDER.forEach(function(c){ if(CAT_META[c]) m[c] = {cn:CAT_META[c].cn, en:CAT_META[c].en, items:[]}; });
+  catTops().forEach(function(c){ m[c.code] = {code:c.code, cn:c.name, en:c.name_en||c.name, items:[], subcats:[]}; });
   (rows||[]).slice().sort(function(a,b){ return (a.sort_order||0)-(b.sort_order||0); }).forEach(function(r){
     if(r.sold_out) return;
     if(!_openInMode(r.channels, mode)) return;
-    var c = r.cat; if(!m[c]) m[c] = {cn:(CAT_META[c]?CAT_META[c].cn:c), en:(CAT_META[c]?CAT_META[c].en:c), items:[]};
+    var c = r.cat; if(!m[c]) m[c] = {code:c, cn:catName(c), en:catNameEn(c), items:[], subcats:[]};
     m[c].items.push({ id:r.id, name:r.name, en:r.en||'', price:Number(r.price)||0, desc:r.descr||'',
+      subcat:r.subcat||'',
       flavors:(r.flavors && r.flavors.length)?r.flavors:['Original'], specs:r.specs||[], image:r.image_url||'' });
   });
-  Object.keys(m).forEach(function(c){ if(!m[c].items.length) delete m[c]; });
+  Object.keys(m).forEach(function(c){
+    if(!m[c].items.length){ delete m[c]; return; }
+    // 只挂当前模式下真的有商品的子分类——空标签点进去什么都没有，比不显示更糟
+    var used = {}; m[c].items.forEach(function(it){ if(it.subcat) used[it.subcat]=1; });
+    m[c].subcats = catSubs(c).filter(function(s){ return used[s.code]; })
+      .map(function(s){ return {code:s.code, cn:s.name, en:s.name_en||s.name}; });
+  });
   return m;
 }
 /* 统一读取规格入口：有 specs 就用 specs（后台规格库配置，顺序=规格1/规格2/...）；
@@ -2508,6 +2543,7 @@ function loadMenuCache(){
 var _menuRawRows=[];
 /* 从云端拉菜单；失败则用缓存、再退到写死菜单 */
 async function loadMenu(){
+  await loadMenuCats();   // 分类要先到位：菜单是按分类铺的，晚一步会先画一遍旧分类
   if(!db){ setCloudStatus('offline'); applyMenu(loadMenuCache() || MENU_FALLBACK); return; }
   try{
     var res = await db.from('menu_items').select('*').order('sort_order');
