@@ -180,6 +180,17 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 .tu-pkg span{font-size:12px;color:#4A4848;}
 .tu-pkg.a{border-color:#8D0505;background:#FFFDF0;}
 .tu-tag{position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#FFDE5B;color:#8D0505;font-size:10px;font-weight:700;padding:1px 8px;border-radius:999px;}
+/* 储值规则：左标签右输入的设置行 */
+.ws-box{padding:4px 16px 16px;max-width:620px;}   /* 后台内容区很宽，不限一下标签和输入框会被拉到两端 */
+.ws-note{font-size:12px;color:#8D0505;background:#FFFDF0;border:1px solid #F0E6C8;border-radius:8px;padding:8px 10px;margin:12px 0;}
+.ws-row{display:flex;align-items:center;gap:16px;padding:10px 0;border-bottom:1px solid #F5E9D4;}
+.ws-row:last-child{border-bottom:none;}
+.ws-lb{flex:1;min-width:0;font-size:14px;font-weight:700;color:#8D0505;}
+.ws-hint{display:block;font-size:11px;font-weight:400;color:#4A4848;margin-top:2px;}
+.ws-in{flex:0 0 150px;}
+.ws-num{margin-bottom:0;}
+.ws-sw{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#8D0505;cursor:pointer;}
+.ws-sw input{width:auto;margin:0;accent-color:#8D0505;cursor:pointer;}
 .ta-mbtns{width:114px;display:flex;flex-direction:column;gap:10px;margin-top:14px;flex-shrink:0;}
 .ta-mbtn{position:relative;width:114px;height:44px;background:#202055;color:#fff;border:none;border-radius:1000px;font-weight:700;font-size:15px;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
 .ta-mbtn:active{opacity:.85;}
@@ -990,6 +1001,31 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       <div id="sdOptRows"></div>
       <div class="mi-add-wrap"><button type="button" class="mi-add-round" onclick="sdAddOptRow()">＋</button></div>
       <button class="mfs" onclick="saveSD()">保存 Save</button>
+</div>
+</div>
+</div>
+
+<!-- TOPUP PACKAGE MODAL — 充值套餐：新增/编辑 -->
+<div class="modal-bg" id="tpBg" onclick="if(event.target===this)closeTP()">
+  <div class="mm-box">
+    <div class="mm-hd"><h3 id="tpTitle">新增套餐</h3><button class="mm-cl" onclick="closeTP()">✕</button></div>
+    <div class="mm-body">
+      <label class="mfl">充值金额 RM *</label>
+      <div class="mfh">顾客实付多少，钱包就按这个数 1:1 到账</div>
+      <input class="mfi" id="tpPrice" type="number" step="1" placeholder="如：100">
+      <label class="mfl">送 Coin</label><input class="mfi" id="tpCoins" type="number" step="1" placeholder="0">
+      <label class="mfl">送 XP</label><input class="mfi" id="tpXp" type="number" step="1" placeholder="0">
+      <label class="mfl">送幸运抽奖次数</label><input class="mfi" id="tpTickets" type="number" step="1" placeholder="0">
+      <label class="mfl">标签</label>
+      <div class="mfh">显示在充值卡右上角的小黄条，留空就不显示</div>
+      <input class="mfi" id="tpTag" placeholder="如：首充双倍">
+      <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="tpFirstOnly" style="width:auto;margin:0;"> 标签只在顾客还没充过值时显示</label>
+      <label class="mfl">额外赠品</label>
+      <div class="mfh">一行一个。上面的 Coin / XP / 抽奖券系统会自动发，<b>不用在这里重复写</b>；这里只写系统发不了、要店员另外兑现的（如「送一杯饮料」）。浮层里会先列自动发的，再接这几行</div>
+      <textarea class="mfi" id="tpGifts" rows="3" placeholder="送一杯饮料" style="resize:vertical;font-family:'Noto Sans SC',sans-serif;"></textarea>
+      <label class="mfl">排序（数字越小越靠前）</label><input class="mfi" id="tpSort" type="number" step="10" placeholder="10">
+      <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="tpEnabled" checked style="width:auto;margin:0;"> 启用（停用后顾客看不到这一档）</label>
+      <button class="mfs" onclick="saveTP()">保存 Save</button>
 </div>
 </div>
 </div>
@@ -2271,21 +2307,22 @@ function posUseVoucher(id,name){
 function posClearCoupon(){ _posCoupon=null; renderCart(); showN('已撤销用券'); }
 
 /* ── Top up：柜台直接充值，不用顾客开小程序 ── */
-var POS_TOPUP_PKGS=[
-  {price:50,  bonus:50,  special:true},
-  {price:100, bonus:120},
-  {price:150, bonus:200},
-  {price:200, bonus:300},
-  {price:250, bonus:450},
-  {price:300, bonus:600}
-];
-var _tuSel=1;
+/* 套餐来自 recharge_packages 表（POS 会员运营 → 充值套餐维护），跟小程序充值页同一份。
+   只取启用中的，按 sort_order 排。 */
+function _tuPkgs(){
+  return (_topupPkgs&&_topupPkgs.length?_topupPkgs:TOPUP_FALLBACK)
+    .filter(function(p){ return p.enabled!==false; })
+    .slice().sort(function(a,b){ return (a.sort_order||0)-(b.sort_order||0); });
+}
+var _tuSel=0;
 function posOpenTopup(){
   if(!_posNeedMember()) return;
-  _tuSel=1;
+  _tuSel=0;
   document.getElementById('tuTitle').textContent='为 '+(_posMember.nickname||_posMember.phone)+' 充值';
-  _renderTopup();
   document.getElementById('tuBg').classList.add('show');
+  // 套餐可能还没拉过（没进过会员运营页），拉一次再画
+  (_topupPkgs&&_topupPkgs.length ? Promise.resolve() : loadTopupPkgs()).then(_renderTopup);
+  _renderTopup();
 }
 function closePosTopup(){ document.getElementById('tuBg').classList.remove('show'); }
 function setTuPkg(i){ _tuSel=i; _renderTopup(); }
@@ -2293,19 +2330,27 @@ function _renderTopup(){
   var m=_posMember; if(!m) return;
   document.getElementById('tuBody').innerHTML=
     '<div style="font-size:13px;color:#4A4848;margin-bottom:10px">当前余额 RM '+Number(m.wallet_balance||0).toFixed(2)+' · '+(m.coins||0)+' Coin</div>'
-    +'<div class="tu-grid">'+POS_TOPUP_PKGS.map(function(p,i){
-      return'<button class="tu-pkg'+(i===_tuSel?' a':'')+'" onclick="setTuPkg('+i+')">'
-        +(p.special?'<span class="tu-tag">首充</span>':'')
-        +'<b>RM '+p.price+'</b><span>送 '+p.bonus+' Coin</span></button>';
+    +'<div class="tu-grid">'+_tuPkgs().map(function(p,i){
+      var g=_tpRewardLines(p);
+      return'<button class="tu-pkg'+(i===_tuSel?' a':'')+'" onclick="setTuPkg('+i+')" title="'+esc(g.join('、'))+'">'
+        +(p.tag?'<span class="tu-tag">'+esc(p.tag)+'</span>':'')
+        +'<b>RM '+Number(p.price).toFixed(0)+'</b><span>送 '+(p.coins||0)+' Coin</span>'
+        +(g.length?'<span style="font-size:10px;color:#4A4848">'+esc(g.join('、'))+'</span>':'')+'</button>';
     }).join('')+'</div>'
-    +'<div style="margin-top:12px;font-size:13px">收款 <b>RM '+POS_TOPUP_PKGS[_tuSel].price
-      +'</b> → 余额 +RM '+POS_TOPUP_PKGS[_tuSel].price+'，赠 '+POS_TOPUP_PKGS[_tuSel].bonus+' Coin</div>';
+    +(function(){ var p=_tuPkgs()[_tuSel]; if(!p) return '';
+      var g=_tpRewardLines(p);
+      return '<div style="margin-top:12px;font-size:13px">收款 <b>RM '+Number(p.price).toFixed(0)
+        +'</b> → 余额 +RM '+Number(p.price).toFixed(0)+'，赠 '+(p.coins||0)+' Coin'
+        +(g.length?('、'+esc(g.join('、'))):'')+'</div>'; })();
 }
 function posDoTopup(){
   if(!_posMember) return;
-  var p=POS_TOPUP_PKGS[_tuSel];
-  if(!confirm('确认已收到顾客 RM'+p.price+'？\n确认后立即为其钱包到账 RM'+p.price+' + '+p.bonus+' Coin。')) return;
-  db.rpc('rpc_pos_topup',{p_member_id:_posMember.id,p_price:p.price,p_bonus_coins:p.bonus,p_note:'POS 柜台充值'}).then(function(res){
+  var p=_tuPkgs()[_tuSel]; if(!p){ showN('没有可用的充值套餐'); return; }
+  var g=_tpRewardLines(p);
+  if(!confirm('确认已收到顾客 RM'+p.price+'？\n确认后立即到账：余额 +RM'+p.price+'、'+(p.coins||0)+' Coin'
+    +(g.length?('、'+g.join('、')):'')+'。')) return;
+  // 只传套餐 id：发多少由服务端查那一行决定，收银台说了不算
+  db.rpc('rpc_pos_topup',{p_member_id:_posMember.id,p_package_id:p.id,p_note:'POS 柜台充值'}).then(function(res){
     if(res.error){ console.error('rpc_pos_topup:',res.error); showN(_rpcErr(res.error)); return; }
     showN('✓ 已到账，余额 RM '+Number(res.data).toFixed(2));
     closePosTopup();
@@ -2596,7 +2641,7 @@ function setLoyaltyTab(t){_loyaltyTab=t;renderLoyaltyAdmin();}
 function renderLoyaltyAdmin(){
   var el=document.getElementById('adminContent');
   if(!db){el.innerHTML='<div class="page-title">会员运营 Loyalty</div><div style="padding:30px;color:#8D0505">未连接云端（Supabase 未配置或离线），无法管理会员系统。</div>';return;}
-  var tabs=[['members','会员列表'],['levels','等级设置'],['xp','成长值规则'],['coin','金币规则'],['checkin','签到奖励'],['referrals','邀请规则'],['coupons','优惠券管理'],['draw','幸运抽奖']];
+  var tabs=[['members','会员列表'],['levels','等级设置'],['xp','成长值规则'],['coin','金币规则'],['checkin','签到奖励'],['referrals','邀请规则'],['coupons','优惠券管理'],['draw','幸运抽奖'],['topup','充值套餐'],['wallet','储值规则']];
   var html='<div class="page-title">会员运营 · Loyalty</div>'
     +'<div class="ma-tabs">'+tabs.map(function(t){return'<button class="ma-tab'+(_loyaltyTab===t[0]?' a':'')+'" onclick="setLoyaltyTab(\''+t[0]+'\')">'+t[1]+'</button>';}).join('')+'</div>';
   el.innerHTML=html+'<div id="loyaltyBody">加载中…</div>';
@@ -2608,6 +2653,196 @@ function renderLoyaltyAdmin(){
   else if(_loyaltyTab==='referrals') loadLoyaltyReferralRules();
   else if(_loyaltyTab==='coupons') loadLoyaltyCoupons();
   else if(_loyaltyTab==='draw') loadLoyaltyDraw();
+  else if(_loyaltyTab==='topup') loadTopupPkgs();
+  else if(_loyaltyTab==='wallet') loadWalletSettings();
+}
+
+/* ---- 储值规则：充值奖励 + 钱包使用限制（wallet_settings 单行设置） ----
+   充值原本只做「钱包到账 + 套餐自带的 Coin」，不发 XP 也不发抽奖券。
+   这一页配的东西由服务端 _wallet_grant_rewards / _wallet_check_limits 执行，
+   不是前端算完再报给后端——anon key 是公开的，金额和上限只在前端拦拦不住。 */
+var _walletSet=null;
+var WALLET_DEFAULTS={id:1,wallet_earns:true,min_topup:null,max_topup:null,max_balance:null,refundable:false};
+function loadWalletSettings(){
+  if(!db){ _walletSet=Object.assign({},WALLET_DEFAULTS); renderWalletSettingsBody(); return Promise.resolve(); }
+  return db.from('wallet_settings').select('*').eq('id',1).then(function(res){
+    if(res.error){ console.error('wallet_settings:',res.error); _walletSet=null; _walletErr=res.error; }
+    else { _walletErr=null; _walletSet=(res.data&&res.data[0])||Object.assign({},WALLET_DEFAULTS); }
+    renderWalletSettingsBody();
+  }).catch(function(e){ console.error('wallet_settings:',e); _walletErr=e; _walletSet=null; renderWalletSettingsBody(); });
+}
+var _walletErr=null;
+function _wsNum(v){ return (v===null||v===undefined||v==='')?'':v; }
+function renderWalletSettingsBody(){
+  if(_loyaltyTab!=='wallet') return;   // 慢一步返回时别盖掉用户已经切走的页签
+  var body=document.getElementById('loyaltyBody'); if(!body) return;
+  if(_walletErr){
+    body.innerHTML='<div style="padding:24px;color:#8D0505">读取失败：'+esc(_rpcErr(_walletErr))
+      +'<br><span style="font-size:12px;color:#4A4848">没跑过 supabase-wallet-rules.sql 的话，先去 SQL Editor 跑一次</span></div>';
+    return;
+  }
+  var w=_walletSet||WALLET_DEFAULTS;
+  var row=function(label,hint,html){
+    return'<div class="ws-row"><div class="ws-lb">'+label+(hint?'<span class="ws-hint">'+hint+'</span>':'')+'</div>'
+      +'<div class="ws-in">'+html+'</div></div>';
+  };
+  var num=function(id,val,ph,step){
+    return'<input class="mfi ws-num" id="'+id+'" type="number" step="'+(step||1)+'" value="'+_wsNum(val)+'" placeholder="'+(ph||'')+'">';
+  };
+  body.innerHTML=
+    '<div style="font-size:13px;color:#4A4848;margin-bottom:14px">这一页管「钱进了钱包之后怎么花」。'
+    +'限制由服务端执行，改完立刻生效，小程序和收银台两条充值路径都算数。<br>'
+    +'<b>送多少 Coin / XP / 抽奖券不在这里</b>——奖励是包在每一档套餐里的，去「充值套餐」那页改。</div>'
+
+    +'<div class="tx-card" style="margin-bottom:16px"><div class="tx-ch"><h3>钱包使用</h3></div><div class="ws-box">'
+    +row('用余额付款累积 XP / Coin','关掉后，用钱包付的单不再算消费奖励（现金和在线支付不受影响）',
+      '<label class="ws-sw"><input type="checkbox" id="wsEarns"'+(w.wallet_earns!==false?' checked':'')+'> <span>累积</span></label>')
+    +row('单次最低充值额 RM','留空 = 不限',num('wsMinTopup',w.min_topup,'不限',0.5))
+    +row('单次最高充值额 RM','留空 = 不限',num('wsMaxTopup',w.max_topup,'不限',0.5))
+    +row('余额上限 RM','充值后余额超过这个数就拦下。留空 = 不限',num('wsMaxBal',w.max_balance,'不限',0.5))
+    +row('余额可退款','店规说明，系统不会自动退——退款仍需店员手动处理',
+      '<label class="ws-sw"><input type="checkbox" id="wsRefundable"'+(w.refundable?' checked':'')+'> <span>可退</span></label>')
+    +'</div></div>'
+
+    +'<button class="mfs" style="max-width:220px" onclick="saveWalletSettings()">保存 Save</button>';
+}
+function _wsRead(id){ var v=document.getElementById(id).value.trim(); return v===''?null:Number(v); }
+function saveWalletSettings(){
+  if(!db){showN('未连接云端');return;}
+  var payload={
+    wallet_earns:document.getElementById('wsEarns').checked,
+    min_topup:_wsRead('wsMinTopup'), max_topup:_wsRead('wsMaxTopup'),
+    max_balance:_wsRead('wsMaxBal'),
+    refundable:document.getElementById('wsRefundable').checked,
+    updated_at:new Date().toISOString()
+  };
+  // 上下限写反了会让所有充值都被拦下，存之前先挡一道
+  if(payload.min_topup!=null && payload.max_topup!=null && payload.min_topup>payload.max_topup){
+    showN('最低充值额不能大于最高充值额'); return;
+  }
+  db.from('wallet_settings').update(payload).eq('id',1).then(function(res){
+    if(res.error){ console.error('wallet_settings:',res.error); showN(_rpcErr(res.error)); return; }
+    showN('已保存'); loadWalletSettings();
+  }).catch(function(e){ console.error('wallet_settings:',e); showN(_rpcErr(e)); });
+}
+
+/* ---- 充值套餐：小程序充值页和收银台 Top up 共用这一份 ----
+   原本这六档分别写死在两个 HTML 里，改价要改两处、还容易改漏一边。 */
+var _topupPkgs=[];
+var TOPUP_FALLBACK=[   // 表还没建（SQL 没跑）或离线时兜底
+  {id:'f1',price:50, coins:50, xp:0, draw_tickets:0, tag:'首充双倍', first_only:true, gifts:[], enabled:true, sort_order:10},
+  {id:'f2',price:100,coins:120,xp:0, draw_tickets:0,tag:null,first_only:false,gifts:[],enabled:true,sort_order:20},
+  {id:'f3',price:150,coins:200,xp:0, draw_tickets:0,tag:null,first_only:false,gifts:[],enabled:true,sort_order:30},
+  {id:'f4',price:200,coins:300,xp:0, draw_tickets:0,tag:null,first_only:false,gifts:[],enabled:true,sort_order:40},
+  {id:'f5',price:250,coins:450,xp:0, draw_tickets:0,tag:null,first_only:false,gifts:[],enabled:true,sort_order:50},
+  {id:'f6',price:300,coins:600,xp:0, draw_tickets:0,tag:null,first_only:false,gifts:[],enabled:true,sort_order:60}
+];
+/* 一档套餐＝一整包。浮层里先自动列出系统真会发的 XP / 抽奖券，
+   再接上 gifts 里那些系统发不了、要店员另外兑现的文案。 */
+function _tpRewardLines(p){
+  var out=[];
+  if(Number(p.xp)>0) out.push('+'+p.xp+' XP');
+  if(Number(p.draw_tickets)>0) out.push(p.draw_tickets+'x 幸运抽奖');
+  return out.concat(_tpGifts(p));
+}
+function loadTopupPkgs(){
+  if(!db){ _topupPkgs=TOPUP_FALLBACK.slice(); renderTopupPkgsBody(); return Promise.resolve(); }
+  return db.from('recharge_packages').select('*').order('sort_order').then(function(res){
+    if(res.error){ console.error('recharge_packages:',res.error); _topupPkgs=TOPUP_FALLBACK.slice(); }
+    else _topupPkgs=(res.data&&res.data.length)?res.data:TOPUP_FALLBACK.slice();
+    renderTopupPkgsBody();
+  }).catch(function(e){ console.error('recharge_packages:',e); _topupPkgs=TOPUP_FALLBACK.slice(); renderTopupPkgsBody(); });
+}
+function _tpGifts(p){ try{ return Array.isArray(p.gifts)?p.gifts:JSON.parse(p.gifts||'[]'); }catch(e){ return []; } }
+function renderTopupPkgsBody(){
+  if(_loyaltyTab!=='topup') return;   // 请求回来时用户已经切走了，别盖掉人家现在看的页签
+  var body=document.getElementById('loyaltyBody'); if(!body) return;
+  var rows=(_topupPkgs||[]).slice().sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
+  var html='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">一档套餐就是一整包：'
+    +'充 RM50 → 钱包进 RM50，外加这一行配的 Coin / XP / 抽奖券。'
+    +'小程序「充值」页和收银台的 Top up 读的是同一份，改完两边一起变。<br>'
+    +'<b>Coin / XP / 抽奖券</b>充值时由服务端照着这一行发，不用另外配规则。'
+    +'<b>额外赠品</b>是系统发不了、要店员另外兑现的东西（如「送一杯饮料」），只显示不发。</div>'
+    +'<div class="tx-card" style="margin-bottom:16px"><div class="tx-ch" style="display:flex;justify-content:space-between;align-items:center">'
+    +'<h3>充值套餐</h3><button onclick="tpAdd()" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px">＋ 新增套餐</button></div>'
+    +'<table><thead><tr><th>充值金额 RM</th><th>送 Coin</th><th>送 XP</th><th>抽奖券</th><th>标签</th><th>额外赠品</th><th>排序</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+  if(!rows.length){ html+='<tr><td colspan="9" style="text-align:center;padding:24px;color:#4A4848">（暂无套餐，点「＋ 新增套餐」）</td></tr>'; }
+  rows.forEach(function(p){
+    var g=_tpGifts(p);
+    html+='<tr'+(p.enabled===false?' style="opacity:.5"':'')+'>'
+      +'<td><b>RM '+Number(p.price).toFixed(0)+'</b></td>'
+      +'<td>'+(p.coins||0)+'</td>'
+      +'<td>'+(p.xp||0)+'</td>'
+      +'<td>'+(p.draw_tickets||0)+'</td>'
+      +'<td>'+(p.tag?('<span class="mi-pill">'+esc(p.tag)+'</span>'+(p.first_only?' <span style="font-size:11px;color:#4A4848">仅首充</span>':'')):'—')+'</td>'
+      +'<td style="font-size:12px;color:#4A4848">'+(g.length?g.map(esc).join('、'):'—')+'</td>'
+      +'<td>'+(p.sort_order||0)+'</td>'
+      +'<td>'+(p.enabled===false?'<span style="color:#8D0505">已停用</span>':'<span style="color:#1D7715">启用中</span>')+'</td>'
+      +'<td style="white-space:nowrap">'
+      +'<button onclick="tpEdit(\''+p.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">改</button>'
+      +'<button onclick="tpDel(\''+p.id+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">删</button>'
+      +'</td></tr>';
+  });
+  body.innerHTML=html+'</tbody></table></div>';
+}
+var _tpEditId=null;
+function _tpAfterWrite(res,msg){ if(res&&res.error){showN(''+(res.error.message||'操作失败'));return;} showN(msg); loadTopupPkgs(); }
+function tpAdd(){
+  if(!db){showN('未连接云端');return;}
+  _tpEditId=null;
+  document.getElementById('tpTitle').textContent='新增套餐';
+  document.getElementById('tpPrice').value='';
+  document.getElementById('tpCoins').value='0';
+  document.getElementById('tpXp').value='0';
+  document.getElementById('tpTickets').value='0';
+  document.getElementById('tpTag').value='';
+  document.getElementById('tpFirstOnly').checked=false;
+  document.getElementById('tpGifts').value='';
+  var maxSo=(_topupPkgs||[]).reduce(function(m,r){return Math.max(m,r.sort_order||0);},0);
+  document.getElementById('tpSort').value=maxSo+10;
+  document.getElementById('tpEnabled').checked=true;
+  document.getElementById('tpBg').classList.add('show');
+}
+function tpEdit(id){
+  if(!db){showN('未连接云端');return;}
+  var p=(_topupPkgs||[]).find(function(x){return String(x.id)===String(id);});if(!p)return;
+  _tpEditId=id;
+  document.getElementById('tpTitle').textContent='编辑套餐';
+  document.getElementById('tpPrice').value=p.price;
+  document.getElementById('tpCoins').value=p.coins||0;
+  document.getElementById('tpXp').value=p.xp||0;
+  document.getElementById('tpTickets').value=p.draw_tickets||0;
+  document.getElementById('tpTag').value=p.tag||'';
+  document.getElementById('tpFirstOnly').checked=!!p.first_only;
+  document.getElementById('tpGifts').value=_tpGifts(p).join('\n');
+  document.getElementById('tpSort').value=p.sort_order||0;
+  document.getElementById('tpEnabled').checked=p.enabled!==false;
+  document.getElementById('tpBg').classList.add('show');
+}
+function closeTP(){document.getElementById('tpBg').classList.remove('show');}
+function saveTP(){
+  if(!db){showN('未连接云端');return;}
+  var price=parseFloat(document.getElementById('tpPrice').value);
+  if(isNaN(price)||price<=0){showN('充值金额无效');return;}
+  var coins=parseInt(document.getElementById('tpCoins').value,10); if(isNaN(coins)||coins<0) coins=0;
+  // 一行一个赠品，空行丢掉
+  var gifts=document.getElementById('tpGifts').value.split('\n').map(function(x){return x.trim();}).filter(Boolean);
+  var _int=function(id){ var n=parseInt(document.getElementById(id).value,10); return (isNaN(n)||n<0)?0:n; };
+  var payload={price:price, coins:coins, xp:_int('tpXp'), draw_tickets:_int('tpTickets'),
+    tag:document.getElementById('tpTag').value.trim()||null,
+    first_only:document.getElementById('tpFirstOnly').checked,
+    gifts:gifts,
+    sort_order:parseInt(document.getElementById('tpSort').value,10)||0,
+    enabled:document.getElementById('tpEnabled').checked};
+  var q=_tpEditId?db.from('recharge_packages').update(payload).eq('id',_tpEditId):db.from('recharge_packages').insert(payload);
+  q.then(function(res){_tpAfterWrite(res,_tpEditId?'已保存':'已添加：RM '+price);}).catch(function(e){showN('网络错误');});
+  closeTP();
+}
+function tpDel(id){
+  if(!db){showN('未连接云端');return;}
+  if(!confirm('确定删除这个充值套餐？已经充过值的订单不受影响。'))return;
+  db.from('recharge_packages').delete().eq('id',id)
+    .then(function(res){_tpAfterWrite(res,'已删除');}).catch(function(e){showN('网络错误');});
 }
 
 /* ---- 幸运抽奖：统计 + 奖品/概率/库存 ---- */

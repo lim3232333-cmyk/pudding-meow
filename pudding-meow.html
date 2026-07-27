@@ -522,11 +522,16 @@
   .mem-xpbar{ position:absolute; left:109px; top:84px; width:212px; height:10px; border-radius:999px; background:#F5E9D4; overflow:hidden; }
   .mem-xpbar i{ display:block; height:100%; background:var(--red); border-radius:999px; transition:width .5s ease; }
   .mem-xp-next{ position:absolute; left:109px; top:98px; width:129px; font-size:8px; color:var(--red); opacity:.85; text-align:center; }
-  .mem-stats-row{ display:flex; align-items:center; justify-content:center; gap:24px; margin-top:8px; }
-  .mem-stat{ text-align:center; }
-  .mem-stat b{ display:block; font-size:16px; font-weight:700; color:#202055; }
-  .mem-stat span{ font-size:12px; color:var(--red); }
-  .mem-stat-div{ width:1px; height:35px; background:rgba(141,5,5,.25); }
+  /* 三个资料：图标 30px + 右边 值/标签两行，中间 1px 竖线。
+     文字色、图标底色、图标图形色、竖线色都走 --mst* 变量，各等级在下面各给一套。 */
+  .mem-stats-row{ display:flex; align-items:center; justify-content:center; gap:8px; margin-top:8px;
+    --mstFg:#4A4848; --mstIcBg:#726F6F; --mstIcFg:#FFFFFF; --mstLine:#726F6F; }
+  .mem-stat{ flex:1; min-width:0; display:flex; align-items:center; justify-content:center; gap:8px; }
+  .mem-stat-ic{ width:30px; height:30px; flex-shrink:0; }
+  .mem-stat-tx{ display:flex; flex-direction:column; align-items:flex-start; justify-content:center; min-width:0; }
+  .mem-stat b{ font-size:16px; font-weight:700; line-height:normal; white-space:nowrap; color:var(--mstFg); }
+  .mem-stat span{ font-size:10px; font-weight:400; line-height:normal; white-space:nowrap; color:var(--mstFg); }
+  .mem-stat-div{ width:1px; height:30px; flex-shrink:0; background:var(--mstLine); }
   /* 游客卡（未登录）：卡上「立即注册」按钮 + 隐藏会员专属版块（Figma 612:1810） */
   .mem-register-btn{ position:absolute; right:6px; top:4px; display:none; background:var(--red); color:#fff; border:none; border-radius:999px; padding:6px 12px; font-size:12px; font-weight:700; cursor:pointer; font-family:"Noto Sans SC",sans-serif; z-index:3; }
   #memHome.is-guest .mem-register-btn{ display:block; }
@@ -548,10 +553,28 @@
   .mem-ref-code-box{ margin-top:12px; background:#F5E9D4; border-radius:8px; height:32px; display:flex; align-items:center; justify-content:center; gap:6px; }
   .mem-ref-code-box span{ font-size:13px; font-weight:700; color:var(--red); letter-spacing:1px; }
   .mem-ref-code-box button{ border:none; background:var(--red); color:var(--cream2); border-radius:999px; padding:3px 8px; font-size:10px; font-weight:700; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }
+  /* 签到（Figma 227:129）：七天用店家上传的 tick / gift 图标，右上角 ⓘ 点开签到规则 */
+  .mem-mini-head{ display:flex; align-items:flex-start; justify-content:space-between; }
+  .mem-ci-info{ width:12.5px; height:12.5px; padding:0; border:none; background:transparent; cursor:pointer; line-height:0; flex-shrink:0; }
+  .mem-ci-info svg{ width:12.5px; height:12.5px; display:block; }
   .mem-checkin-days{ display:flex; gap:8px; margin-top:12px; }
-  .mem-checkin-day{ width:15px; height:15px; border-radius:50%; background:#F5E9D4; flex-shrink:0; }
-  .mem-checkin-day.done{ background:var(--red); }
-  .mem-checkin-day.today{ box-shadow:0 0 0 1.5px var(--red); }
+  .mem-ci-dot{ width:15px; height:15px; flex-shrink:0; display:block; }
+  .mem-ci-dot.pending{ opacity:.38; }             /* 还没到的日子淡一点，跟已签到区分开 */
+  .mem-ci-dot.today{ outline:1.5px solid var(--red); outline-offset:1px; border-radius:50%; }
+  /* 签到规则弹窗（Figma 798:688） */
+  .ci-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:369; display:none; }
+  .ci-overlay.show{ display:block; }
+  .ci-modal{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:328px; max-width:calc(100vw - 32px);
+    background:#fff; border-radius:12px; padding:16px; z-index:370; display:none; flex-direction:column; gap:16px;
+    font-family:"Noto Sans SC",sans-serif; box-shadow:0 8px 30px rgba(0,0,0,.25); }
+  .ci-modal.show{ display:flex; }
+  .ci-modal h3{ margin:0; font-size:16px; font-weight:700; color:var(--red); text-align:center; }
+  .ci-modal ol{ margin:0; padding-left:21px; list-style:decimal; display:flex; flex-direction:column; gap:16px; }
+  .ci-modal li{ font-size:14px; font-weight:500; color:var(--red); line-height:normal; }
+  .ci-modal li em{ font-style:normal; color:#202055; }
+  .ci-modal li b{ font-weight:700; }
+  .ci-close{ position:absolute; right:-12px; top:-12px; width:24px; height:24px; padding:0; border:none; background:transparent; cursor:pointer; line-height:0; }
+  .ci-close svg{ width:24px; height:24px; display:block; }
   .mem-mini-checkin-btn{ width:100%; height:25px; background:var(--red); color:var(--cream2); border:none; border-radius:999px; font-weight:500; font-size:12px; margin-top:12px; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }
   .mem-mini-checkin-btn:disabled{ opacity:.5; cursor:default; }
 
@@ -589,7 +612,7 @@
   #memHome.mem-lvl-0 .mem-xp-label,
   #memHome.mem-lvl-0 .mem-xp-count,
   #memHome.mem-lvl-0 .mem-xp-next{ color:#4A4848; }
-  #memHome.mem-lvl-0 .mem-stat b, #memHome.mem-lvl-0 .mem-stat span{ color:#4A4848; }
+  #memHome.mem-lvl-0 .mem-stats-row{ --mstFg:#4A4848; --mstIcBg:#726F6F; --mstIcFg:#FFFFFF; --mstLine:#726F6F; }
 
   /* Lv.1 新生小猫（橙 · 橙-奶油-橙） */
   #memHome.mem-lvl-1 .mem-hero,
@@ -597,7 +620,7 @@
   #memHome.mem-lvl-1 .mem-hero-word{ color:var(--red); }
   #memHome.mem-lvl-1 .mem-level-pill{ background:#CD6B0D; color:#fff; }
   #memHome.mem-lvl-1 .mem-xpbar i{ background:#CD680B; }
-  #memHome.mem-lvl-1 .mem-stat b, #memHome.mem-lvl-1 .mem-stat span{ color:#fff; }
+  #memHome.mem-lvl-1 .mem-stats-row{ --mstFg:#FFFFFF; --mstIcBg:#FFDE5B; --mstIcFg:#8D0505; --mstLine:#FFFFFF; }
 
   /* Lv.2 幼猫（灰↔浅蓝 条纹） */
   #memHome.mem-lvl-2 .mem-hero,
@@ -605,7 +628,7 @@
   #memHome.mem-lvl-2 .mem-hero-word{ color:var(--red); }
   #memHome.mem-lvl-2 .mem-level-pill{ background:#D9D9D9; color:#202055; }
   #memHome.mem-lvl-2 .mem-xpbar i{ background:#2FA6C9; }
-  #memHome.mem-lvl-2 .mem-stat b, #memHome.mem-lvl-2 .mem-stat span{ color:#202055; }
+  #memHome.mem-lvl-2 .mem-stats-row{ --mstFg:#202055; --mstIcBg:#FFFFEA; --mstIcFg:#202055; --mstLine:#202055; }
   #memHome.mem-lvl-2 .mem-name, #memHome.mem-lvl-2 .mem-xp-label, #memHome.mem-lvl-2 .mem-xp-count, #memHome.mem-lvl-2 .mem-xp-next{ color:#202055; }
 
   /* Lv.3 青年猫（金黄 · 金-奶油-金） */
@@ -614,7 +637,7 @@
   #memHome.mem-lvl-3 .mem-hero-word{ color:var(--red); }
   #memHome.mem-lvl-3 .mem-level-pill{ background:#FFED63; color:var(--red); }
   #memHome.mem-lvl-3 .mem-xpbar i{ background:#D9A400; }
-  #memHome.mem-lvl-3 .mem-stat b, #memHome.mem-lvl-3 .mem-stat span{ color:var(--red); }
+  #memHome.mem-lvl-3 .mem-stats-row{ --mstFg:#8D0505; --mstIcBg:#8D0505; --mstIcFg:#FFFFEA; --mstLine:#8D0505; }
 
   /* Lv.Max 布丁猫（暗红-黑-暗红） */
   #memHome.mem-lvl-4 .mem-hero,
@@ -622,7 +645,7 @@
   #memHome.mem-lvl-4 .mem-hero-word{ color:var(--cream2); }
   #memHome.mem-lvl-4 .mem-level-pill{ background:#8D0505; color:var(--cream2); }
   #memHome.mem-lvl-4 .mem-xpbar i{ background:#8D0505; }
-  #memHome.mem-lvl-4 .mem-stat b, #memHome.mem-lvl-4 .mem-stat span{ color:#ffffea; }
+  #memHome.mem-lvl-4 .mem-stats-row{ --mstFg:#FFFFEA; --mstIcBg:#FFFFEA; --mstIcFg:#000000; --mstLine:#FFFFEA; }
 
   /* ===== 会员明细页（Figma 319:187）：规则 + 等级权益表 ===== */
   .md-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:var(--cream); z-index:320; display:none; flex-direction:column; overflow-y:auto; }
@@ -685,6 +708,7 @@
   .rc-pkg-grid{ margin-left:16px; width:360px; height:158px; box-sizing:border-box; background:#FFFFEA; border-radius:12px; box-shadow:0 0 10px rgba(0,0,0,.25); padding:8px; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,1fr); gap:8px; }
   .rc-pkg{ position:relative; border:1px solid var(--yellow); border-radius:8px; background:#fff; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; }
   .rc-pkg.selected{ border:2px solid var(--red); }
+  .rc-pkg.pop-open{ z-index:20; }
   .rc-pkg.selected::after{
     content:''; position:absolute; right:-2px; bottom:-2px; width:0; height:0;
     border-style:solid; border-width:0 0 18px 18px; border-color:transparent transparent var(--red) transparent;
@@ -700,6 +724,16 @@
   .rc-coin{ width:25px; height:25px; border-radius:50%; background:var(--yellow); flex-shrink:0; }
   .rc-pkg-num{ font-weight:700; font-size:24px; color:var(--red); }
   .rc-pkg-rm{ font-size:14px; color:var(--muted); text-align:center; width:100%; }
+  /* 左下角「更多赠品」小图标 + 浮层（Figma 236:159 的 12px Vector / 824:792 的浮层） */
+  .rc-pkg-more{ position:absolute; left:6px; bottom:5px; width:12px; height:12px; padding:0; border:none;
+    background:transparent; cursor:pointer; line-height:0; }
+  .rc-pkg-more svg{ width:12px; height:12px; display:block; }
+  /* 浮在卡片上方，不压住卡片里的数字；开着的那张卡抬高层级，免得被右边的卡盖住 */
+  .rc-gift-pop{ display:none; position:absolute; left:0; bottom:100%; margin-bottom:3px; z-index:20;
+    background:rgba(74,72,72,.95); border-radius:4px; padding:8px; min-width:96px; }
+  .rc-gift-pop.show{ display:block; }
+  .rc-gift-pop ul{ margin:0; padding-left:15px; list-style:disc; }
+  .rc-gift-pop li{ font-size:10px; font-weight:500; color:#fff; line-height:normal; white-space:nowrap; }
   .rc-pay-methods{ display:flex; flex-direction:column; gap:8px; margin:12px 0 0 36px; }
   .rc-pay-row{ display:flex; align-items:center; gap:7px; cursor:pointer; }
   .rc-pay-dot{ width:12px; height:12px; border-radius:50%; border:1.5px solid var(--red); box-sizing:border-box; flex-shrink:0; }
@@ -753,6 +787,30 @@
   .pm-item-coin-dot{ width:15px; height:15px; border-radius:50%; background:var(--yellow); flex-shrink:0; }
   .pm-item-coin-txt{ font-size:14px; font-weight:500; color:var(--red); }
   .pm-item-redeem{ background:var(--red); color:var(--cream2); border:none; border-radius:999px; width:52px; height:25px; font-size:14px; font-weight:500; font-family:"Noto Sans SC",sans-serif; cursor:pointer; flex-shrink:0; }
+
+  /* ===== 「我的」那一页的券卡（Figma 818:1340 选中 / 818:1341 未选中）=====
+     跟其他页签的兑换卡是两回事：左边 100px 是票根（现金券深红配 $ / 甜品券黄底配商品图），
+     右边白底 261px，最右不是「兑换」按钮而是一个勾——这一页是「挑一张来用」，不是买。 */
+  .pm-my-card{ display:flex; width:100%; height:100px; border-radius:12px; box-sizing:border-box;
+    box-shadow:0 4px 5px rgba(0,0,0,.25); overflow:hidden; }
+  .pm-my-card[onclick]{ cursor:pointer; }
+  .pm-my-card.dim{ opacity:.5; cursor:default; }
+  .pm-my-stub{ position:relative; width:100px; height:100px; flex-shrink:0; background:var(--red);
+    display:flex; align-items:center; justify-content:center; background-size:cover; background-position:center;
+    /* 票根左缘的锯齿孔：用 mask 沿左边每 12.5px 挖一个 3.5px 的半圆 */
+    -webkit-mask:radial-gradient(circle 3.5px at left center, transparent 3.5px, #000 4px) left top/100% 12.5px repeat-y;
+            mask:radial-gradient(circle 3.5px at left center, transparent 3.5px, #000 4px) left top/100% 12.5px repeat-y; }
+  .pm-my-stub.dessert{ background:var(--yellow); }
+  .pm-my-stub-art{ width:70px; height:66px; }
+  .pm-my-stub-sym{ font-size:44px; font-weight:700; color:var(--yellow); line-height:1; }
+  .pm-my-main{ flex:1; min-width:0; background:#fff; display:flex; align-items:center; justify-content:space-between;
+    gap:8px; padding:8px 16px; box-sizing:border-box; }
+  .pm-my-info{ display:flex; flex-direction:column; gap:20px; min-width:0; flex:1; }
+  .pm-my-name{ font-size:16px; font-weight:500; color:var(--red); word-break:break-word; }
+  .pm-my-sub{ display:flex; align-items:center; gap:8px; font-size:14px; font-weight:500; color:var(--red); }
+  .pm-my-paw{ width:25px; height:25px; flex-shrink:0; }
+  .pm-my-tick{ width:20px; height:20px; flex-shrink:0; }
+  .pm-my-why{ font-size:10.5px; color:var(--red); opacity:.75; flex-shrink:0; max-width:78px; text-align:right; }
 
   /* ===== 会员：幸运抽奖 Lucky Draw ===== */
   .ld-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:var(--cream2); z-index:300; display:none; flex-direction:column; overflow-y:auto; }
@@ -1228,12 +1286,14 @@
             <div class="mem-xp-next" id="memXpNext"></div>
             <button class="mem-register-btn" onclick="showRegisterForm()">立即注册</button>
 </div>
+          <!-- 三个资料（Figma 599:1999 / 609:574 / 609:622 / 609:646 / 609:694，各等级一套配色）
+               图标 30px + 右边上下两行；配色由 .mem-lvl-N 上的 --mst* 变量控制 -->
           <div class="mem-stats-row">
-            <div class="mem-stat"><b id="memWallet">RM0.0</b><span>Meow Wallet</span></div>
+            <div class="mem-stat"><svg class="mem-stat-ic" viewBox="0 0 40 40" fill="none" aria-hidden="true"><circle cx="20" cy="20" r="20" fill="var(--mstIcBg)"/><g transform="translate(5,5)"><path d="M24.0625 8.75625H5.31875C5.06896 8.75461 4.82986 8.65466 4.65323 8.47802C4.47659 8.30139 4.37664 8.06229 4.375 7.8125C4.375 7.29375 4.8 6.86875 5.31875 6.86875H26.25V4.99375H5.31875C4.57276 4.99539 3.8577 5.29204 3.32961 5.81895C2.80153 6.34586 2.5033 7.06026 2.5 7.80625V21.5563C2.50165 22.4674 2.86435 23.3408 3.50865 23.9851C4.15294 24.6294 5.02633 24.9921 5.9375 24.9938H24.0625C24.9737 24.9921 25.8471 24.6294 26.4914 23.9851C27.1357 23.3408 27.4983 22.4674 27.5 21.5563V12.1875C27.4983 11.2763 27.1357 10.4029 26.4914 9.75865C25.8471 9.11435 24.9737 8.75165 24.0625 8.75V8.75625Z" fill="var(--mstIcFg)"/><path d="M11.73 19.32V18.732C11.73 18.612 11.79 18.552 11.91 18.552H12.534V12.312H11.91C11.79 12.312 11.73 12.252 11.73 12.132V11.532C11.73 11.412 11.79 11.352 11.91 11.352C12.934 11.304 13.77 11.28 14.418 11.28C16.546 11.28 17.61 12.06 17.61 13.62C17.61 14.428 17.35 15.068 16.83 15.54C16.31 16.012 15.602 16.248 14.706 16.248C14.354 16.248 14.078 16.236 13.878 16.212V18.552H14.874C14.994 18.552 15.054 18.612 15.054 18.732V19.32C15.054 19.44 14.994 19.5 14.874 19.5H11.91C11.79 19.5 11.73 19.44 11.73 19.32ZM13.878 12.276V15.288C13.95 15.296 14.134 15.3 14.43 15.3C15.63 15.3 16.23 14.768 16.23 13.704C16.23 13.32 16.13 13.02 15.93 12.804C15.738 12.58 15.51 12.436 15.246 12.372C14.99 12.308 14.678 12.276 14.31 12.276H13.878Z" fill="var(--mstIcBg)"/></g></svg><div class="mem-stat-tx"><b id="memWallet">RM 0</b><span>Meow Wallet</span></div></div>
             <div class="mem-stat-div"></div>
-            <div class="mem-stat"><b id="memCoins">0</b><span>Meow Coin</span></div>
+            <div class="mem-stat"><svg class="mem-stat-ic" aria-hidden="true" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="20" fill="var(--mstIcBg)"/><path d="M30.9453 26.2004C30.4297 24.7297 29.2279 23.9844 28.0678 23.2637C27.0582 22.6361 26.1049 22.0432 25.4814 20.9785C23.7629 18.0295 22.8189 16.25 20.0035 16.25C17.1881 16.25 16.2412 18.0301 14.5186 20.9779C13.8945 22.0449 12.9365 22.6391 11.9258 23.2678C10.7656 23.9891 9.56621 24.7326 9.04883 26.2004C8.84752 26.7297 8.74619 27.2917 8.75 27.858C8.75 30.2451 10.6514 32.1875 12.7578 32.1875C14.8643 32.1875 17.6393 31.1252 20.0094 31.1252C22.3795 31.1252 25.1158 32.1875 27.2486 32.1875C29.3814 32.1875 31.25 30.2451 31.25 27.858C31.2517 27.2914 31.1484 26.7294 30.9453 26.2004Z" fill="var(--mstIcFg)"/><path d="M9.21875 21.875C11.0309 21.875 12.5 19.9862 12.5 17.6562C12.5 15.3263 11.0309 13.4375 9.21875 13.4375C7.40657 13.4375 5.9375 15.3263 5.9375 17.6562C5.9375 19.9862 7.40657 21.875 9.21875 21.875Z" fill="var(--mstIcFg)"/><path d="M15.7812 16.25C17.5934 16.25 19.0625 14.3612 19.0625 12.0312C19.0625 9.7013 17.5934 7.8125 15.7812 7.8125C13.9691 7.8125 12.5 9.7013 12.5 12.0312C12.5 14.3612 13.9691 16.25 15.7812 16.25Z" fill="var(--mstIcFg)"/><path d="M24.2188 16.25C26.0309 16.25 27.5 14.3612 27.5 12.0312C27.5 9.7013 26.0309 7.8125 24.2188 7.8125C22.4066 7.8125 20.9375 9.7013 20.9375 12.0312C20.9375 14.3612 22.4066 16.25 24.2188 16.25Z" fill="var(--mstIcFg)"/><path d="M30.7812 21.875C32.5934 21.875 34.0625 19.9862 34.0625 17.6562C34.0625 15.3263 32.5934 13.4375 30.7812 13.4375C28.9691 13.4375 27.5 15.3263 27.5 17.6562C27.5 19.9862 28.9691 21.875 30.7812 21.875Z" fill="var(--mstIcFg)"/></svg><div class="mem-stat-tx"><b id="memCoins">0</b><span>Meow Coin</span></div></div>
             <div class="mem-stat-div"></div>
-            <div class="mem-stat"><b id="memCouponCount">0</b><span>优惠卷</span></div>
+            <div class="mem-stat"><svg class="mem-stat-ic" aria-hidden="true" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="20" fill="var(--mstIcBg)"/><path d="M10.5 10C9.83696 10 9.20107 10.2634 8.73223 10.7322C8.26339 11.2011 8 11.837 8 12.5V17.5C8.66304 17.5 9.29893 17.7634 9.76777 18.2322C10.2366 18.7011 10.5 19.337 10.5 20C10.5 20.663 10.2366 21.2989 9.76777 21.7678C9.29893 22.2366 8.66304 22.5 8 22.5V27.5C8 28.163 8.26339 28.7989 8.73223 29.2678C9.20107 29.7366 9.83696 30 10.5 30H30.5C31.163 30 31.7989 29.7366 32.2678 29.2678C32.7366 28.7989 33 28.163 33 27.5V22.5C32.337 22.5 31.7011 22.2366 31.2322 21.7678C30.7634 21.2989 30.5 20.663 30.5 20C30.5 19.337 30.7634 18.7011 31.2322 18.2322C31.7011 17.7634 32.337 17.5 33 17.5V12.5C33 11.837 32.7366 11.2011 32.2678 10.7322C31.7989 10.2634 31.163 10 30.5 10H10.5ZM24.875 13.75L26.75 15.625L16.125 26.25L14.25 24.375L24.875 13.75ZM16.5125 13.8C17.7375 13.8 18.725 14.7875 18.725 16.0125C18.725 16.5993 18.4919 17.162 18.077 17.577C17.662 17.9919 17.0993 18.225 16.5125 18.225C15.2875 18.225 14.3 17.2375 14.3 16.0125C14.3 15.4257 14.5331 14.863 14.948 14.448C15.363 14.0331 15.9257 13.8 16.5125 13.8ZM24.4875 21.775C25.7125 21.775 26.7 22.7625 26.7 23.9875C26.7 24.5743 26.4669 25.1371 26.052 25.552C25.6371 25.9669 25.0743 26.2 24.4875 26.2C23.2625 26.2 22.275 25.2125 22.275 23.9875C22.275 23.4007 22.5081 22.838 22.923 22.423C23.338 22.0081 23.9007 21.775 24.4875 21.775Z" fill="var(--mstIcFg)"/></svg><div class="mem-stat-tx"><b id="memCouponCount">0</b><span>优惠卷</span></div></div>
 </div>
 </div>
 
@@ -1246,7 +1306,12 @@
 </div>
 </div>
           <div class="mem-mini-card">
-            <div class="mem-mini-title">每日签到</div>
+            <div class="mem-mini-head">
+              <div class="mem-mini-title">每日签到</div>
+              <button class="mem-ci-info" onclick="openCheckinRules()" aria-label="签到规则">
+                <svg viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="6" stroke="#8D0505"/><path d="M6.5 5.8v3.1" stroke="#8D0505" stroke-linecap="round"/><path d="M6.5 3.6v.9" stroke="#8D0505" stroke-linecap="round"/></svg>
+              </button>
+</div>
             <div class="mem-mini-divider"></div>
             <div class="mem-mini-streak" id="memStreakLbl">已连续签到 0 天</div>
             <div class="mem-checkin-days" id="memCheckinDays"></div>
@@ -1322,6 +1387,16 @@
 </div>
 
   <!-- ============ Meow Club 积分商城 ============ -->
+  <!-- 签到规则（Figma 798:688）：右上角 ⓘ 点开，内容来自 xp_rules / coin_rules / checkin_milestones -->
+  <div class="ci-overlay" id="ciOverlay" onclick="closeCheckinRules()"></div>
+  <div class="ci-modal" id="ciModal">
+    <button class="ci-close" onclick="closeCheckinRules()" aria-label="关闭">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#8D0505"/><path d="M15 9l-6 6M9 9l6 6" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <h3>签到规则</h3>
+    <ol id="ciRules"></ol>
+</div>
+
   <div class="pm-screen" id="pmScreen">
     <div class="pm-hero">
       <div class="pm-back" onclick="closePointsMall()">
@@ -3477,7 +3552,7 @@ function renderProfileScreen(){
       document.getElementById('memName').textContent = '游客';
       document.getElementById('memLevelNum').textContent = 'Lv.0';
       document.getElementById('memLevelName').textContent = '猫咪蛋';
-      document.getElementById('memWallet').textContent = 'RM0';
+      document.getElementById('memWallet').textContent = 'RM 0';
       document.getElementById('memCoins').textContent = '0';
       document.getElementById('memCouponCount').textContent = '0';
       document.getElementById('memXpBar').style.width = '0%';
@@ -3492,7 +3567,9 @@ function renderProfileScreen(){
     document.getElementById('memName').textContent = _memberProfile.nickname ||'喵星人';
     document.getElementById('memLevelNum').textContent = (themeLv>=4 ? 'Lv.Max' : 'Lv.'+themeLv);
     document.getElementById('memLevelName').textContent = lvl.name_cn||'';
-    document.getElementById('memWallet').textContent ='RM'+(_memberProfile.wallet_balance||0).toFixed(1);
+    // Figma 上写的是「RM 200」——带空格、整数不拖小数；有零头才显示两位
+    var _wb=Number(_memberProfile.wallet_balance)||0;
+    document.getElementById('memWallet').textContent ='RM '+(_wb%1===0 ? _wb : _wb.toFixed(2));
     document.getElementById('memCoins').textContent = _memberProfile.coins||0;
     var nextLvl = _memNextLevel(lvl.sort_order||0);
     var xp = _memberProfile.xp||0;
@@ -3602,6 +3679,54 @@ function setLang(l){
   if(l==='en'){ alert('English 版即将上线，敬请期待'); }
   else { closeLangPage(); }
 }
+function _ciTick(){ return '<svg class="mem-ci-dot" aria-hidden="true" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 20C15.5228 20 20 15.5228 20 10C20 4.47715 15.5228 0 10 0C4.47715 0 0 4.47715 0 10C0 15.5228 4.47715 20 10 20Z" fill="#FFDE5B"/><path d="M7 10L9 12L13 8" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
+function _ciGift(){ return '<svg class="mem-ci-dot" aria-hidden="true" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="15" cy="15" r="15" fill="#FFDE5B"/><path d="M14 17.0006V25.0006H10C9.20435 25.0006 8.44129 24.6845 7.87868 24.1219C7.31607 23.5593 7 22.7962 7 22.0006V18.0006C7 17.7354 7.10536 17.481 7.29289 17.2935C7.48043 17.1059 7.73478 17.0006 8 17.0006H14ZM22 17.0006C22.2652 17.0006 22.5196 17.1059 22.7071 17.2935C22.8946 17.481 23 17.7354 23 18.0006V22.0006C23 22.7962 22.6839 23.5593 22.1213 24.1219C21.5587 24.6845 20.7956 25.0006 20 25.0006H16V17.0006H22ZM19.5 5.00059C20.0905 5.00047 20.6715 5.14975 21.1888 5.43455C21.706 5.71936 22.1429 6.13041 22.4586 6.62945C22.7743 7.1285 22.9586 7.6993 22.9943 8.28873C23.03 8.87816 22.9161 9.46705 22.663 10.0006H23C23.5304 10.0006 24.0391 10.2113 24.4142 10.5864C24.7893 10.9614 25 11.4702 25 12.0006V13.0006C25 13.531 24.7893 14.0397 24.4142 14.4148C24.0391 14.7899 23.5304 15.0006 23 15.0006H16V10.0006H14V15.0006H7C6.46957 15.0006 5.96086 14.7899 5.58579 14.4148C5.21071 14.0397 5 13.531 5 13.0006V12.0006C5 11.4702 5.21071 10.9614 5.58579 10.5864C5.96086 10.2113 6.46957 10.0006 7 10.0006H7.337C7.11488 9.53174 6.99977 9.01938 7 8.50059C7 6.56759 8.567 5.00059 10.483 5.00059C12.238 4.97059 13.795 6.09259 14.864 7.93459L15 8.17759C16.033 6.26359 17.56 5.06359 19.291 5.00259L19.5 5.00059ZM10.5 7.00059C10.1022 7.00059 9.72064 7.15862 9.43934 7.43993C9.15804 7.72123 9 8.10276 9 8.50059C9 8.89841 9.15804 9.27994 9.43934 9.56125C9.72064 9.84255 10.1022 10.0006 10.5 10.0006H13.643C12.902 8.09559 11.694 6.98059 10.5 7.00059ZM19.483 7.00059C18.303 6.98059 17.098 8.09659 16.357 10.0006H19.5C19.8978 9.99833 20.2785 9.83814 20.5582 9.55524C20.8379 9.27234 20.9938 8.88991 20.9915 8.49209C20.9892 8.09426 20.829 7.71363 20.5462 7.43392C20.2633 7.15421 19.8808 6.99833 19.483 7.00059Z" fill="#8D0505"/></svg>'; }
+/* 签到规则弹窗：日常那条读 xp_rules / coin_rules 里 action_key='checkin' 的值，
+   连续第 N 天那几条读 checkin_milestones——都是 POS「签到奖励」那页在管的，
+   后台改了这里跟着变，不写死。 */
+function _ciRuleVal(list, key){
+  var r=(list||[]).find(function(x){ return x.action_key===key; });
+  if(!r) return 0;
+  return Number(r.xp_value!=null?r.xp_value:r.coin_value)||0;
+}
+function _ciReward(m){
+  var rw=m.reward||{};
+  try{ if(typeof rw==='string') rw=JSON.parse(rw); }catch(e){ rw={}; }
+  return { xp:Number(rw.xp)||0, coin:Number(rw.coin)||0 };
+}
+function _ciRewardTxt(xp, coin){
+  var parts=[];
+  if(xp) parts.push('<em>+'+xp+' XP</em>');
+  if(coin) parts.push('<em>+'+coin+' Paw Coins</em>');
+  return parts.length?parts.join(' 和 '):'<em>无奖励</em>';
+}
+var _ciMilestones=[];
+function loadCheckinMilestones(){
+  if(!db) return Promise.resolve();
+  return db.from('checkin_milestones').select('*').order('streak_days').then(function(r){
+    if(r.error){ console.error('checkin_milestones:', r.error); return; }
+    _ciMilestones=r.data||[];
+  }).catch(function(e){ console.error('checkin_milestones:', e); });
+}
+function renderCheckinRules(){
+  var box=document.getElementById('ciRules'); if(!box) return;
+  var items=['<li>每日签到: '+_ciRewardTxt(_ciRuleVal(_xpRules,'checkin'), _ciRuleVal(_coinRules,'checkin'))+'</li>'];
+  (_ciMilestones||[]).slice().sort(function(a,b){ return a.streak_days-b.streak_days; }).forEach(function(m){
+    var rw=_ciReward(m);
+    items.push('<li>连续签到 第 <b>'+m.streak_days+'</b> 天: '+_ciRewardTxt(rw.xp, rw.coin)+'</li>');
+  });
+  box.innerHTML=items.join('');
+}
+function openCheckinRules(){
+  renderCheckinRules();   // 先用手上的数据画出来，别让顾客对着空白等
+  document.getElementById('ciOverlay').classList.add('show');
+  document.getElementById('ciModal').classList.add('show');
+  Promise.all([loadLoyaltyRules(), loadCheckinMilestones()]).then(renderCheckinRules);
+}
+function closeCheckinRules(){
+  document.getElementById('ciOverlay').classList.remove('show');
+  document.getElementById('ciModal').classList.remove('show');
+}
 function renderCheckinStatus(){
   if(!db || !_memberId || !_memberToken) return Promise.resolve();
   return db.rpc('rpc_get_checkin_status', {p_member_id:_memberId, p_session_token:_memberToken}).then(function(res){
@@ -3610,9 +3735,12 @@ function renderCheckinStatus(){
     if(!row) return;
     document.getElementById('memStreakLbl').innerHTML ='已连续签到 <b>'+row.current_streak+'</b> 天';
     var days = row.last_7_days || [];
+    // 已签到用勾、还没签的用礼物（Figma 227:129 的 tick / gift 两态），都是店家上传的图
     document.getElementById('memCheckinDays').innerHTML = days.map(function(d){
       var dt = new Date(d.date+'T00:00:00'); var isToday = dt.toDateString()===new Date().toDateString();
-      return'<div class="mem-checkin-day'+(d.checked?' done':'')+(isToday?' today':'')+'"></div>';
+      var svg = d.checked ? _ciTick() : _ciGift();
+      var cls = (d.checked?'':' pending')+(isToday?' today':'');
+      return cls ? svg.replace('class="mem-ci-dot"','class="mem-ci-dot'+cls+'"') : svg;
     }).join('');
     var btn = document.getElementById('memCheckinBtn');
     btn.disabled = row.checked_in_today;
@@ -3700,14 +3828,36 @@ function loadMyCoupons(){
 }
 
 /* ===== Meow Wallet 充值 ===== */
-var RECHARGE_PACKAGES = [
-  {credit:50, price:50, special:true},
-  {credit:120, price:100},
-  {credit:200, price:150},
-  {credit:300, price:200},
-  {credit:450, price:250},
-  {credit:600, price:300}
+/* 充值套餐来自 recharge_packages 表（POS 会员运营 → 充值套餐维护），
+   跟收银台的 Top up 同一份。表没建/离线就退回下面这份兜底，跟原来写死的六档一致。 */
+var RECHARGE_FALLBACK = [
+  {id:'f1', price:50,  coins:50,  xp:0, draw_tickets:0, tag:'首充双倍', first_only:true,  gifts:[], enabled:true, sort_order:10},
+  {id:'f2', price:100, coins:120, xp:0, draw_tickets:0, tag:null, first_only:false, gifts:[], enabled:true, sort_order:20},
+  {id:'f3', price:150, coins:200, xp:0, draw_tickets:0, tag:null, first_only:false, gifts:[], enabled:true, sort_order:30},
+  {id:'f4', price:200, coins:300, xp:0, draw_tickets:0, tag:null, first_only:false, gifts:[], enabled:true, sort_order:40},
+  {id:'f5', price:250, coins:450, xp:0, draw_tickets:0, tag:null, first_only:false, gifts:[], enabled:true, sort_order:50},
+  {id:'f6', price:300, coins:600, xp:0, draw_tickets:0, tag:null, first_only:false, gifts:[], enabled:true, sort_order:60}
 ];
+var RECHARGE_PACKAGES = RECHARGE_FALLBACK.slice();
+function _rcGifts(p){ try{ return Array.isArray(p.gifts)?p.gifts:JSON.parse(p.gifts||'[]'); }catch(e){ return []; } }
+/* 浮层里先列系统真会发的 XP / 抽奖券（来自套餐那一行），再接上要店员另外兑现的文案。
+   Coin 已经印在卡面上了，不重复列。 */
+function _rcRewardLines(p){
+  var out=[];
+  if(Number(p.xp)>0) out.push('+'+p.xp+' XP');
+  if(Number(p.draw_tickets)>0) out.push(p.draw_tickets+'x 幸运抽奖');
+  return out.concat(_rcGifts(p));
+}
+function loadRechargePackages(){
+  if(!db) return Promise.resolve();
+  return db.from('recharge_packages').select('*').order('sort_order').then(function(res){
+    if(res.error){ console.error('recharge_packages:', res.error); return; }
+    var rows=(res.data||[]).filter(function(p){ return p.enabled!==false; });
+    if(rows.length) RECHARGE_PACKAGES=rows;
+    if(_rcSelected>=RECHARGE_PACKAGES.length) _rcSelected=0;
+    renderRechargePackages();
+  }).catch(function(e){ console.error('recharge_packages:', e); });
+}
 var _rcSelected = 0;
 var _rcAlreadyRecharged = false; // 已经充值过一次了：首充双倍徽章就不该再显示
 var _rcPayMethod ='counter';   // 充值只开放柜台支付
@@ -3715,16 +3865,46 @@ function renderRcPayMethods(){
   var c=document.getElementById('rcPayDotCounter'); if(c) c.classList.add('selected');
 }
 function selectRcPay(method){ _rcPayMethod='counter'; renderRcPayMethods(); }
+/* 卡片（Figma 236:159 四态）：Paw Coin + 送的 Coin 数、下面 RM 价、
+   右上角可选标签、左下角一个小图标——有赠品时点它弹出 more gift 浮层（Figma 824:792）。 */
 function _rcPkgHtml(p, idx){
-  var cls ='rc-pkg'+(p.special?' rc-pkg-special':'')+(idx===_rcSelected?' selected':'');
-  var badge = (p.special && !_rcAlreadyRecharged) ?'<div class="rc-pkg-badge">首充双倍</div>' :'';
+  var showTag = p.tag && (!p.first_only || !_rcAlreadyRecharged);
+  var cls ='rc-pkg'+(showTag?' rc-pkg-special':'')+(idx===_rcSelected?' selected':'');
+  var badge = showTag ?'<div class="rc-pkg-badge">'+_esc(p.tag)+'</div>' :'';
+  var gifts=_rcRewardLines(p);
+  var more = gifts.length
+    ? '<button class="rc-pkg-more" onclick="event.stopPropagation();toggleRcGift('+idx+')" aria-label="更多赠品">'
+      +'<svg viewBox="0 0 12 12" fill="none"><path d="M1.5 1v7.5a2 2 0 0 0 2 2H11" stroke="#8D0505" stroke-width="1.4" stroke-linecap="round"/></svg></button>'
+      +'<div class="rc-gift-pop" id="rcGift'+idx+'"><ul>'+gifts.map(function(g){ return '<li>'+_esc(g)+'</li>'; }).join('')+'</ul></div>'
+    : '';
   return'<div class="'+cls+'" onclick="selectRecharge('+idx+')">'+badge
-    +'<div class="rc-pkg-inner"><div class="rc-pkg-top"><span class="rc-coin"></span><span class="rc-pkg-num">'+p.credit+'</span></div>'
-    +'<div class="rc-pkg-rm">RM '+p.price+'</div></div></div>';
+    +'<div class="rc-pkg-inner"><div class="rc-pkg-top">'+_pawSvg()+'<span class="rc-pkg-num">'+(p.coins||0)+'</span></div>'
+    +'<div class="rc-pkg-rm">RM '+Number(p.price).toFixed(0)+'</div></div>'+more+'</div>';
+}
+/* 浮层一次只开一个；点别处收起（下面 document 上挂了一个收起用的监听） */
+var _rcGiftOpen=-1;
+function toggleRcGift(idx){
+  _rcGiftOpen = (_rcGiftOpen===idx) ? -1 : idx;
+  _rcSyncGiftPops();
+}
+function _rcSyncGiftPops(){
+  document.querySelectorAll('#rcPkgGrid .rc-pkg').forEach(function(card){
+    var pop=card.querySelector('.rc-gift-pop');
+    var open = !!pop && pop.id === ('rcGift'+_rcGiftOpen);
+    if(pop) pop.classList.toggle('show', open);
+    card.classList.toggle('pop-open', open);
+  });
 }
 function renderRechargePackages(){
   document.getElementById('rcPkgGrid').innerHTML = RECHARGE_PACKAGES.map(_rcPkgHtml).join('');
+  _rcSyncGiftPops();
 }
+// 点浮层和小图标以外的地方就收起来
+document.addEventListener('click', function(ev){
+  if(_rcGiftOpen<0) return;
+  if(ev.target.closest && (ev.target.closest('.rc-gift-pop') || ev.target.closest('.rc-pkg-more'))) return;
+  _rcGiftOpen=-1; _rcSyncGiftPops();
+});
 function selectRecharge(idx){
   _rcSelected = idx;
   renderRechargePackages();
@@ -3732,8 +3912,10 @@ function selectRecharge(idx){
 function openRecharge(){
   if(!_memberId || !_memberToken){ alert('请先登录会员'); return; }
   _rcSelected = 0;
+  _rcGiftOpen = -1;
   _rcPayMethod ='counter';
   renderRechargePackages();
+  loadRechargePackages();
   renderRcPayMethods();
   var _setBal=function(){ document.getElementById('rcBalance').textContent = (_memberProfile ? (_memberProfile.wallet_balance||0) : 0).toFixed(2); };
   _setBal();
@@ -3779,14 +3961,17 @@ function doRecharge(){
     taMode:'recharge',
     memberId:_memberId,
     deviceId:_deviceId,
-    deliveryInfo:{ recharge:{ price:p.price, coins:p.credit } }
+    // package_id 是关键：服务端按它去 recharge_packages 查该发多少，不听这里写的数。
+    // 后面几个只是快照，万一套餐后来被删了才拿来兜底。
+    deliveryInfo:{ recharge:{ package_id:(p.id||null), price:p.price, coins:(p.coins||0),
+      xp:(p.xp||0), draw_tickets:(p.draw_tickets||0) } }
   };
   assignOrderNumsApp(order).then(function(){
     _orders.unshift(order);
     try{ var ex=JSON.parse(localStorage.getItem('pm_orders')||'[]'); ex.unshift(order); localStorage.setItem('pm_orders',JSON.stringify(ex)); }catch(e){}
     try{ pmBroadcastOrders(); }catch(e){}
     if(db){ db.from('orders').insert(orderToRow(order)).then(function(res){ if(res && res.error){ console.error('recharge insert', res.error); setCloudStatus('offline'); } else { setCloudStatus('online'); } }).catch(function(e){ console.error('recharge insert', e); setCloudStatus('offline'); }); }
-    alert('充值申请已提交！\n请到柜台以现金 / DuitNow 支付 RM'+p.price.toFixed(2)+'。\n店员确认收款后，您的 Meow Wallet 到账 RM'+p.price.toFixed(2)+'，并获得 '+p.credit+' Meow Coin。');
+    alert('充值申请已提交！\n请到柜台以现金 / DuitNow 支付 RM'+p.price.toFixed(2)+'。\n店员确认收款后，您的 Meow Wallet 到账 RM'+p.price.toFixed(2)+'，并获得 '+(p.coins||0)+' Meow Coin'+(function(){ var g=_rcRewardLines(p); return g.length?('、'+g.join('、')):''; })()+'。');
     closeRecharge();
   });
 }
@@ -3843,25 +4028,77 @@ function _pmItemHtml(c){
 }
 /* 「我的」：已兑到手的券。未使用的排在前面 */
 var _pmFromCheckout=false;
-function _pmMineHtml(mc){
-  var ST={unused:'未使用',used:'已使用',expired:'已过期'};
+/* 图标用店家上传的原件（Paw Coin.svg / tick.svg / foc dessert .svg），内联进来，
+   保持这个项目「单文件、不依赖外部资源」的做法。尺寸交给 CSS，SVG 只留 viewBox。 */
+function _pawSvg(){ return '<svg class="pm-my-paw" aria-hidden="true" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="20" fill="#FFDE5B"/><path d="M30.9453 26.2004C30.4297 24.7297 29.2279 23.9844 28.0678 23.2637C27.0582 22.6361 26.1049 22.0432 25.4814 20.9785C23.7629 18.0295 22.8189 16.25 20.0035 16.25C17.1881 16.25 16.2412 18.0301 14.5186 20.9779C13.8945 22.0449 12.9365 22.6391 11.9258 23.2678C10.7656 23.9891 9.56621 24.7326 9.04883 26.2004C8.84752 26.7297 8.74619 27.2917 8.75 27.858C8.75 30.2451 10.6514 32.1875 12.7578 32.1875C14.8643 32.1875 17.6393 31.1252 20.0094 31.1252C22.3795 31.1252 25.1158 32.1875 27.2486 32.1875C29.3814 32.1875 31.25 30.2451 31.25 27.858C31.2517 27.2914 31.1484 26.7294 30.9453 26.2004Z" fill="#8D0505"/><path d="M9.21875 21.875C11.0309 21.875 12.5 19.9862 12.5 17.6562C12.5 15.3263 11.0309 13.4375 9.21875 13.4375C7.40657 13.4375 5.9375 15.3263 5.9375 17.6562C5.9375 19.9862 7.40657 21.875 9.21875 21.875Z" fill="#8D0505"/><path d="M15.7812 16.25C17.5934 16.25 19.0625 14.3612 19.0625 12.0312C19.0625 9.7013 17.5934 7.8125 15.7812 7.8125C13.9691 7.8125 12.5 9.7013 12.5 12.0312C12.5 14.3612 13.9691 16.25 15.7812 16.25Z" fill="#8D0505"/><path d="M24.2188 16.25C26.0309 16.25 27.5 14.3612 27.5 12.0312C27.5 9.7013 26.0309 7.8125 24.2188 7.8125C22.4066 7.8125 20.9375 9.7013 20.9375 12.0312C20.9375 14.3612 22.4066 16.25 24.2188 16.25Z" fill="#8D0505"/><path d="M30.7812 21.875C32.5934 21.875 34.0625 19.9862 34.0625 17.6562C34.0625 15.3263 32.5934 13.4375 30.7812 13.4375C28.9691 13.4375 27.5 15.3263 27.5 17.6562C27.5 19.9862 28.9691 21.875 30.7812 21.875Z" fill="#8D0505"/></svg>'; }
+/* 券卡的勾按它自己那张图走（Figma 818:1340 选中＝深红底白勾 / 818:1341 未选中＝空心圈）。
+   店家上传的 tick.svg 是黄底红勾，那张归签到用，两处不共用。 */
+function _tickSvg(on){
+  return on
+    ? '<svg class="pm-my-tick" viewBox="0 0 20 20" fill="none" aria-hidden="true">'
+      +'<circle cx="10" cy="10" r="10" fill="#8D0505"/>'
+      +'<path d="M7 10L9 12L13 8" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    : '<svg class="pm-my-tick" viewBox="0 0 20 20" fill="none" aria-hidden="true">'
+      +'<circle cx="10" cy="10" r="9.25" stroke="#8D0505" stroke-width="1.5"/></svg>';
+}
+function _dessertArt(){ return '<svg class="pm-my-stub-art" aria-hidden="true" viewBox="0 0 70 66" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M70 58.08C70 62.4541 54.33 66 35 66C15.67 66 0 62.4541 0 58.08C0 53.7059 15.67 50.16 35 50.16C54.33 50.16 70 53.7059 70 58.08Z" fill="#FFDE5B"/><path d="M65.5696 57.64C65.5696 60.7991 52.0815 63.36 35.443 63.36C18.8046 63.36 5.31646 60.7991 5.31646 57.64C5.31646 54.4809 18.8046 51.92 35.443 51.92C52.0815 51.92 65.5696 54.4809 65.5696 57.64Z" fill="#E1B401"/><path d="M14.0667 28.728C14.7927 23.3651 19.4376 19.36 24.9311 19.36H46.841C52.3345 19.36 56.9795 23.3651 57.7055 28.728L61.0903 53.7293C61.5283 56.965 58.9725 59.84 55.658 59.84H16.1141C12.7997 59.84 10.2438 56.965 10.6819 53.7293L14.0667 28.728Z" fill="#FFFFD5"/><path d="M14.0411 28.6946C14.7823 23.3467 19.4205 19.36 24.901 19.36H47.0778C52.4782 19.36 57.0739 23.2341 57.9072 28.489L59.1317 39.2627C59.1317 39.2627 50.9569 41.6004 47.5317 35.2147C43.6853 28.0437 41.0239 42.9733 33.1459 41.6004C28.6061 40.8092 25.7223 33.0586 21.1577 33.7086C16.1404 34.4231 12.2522 41.6004 12.2522 41.6004L14.0411 28.6946Z" fill="#9F3D0A"/><path d="M52.2785 20.24C52.2785 23.1561 45.1377 25.52 36.3291 25.52C27.5205 25.52 20.3797 23.1561 20.3797 20.24C20.3797 17.3239 27.5205 14.96 36.3291 14.96C45.1377 14.96 52.2785 17.3239 52.2785 20.24Z" fill="white"/><path d="M35.9725 0C44.9627 0 48.8079 18.48 47.483 19.8C45.2748 22 26.6686 21.9914 24.462 19.8C22.2555 17.6086 26.9823 0 35.9725 0Z" fill="#D41534"/><path d="M31.8987 6.16C31.8987 6.64601 31.7004 7.04 31.4557 7.04C31.211 7.04 31.0127 6.64601 31.0127 6.16C31.0127 5.67399 31.211 5.28 31.4557 5.28C31.7004 5.28 31.8987 5.67399 31.8987 6.16Z" fill="#FFFFD5"/><path d="M36.3291 6.16C36.3291 6.64601 36.1308 7.04 35.8861 7.04C35.6414 7.04 35.443 6.64601 35.443 6.16C35.443 5.67399 35.6414 5.28 35.8861 5.28C36.1308 5.28 36.3291 5.67399 36.3291 6.16Z" fill="#FFFFD5"/><path d="M33.6709 2.64C33.6709 3.12601 33.4725 3.52 33.2278 3.52C32.9832 3.52 32.7848 3.12601 32.7848 2.64C32.7848 2.15399 32.9832 1.76 33.2278 1.76C33.4725 1.76 33.6709 2.15399 33.6709 2.64Z" fill="#FFFFD5"/><path d="M38.1013 2.64C38.1013 3.12601 37.9029 3.52 37.6582 3.52C37.4135 3.52 37.2152 3.12601 37.2152 2.64C37.2152 2.15399 37.4135 1.76 37.6582 1.76C37.9029 1.76 38.1013 2.15399 38.1013 2.64Z" fill="#FFFFD5"/><path d="M43.4177 9.68C43.4177 10.166 43.2194 10.56 42.9747 10.56C42.73 10.56 42.5316 10.166 42.5316 9.68C42.5316 9.19399 42.73 8.8 42.9747 8.8C43.2194 8.8 43.4177 9.19399 43.4177 9.68Z" fill="#FFFFD5"/><path d="M38.9873 9.68C38.9873 10.166 38.789 10.56 38.5443 10.56C38.2996 10.56 38.1013 10.166 38.1013 9.68C38.1013 9.19399 38.2996 8.8 38.5443 8.8C38.789 8.8 38.9873 9.19399 38.9873 9.68Z" fill="#FFFFD5"/><path d="M33.6709 9.68C33.6709 10.166 33.4725 10.56 33.2278 10.56C32.9832 10.56 32.7848 10.166 32.7848 9.68C32.7848 9.19399 32.9832 8.8 33.2278 8.8C33.4725 8.8 33.6709 9.19399 33.6709 9.68Z" fill="#FFFFD5"/><path d="M36.3291 14.08C36.3291 14.566 36.1308 14.96 35.8861 14.96C35.6414 14.96 35.443 14.566 35.443 14.08C35.443 13.594 35.6414 13.2 35.8861 13.2C36.1308 13.2 36.3291 13.594 36.3291 14.08Z" fill="#FFFFD5"/><path d="M32.7848 18.48C32.7848 18.966 32.5865 19.36 32.3418 19.36C32.0971 19.36 31.8987 18.966 31.8987 18.48C31.8987 17.994 32.0971 17.6 32.3418 17.6C32.5865 17.6 32.7848 17.994 32.7848 18.48Z" fill="#FFFFD5"/><path d="M29.2405 9.68C29.2405 10.166 29.0422 10.56 28.7975 10.56C28.5528 10.56 28.3544 10.166 28.3544 9.68C28.3544 9.19399 28.5528 8.8 28.7975 8.8C29.0422 8.8 29.2405 9.19399 29.2405 9.68Z" fill="#FFFFD5"/><path d="M45.1899 17.6C45.1899 18.086 44.9915 18.48 44.7468 18.48C44.5022 18.48 44.3038 18.086 44.3038 17.6C44.3038 17.114 44.5022 16.72 44.7468 16.72C44.9915 16.72 45.1899 17.114 45.1899 17.6Z" fill="#FFFFD5"/><path d="M41.6456 14.08C41.6456 14.566 41.4472 14.96 41.2025 14.96C40.9579 14.96 40.7595 14.566 40.7595 14.08C40.7595 13.594 40.9579 13.2 41.2025 13.2C41.4472 13.2 41.6456 13.594 41.6456 14.08Z" fill="#FFFFD5"/><path d="M26.5823 17.6C26.5823 18.086 26.3839 18.48 26.1392 18.48C25.8946 18.48 25.6962 18.086 25.6962 17.6C25.6962 17.114 25.8946 16.72 26.1392 16.72C26.3839 16.72 26.5823 17.114 26.5823 17.6Z" fill="#FFFFD5"/><path d="M31.0127 14.08C31.0127 14.566 30.8143 14.96 30.5696 14.96C30.3249 14.96 30.1266 14.566 30.1266 14.08C30.1266 13.594 30.3249 13.2 30.5696 13.2C30.8143 13.2 31.0127 13.594 31.0127 14.08Z" fill="#FFFFD5"/><path d="M26.5823 13.2C26.5823 13.686 26.3839 14.08 26.1392 14.08C25.8946 14.08 25.6962 13.686 25.6962 13.2C25.6962 12.714 25.8946 12.32 26.1392 12.32C26.3839 12.32 26.5823 12.714 26.5823 13.2Z" fill="#FFFFD5"/><path d="M46.076 13.2C46.076 13.686 45.8776 14.08 45.6329 14.08C45.3882 14.08 45.1899 13.686 45.1899 13.2C45.1899 12.714 45.3882 12.32 45.6329 12.32C45.8776 12.32 46.076 12.714 46.076 13.2Z" fill="#FFFFD5"/><path d="M41.6456 6.16C41.6456 6.64601 41.4472 7.04 41.2025 7.04C40.9579 7.04 40.7595 6.64601 40.7595 6.16C40.7595 5.67399 40.9579 5.28 41.2025 5.28C41.4472 5.28 41.6456 5.67399 41.6456 6.16Z" fill="#FFFFD5"/><path d="M38.9873 18.48C38.9873 18.966 38.789 19.36 38.5443 19.36C38.2996 19.36 38.1013 18.966 38.1013 18.48C38.1013 17.994 38.2996 17.6 38.5443 17.6C38.789 17.6 38.9873 17.994 38.9873 18.48Z" fill="#FFFFD5"/></svg>'; }
+/* 券面左边票根上的符号：现金券 $、百分比券 %。甜品券不放符号，放商品图 */
+function _pmStubSym(mc){ return mc.type==='percent_off' ? '%' : '$'; }
+/* 「我的」那张卡第二行：优先显示当初花的 Paw Coin（从商城列表按 coupon_id 对回去，
+   省一次 SQL 迁移）；商城已经下架、查不到价的，就改显示有效期——总比空着强。 */
+function _pmMineSub(mc){
+  var item=(_mallItems||[]).find(function(x){ return x.id===mc.coupon_id; });
+  if(item && Number(item.coin_price)>0) return _pawSvg()+'<span>'+item.coin_price+'  Paw Coins</span>';
   var exp='永久有效';
   if(mc.expires_at){ try{ exp=new Date(mc.expires_at).toLocaleDateString()+' 到期'; }catch(e){ exp=''; } }
-  return'<div class="mem-coupon-ticket'+(mc.status==='unused'?'':' used')+'">'
-    +'<div class="mem-coupon-value"><b>'+(mc.type==='dessert'?'兑换':(mc.type==='percent_off'?(mc.value+'%'):('RM'+mc.value)))+'</b>'
-    +'<span>'+(mc.type==='dessert'?'甜品':(mc.menu_item_id?'单品':'OFF'))+'</span></div>'
-    +'<div class="mem-coupon-info"><div class="mem-coupon-name">'+_esc(mc.name)+'</div>'
-    +'<div class="mem-coupon-cond">'+_couponCondTxt(mc)+'</div>'
-    +'<div class="mem-coupon-exp">'+(ST[mc.status]||mc.status)+' · '+exp+'</div>'
-    +_pmUseBtn(mc)+'</div></div>';
+  return '<span>'+_esc(exp)+'</span>';
 }
-/* 从结算页进来才显示「使用」；不可用的说明原因，别让顾客点了才知道 */
-function _pmUseBtn(mc){
-  if(!_pmFromCheckout || mc.status!=='unused') return '';
-  var u=_couponUsable(mc, _cartSubtotal());
-  return u.ok
-    ? '<button class="pm-use-btn" onclick="useCouponForOrder(\''+mc.id+'\')">使用</button>'
-    : '<span class="pm-use-no">'+_esc(u.why)+'</span>';
+function _pmMineHtml(mc){
+  var ST={unused:'未使用',used:'已使用',expired:'已过期'};
+  // 打钩只在「从结算页点进来挑券」时出现。直接从积分商城进「我的」是翻看券包，
+  // 没有正在下的单，摆个勾会让人以为点了就生效了。
+  var picking = _pmFromCheckout;
+  // 购物车是空的就别拿满额门槛去判，否则带门槛的券会全部置灰，顾客以为券坏了
+  var sub=_cartSubtotal(), hasCart=sub>0;
+  var u = _couponUsable(mc, sub);
+  var usable = mc.status==='unused' && (!hasCart || u.ok);
+  var picked = picking && !!(_ckCoupon && _ckCoupon.id===mc.id);
+  var right;
+  if(picking){
+    // 挑券模式：能用给勾，不能用写明原因，别让顾客点了才知道
+    right = usable ? _tickSvg(picked)
+      : '<span class="pm-my-why">'+_esc(mc.status!=='unused' ? (ST[mc.status]||mc.status) : u.why)+'</span>';
+  } else {
+    // 翻看模式：只标已使用/已过期，没用过的右边留白
+    right = mc.status==='unused' ? '' : '<span class="pm-my-why">'+_esc(ST[mc.status]||mc.status)+'</span>';
+  }
+  var dim = mc.status!=='unused' || (picking && !usable);
+  var stub = mc.type==='dessert'
+    ? (mc.menu_item_image
+        ? '<div class="pm-my-stub dessert" style="background-image:url(\''+_esc(mc.menu_item_image)+'\')"></div>'
+        : '<div class="pm-my-stub dessert">'+_dessertArt()+'</div>')   // 商品没配图就放店家给的甜品图
+    : '<div class="pm-my-stub"><span class="pm-my-stub-sym">'+_pmStubSym(mc)+'</span></div>';
+  var clickable = picking && usable;
+  return'<div class="pm-my-card'+(dim?' dim':'')+'"'+(clickable?(' onclick="pmPickCoupon(\''+mc.id+'\')"'):'')+'>'
+    +stub
+    +'<div class="pm-my-main"><div class="pm-my-info">'
+    +'<div class="pm-my-name">'+_esc(mc.name)+'</div>'
+    +'<div class="pm-my-sub">'+_pmMineSub(mc)+'</div>'
+    +'</div>'+right+'</div></div>';
+}
+/* 点卡＝选这张券。一单只能用一张，所以再点一次是取消，选别的会换掉。
+   只有从结算页进来才走得到这里，选完直接回结算页——等价于原来那个「使用」按钮。 */
+function pmPickCoupon(mcId){
+  var mc=(_myCoupons||[]).find(function(x){ return x.id===mcId; });
+  if(!mc) return;
+  if(_ckCoupon && _ckCoupon.id===mcId){ _ckCoupon=null; renderPointsMallList(); return; }
+  if(mc.status!=='unused'){ alert('这张券已经用过或已失效'); return; }
+  var sub=_cartSubtotal();
+  var u=_couponUsable(mc, sub);
+  if(sub>0 && !u.ok){ alert('这张券现在用不了：'+u.why); return; }
+  _ckCoupon=mc;
+  if(_pmFromCheckout){ closePointsMall(); renderCheckout(); return; }
+  renderPointsMallList();
 }
 function renderPointsMallList(){
   var box=document.getElementById('pmList');
