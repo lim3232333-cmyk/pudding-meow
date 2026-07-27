@@ -70,6 +70,7 @@ Both files load `@supabase/supabase-js@2` from CDN and share **one config block*
 | `sales_channels` | `id, code, name, name_en, builtin, enabled, sort_order` | the sales channels themselves (POS 菜单管理 → 销售方式) |
 | `spec_defs` | `id, name, options(jsonb), sold_out_options(jsonb), required, sort_order, channels(jsonb), option_prices(jsonb)` | reusable spec groups (`option_prices` = default per-option surcharge) |
 | `recharge_packages` | `id, price, coins, tag, first_only, gifts(jsonb), enabled, sort_order` | 充值套餐 — the mini-program 充值 page and the POS cashier Top up read the same rows (POS 会员运营 → 充值套餐) |
+| `wallet_settings` | single row: `xp_per_rm, coin_per_rm, first_bonus_xp, first_bonus_coin, draw_tickets, first_draw_tickets, wallet_earns, min_topup, max_topup, max_balance, refundable` | 储值规则 — recharge rewards + wallet limits, enforced **server-side** by `_wallet_grant_rewards()` / `_wallet_check_limits()` inside `rpc_complete_recharge` and `rpc_pos_topup` |
 
 Field mapping between the JS order object (camelCase) and DB rows (snake_case) is done by **`orderToRow()` / `rowToOrder()`** — defined identically in both files. `orderToRow` only emits real columns, so POS-only fields (`tender`, `change`, `customerName`) are dropped on insert.
 

@@ -180,6 +180,17 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 .tu-pkg span{font-size:12px;color:#4A4848;}
 .tu-pkg.a{border-color:#8D0505;background:#FFFDF0;}
 .tu-tag{position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#FFDE5B;color:#8D0505;font-size:10px;font-weight:700;padding:1px 8px;border-radius:999px;}
+/* 储值规则：左标签右输入的设置行 */
+.ws-box{padding:4px 16px 16px;max-width:620px;}   /* 后台内容区很宽，不限一下标签和输入框会被拉到两端 */
+.ws-note{font-size:12px;color:#8D0505;background:#FFFDF0;border:1px solid #F0E6C8;border-radius:8px;padding:8px 10px;margin:12px 0;}
+.ws-row{display:flex;align-items:center;gap:16px;padding:10px 0;border-bottom:1px solid #F5E9D4;}
+.ws-row:last-child{border-bottom:none;}
+.ws-lb{flex:1;min-width:0;font-size:14px;font-weight:700;color:#8D0505;}
+.ws-hint{display:block;font-size:11px;font-weight:400;color:#4A4848;margin-top:2px;}
+.ws-in{flex:0 0 150px;}
+.ws-num{margin-bottom:0;}
+.ws-sw{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#8D0505;cursor:pointer;}
+.ws-sw input{width:auto;margin:0;accent-color:#8D0505;cursor:pointer;}
 .ta-mbtns{width:114px;display:flex;flex-direction:column;gap:10px;margin-top:14px;flex-shrink:0;}
 .ta-mbtn{position:relative;width:114px;height:44px;background:#202055;color:#fff;border:none;border-radius:1000px;font-weight:700;font-size:15px;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
 .ta-mbtn:active{opacity:.85;}
@@ -2623,7 +2634,7 @@ function setLoyaltyTab(t){_loyaltyTab=t;renderLoyaltyAdmin();}
 function renderLoyaltyAdmin(){
   var el=document.getElementById('adminContent');
   if(!db){el.innerHTML='<div class="page-title">会员运营 Loyalty</div><div style="padding:30px;color:#8D0505">未连接云端（Supabase 未配置或离线），无法管理会员系统。</div>';return;}
-  var tabs=[['members','会员列表'],['levels','等级设置'],['xp','成长值规则'],['coin','金币规则'],['checkin','签到奖励'],['referrals','邀请规则'],['coupons','优惠券管理'],['draw','幸运抽奖'],['topup','充值套餐']];
+  var tabs=[['members','会员列表'],['levels','等级设置'],['xp','成长值规则'],['coin','金币规则'],['checkin','签到奖励'],['referrals','邀请规则'],['coupons','优惠券管理'],['draw','幸运抽奖'],['topup','充值套餐'],['wallet','储值规则']];
   var html='<div class="page-title">会员运营 · Loyalty</div>'
     +'<div class="ma-tabs">'+tabs.map(function(t){return'<button class="ma-tab'+(_loyaltyTab===t[0]?' a':'')+'" onclick="setLoyaltyTab(\''+t[0]+'\')">'+t[1]+'</button>';}).join('')+'</div>';
   el.innerHTML=html+'<div id="loyaltyBody">加载中…</div>';
@@ -2636,6 +2647,90 @@ function renderLoyaltyAdmin(){
   else if(_loyaltyTab==='coupons') loadLoyaltyCoupons();
   else if(_loyaltyTab==='draw') loadLoyaltyDraw();
   else if(_loyaltyTab==='topup') loadTopupPkgs();
+  else if(_loyaltyTab==='wallet') loadWalletSettings();
+}
+
+/* ---- 储值规则：充值奖励 + 钱包使用限制（wallet_settings 单行设置） ----
+   充值原本只做「钱包到账 + 套餐自带的 Coin」，不发 XP 也不发抽奖券。
+   这一页配的东西由服务端 _wallet_grant_rewards / _wallet_check_limits 执行，
+   不是前端算完再报给后端——anon key 是公开的，金额和上限只在前端拦拦不住。 */
+var _walletSet=null;
+var WALLET_DEFAULTS={id:1,xp_per_rm:0,coin_per_rm:0,first_bonus_xp:0,first_bonus_coin:0,
+  draw_tickets:0,first_draw_tickets:0,wallet_earns:true,min_topup:null,max_topup:null,
+  max_balance:null,refundable:false};
+function loadWalletSettings(){
+  if(!db){ _walletSet=Object.assign({},WALLET_DEFAULTS); renderWalletSettingsBody(); return Promise.resolve(); }
+  return db.from('wallet_settings').select('*').eq('id',1).then(function(res){
+    if(res.error){ console.error('wallet_settings:',res.error); _walletSet=null; _walletErr=res.error; }
+    else { _walletErr=null; _walletSet=(res.data&&res.data[0])||Object.assign({},WALLET_DEFAULTS); }
+    renderWalletSettingsBody();
+  }).catch(function(e){ console.error('wallet_settings:',e); _walletErr=e; _walletSet=null; renderWalletSettingsBody(); });
+}
+var _walletErr=null;
+function _wsNum(v){ return (v===null||v===undefined||v==='')?'':v; }
+function renderWalletSettingsBody(){
+  if(_loyaltyTab!=='wallet') return;   // 慢一步返回时别盖掉用户已经切走的页签
+  var body=document.getElementById('loyaltyBody'); if(!body) return;
+  if(_walletErr){
+    body.innerHTML='<div style="padding:24px;color:#8D0505">读取失败：'+esc(_rpcErr(_walletErr))
+      +'<br><span style="font-size:12px;color:#4A4848">没跑过 supabase-wallet-rules.sql 的话，先去 SQL Editor 跑一次</span></div>';
+    return;
+  }
+  var w=_walletSet||WALLET_DEFAULTS;
+  var row=function(label,hint,html){
+    return'<div class="ws-row"><div class="ws-lb">'+label+(hint?'<span class="ws-hint">'+hint+'</span>':'')+'</div>'
+      +'<div class="ws-in">'+html+'</div></div>';
+  };
+  var num=function(id,val,ph,step){
+    return'<input class="mfi ws-num" id="'+id+'" type="number" step="'+(step||1)+'" value="'+_wsNum(val)+'" placeholder="'+(ph||'')+'">';
+  };
+  body.innerHTML=
+    '<div style="font-size:13px;color:#4A4848;margin-bottom:14px">这一页管「钱怎么进钱包、进来之后怎么花」。'
+    +'奖励和限制都由服务端执行，改完立刻生效，小程序和收银台两条充值路径都算数。</div>'
+
+    +'<div class="tx-card" style="margin-bottom:16px"><div class="tx-ch"><h3>充值奖励</h3></div><div class="ws-box">'
+    +'<div class="ws-note">这里配的才会真的发。充值套餐里那栏「更多赠品」只是给顾客看的文字说明，两者要对得上，别一边写「送 50 XP」一边这里是 0。</div>'
+    +row('每充 RM1 送 XP','按实付金额算，向下取整',num('wsXpPerRm',w.xp_per_rm,'0',0.1))
+    +row('每充 RM1 送 Coin','套餐自带的 Coin 之外再送',num('wsCoinPerRm',w.coin_per_rm,'0',0.1))
+    +row('首充额外送 XP','这个会员第一次充值时多送',num('wsFirstXp',w.first_bonus_xp,'0'))
+    +row('首充额外送 Coin','',num('wsFirstCoin',w.first_bonus_coin,'0'))
+    +row('每次充值送抽奖券','',num('wsTickets',w.draw_tickets,'0'))
+    +row('首充额外送抽奖券','',num('wsFirstTickets',w.first_draw_tickets,'0'))
+    +'</div></div>'
+
+    +'<div class="tx-card" style="margin-bottom:16px"><div class="tx-ch"><h3>钱包使用</h3></div><div class="ws-box">'
+    +row('用余额付款累积 XP / Coin','关掉后，用钱包付的单不再算消费奖励（现金和在线支付不受影响）',
+      '<label class="ws-sw"><input type="checkbox" id="wsEarns"'+(w.wallet_earns!==false?' checked':'')+'> <span>累积</span></label>')
+    +row('单次最低充值额 RM','留空 = 不限',num('wsMinTopup',w.min_topup,'不限',0.5))
+    +row('单次最高充值额 RM','留空 = 不限',num('wsMaxTopup',w.max_topup,'不限',0.5))
+    +row('余额上限 RM','充值后余额超过这个数就拦下。留空 = 不限',num('wsMaxBal',w.max_balance,'不限',0.5))
+    +row('余额可退款','店规说明，系统不会自动退——退款仍需店员手动处理',
+      '<label class="ws-sw"><input type="checkbox" id="wsRefundable"'+(w.refundable?' checked':'')+'> <span>可退</span></label>')
+    +'</div></div>'
+
+    +'<button class="mfs" style="max-width:220px" onclick="saveWalletSettings()">保存 Save</button>';
+}
+function _wsRead(id){ var v=document.getElementById(id).value.trim(); return v===''?null:Number(v); }
+function saveWalletSettings(){
+  if(!db){showN('未连接云端');return;}
+  var payload={
+    xp_per_rm:_wsRead('wsXpPerRm')||0, coin_per_rm:_wsRead('wsCoinPerRm')||0,
+    first_bonus_xp:_wsRead('wsFirstXp')||0, first_bonus_coin:_wsRead('wsFirstCoin')||0,
+    draw_tickets:_wsRead('wsTickets')||0, first_draw_tickets:_wsRead('wsFirstTickets')||0,
+    wallet_earns:document.getElementById('wsEarns').checked,
+    min_topup:_wsRead('wsMinTopup'), max_topup:_wsRead('wsMaxTopup'),
+    max_balance:_wsRead('wsMaxBal'),
+    refundable:document.getElementById('wsRefundable').checked,
+    updated_at:new Date().toISOString()
+  };
+  // 上下限写反了会让所有充值都被拦下，存之前先挡一道
+  if(payload.min_topup!=null && payload.max_topup!=null && payload.min_topup>payload.max_topup){
+    showN('最低充值额不能大于最高充值额'); return;
+  }
+  db.from('wallet_settings').update(payload).eq('id',1).then(function(res){
+    if(res.error){ console.error('wallet_settings:',res.error); showN(_rpcErr(res.error)); return; }
+    showN('已保存'); loadWalletSettings();
+  }).catch(function(e){ console.error('wallet_settings:',e); showN(_rpcErr(e)); });
 }
 
 /* ---- 充值套餐：小程序充值页和收银台 Top up 共用这一份 ----
