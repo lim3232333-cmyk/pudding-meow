@@ -724,10 +724,11 @@
   .rc-coin{ width:25px; height:25px; border-radius:50%; background:var(--yellow); flex-shrink:0; }
   .rc-pkg-num{ font-weight:700; font-size:24px; color:var(--red); }
   .rc-pkg-rm{ font-size:14px; color:var(--muted); text-align:center; width:100%; }
-  /* 左下角「更多赠品」小图标 + 浮层（Figma 236:159 的 12px Vector / 824:792 的浮层） */
-  .rc-pkg-more{ position:absolute; left:6px; bottom:5px; width:12px; height:12px; padding:0; border:none;
-    background:transparent; cursor:pointer; line-height:0; }
-  .rc-pkg-more svg{ width:12px; height:12px; display:block; }
+  /* 左下角「更多赠品」按钮（Figma 834:1024，15×3 的三个红点）+ 浮层（824:792）。
+     图形只有 3px 高，手指点不准，所以按钮撑到 22×14、图标居中，视觉位置仍在左下角。 */
+  .rc-pkg-more{ position:absolute; left:2px; bottom:1px; width:22px; height:14px; padding:0; border:none;
+    background:transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .rc-pkg-more svg{ width:15px; height:3px; display:block; }
   /* 浮在卡片上方，不压住卡片里的数字；开着的那张卡抬高层级，免得被右边的卡盖住 */
   .rc-gift-pop{ display:none; position:absolute; left:0; bottom:100%; margin-bottom:3px; z-index:20;
     background:rgba(74,72,72,.95); border-radius:4px; padding:8px; min-width:96px; }
@@ -3874,7 +3875,9 @@ function _rcPkgHtml(p, idx){
   var gifts=_rcRewardLines(p);
   var more = gifts.length
     ? '<button class="rc-pkg-more" onclick="event.stopPropagation();toggleRcGift('+idx+')" aria-label="更多赠品">'
-      +'<svg viewBox="0 0 12 12" fill="none"><path d="M1.5 1v7.5a2 2 0 0 0 2 2H11" stroke="#8D0505" stroke-width="1.4" stroke-linecap="round"/></svg></button>'
+      +'<svg viewBox="0 0 15 3" fill="none" aria-hidden="true">'
+      +'<circle cx="1.5" cy="1.5" r="1.5" fill="#8D0505"/><circle cx="7.5" cy="1.5" r="1.5" fill="#8D0505"/>'
+      +'<circle cx="13.5" cy="1.5" r="1.5" fill="#8D0505"/></svg></button>'
       +'<div class="rc-gift-pop" id="rcGift'+idx+'"><ul>'+gifts.map(function(g){ return '<li>'+_esc(g)+'</li>'; }).join('')+'</ul></div>'
     : '';
   return'<div class="'+cls+'" onclick="selectRecharge('+idx+')">'+badge

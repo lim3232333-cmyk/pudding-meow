@@ -191,6 +191,13 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 .ws-num{margin-bottom:0;}
 .ws-sw{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#8D0505;cursor:pointer;}
 .ws-sw input{width:auto;margin:0;accent-color:#8D0505;cursor:pointer;}
+/* 长按拖动排序 */
+body.ds-on{user-select:none;-webkit-user-select:none;}
+.ds-drag{opacity:.65;background:#FFFDD6 !important;box-shadow:0 6px 16px rgba(0,0,0,.25);}
+[data-sortable] [data-sid]{cursor:grab;}
+[data-sortable] [data-sid].ds-drag{cursor:grabbing;}
+.ds-hint{font-size:12px;color:#4A4848;margin:0 0 10px;}
+.ds-hint::before{content:'⠿ ';font-size:13px;color:#8D0505;}
 .ta-mbtns{width:114px;display:flex;flex-direction:column;gap:10px;margin-top:14px;flex-shrink:0;}
 .ta-mbtn{position:relative;width:114px;height:44px;background:#202055;color:#fff;border:none;border-radius:1000px;font-weight:700;font-size:15px;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
 .ta-mbtn:active{opacity:.85;}
@@ -1023,7 +1030,6 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       <label class="mfl">额外赠品</label>
       <div class="mfh">一行一个。上面的 Coin / XP / 抽奖券系统会自动发，<b>不用在这里重复写</b>；这里只写系统发不了、要店员另外兑现的（如「送一杯饮料」）。浮层里会先列自动发的，再接这几行</div>
       <textarea class="mfi" id="tpGifts" rows="3" placeholder="送一杯饮料" style="resize:vertical;font-family:'Noto Sans SC',sans-serif;"></textarea>
-      <label class="mfl">排序（数字越小越靠前）</label><input class="mfi" id="tpSort" type="number" step="10" placeholder="10">
       <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="tpEnabled" checked style="width:auto;margin:0;"> 启用（停用后顾客看不到这一档）</label>
       <button class="mfs" onclick="saveTP()">保存 Save</button>
 </div>
@@ -2763,20 +2769,21 @@ function renderTopupPkgsBody(){
     +'小程序「充值」页和收银台的 Top up 读的是同一份，改完两边一起变。<br>'
     +'<b>Coin / XP / 抽奖券</b>充值时由服务端照着这一行发，不用另外配规则。'
     +'<b>额外赠品</b>是系统发不了、要店员另外兑现的东西（如「送一杯饮料」），只显示不发。</div>'
+    +_dsHint()
     +'<div class="tx-card" style="margin-bottom:16px"><div class="tx-ch" style="display:flex;justify-content:space-between;align-items:center">'
     +'<h3>充值套餐</h3><button onclick="tpAdd()" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px">＋ 新增套餐</button></div>'
-    +'<table><thead><tr><th>充值金额 RM</th><th>送 Coin</th><th>送 XP</th><th>抽奖券</th><th>标签</th><th>额外赠品</th><th>排序</th><th>状态</th><th>操作</th></tr></thead><tbody>';
-  if(!rows.length){ html+='<tr><td colspan="9" style="text-align:center;padding:24px;color:#4A4848">（暂无套餐，点「＋ 新增套餐」）</td></tr>'; }
+    +'<table><thead><tr><th>充值金额 RM</th><th>送 Coin</th><th>送 XP</th><th>抽奖券</th><th>标签</th><th>额外赠品</th><th>状态</th><th>操作</th></tr></thead>'
+    +'<tbody data-sortable="recharge_packages">';
+  if(!rows.length){ html+='<tr><td colspan="8" style="text-align:center;padding:24px;color:#4A4848">（暂无套餐，点「＋ 新增套餐」）</td></tr>'; }
   rows.forEach(function(p){
     var g=_tpGifts(p);
-    html+='<tr'+(p.enabled===false?' style="opacity:.5"':'')+'>'
+    html+='<tr data-sid="'+esc(p.id)+'" data-so="'+(p.sort_order||0)+'"'+(p.enabled===false?' style="opacity:.5"':'')+'>'
       +'<td><b>RM '+Number(p.price).toFixed(0)+'</b></td>'
       +'<td>'+(p.coins||0)+'</td>'
       +'<td>'+(p.xp||0)+'</td>'
       +'<td>'+(p.draw_tickets||0)+'</td>'
       +'<td>'+(p.tag?('<span class="mi-pill">'+esc(p.tag)+'</span>'+(p.first_only?' <span style="font-size:11px;color:#4A4848">仅首充</span>':'')):'—')+'</td>'
       +'<td style="font-size:12px;color:#4A4848">'+(g.length?g.map(esc).join('、'):'—')+'</td>'
-      +'<td>'+(p.sort_order||0)+'</td>'
       +'<td>'+(p.enabled===false?'<span style="color:#8D0505">已停用</span>':'<span style="color:#1D7715">启用中</span>')+'</td>'
       +'<td style="white-space:nowrap">'
       +'<button onclick="tpEdit(\''+p.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">改</button>'
@@ -2798,8 +2805,6 @@ function tpAdd(){
   document.getElementById('tpTag').value='';
   document.getElementById('tpFirstOnly').checked=false;
   document.getElementById('tpGifts').value='';
-  var maxSo=(_topupPkgs||[]).reduce(function(m,r){return Math.max(m,r.sort_order||0);},0);
-  document.getElementById('tpSort').value=maxSo+10;
   document.getElementById('tpEnabled').checked=true;
   document.getElementById('tpBg').classList.add('show');
 }
@@ -2815,7 +2820,6 @@ function tpEdit(id){
   document.getElementById('tpTag').value=p.tag||'';
   document.getElementById('tpFirstOnly').checked=!!p.first_only;
   document.getElementById('tpGifts').value=_tpGifts(p).join('\n');
-  document.getElementById('tpSort').value=p.sort_order||0;
   document.getElementById('tpEnabled').checked=p.enabled!==false;
   document.getElementById('tpBg').classList.add('show');
 }
@@ -2832,8 +2836,9 @@ function saveTP(){
     tag:document.getElementById('tpTag').value.trim()||null,
     first_only:document.getElementById('tpFirstOnly').checked,
     gifts:gifts,
-    sort_order:parseInt(document.getElementById('tpSort').value,10)||0,
     enabled:document.getElementById('tpEnabled').checked};
+  // 顺序不再手填：新加的排最后，之后长按拖着调
+  if(!_tpEditId) payload.sort_order=(_topupPkgs||[]).reduce(function(m,r){return Math.max(m,r.sort_order||0);},0)+10;
   var q=_tpEditId?db.from('recharge_packages').update(payload).eq('id',_tpEditId):db.from('recharge_packages').insert(payload);
   q.then(function(res){_tpAfterWrite(res,_tpEditId?'已保存':'已添加：RM '+price);}).catch(function(e){showN('网络错误');});
   closeTP();
@@ -3563,15 +3568,17 @@ function renderMenuAdmin(){
   if(_menuAdminTab==='specs'){ el.innerHTML=html+specDefsAdminHtml(); return; }
   if(_menuAdminTab==='channels'){ el.innerHTML=html+channelsAdminHtml(); return; }
   var rows=(_menuRows||[]).slice().sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
-  html+='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">改价 / 上下架 / 加新品 / 删除——保存后<b>顾客小程序实时更新</b>。「下架」的品项顾客端不显示。</div>';
+  html+='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">改价 / 上下架 / 加新品 / 删除——保存后<b>顾客小程序实时更新</b>。「下架」的品项顾客端不显示。</div>'
+    +_dsHint();
   POS_CATS.forEach(function(c){
     var items=rows.filter(function(r){return r.cat===c;});
     html+='<div class="tx-card" style="margin-bottom:16px"><div class="tx-ch" style="display:flex;justify-content:space-between;align-items:center">'
       +'<h3>'+POS_CATN[c][0]+' <span style="color:#4A4848;font-size:13px">'+POS_CATN[c][1]+'</span></h3>'
       +'<button onclick="menuAdd(\''+c+'\')" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px">＋ 加新品</button></div>'
-      +'<table><thead><tr><th>中文名</th><th>English</th><th>价格 RM</th><th>销售渠道</th><th>状态</th><th>操作</th></tr></thead><tbody>'
+      +'<table><thead><tr><th>中文名</th><th>English</th><th>价格 RM</th><th>销售渠道</th><th>状态</th><th>操作</th></tr></thead>'
+      +'<tbody data-sortable="menu_items">'
       +(items.length?items.map(function(r){
-        return'<tr'+(r.sold_out?' style="opacity:.5"':'')+'>'
+        return'<tr data-sid="'+esc(r.id)+'" data-so="'+(r.sort_order||0)+'"'+(r.sold_out?' style="opacity:.5"':'')+'>'
           +'<td><b>'+esc(r.name)+'</b></td><td style="font-size:12px;color:#4A4848">'+esc(r.en||'')+'</td>'
           +'<td>'+Number(r.price).toFixed(1)+'</td>'
           +'<td>'+_chTagsHtml(r.channels)+'</td>'
@@ -3594,15 +3601,17 @@ function _sdAfterWrite(res,msg){ if(res&&res.error){showN(''+(res.error.message|
 function specDefsAdminHtml(){
   var rows=(_specDefs||[]).slice().sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
   var html='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">维护可复用的规格库（如 尺寸、温度、口味），加新品/编辑时直接从下拉选用，不用每次重打字；数量不限，随时可以再加。</div>'
+    +_dsHint()
     +'<div class="tx-card" style="margin-bottom:16px"><div class="tx-ch" style="display:flex;justify-content:space-between;align-items:center">'
-    +'<h3>规格库</h3><button onclick="sdAdd()" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px">＋ 新增规格</button></div>';
+    +'<h3>规格库</h3><button onclick="sdAdd()" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px">＋ 新增规格</button></div>'
+    +'<div data-sortable="spec_defs">';
   if(!rows.length){
     html+='<div style="text-align:center;padding:30px;color:#4A4848">（暂无规格，点「＋ 新增规格」）</div>';
   }else{
     rows.forEach(function(r){
       var soldSet=r.sold_out_options||[];
       var reqTag=(r.required===false)?' <span style="color:#4A4848;font-weight:500;font-size:12px">(optional)</span>':' <span style="color:#8D0505">*</span>';
-      html+='<div class="sd-row"><div class="sd-name">'+esc(r.name)+reqTag+'</div>'
+      html+='<div class="sd-row" data-sid="'+esc(r.id)+'" data-so="'+(r.sort_order||0)+'"><div class="sd-name">'+esc(r.name)+reqTag+'</div>'
         +'<div class="sd-opts">'+(r.options||[]).map(function(o){
           var isSold=soldSet.indexOf(o)>=0;
           return'<span class="mi-pill'+(isSold?' soldout':'')+'">'+esc(o)+(isSold?' 下架':'')+'</span>';
@@ -3614,7 +3623,7 @@ function specDefsAdminHtml(){
         +'</div></div>';
     });
   }
-  html+='</div>';
+  html+='</div></div>';   // 收 [data-sortable] 和 tx-card 两层
   return html;
 }
 /* ── 销售方式（菜单管理页签之一）：维护渠道本身。商品/规格组的打钩跟着这张表走 ── */
@@ -3624,8 +3633,10 @@ function channelsAdminHtml(){
   var html='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">维护点餐方式本身。商品管理和规格管理里的「销售渠道」打钩就是从这张表来的——在这里加一个渠道，那两处会同步多出一个选项。<br>'
     +'<b>堂食 / 自取 / 外卖</b> 是内置渠道，代号跟顾客小程序的三个下单入口一一对应：可以改名、排序，但代号不能改、也不能删。'
     +'自建的渠道目前只是后台标签——小程序还没有对应的下单入口，勾了不会让商品在顾客端多出一种卖法。</div>'
+    +_dsHint()
     +'<div class="tx-card" style="margin-bottom:16px"><div class="tx-ch" style="display:flex;justify-content:space-between;align-items:center">'
-    +'<h3>销售方式</h3><button onclick="chAdd()" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px">＋ 新增渠道</button></div>';
+    +'<h3>销售方式</h3><button onclick="chAdd()" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px">＋ 新增渠道</button></div>'
+    +'<div data-sortable="sales_channels">';
   if(!rows.length){
     html+='<div style="text-align:center;padding:30px;color:#4A4848">（暂无渠道，点「＋ 新增渠道」）</div>';
   }else{
@@ -3633,7 +3644,7 @@ function channelsAdminHtml(){
       // 统计一下有多少商品/规格组是专门指定了这个渠道的，改名/停用前心里有数
       var nItem=(_menuRows||[]).filter(function(x){return (x.channels||[]).indexOf(r.code)>=0;}).length;
       var nSpec=(_specDefs||[]).filter(function(x){return (x.channels||[]).indexOf(r.code)>=0;}).length;
-      html+='<div class="ch-row"><div class="ch-nm">'+esc(r.name)+'</div>'
+      html+='<div class="ch-row" data-sid="'+esc(r.id)+'" data-so="'+(r.sort_order||0)+'"><div class="ch-nm">'+esc(r.name)+'</div>'
         +'<div class="ch-code">'+esc(r.code)+'</div>'
         +'<div style="flex:1;font-size:12px;color:#4A4848">'+esc(r.name_en||'')
         +'<span style="margin-left:10px">指定了这个渠道的：商品 '+nItem+' 个 · 规格组 '+nSpec+' 个</span></div>'
@@ -3644,7 +3655,7 @@ function channelsAdminHtml(){
         +'</div></div>';
     });
   }
-  html+='</div>';
+  html+='</div></div>';   // 收 [data-sortable] 和 tx-card 两层
   return html;
 }
 var _chEditId=null;
@@ -4098,6 +4109,86 @@ function menuDel(id){
   db.from('menu_items').delete().eq('id',id)
     .then(function(res){_menuAfterWrite(res,'已删除');}).catch(function(e){showN('网络错误');});
 }
+
+/* ══════════ 长按拖动排序 ══════════
+   原本改顺序要手填 10 / 20 / 30，店家得先算好数字再存。现在长按任意一行拿起来拖。
+   用法：容器上写 data-sortable="表名"，每行写 data-sid="行id" data-so="当前 sort_order"。
+   松手后按新次序重编 10/20/30…，只把真的变了的那几行写回数据库。
+
+   为什么用 Pointer Events 不用 HTML5 draggable：draggable 在触屏上基本不工作，
+   而收银机十有八九是平板。指针事件鼠标和手指同一套代码。
+   长按 400ms 才算「拿起」——按下就能拖的话，手指在列表上滑动想滚屏会被误判成拖动。 */
+var _DS_HOLD=400, _DS_SLOP=8;
+var _dsTimer=null,_dsRow=null,_dsBox=null,_dsFrom=null,_dsPid=null;
+var _DS_RELOAD={menu_items:function(){return loadMenu();}, spec_defs:function(){return loadSpecDefs();},
+                sales_channels:function(){return loadChannels();}, recharge_packages:function(){return loadTopupPkgs();}};
+function _dsCancelHold(){ if(_dsTimer){ clearTimeout(_dsTimer); _dsTimer=null; } }
+function _dsPick(row, box, pid){
+  _dsRow=row; _dsBox=box; _dsPid=pid;
+  row.classList.add('ds-drag'); document.body.classList.add('ds-on');
+  try{ row.setPointerCapture(pid); }catch(e){}
+}
+document.addEventListener('pointerdown', function(ev){
+  if(!ev.target.closest) return;
+  var box=ev.target.closest('[data-sortable]'); if(!box) return;
+  // 点「改」「删」这些控件不算拖动，否则长按按钮会把整行拿起来
+  if(ev.target.closest('button,input,select,textarea,a,label')) return;
+  var row=ev.target.closest('[data-sid]'); if(!row || !box.contains(row)) return;
+  _dsFrom={x:ev.clientX,y:ev.clientY};
+  _dsCancelHold();
+  _dsTimer=setTimeout(function(){ _dsTimer=null; _dsPick(row, box, ev.pointerId); }, _DS_HOLD);
+});
+document.addEventListener('pointermove', function(ev){
+  if(_dsTimer){
+    // 长按还没到时间就滑走了 = 想滚屏，不是想拖
+    if(Math.abs(ev.clientX-_dsFrom.x)>_DS_SLOP || Math.abs(ev.clientY-_dsFrom.y)>_DS_SLOP) _dsCancelHold();
+    return;
+  }
+  if(!_dsRow) return;
+  var el=document.elementFromPoint(ev.clientX, ev.clientY);
+  var over=el && el.closest ? el.closest('[data-sid]') : null;
+  if(!over || over===_dsRow || !_dsBox.contains(over)) return;
+  var r=over.getBoundingClientRect();
+  // 越过中线才换位，否则停在边界上会来回抖
+  over.parentNode.insertBefore(_dsRow, (ev.clientY > r.top + r.height/2) ? over.nextSibling : over);
+});
+// 拿起之后滑动别让页面跟着滚。非 passive 才 preventDefault 得了；
+// 只在真的在拖时才拦，平时列表照常能滚。
+document.addEventListener('touchmove', function(ev){ if(_dsRow) ev.preventDefault(); }, {passive:false});
+function _dsDrop(){
+  _dsCancelHold();
+  if(!_dsRow) return;
+  var box=_dsBox, row=_dsRow;
+  try{ row.releasePointerCapture(_dsPid); }catch(e){}
+  row.classList.remove('ds-drag'); document.body.classList.remove('ds-on');
+  _dsRow=null; _dsBox=null; _dsPid=null;
+  _dsSave(box);
+}
+document.addEventListener('pointerup', _dsDrop);
+document.addEventListener('pointercancel', _dsDrop);
+function _dsSave(box){
+  var table=box.getAttribute('data-sortable');
+  var rows=Array.prototype.slice.call(box.querySelectorAll('[data-sid]'));
+  var ups=[];
+  rows.forEach(function(r,i){
+    var want=(i+1)*10;
+    if(String(r.getAttribute('data-so'))!==String(want)){
+      r.setAttribute('data-so', want);
+      ups.push({id:r.getAttribute('data-sid'), sort_order:want});
+    }
+  });
+  if(!ups.length) return;                       // 拖回原位，什么也没变
+  if(!db){ showN('未连接云端，顺序没保存'); return; }
+  Promise.all(ups.map(function(u){
+    return db.from(table).update({sort_order:u.sort_order}).eq('id',u.id);
+  })).then(function(res){
+    var bad=res.filter(function(r){ return r && r.error; })[0];
+    if(bad){ console.error('排序保存失败:', bad.error); showN('顺序没保存：'+_rpcErr(bad.error)); return; }
+    showN('✓ 顺序已保存');
+    var reload=_DS_RELOAD[table]; if(reload) reload();   // 让本地那份也跟上，别等下次刷新
+  }).catch(function(e){ console.error('排序保存失败:', e); showN('顺序没保存：'+_rpcErr(e)); });
+}
+function _dsHint(){ return '<div class="ds-hint">长按任意一行拖动，可以调整顺序</div>'; }
 
 /* ── NOTIF ── */
 function showN(m){var n=document.getElementById('notif');n.textContent=m;n.style.display='block';clearTimeout(n._t);n._t=setTimeout(function(){n.style.display='none';},2500);}
