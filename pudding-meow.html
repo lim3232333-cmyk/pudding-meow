@@ -758,7 +758,8 @@
      跟其他页签的兑换卡是两回事：左边 100px 是票根（现金券深红配 $ / 甜品券黄底配商品图），
      右边白底 261px，最右不是「兑换」按钮而是一个勾——这一页是「挑一张来用」，不是买。 */
   .pm-my-card{ display:flex; width:100%; height:100px; border-radius:12px; box-sizing:border-box;
-    box-shadow:0 4px 5px rgba(0,0,0,.25); cursor:pointer; overflow:hidden; }
+    box-shadow:0 4px 5px rgba(0,0,0,.25); overflow:hidden; }
+  .pm-my-card[onclick]{ cursor:pointer; }
   .pm-my-card.dim{ opacity:.5; cursor:default; }
   .pm-my-stub{ position:relative; width:100px; height:100px; flex-shrink:0; background:var(--red);
     display:flex; align-items:center; justify-content:center; background-size:cover; background-position:center;
@@ -766,7 +767,7 @@
     -webkit-mask:radial-gradient(circle 3.5px at left center, transparent 3.5px, #000 4px) left top/100% 12.5px repeat-y;
             mask:radial-gradient(circle 3.5px at left center, transparent 3.5px, #000 4px) left top/100% 12.5px repeat-y; }
   .pm-my-stub.dessert{ background:var(--yellow); }
-  .pm-my-stub-logo{ width:62px; height:48px; object-fit:contain; }
+  .pm-my-stub-art{ width:70px; height:66px; }
   .pm-my-stub-sym{ font-size:44px; font-weight:700; color:var(--yellow); line-height:1; }
   .pm-my-main{ flex:1; min-width:0; background:#fff; display:flex; align-items:center; justify-content:space-between;
     gap:8px; padding:8px 16px; box-sizing:border-box; }
@@ -3866,25 +3867,16 @@ function _pmItemHtml(c){
 }
 /* 「我的」：已兑到手的券。未使用的排在前面 */
 var _pmFromCheckout=false;
-/* 图标：爪印币 25px、选中/未选中的勾 20px。Figma 里这几个是导出图片，
-   但这个开发环境连不上 figma.com 拿不到原文件，所以按设计给的尺寸和内边距画成内联 SVG。 */
-function _pawSvg(){
-  return '<svg class="pm-my-paw" viewBox="0 0 40 40" fill="none" aria-hidden="true">'
-    +'<circle cx="20" cy="20" r="20" fill="#FFDE5B"/>'
-    +'<g fill="#8D0505">'
-    +'<ellipse cx="13.2" cy="14.6" rx="3.1" ry="4"/><ellipse cx="20" cy="12.6" rx="3.1" ry="4.2"/>'
-    +'<ellipse cx="26.8" cy="14.6" rx="3.1" ry="4"/>'
-    +'<path d="M20 19.2c4.2 0 7.6 3.1 7.6 6.4 0 2.6-2.3 4.2-5.2 4.2-1.1 0-1.7-.4-2.4-.4s-1.3.4-2.4.4c-2.9 0-5.2-1.6-5.2-4.2 0-3.3 3.4-6.4 7.6-6.4z"/>'
-    +'</g></svg>';
-}
+/* 图标用店家上传的原件（Paw Coin.svg / tick.svg / foc dessert .svg），内联进来，
+   保持这个项目「单文件、不依赖外部资源」的做法。尺寸交给 CSS，SVG 只留 viewBox。 */
+function _pawSvg(){ return '<svg class="pm-my-paw" aria-hidden="true" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="20" fill="#FFDE5B"/><path d="M30.9453 26.2004C30.4297 24.7297 29.2279 23.9844 28.0678 23.2637C27.0582 22.6361 26.1049 22.0432 25.4814 20.9785C23.7629 18.0295 22.8189 16.25 20.0035 16.25C17.1881 16.25 16.2412 18.0301 14.5186 20.9779C13.8945 22.0449 12.9365 22.6391 11.9258 23.2678C10.7656 23.9891 9.56621 24.7326 9.04883 26.2004C8.84752 26.7297 8.74619 27.2917 8.75 27.858C8.75 30.2451 10.6514 32.1875 12.7578 32.1875C14.8643 32.1875 17.6393 31.1252 20.0094 31.1252C22.3795 31.1252 25.1158 32.1875 27.2486 32.1875C29.3814 32.1875 31.25 30.2451 31.25 27.858C31.2517 27.2914 31.1484 26.7294 30.9453 26.2004Z" fill="#8D0505"/><path d="M9.21875 21.875C11.0309 21.875 12.5 19.9862 12.5 17.6562C12.5 15.3263 11.0309 13.4375 9.21875 13.4375C7.40657 13.4375 5.9375 15.3263 5.9375 17.6562C5.9375 19.9862 7.40657 21.875 9.21875 21.875Z" fill="#8D0505"/><path d="M15.7812 16.25C17.5934 16.25 19.0625 14.3612 19.0625 12.0312C19.0625 9.7013 17.5934 7.8125 15.7812 7.8125C13.9691 7.8125 12.5 9.7013 12.5 12.0312C12.5 14.3612 13.9691 16.25 15.7812 16.25Z" fill="#8D0505"/><path d="M24.2188 16.25C26.0309 16.25 27.5 14.3612 27.5 12.0312C27.5 9.7013 26.0309 7.8125 24.2188 7.8125C22.4066 7.8125 20.9375 9.7013 20.9375 12.0312C20.9375 14.3612 22.4066 16.25 24.2188 16.25Z" fill="#8D0505"/><path d="M30.7812 21.875C32.5934 21.875 34.0625 19.9862 34.0625 17.6562C34.0625 15.3263 32.5934 13.4375 30.7812 13.4375C28.9691 13.4375 27.5 15.3263 27.5 17.6562C27.5 19.9862 28.9691 21.875 30.7812 21.875Z" fill="#8D0505"/></svg>'; }
+/* 未选中态店家没给图，按 Figma 818:1341 画一个同尺寸的空心圈 */
 function _tickSvg(on){
-  return on
-    ? '<svg class="pm-my-tick" viewBox="0 0 20 20" fill="none" aria-hidden="true">'
-      +'<circle cx="10" cy="10" r="10" fill="#8D0505"/>'
-      +'<path d="M6 10.2l2.6 2.6L14.2 7.4" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  return on ? '<svg class="pm-my-tick" aria-hidden="true" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 20C15.5228 20 20 15.5228 20 10C20 4.47715 15.5228 0 10 0C4.47715 0 0 4.47715 0 10C0 15.5228 4.47715 20 10 20Z" fill="#FFDE5B"/><path d="M7 10L9 12L13 8" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
     : '<svg class="pm-my-tick" viewBox="0 0 20 20" fill="none" aria-hidden="true">'
       +'<circle cx="10" cy="10" r="9.25" stroke="#8D0505" stroke-width="1.5"/></svg>';
 }
+function _dessertArt(){ return '<svg class="pm-my-stub-art" aria-hidden="true" viewBox="0 0 70 66" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M70 58.08C70 62.4541 54.33 66 35 66C15.67 66 0 62.4541 0 58.08C0 53.7059 15.67 50.16 35 50.16C54.33 50.16 70 53.7059 70 58.08Z" fill="#FFDE5B"/><path d="M65.5696 57.64C65.5696 60.7991 52.0815 63.36 35.443 63.36C18.8046 63.36 5.31646 60.7991 5.31646 57.64C5.31646 54.4809 18.8046 51.92 35.443 51.92C52.0815 51.92 65.5696 54.4809 65.5696 57.64Z" fill="#E1B401"/><path d="M14.0667 28.728C14.7927 23.3651 19.4376 19.36 24.9311 19.36H46.841C52.3345 19.36 56.9795 23.3651 57.7055 28.728L61.0903 53.7293C61.5283 56.965 58.9725 59.84 55.658 59.84H16.1141C12.7997 59.84 10.2438 56.965 10.6819 53.7293L14.0667 28.728Z" fill="#FFFFD5"/><path d="M14.0411 28.6946C14.7823 23.3467 19.4205 19.36 24.901 19.36H47.0778C52.4782 19.36 57.0739 23.2341 57.9072 28.489L59.1317 39.2627C59.1317 39.2627 50.9569 41.6004 47.5317 35.2147C43.6853 28.0437 41.0239 42.9733 33.1459 41.6004C28.6061 40.8092 25.7223 33.0586 21.1577 33.7086C16.1404 34.4231 12.2522 41.6004 12.2522 41.6004L14.0411 28.6946Z" fill="#9F3D0A"/><path d="M52.2785 20.24C52.2785 23.1561 45.1377 25.52 36.3291 25.52C27.5205 25.52 20.3797 23.1561 20.3797 20.24C20.3797 17.3239 27.5205 14.96 36.3291 14.96C45.1377 14.96 52.2785 17.3239 52.2785 20.24Z" fill="white"/><path d="M35.9725 0C44.9627 0 48.8079 18.48 47.483 19.8C45.2748 22 26.6686 21.9914 24.462 19.8C22.2555 17.6086 26.9823 0 35.9725 0Z" fill="#D41534"/><path d="M31.8987 6.16C31.8987 6.64601 31.7004 7.04 31.4557 7.04C31.211 7.04 31.0127 6.64601 31.0127 6.16C31.0127 5.67399 31.211 5.28 31.4557 5.28C31.7004 5.28 31.8987 5.67399 31.8987 6.16Z" fill="#FFFFD5"/><path d="M36.3291 6.16C36.3291 6.64601 36.1308 7.04 35.8861 7.04C35.6414 7.04 35.443 6.64601 35.443 6.16C35.443 5.67399 35.6414 5.28 35.8861 5.28C36.1308 5.28 36.3291 5.67399 36.3291 6.16Z" fill="#FFFFD5"/><path d="M33.6709 2.64C33.6709 3.12601 33.4725 3.52 33.2278 3.52C32.9832 3.52 32.7848 3.12601 32.7848 2.64C32.7848 2.15399 32.9832 1.76 33.2278 1.76C33.4725 1.76 33.6709 2.15399 33.6709 2.64Z" fill="#FFFFD5"/><path d="M38.1013 2.64C38.1013 3.12601 37.9029 3.52 37.6582 3.52C37.4135 3.52 37.2152 3.12601 37.2152 2.64C37.2152 2.15399 37.4135 1.76 37.6582 1.76C37.9029 1.76 38.1013 2.15399 38.1013 2.64Z" fill="#FFFFD5"/><path d="M43.4177 9.68C43.4177 10.166 43.2194 10.56 42.9747 10.56C42.73 10.56 42.5316 10.166 42.5316 9.68C42.5316 9.19399 42.73 8.8 42.9747 8.8C43.2194 8.8 43.4177 9.19399 43.4177 9.68Z" fill="#FFFFD5"/><path d="M38.9873 9.68C38.9873 10.166 38.789 10.56 38.5443 10.56C38.2996 10.56 38.1013 10.166 38.1013 9.68C38.1013 9.19399 38.2996 8.8 38.5443 8.8C38.789 8.8 38.9873 9.19399 38.9873 9.68Z" fill="#FFFFD5"/><path d="M33.6709 9.68C33.6709 10.166 33.4725 10.56 33.2278 10.56C32.9832 10.56 32.7848 10.166 32.7848 9.68C32.7848 9.19399 32.9832 8.8 33.2278 8.8C33.4725 8.8 33.6709 9.19399 33.6709 9.68Z" fill="#FFFFD5"/><path d="M36.3291 14.08C36.3291 14.566 36.1308 14.96 35.8861 14.96C35.6414 14.96 35.443 14.566 35.443 14.08C35.443 13.594 35.6414 13.2 35.8861 13.2C36.1308 13.2 36.3291 13.594 36.3291 14.08Z" fill="#FFFFD5"/><path d="M32.7848 18.48C32.7848 18.966 32.5865 19.36 32.3418 19.36C32.0971 19.36 31.8987 18.966 31.8987 18.48C31.8987 17.994 32.0971 17.6 32.3418 17.6C32.5865 17.6 32.7848 17.994 32.7848 18.48Z" fill="#FFFFD5"/><path d="M29.2405 9.68C29.2405 10.166 29.0422 10.56 28.7975 10.56C28.5528 10.56 28.3544 10.166 28.3544 9.68C28.3544 9.19399 28.5528 8.8 28.7975 8.8C29.0422 8.8 29.2405 9.19399 29.2405 9.68Z" fill="#FFFFD5"/><path d="M45.1899 17.6C45.1899 18.086 44.9915 18.48 44.7468 18.48C44.5022 18.48 44.3038 18.086 44.3038 17.6C44.3038 17.114 44.5022 16.72 44.7468 16.72C44.9915 16.72 45.1899 17.114 45.1899 17.6Z" fill="#FFFFD5"/><path d="M41.6456 14.08C41.6456 14.566 41.4472 14.96 41.2025 14.96C40.9579 14.96 40.7595 14.566 40.7595 14.08C40.7595 13.594 40.9579 13.2 41.2025 13.2C41.4472 13.2 41.6456 13.594 41.6456 14.08Z" fill="#FFFFD5"/><path d="M26.5823 17.6C26.5823 18.086 26.3839 18.48 26.1392 18.48C25.8946 18.48 25.6962 18.086 25.6962 17.6C25.6962 17.114 25.8946 16.72 26.1392 16.72C26.3839 16.72 26.5823 17.114 26.5823 17.6Z" fill="#FFFFD5"/><path d="M31.0127 14.08C31.0127 14.566 30.8143 14.96 30.5696 14.96C30.3249 14.96 30.1266 14.566 30.1266 14.08C30.1266 13.594 30.3249 13.2 30.5696 13.2C30.8143 13.2 31.0127 13.594 31.0127 14.08Z" fill="#FFFFD5"/><path d="M26.5823 13.2C26.5823 13.686 26.3839 14.08 26.1392 14.08C25.8946 14.08 25.6962 13.686 25.6962 13.2C25.6962 12.714 25.8946 12.32 26.1392 12.32C26.3839 12.32 26.5823 12.714 26.5823 13.2Z" fill="#FFFFD5"/><path d="M46.076 13.2C46.076 13.686 45.8776 14.08 45.6329 14.08C45.3882 14.08 45.1899 13.686 45.1899 13.2C45.1899 12.714 45.3882 12.32 45.6329 12.32C45.8776 12.32 46.076 12.714 46.076 13.2Z" fill="#FFFFD5"/><path d="M41.6456 6.16C41.6456 6.64601 41.4472 7.04 41.2025 7.04C40.9579 7.04 40.7595 6.64601 40.7595 6.16C40.7595 5.67399 40.9579 5.28 41.2025 5.28C41.4472 5.28 41.6456 5.67399 41.6456 6.16Z" fill="#FFFFD5"/><path d="M38.9873 18.48C38.9873 18.966 38.789 19.36 38.5443 19.36C38.2996 19.36 38.1013 18.966 38.1013 18.48C38.1013 17.994 38.2996 17.6 38.5443 17.6C38.789 17.6 38.9873 17.994 38.9873 18.48Z" fill="#FFFFD5"/></svg>'; }
 /* 券面左边票根上的符号：现金券 $、百分比券 %。甜品券不放符号，放商品图 */
 function _pmStubSym(mc){ return mc.type==='percent_off' ? '%' : '$'; }
 /* 「我的」那张卡第二行：优先显示当初花的 Paw Coin（从商城列表按 coupon_id 对回去，
@@ -3898,21 +3890,31 @@ function _pmMineSub(mc){
 }
 function _pmMineHtml(mc){
   var ST={unused:'未使用',used:'已使用',expired:'已过期'};
-  // 购物车是空的（不是从结算页进来，纯粹翻看「我的」）就别拿满额门槛去判，
-  // 否则所有带门槛的券会全部置灰，顾客以为券坏了
+  // 打钩只在「从结算页点进来挑券」时出现。直接从积分商城进「我的」是翻看券包，
+  // 没有正在下的单，摆个勾会让人以为点了就生效了。
+  var picking = _pmFromCheckout;
+  // 购物车是空的就别拿满额门槛去判，否则带门槛的券会全部置灰，顾客以为券坏了
   var sub=_cartSubtotal(), hasCart=sub>0;
   var u = _couponUsable(mc, sub);
   var usable = mc.status==='unused' && (!hasCart || u.ok);
-  var picked = !!(_ckCoupon && _ckCoupon.id===mc.id);
-  // 右边这一格：能用就是勾（选中/未选中），不能用就写明原因，别让顾客点了才知道
-  var right = usable ? _tickSvg(picked)
-    : '<span class="pm-my-why">'+_esc(mc.status!=='unused' ? (ST[mc.status]||mc.status) : u.why)+'</span>';
+  var picked = picking && !!(_ckCoupon && _ckCoupon.id===mc.id);
+  var right;
+  if(picking){
+    // 挑券模式：能用给勾，不能用写明原因，别让顾客点了才知道
+    right = usable ? _tickSvg(picked)
+      : '<span class="pm-my-why">'+_esc(mc.status!=='unused' ? (ST[mc.status]||mc.status) : u.why)+'</span>';
+  } else {
+    // 翻看模式：只标已使用/已过期，没用过的右边留白
+    right = mc.status==='unused' ? '' : '<span class="pm-my-why">'+_esc(ST[mc.status]||mc.status)+'</span>';
+  }
+  var dim = mc.status!=='unused' || (picking && !usable);
   var stub = mc.type==='dessert'
     ? (mc.menu_item_image
         ? '<div class="pm-my-stub dessert" style="background-image:url(\''+_esc(mc.menu_item_image)+'\')"></div>'
-        : '<div class="pm-my-stub dessert"><img class="pm-my-stub-logo" alt=""></div>')   // 商品没配图就放品牌 logo
+        : '<div class="pm-my-stub dessert">'+_dessertArt()+'</div>')   // 商品没配图就放店家给的甜品图
     : '<div class="pm-my-stub"><span class="pm-my-stub-sym">'+_pmStubSym(mc)+'</span></div>';
-  return'<div class="pm-my-card'+(usable?'':' dim')+'"'+(usable?(' onclick="pmPickCoupon(\''+mc.id+'\')"'):'')+'>'
+  var clickable = picking && usable;
+  return'<div class="pm-my-card'+(dim?' dim':'')+'"'+(clickable?(' onclick="pmPickCoupon(\''+mc.id+'\')"'):'')+'>'
     +stub
     +'<div class="pm-my-main"><div class="pm-my-info">'
     +'<div class="pm-my-name">'+_esc(mc.name)+'</div>'
@@ -3920,15 +3922,15 @@ function _pmMineHtml(mc){
     +'</div>'+right+'</div></div>';
 }
 /* 点卡＝选这张券。一单只能用一张，所以再点一次是取消，选别的会换掉。
-   从结算页进来的（_pmFromCheckout）选完直接回结算页，跟原来那个「使用」按钮同一个意思。 */
+   只有从结算页进来才走得到这里，选完直接回结算页——等价于原来那个「使用」按钮。 */
 function pmPickCoupon(mcId){
   var mc=(_myCoupons||[]).find(function(x){ return x.id===mcId; });
   if(!mc) return;
   if(_ckCoupon && _ckCoupon.id===mcId){ _ckCoupon=null; renderPointsMallList(); return; }
+  if(mc.status!=='unused'){ alert('这张券已经用过或已失效'); return; }
   var sub=_cartSubtotal();
   var u=_couponUsable(mc, sub);
   if(sub>0 && !u.ok){ alert('这张券现在用不了：'+u.why); return; }
-  if(mc.status!=='unused'){ alert('这张券已经用过或已失效'); return; }
   _ckCoupon=mc;
   if(_pmFromCheckout){ closePointsMall(); renderCheckout(); return; }
   renderPointsMallList();
@@ -3953,7 +3955,7 @@ function renderPointsMallList(){
   box.innerHTML = list.length ? list.map(_pmItemHtml).join('') : '<div class="pm-empty">暂无可兑换的商品</div>';
   var brandLogo=document.getElementById('brandLogoImg');
   if(brandLogo && brandLogo.src){
-    document.querySelectorAll('.pm-item-img-logo img, .pm-my-stub-logo').forEach(function(img){ if(!img.src) img.src=brandLogo.src; });
+    document.querySelectorAll('.pm-item-img-logo img').forEach(function(img){ if(!img.src) img.src=brandLogo.src; });
   }
 }
 function selectPmTab(cat, el){
