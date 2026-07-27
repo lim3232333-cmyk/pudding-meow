@@ -754,6 +754,29 @@
   .pm-item-coin-txt{ font-size:14px; font-weight:500; color:var(--red); }
   .pm-item-redeem{ background:var(--red); color:var(--cream2); border:none; border-radius:999px; width:52px; height:25px; font-size:14px; font-weight:500; font-family:"Noto Sans SC",sans-serif; cursor:pointer; flex-shrink:0; }
 
+  /* ===== 「我的」那一页的券卡（Figma 818:1340 选中 / 818:1341 未选中）=====
+     跟其他页签的兑换卡是两回事：左边 100px 是票根（现金券深红配 $ / 甜品券黄底配商品图），
+     右边白底 261px，最右不是「兑换」按钮而是一个勾——这一页是「挑一张来用」，不是买。 */
+  .pm-my-card{ display:flex; width:100%; height:100px; border-radius:12px; box-sizing:border-box;
+    box-shadow:0 4px 5px rgba(0,0,0,.25); cursor:pointer; overflow:hidden; }
+  .pm-my-card.dim{ opacity:.5; cursor:default; }
+  .pm-my-stub{ position:relative; width:100px; height:100px; flex-shrink:0; background:var(--red);
+    display:flex; align-items:center; justify-content:center; background-size:cover; background-position:center;
+    /* 票根左缘的锯齿孔：用 mask 沿左边每 12.5px 挖一个 3.5px 的半圆 */
+    -webkit-mask:radial-gradient(circle 3.5px at left center, transparent 3.5px, #000 4px) left top/100% 12.5px repeat-y;
+            mask:radial-gradient(circle 3.5px at left center, transparent 3.5px, #000 4px) left top/100% 12.5px repeat-y; }
+  .pm-my-stub.dessert{ background:var(--yellow); }
+  .pm-my-stub-logo{ width:62px; height:48px; object-fit:contain; }
+  .pm-my-stub-sym{ font-size:44px; font-weight:700; color:var(--yellow); line-height:1; }
+  .pm-my-main{ flex:1; min-width:0; background:#fff; display:flex; align-items:center; justify-content:space-between;
+    gap:8px; padding:8px 16px; box-sizing:border-box; }
+  .pm-my-info{ display:flex; flex-direction:column; gap:20px; min-width:0; flex:1; }
+  .pm-my-name{ font-size:16px; font-weight:500; color:var(--red); word-break:break-word; }
+  .pm-my-sub{ display:flex; align-items:center; gap:8px; font-size:14px; font-weight:500; color:var(--red); }
+  .pm-my-paw{ width:25px; height:25px; flex-shrink:0; }
+  .pm-my-tick{ width:20px; height:20px; flex-shrink:0; }
+  .pm-my-why{ font-size:10.5px; color:var(--red); opacity:.75; flex-shrink:0; max-width:78px; text-align:right; }
+
   /* ===== 会员：幸运抽奖 Lucky Draw ===== */
   .ld-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:var(--cream2); z-index:300; display:none; flex-direction:column; overflow-y:auto; }
   .ld-screen.show{ display:flex; }
@@ -3843,25 +3866,72 @@ function _pmItemHtml(c){
 }
 /* 「我的」：已兑到手的券。未使用的排在前面 */
 var _pmFromCheckout=false;
-function _pmMineHtml(mc){
-  var ST={unused:'未使用',used:'已使用',expired:'已过期'};
+/* 图标：爪印币 25px、选中/未选中的勾 20px。Figma 里这几个是导出图片，
+   但这个开发环境连不上 figma.com 拿不到原文件，所以按设计给的尺寸和内边距画成内联 SVG。 */
+function _pawSvg(){
+  return '<svg class="pm-my-paw" viewBox="0 0 40 40" fill="none" aria-hidden="true">'
+    +'<circle cx="20" cy="20" r="20" fill="#FFDE5B"/>'
+    +'<g fill="#8D0505">'
+    +'<ellipse cx="13.2" cy="14.6" rx="3.1" ry="4"/><ellipse cx="20" cy="12.6" rx="3.1" ry="4.2"/>'
+    +'<ellipse cx="26.8" cy="14.6" rx="3.1" ry="4"/>'
+    +'<path d="M20 19.2c4.2 0 7.6 3.1 7.6 6.4 0 2.6-2.3 4.2-5.2 4.2-1.1 0-1.7-.4-2.4-.4s-1.3.4-2.4.4c-2.9 0-5.2-1.6-5.2-4.2 0-3.3 3.4-6.4 7.6-6.4z"/>'
+    +'</g></svg>';
+}
+function _tickSvg(on){
+  return on
+    ? '<svg class="pm-my-tick" viewBox="0 0 20 20" fill="none" aria-hidden="true">'
+      +'<circle cx="10" cy="10" r="10" fill="#8D0505"/>'
+      +'<path d="M6 10.2l2.6 2.6L14.2 7.4" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    : '<svg class="pm-my-tick" viewBox="0 0 20 20" fill="none" aria-hidden="true">'
+      +'<circle cx="10" cy="10" r="9.25" stroke="#8D0505" stroke-width="1.5"/></svg>';
+}
+/* 券面左边票根上的符号：现金券 $、百分比券 %。甜品券不放符号，放商品图 */
+function _pmStubSym(mc){ return mc.type==='percent_off' ? '%' : '$'; }
+/* 「我的」那张卡第二行：优先显示当初花的 Paw Coin（从商城列表按 coupon_id 对回去，
+   省一次 SQL 迁移）；商城已经下架、查不到价的，就改显示有效期——总比空着强。 */
+function _pmMineSub(mc){
+  var item=(_mallItems||[]).find(function(x){ return x.id===mc.coupon_id; });
+  if(item && Number(item.coin_price)>0) return _pawSvg()+'<span>'+item.coin_price+'  Paw Coins</span>';
   var exp='永久有效';
   if(mc.expires_at){ try{ exp=new Date(mc.expires_at).toLocaleDateString()+' 到期'; }catch(e){ exp=''; } }
-  return'<div class="mem-coupon-ticket'+(mc.status==='unused'?'':' used')+'">'
-    +'<div class="mem-coupon-value"><b>'+(mc.type==='dessert'?'兑换':(mc.type==='percent_off'?(mc.value+'%'):('RM'+mc.value)))+'</b>'
-    +'<span>'+(mc.type==='dessert'?'甜品':(mc.menu_item_id?'单品':'OFF'))+'</span></div>'
-    +'<div class="mem-coupon-info"><div class="mem-coupon-name">'+_esc(mc.name)+'</div>'
-    +'<div class="mem-coupon-cond">'+_couponCondTxt(mc)+'</div>'
-    +'<div class="mem-coupon-exp">'+(ST[mc.status]||mc.status)+' · '+exp+'</div>'
-    +_pmUseBtn(mc)+'</div></div>';
+  return '<span>'+_esc(exp)+'</span>';
 }
-/* 从结算页进来才显示「使用」；不可用的说明原因，别让顾客点了才知道 */
-function _pmUseBtn(mc){
-  if(!_pmFromCheckout || mc.status!=='unused') return '';
-  var u=_couponUsable(mc, _cartSubtotal());
-  return u.ok
-    ? '<button class="pm-use-btn" onclick="useCouponForOrder(\''+mc.id+'\')">使用</button>'
-    : '<span class="pm-use-no">'+_esc(u.why)+'</span>';
+function _pmMineHtml(mc){
+  var ST={unused:'未使用',used:'已使用',expired:'已过期'};
+  // 购物车是空的（不是从结算页进来，纯粹翻看「我的」）就别拿满额门槛去判，
+  // 否则所有带门槛的券会全部置灰，顾客以为券坏了
+  var sub=_cartSubtotal(), hasCart=sub>0;
+  var u = _couponUsable(mc, sub);
+  var usable = mc.status==='unused' && (!hasCart || u.ok);
+  var picked = !!(_ckCoupon && _ckCoupon.id===mc.id);
+  // 右边这一格：能用就是勾（选中/未选中），不能用就写明原因，别让顾客点了才知道
+  var right = usable ? _tickSvg(picked)
+    : '<span class="pm-my-why">'+_esc(mc.status!=='unused' ? (ST[mc.status]||mc.status) : u.why)+'</span>';
+  var stub = mc.type==='dessert'
+    ? (mc.menu_item_image
+        ? '<div class="pm-my-stub dessert" style="background-image:url(\''+_esc(mc.menu_item_image)+'\')"></div>'
+        : '<div class="pm-my-stub dessert"><img class="pm-my-stub-logo" alt=""></div>')   // 商品没配图就放品牌 logo
+    : '<div class="pm-my-stub"><span class="pm-my-stub-sym">'+_pmStubSym(mc)+'</span></div>';
+  return'<div class="pm-my-card'+(usable?'':' dim')+'"'+(usable?(' onclick="pmPickCoupon(\''+mc.id+'\')"'):'')+'>'
+    +stub
+    +'<div class="pm-my-main"><div class="pm-my-info">'
+    +'<div class="pm-my-name">'+_esc(mc.name)+'</div>'
+    +'<div class="pm-my-sub">'+_pmMineSub(mc)+'</div>'
+    +'</div>'+right+'</div></div>';
+}
+/* 点卡＝选这张券。一单只能用一张，所以再点一次是取消，选别的会换掉。
+   从结算页进来的（_pmFromCheckout）选完直接回结算页，跟原来那个「使用」按钮同一个意思。 */
+function pmPickCoupon(mcId){
+  var mc=(_myCoupons||[]).find(function(x){ return x.id===mcId; });
+  if(!mc) return;
+  if(_ckCoupon && _ckCoupon.id===mcId){ _ckCoupon=null; renderPointsMallList(); return; }
+  var sub=_cartSubtotal();
+  var u=_couponUsable(mc, sub);
+  if(sub>0 && !u.ok){ alert('这张券现在用不了：'+u.why); return; }
+  if(mc.status!=='unused'){ alert('这张券已经用过或已失效'); return; }
+  _ckCoupon=mc;
+  if(_pmFromCheckout){ closePointsMall(); renderCheckout(); return; }
+  renderPointsMallList();
 }
 function renderPointsMallList(){
   var box=document.getElementById('pmList');
@@ -3883,7 +3953,7 @@ function renderPointsMallList(){
   box.innerHTML = list.length ? list.map(_pmItemHtml).join('') : '<div class="pm-empty">暂无可兑换的商品</div>';
   var brandLogo=document.getElementById('brandLogoImg');
   if(brandLogo && brandLogo.src){
-    document.querySelectorAll('.pm-item-img-logo img').forEach(function(img){ if(!img.src) img.src=brandLogo.src; });
+    document.querySelectorAll('.pm-item-img-logo img, .pm-my-stub-logo').forEach(function(img){ if(!img.src) img.src=brandLogo.src; });
   }
 }
 function selectPmTab(cat, el){
