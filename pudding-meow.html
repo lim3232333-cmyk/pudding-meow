@@ -553,10 +553,28 @@
   .mem-ref-code-box{ margin-top:12px; background:#F5E9D4; border-radius:8px; height:32px; display:flex; align-items:center; justify-content:center; gap:6px; }
   .mem-ref-code-box span{ font-size:13px; font-weight:700; color:var(--red); letter-spacing:1px; }
   .mem-ref-code-box button{ border:none; background:var(--red); color:var(--cream2); border-radius:999px; padding:3px 8px; font-size:10px; font-weight:700; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }
+  /* 签到（Figma 227:129）：七天用店家上传的 tick / gift 图标，右上角 ⓘ 点开签到规则 */
+  .mem-mini-head{ display:flex; align-items:flex-start; justify-content:space-between; }
+  .mem-ci-info{ width:12.5px; height:12.5px; padding:0; border:none; background:transparent; cursor:pointer; line-height:0; flex-shrink:0; }
+  .mem-ci-info svg{ width:12.5px; height:12.5px; display:block; }
   .mem-checkin-days{ display:flex; gap:8px; margin-top:12px; }
-  .mem-checkin-day{ width:15px; height:15px; border-radius:50%; background:#F5E9D4; flex-shrink:0; }
-  .mem-checkin-day.done{ background:var(--red); }
-  .mem-checkin-day.today{ box-shadow:0 0 0 1.5px var(--red); }
+  .mem-ci-dot{ width:15px; height:15px; flex-shrink:0; display:block; }
+  .mem-ci-dot.pending{ opacity:.38; }             /* 还没到的日子淡一点，跟已签到区分开 */
+  .mem-ci-dot.today{ outline:1.5px solid var(--red); outline-offset:1px; border-radius:50%; }
+  /* 签到规则弹窗（Figma 798:688） */
+  .ci-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:369; display:none; }
+  .ci-overlay.show{ display:block; }
+  .ci-modal{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:328px; max-width:calc(100vw - 32px);
+    background:#fff; border-radius:12px; padding:16px; z-index:370; display:none; flex-direction:column; gap:16px;
+    font-family:"Noto Sans SC",sans-serif; box-shadow:0 8px 30px rgba(0,0,0,.25); }
+  .ci-modal.show{ display:flex; }
+  .ci-modal h3{ margin:0; font-size:16px; font-weight:700; color:var(--red); text-align:center; }
+  .ci-modal ol{ margin:0; padding-left:21px; list-style:decimal; display:flex; flex-direction:column; gap:16px; }
+  .ci-modal li{ font-size:14px; font-weight:500; color:var(--red); line-height:normal; }
+  .ci-modal li em{ font-style:normal; color:#202055; }
+  .ci-modal li b{ font-weight:700; }
+  .ci-close{ position:absolute; right:-12px; top:-12px; width:24px; height:24px; padding:0; border:none; background:transparent; cursor:pointer; line-height:0; }
+  .ci-close svg{ width:24px; height:24px; display:block; }
   .mem-mini-checkin-btn{ width:100%; height:25px; background:var(--red); color:var(--cream2); border:none; border-radius:999px; font-weight:500; font-size:12px; margin-top:12px; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }
   .mem-mini-checkin-btn:disabled{ opacity:.5; cursor:default; }
 
@@ -1288,7 +1306,12 @@
 </div>
 </div>
           <div class="mem-mini-card">
-            <div class="mem-mini-title">每日签到</div>
+            <div class="mem-mini-head">
+              <div class="mem-mini-title">每日签到</div>
+              <button class="mem-ci-info" onclick="openCheckinRules()" aria-label="签到规则">
+                <svg viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="6" stroke="#8D0505"/><path d="M6.5 5.8v3.1" stroke="#8D0505" stroke-linecap="round"/><path d="M6.5 3.6v.9" stroke="#8D0505" stroke-linecap="round"/></svg>
+              </button>
+</div>
             <div class="mem-mini-divider"></div>
             <div class="mem-mini-streak" id="memStreakLbl">已连续签到 0 天</div>
             <div class="mem-checkin-days" id="memCheckinDays"></div>
@@ -1364,6 +1387,16 @@
 </div>
 
   <!-- ============ Meow Club 积分商城 ============ -->
+  <!-- 签到规则（Figma 798:688）：右上角 ⓘ 点开，内容来自 xp_rules / coin_rules / checkin_milestones -->
+  <div class="ci-overlay" id="ciOverlay" onclick="closeCheckinRules()"></div>
+  <div class="ci-modal" id="ciModal">
+    <button class="ci-close" onclick="closeCheckinRules()" aria-label="关闭">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#8D0505"/><path d="M15 9l-6 6M9 9l6 6" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <h3>签到规则</h3>
+    <ol id="ciRules"></ol>
+</div>
+
   <div class="pm-screen" id="pmScreen">
     <div class="pm-hero">
       <div class="pm-back" onclick="closePointsMall()">
@@ -3646,6 +3679,54 @@ function setLang(l){
   if(l==='en'){ alert('English 版即将上线，敬请期待'); }
   else { closeLangPage(); }
 }
+function _ciTick(){ return '<svg class="mem-ci-dot" aria-hidden="true" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 20C15.5228 20 20 15.5228 20 10C20 4.47715 15.5228 0 10 0C4.47715 0 0 4.47715 0 10C0 15.5228 4.47715 20 10 20Z" fill="#FFDE5B"/><path d="M7 10L9 12L13 8" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
+function _ciGift(){ return '<svg class="mem-ci-dot" aria-hidden="true" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="15" cy="15" r="15" fill="#FFDE5B"/><path d="M14 17.0006V25.0006H10C9.20435 25.0006 8.44129 24.6845 7.87868 24.1219C7.31607 23.5593 7 22.7962 7 22.0006V18.0006C7 17.7354 7.10536 17.481 7.29289 17.2935C7.48043 17.1059 7.73478 17.0006 8 17.0006H14ZM22 17.0006C22.2652 17.0006 22.5196 17.1059 22.7071 17.2935C22.8946 17.481 23 17.7354 23 18.0006V22.0006C23 22.7962 22.6839 23.5593 22.1213 24.1219C21.5587 24.6845 20.7956 25.0006 20 25.0006H16V17.0006H22ZM19.5 5.00059C20.0905 5.00047 20.6715 5.14975 21.1888 5.43455C21.706 5.71936 22.1429 6.13041 22.4586 6.62945C22.7743 7.1285 22.9586 7.6993 22.9943 8.28873C23.03 8.87816 22.9161 9.46705 22.663 10.0006H23C23.5304 10.0006 24.0391 10.2113 24.4142 10.5864C24.7893 10.9614 25 11.4702 25 12.0006V13.0006C25 13.531 24.7893 14.0397 24.4142 14.4148C24.0391 14.7899 23.5304 15.0006 23 15.0006H16V10.0006H14V15.0006H7C6.46957 15.0006 5.96086 14.7899 5.58579 14.4148C5.21071 14.0397 5 13.531 5 13.0006V12.0006C5 11.4702 5.21071 10.9614 5.58579 10.5864C5.96086 10.2113 6.46957 10.0006 7 10.0006H7.337C7.11488 9.53174 6.99977 9.01938 7 8.50059C7 6.56759 8.567 5.00059 10.483 5.00059C12.238 4.97059 13.795 6.09259 14.864 7.93459L15 8.17759C16.033 6.26359 17.56 5.06359 19.291 5.00259L19.5 5.00059ZM10.5 7.00059C10.1022 7.00059 9.72064 7.15862 9.43934 7.43993C9.15804 7.72123 9 8.10276 9 8.50059C9 8.89841 9.15804 9.27994 9.43934 9.56125C9.72064 9.84255 10.1022 10.0006 10.5 10.0006H13.643C12.902 8.09559 11.694 6.98059 10.5 7.00059ZM19.483 7.00059C18.303 6.98059 17.098 8.09659 16.357 10.0006H19.5C19.8978 9.99833 20.2785 9.83814 20.5582 9.55524C20.8379 9.27234 20.9938 8.88991 20.9915 8.49209C20.9892 8.09426 20.829 7.71363 20.5462 7.43392C20.2633 7.15421 19.8808 6.99833 19.483 7.00059Z" fill="#8D0505"/></svg>'; }
+/* 签到规则弹窗：日常那条读 xp_rules / coin_rules 里 action_key='checkin' 的值，
+   连续第 N 天那几条读 checkin_milestones——都是 POS「签到奖励」那页在管的，
+   后台改了这里跟着变，不写死。 */
+function _ciRuleVal(list, key){
+  var r=(list||[]).find(function(x){ return x.action_key===key; });
+  if(!r) return 0;
+  return Number(r.xp_value!=null?r.xp_value:r.coin_value)||0;
+}
+function _ciReward(m){
+  var rw=m.reward||{};
+  try{ if(typeof rw==='string') rw=JSON.parse(rw); }catch(e){ rw={}; }
+  return { xp:Number(rw.xp)||0, coin:Number(rw.coin)||0 };
+}
+function _ciRewardTxt(xp, coin){
+  var parts=[];
+  if(xp) parts.push('<em>+'+xp+' XP</em>');
+  if(coin) parts.push('<em>+'+coin+' Paw Coins</em>');
+  return parts.length?parts.join(' 和 '):'<em>无奖励</em>';
+}
+var _ciMilestones=[];
+function loadCheckinMilestones(){
+  if(!db) return Promise.resolve();
+  return db.from('checkin_milestones').select('*').order('streak_days').then(function(r){
+    if(r.error){ console.error('checkin_milestones:', r.error); return; }
+    _ciMilestones=r.data||[];
+  }).catch(function(e){ console.error('checkin_milestones:', e); });
+}
+function renderCheckinRules(){
+  var box=document.getElementById('ciRules'); if(!box) return;
+  var items=['<li>每日签到: '+_ciRewardTxt(_ciRuleVal(_xpRules,'checkin'), _ciRuleVal(_coinRules,'checkin'))+'</li>'];
+  (_ciMilestones||[]).slice().sort(function(a,b){ return a.streak_days-b.streak_days; }).forEach(function(m){
+    var rw=_ciReward(m);
+    items.push('<li>连续签到 第 <b>'+m.streak_days+'</b> 天: '+_ciRewardTxt(rw.xp, rw.coin)+'</li>');
+  });
+  box.innerHTML=items.join('');
+}
+function openCheckinRules(){
+  renderCheckinRules();   // 先用手上的数据画出来，别让顾客对着空白等
+  document.getElementById('ciOverlay').classList.add('show');
+  document.getElementById('ciModal').classList.add('show');
+  Promise.all([loadLoyaltyRules(), loadCheckinMilestones()]).then(renderCheckinRules);
+}
+function closeCheckinRules(){
+  document.getElementById('ciOverlay').classList.remove('show');
+  document.getElementById('ciModal').classList.remove('show');
+}
 function renderCheckinStatus(){
   if(!db || !_memberId || !_memberToken) return Promise.resolve();
   return db.rpc('rpc_get_checkin_status', {p_member_id:_memberId, p_session_token:_memberToken}).then(function(res){
@@ -3654,9 +3735,12 @@ function renderCheckinStatus(){
     if(!row) return;
     document.getElementById('memStreakLbl').innerHTML ='已连续签到 <b>'+row.current_streak+'</b> 天';
     var days = row.last_7_days || [];
+    // 已签到用勾、还没签的用礼物（Figma 227:129 的 tick / gift 两态），都是店家上传的图
     document.getElementById('memCheckinDays').innerHTML = days.map(function(d){
       var dt = new Date(d.date+'T00:00:00'); var isToday = dt.toDateString()===new Date().toDateString();
-      return'<div class="mem-checkin-day'+(d.checked?' done':'')+(isToday?' today':'')+'"></div>';
+      var svg = d.checked ? _ciTick() : _ciGift();
+      var cls = (d.checked?'':' pending')+(isToday?' today':'');
+      return cls ? svg.replace('class="mem-ci-dot"','class="mem-ci-dot'+cls+'"') : svg;
     }).join('');
     var btn = document.getElementById('memCheckinBtn');
     btn.disabled = row.checked_in_today;
