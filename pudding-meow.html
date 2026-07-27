@@ -3831,15 +3831,23 @@ function loadMyCoupons(){
 /* 充值套餐来自 recharge_packages 表（POS 会员运营 → 充值套餐维护），
    跟收银台的 Top up 同一份。表没建/离线就退回下面这份兜底，跟原来写死的六档一致。 */
 var RECHARGE_FALLBACK = [
-  {id:'f1', price:50,  coins:50,  tag:'首充双倍', first_only:true,  gifts:['50 XP','1x 幸运抽奖'], enabled:true, sort_order:10},
-  {id:'f2', price:100, coins:120, tag:null, first_only:false, gifts:[], enabled:true, sort_order:20},
-  {id:'f3', price:150, coins:200, tag:null, first_only:false, gifts:[], enabled:true, sort_order:30},
-  {id:'f4', price:200, coins:300, tag:null, first_only:false, gifts:[], enabled:true, sort_order:40},
-  {id:'f5', price:250, coins:450, tag:null, first_only:false, gifts:[], enabled:true, sort_order:50},
-  {id:'f6', price:300, coins:600, tag:null, first_only:false, gifts:[], enabled:true, sort_order:60}
+  {id:'f1', price:50,  coins:50,  xp:50,  draw_tickets:1, tag:'首充双倍', first_only:true,  gifts:[], enabled:true, sort_order:10},
+  {id:'f2', price:100, coins:120, xp:100, draw_tickets:1, tag:null, first_only:false, gifts:[], enabled:true, sort_order:20},
+  {id:'f3', price:150, coins:200, xp:150, draw_tickets:2, tag:null, first_only:false, gifts:[], enabled:true, sort_order:30},
+  {id:'f4', price:200, coins:300, xp:200, draw_tickets:2, tag:null, first_only:false, gifts:[], enabled:true, sort_order:40},
+  {id:'f5', price:250, coins:450, xp:250, draw_tickets:3, tag:null, first_only:false, gifts:[], enabled:true, sort_order:50},
+  {id:'f6', price:300, coins:600, xp:300, draw_tickets:3, tag:null, first_only:false, gifts:[], enabled:true, sort_order:60}
 ];
 var RECHARGE_PACKAGES = RECHARGE_FALLBACK.slice();
 function _rcGifts(p){ try{ return Array.isArray(p.gifts)?p.gifts:JSON.parse(p.gifts||'[]'); }catch(e){ return []; } }
+/* 浮层里先列系统真会发的 XP / 抽奖券（来自套餐那一行），再接上要店员另外兑现的文案。
+   Coin 已经印在卡面上了，不重复列。 */
+function _rcRewardLines(p){
+  var out=[];
+  if(Number(p.xp)>0) out.push('+'+p.xp+' XP');
+  if(Number(p.draw_tickets)>0) out.push(p.draw_tickets+'x 幸运抽奖');
+  return out.concat(_rcGifts(p));
+}
 function loadRechargePackages(){
   if(!db) return Promise.resolve();
   return db.from('recharge_packages').select('*').order('sort_order').then(function(res){
@@ -3863,7 +3871,7 @@ function _rcPkgHtml(p, idx){
   var showTag = p.tag && (!p.first_only || !_rcAlreadyRecharged);
   var cls ='rc-pkg'+(showTag?' rc-pkg-special':'')+(idx===_rcSelected?' selected':'');
   var badge = showTag ?'<div class="rc-pkg-badge">'+_esc(p.tag)+'</div>' :'';
-  var gifts=_rcGifts(p);
+  var gifts=_rcRewardLines(p);
   var more = gifts.length
     ? '<button class="rc-pkg-more" onclick="event.stopPropagation();toggleRcGift('+idx+')" aria-label="更多赠品">'
       +'<svg viewBox="0 0 12 12" fill="none"><path d="M1.5 1v7.5a2 2 0 0 0 2 2H11" stroke="#8D0505" stroke-width="1.4" stroke-linecap="round"/></svg></button>'
@@ -3953,14 +3961,17 @@ function doRecharge(){
     taMode:'recharge',
     memberId:_memberId,
     deviceId:_deviceId,
-    deliveryInfo:{ recharge:{ price:p.price, coins:(p.coins||0) } }
+    // package_id 是关键：服务端按它去 recharge_packages 查该发多少，不听这里写的数。
+    // 后面几个只是快照，万一套餐后来被删了才拿来兜底。
+    deliveryInfo:{ recharge:{ package_id:(p.id||null), price:p.price, coins:(p.coins||0),
+      xp:(p.xp||0), draw_tickets:(p.draw_tickets||0) } }
   };
   assignOrderNumsApp(order).then(function(){
     _orders.unshift(order);
     try{ var ex=JSON.parse(localStorage.getItem('pm_orders')||'[]'); ex.unshift(order); localStorage.setItem('pm_orders',JSON.stringify(ex)); }catch(e){}
     try{ pmBroadcastOrders(); }catch(e){}
     if(db){ db.from('orders').insert(orderToRow(order)).then(function(res){ if(res && res.error){ console.error('recharge insert', res.error); setCloudStatus('offline'); } else { setCloudStatus('online'); } }).catch(function(e){ console.error('recharge insert', e); setCloudStatus('offline'); }); }
-    alert('充值申请已提交！\n请到柜台以现金 / DuitNow 支付 RM'+p.price.toFixed(2)+'。\n店员确认收款后，您的 Meow Wallet 到账 RM'+p.price.toFixed(2)+'，并获得 '+(p.coins||0)+' Meow Coin。');
+    alert('充值申请已提交！\n请到柜台以现金 / DuitNow 支付 RM'+p.price.toFixed(2)+'。\n店员确认收款后，您的 Meow Wallet 到账 RM'+p.price.toFixed(2)+'，并获得 '+(p.coins||0)+' Meow Coin'+(function(){ var g=_rcRewardLines(p); return g.length?('、'+g.join('、')):''; })()+'。');
     closeRecharge();
   });
 }

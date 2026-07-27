@@ -1,38 +1,40 @@
 -- ============================================================================
---  布丁喵 — 储值规则：充值奖励 + 钱包使用限制
+--  布丁喵 — 储值规则：钱包使用限制 + 充值按套餐发奖励
 --  用法：Supabase Dashboard → SQL Editor → New query → 粘贴 → Run（跑一次）
 --  前置：supabase-membership*.sql、supabase-pos-member.sql、
 --        supabase-recharge-packages.sql 都已跑过。
 --
---  背景：充值原本只做两件事——钱包 1:1 到账、送套餐自带的那点 Coin。
---  不发 XP、不发抽奖券，所以充值套餐里那栏「更多赠品」一直只是给顾客看的文字。
---  这份脚本把它变成真的：奖励在这里配，rpc_complete_recharge / rpc_pos_topup
---  照着发。另外顺带把最低/最高充值额、余额上限这些限制也落到服务端——
---  只在前端拦是拦不住的，anon key 是公开的。
+--  奖励是「包」在套餐里的，不是全店一个倍率：一档套餐就是一整包，
+--  充 RM50 → 钱包进 RM50 + 500 Coin + 1 次幸运抽奖 + 50 XP。
+--  所以奖励数值在 recharge_packages 那一行上，这里只负责：
+--    ① 充值时按套餐那一行把 Coin / XP / 抽奖券发下去
+--    ② 钱包使用上的限制（最低/最高充值额、余额上限、余额付款算不算消费奖励）
 --
---  只有一行设置，不做成多行规则表：这几个数是店里的统一口径，
---  不像 xp_rules 那样按 action 一条条配。
+--  关键：发多少一律由服务端去 recharge_packages 查，不听前端传的数。
+--  anon key 是写在网页里的，谁都能改请求，前端说「送我 99999 Coin」不能算数。
 -- ============================================================================
 
 create table if not exists public.wallet_settings (
-  id                 int primary key default 1,
-  -- ── 充值奖励 ──
-  xp_per_rm          numeric not null default 0,   -- 每充 RM1 送多少 XP
-  coin_per_rm        numeric not null default 0,   -- 每充 RM1 送多少 Coin（套餐自带的之外）
-  first_bonus_xp     int     not null default 0,   -- 首次充值额外送 XP
-  first_bonus_coin   int     not null default 0,   -- 首次充值额外送 Coin
-  draw_tickets       int     not null default 0,   -- 每次充值送几张抽奖券
-  first_draw_tickets int     not null default 0,   -- 首次充值额外送几张
-  -- ── 钱包使用 ──
-  wallet_earns       boolean not null default true, -- 用余额付款是否照常累积 XP/Coin
-  min_topup          numeric,                       -- 单次最低充值额，null = 不限
-  max_topup          numeric,                       -- 单次最高充值额，null = 不限
-  max_balance        numeric,                       -- 余额上限，null = 不限
-  refundable         boolean not null default false,-- 余额可否退款（店规，给顾客看的说明）
-  updated_at         timestamptz not null default now(),
+  id             int primary key default 1,
+  wallet_earns   boolean not null default true, -- 用余额付款是否照常累积 XP/Coin
+  min_topup      numeric,                       -- 单次最低充值额，null = 不限
+  max_topup      numeric,                       -- 单次最高充值额，null = 不限
+  max_balance    numeric,                       -- 余额上限，null = 不限
+  refundable     boolean not null default false,-- 余额可否退款（店规，给顾客看的说明）
+  updated_at     timestamptz not null default now(),
   constraint wallet_settings_single_row check (id = 1)
 );
 insert into public.wallet_settings (id) values (1) on conflict (id) do nothing;
+
+-- 上一版把奖励做成了全店「每 RM1 送多少」，方向错了——奖励属于套餐。
+-- 跑过那一版的，把这几列去掉；没跑过的这几句什么也不做。
+alter table public.wallet_settings
+  drop column if exists xp_per_rm,
+  drop column if exists coin_per_rm,
+  drop column if exists first_bonus_xp,
+  drop column if exists first_bonus_coin,
+  drop column if exists draw_tickets,
+  drop column if exists first_draw_tickets;
 
 alter table public.wallet_settings enable row level security;
 drop policy if exists wallet_settings_anon_read on public.wallet_settings;
@@ -47,37 +49,28 @@ exception when duplicate_object then null;
 end $$;
 
 -- ---------------------------------------------------------------------------
---  共用：一次充值该发的东西。v_first = 这是不是这个会员的第一次充值。
---  member_wallet_ledger 里 reason='topup' 的记录就是充值历史，查它最准。
+--  发奖励：Coin / XP / 抽奖券各写各的流水，XP 涨了顺带重算等级
 -- ---------------------------------------------------------------------------
+drop function if exists public._wallet_grant_rewards(uuid, numeric, text, text);
 create or replace function public._wallet_grant_rewards(
-  p_member_id uuid, p_price numeric, p_ref_type text, p_ref_id text)
+  p_member_id uuid, p_coins int, p_xp int, p_tickets int, p_ref_type text, p_ref_id text)
 returns void
 language plpgsql
 security definer
 set search_path = public
 as $$
-declare s record; v_first boolean; v_xp int; v_coin int; v_tickets int;
 begin
-  select * into s from public.wallet_settings where id = 1;
-  if s is null then return; end if;
+  if coalesce(p_coins,0) > 0 then
+    insert into public.member_coin_ledger(member_id, delta, reason, ref_type, ref_id)
+      values (p_member_id, p_coins, 'recharge', p_ref_type, p_ref_id);
+    update public.members set coins = coins + p_coins where id = p_member_id;
+  end if;
 
-  -- 本次这笔已经写进流水了，所以「之前有没有充过」要排除掉这一笔
-  select not exists (
-    select 1 from public.member_wallet_ledger
-     where member_id = p_member_id and reason = 'topup'
-       and not (ref_type = p_ref_type and ref_id = p_ref_id)
-  ) into v_first;
-
-  v_xp      := floor(coalesce(p_price,0) * s.xp_per_rm)::int   + (case when v_first then s.first_bonus_xp   else 0 end);
-  v_coin    := floor(coalesce(p_price,0) * s.coin_per_rm)::int + (case when v_first then s.first_bonus_coin else 0 end);
-  v_tickets := s.draw_tickets + (case when v_first then s.first_draw_tickets else 0 end);
-
-  if v_xp > 0 then
+  if coalesce(p_xp,0) > 0 then
     insert into public.member_xp_ledger(member_id, delta, reason, ref_type, ref_id)
-      values (p_member_id, v_xp, 'recharge', p_ref_type, p_ref_id);
-    update public.members set xp = xp + v_xp where id = p_member_id;
-    -- 涨了 XP 可能就升级了，跟 _grant_xp 一个口径
+      values (p_member_id, p_xp, 'recharge', p_ref_type, p_ref_id);
+    update public.members set xp = xp + p_xp where id = p_member_id;
+    -- 跟 _grant_xp 一个口径：涨了 XP 可能就升级了
     update public.members set level_id = (
       select id from public.member_levels
        where xp_required <= (select xp from public.members where id = p_member_id)
@@ -85,14 +78,8 @@ begin
     ) where id = p_member_id;
   end if;
 
-  if v_coin > 0 then
-    insert into public.member_coin_ledger(member_id, delta, reason, ref_type, ref_id)
-      values (p_member_id, v_coin, 'recharge', p_ref_type, p_ref_id);
-    update public.members set coins = coins + v_coin where id = p_member_id;
-  end if;
-
-  if v_tickets > 0 then
-    update public.members set draw_tickets = draw_tickets + v_tickets where id = p_member_id;
+  if coalesce(p_tickets,0) > 0 then
+    update public.members set draw_tickets = draw_tickets + p_tickets where id = p_member_id;
   end if;
 end;
 $$;
@@ -107,7 +94,7 @@ as $$
 declare s record; v_bal numeric;
 begin
   select * into s from public.wallet_settings where id = 1;
-  if s is null then return; end if;
+  if not found then return; end if;
   if s.min_topup is not null and p_price < s.min_topup then
     raise exception '单次充值不能低于 RM%', s.min_topup;
   end if;
@@ -124,13 +111,15 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
---  接进两个充值入口
+--  小程序充值单：顾客选好套餐 → 下单 → 店员收款点「已付款」
 -- ---------------------------------------------------------------------------
 create or replace function public.rpc_complete_recharge(p_order_id text)
 returns numeric language plpgsql security definer
 set search_path = public
 as $$
-declare v_member uuid; v_price numeric; v_coins int; v_di jsonb; v_bal numeric;
+declare
+  v_member uuid; v_price numeric; v_di jsonb; v_bal numeric;
+  v_pkg record; v_coins int; v_xp int; v_tickets int;
 begin
   select member_id, total, delivery_info into v_member, v_price, v_di
     from public.orders where id = p_order_id and ta_mode = 'recharge';
@@ -150,55 +139,60 @@ begin
     values (v_member, v_price, 'topup', 'recharge', p_order_id);
   update public.members set wallet_balance = wallet_balance + v_price where id = v_member;
 
-  -- 套餐自带的 Meow Coin
-  v_coins := coalesce((v_di->'recharge'->>'coins')::int, 0);
-  if v_coins > 0 then
-    insert into public.member_coin_ledger(member_id, delta, reason, ref_type, ref_id)
-      values (v_member, v_coins, 'recharge_bonus', 'recharge', p_order_id);
-    update public.members set coins = coins + v_coins where id = v_member;
+  -- 送什么，以套餐那一行为准，不听下单时前端写进来的数。
+  -- 判「查到没有」必须用 found，不能写 if v_pkg is not null——record 的 IS NOT NULL
+  -- 是「每个字段都非空」才成立，套餐的 tag 一般是 null，那样会被误判成没查到。
+  select * into v_pkg from public.recharge_packages
+   where id = (v_di->'recharge'->>'package_id')::uuid;
+  if found then
+    v_coins := v_pkg.coins; v_xp := v_pkg.xp; v_tickets := v_pkg.draw_tickets;
+  else
+    -- 套餐后来被删了：退回下单时存的那份快照。金额已经由顾客实付兜底，
+    -- 与其让人家白付钱拿不到东西，不如按快照发。
+    v_coins   := coalesce((v_di->'recharge'->>'coins')::int, 0);
+    v_xp      := coalesce((v_di->'recharge'->>'xp')::int, 0);
+    v_tickets := coalesce((v_di->'recharge'->>'draw_tickets')::int, 0);
   end if;
 
-  -- 储值规则里配的额外奖励（XP / Coin / 抽奖券，含首充加成）
-  perform public._wallet_grant_rewards(v_member, v_price, 'recharge', p_order_id);
+  perform public._wallet_grant_rewards(v_member, v_coins, v_xp, v_tickets, 'recharge', p_order_id);
 
   select wallet_balance into v_bal from public.members where id = v_member;
   return v_bal;
 end; $$;
 
+-- ---------------------------------------------------------------------------
+--  柜台直接充：店员选一档套餐，收钱，到账
+--  签名从 (uuid, numeric, int, text) 改成 (uuid, uuid, text)——金额和奖励都
+--  由套餐 id 决定，不再由收银台传。旧签名必须先 drop，不然会变成重载、
+--  PostgREST 调用时会报函数不明确。
+-- ---------------------------------------------------------------------------
+drop function if exists public.rpc_pos_topup(uuid, numeric, int, text);
 create or replace function public.rpc_pos_topup(
-  p_member_id uuid, p_price numeric, p_bonus_coins int default 0, p_note text default null)
+  p_member_id uuid, p_package_id uuid, p_note text default null)
 returns numeric
 language plpgsql
 security definer
 set search_path = public
 as $$
-declare v_bal numeric; v_ref text;
+declare v_bal numeric; v_ref text; v_pkg record;
 begin
-  if p_price is null or p_price <= 0 then raise exception '充值金额无效'; end if;
   if not exists (select 1 from public.members where id = p_member_id) then
     raise exception '会员不存在';
   end if;
+  select * into v_pkg from public.recharge_packages where id = p_package_id;
+  if not found then raise exception '充值套餐不存在'; end if;   -- 同上，用 found 不用 IS NULL
+  if v_pkg.enabled is false then raise exception '该充值套餐已停用'; end if;
 
-  perform public._wallet_check_limits(p_member_id, p_price);
+  perform public._wallet_check_limits(p_member_id, v_pkg.price);
 
-  -- 柜台充值没有订单号，用一个唯一串当流水引用，首充判断才不会把自己算进去
+  -- 柜台充值没有订单号，用一个唯一串当流水引用，同一天多次充值才分得开
   v_ref := coalesce(nullif(trim(p_note),''), 'POS 柜台充值') || '#' || gen_random_uuid()::text;
 
-  update public.members
-     set wallet_balance = wallet_balance + p_price,
-         coins          = coins + greatest(coalesce(p_bonus_coins, 0), 0)
-   where id = p_member_id
-   returning wallet_balance into v_bal;
-
   insert into public.member_wallet_ledger(member_id, delta, reason, ref_type, ref_id)
-    values (p_member_id, p_price, 'topup', 'pos', v_ref);
+    values (p_member_id, v_pkg.price, 'topup', 'pos', v_ref);
+  update public.members set wallet_balance = wallet_balance + v_pkg.price where id = p_member_id;
 
-  if coalesce(p_bonus_coins, 0) > 0 then
-    insert into public.member_coin_ledger(member_id, delta, reason, ref_type, ref_id)
-      values (p_member_id, p_bonus_coins, 'topup_bonus', 'pos', v_ref);
-  end if;
-
-  perform public._wallet_grant_rewards(p_member_id, p_price, 'pos', v_ref);
+  perform public._wallet_grant_rewards(p_member_id, v_pkg.coins, v_pkg.xp, v_pkg.draw_tickets, 'pos', v_ref);
 
   select wallet_balance into v_bal from public.members where id = p_member_id;
   return v_bal;
@@ -225,9 +219,10 @@ begin
 end; $$;
 
 grant execute on function public.rpc_complete_recharge(text) to anon;
-grant execute on function public.rpc_pos_topup(uuid, numeric, int, text) to anon;
+grant execute on function public.rpc_pos_topup(uuid, uuid, text) to anon;
 grant execute on function public.rpc_on_order_completed(uuid, text, numeric) to anon;
 
 select pg_notify('pgrst', 'reload schema');
 
--- 完成。POS「会员运营 → 储值规则」配奖励和限制，充值时服务端照着发、照着拦。
+-- 完成。套餐里配的 Coin / XP / 抽奖券，充值时由服务端照着那一行发；
+-- POS「会员运营 → 储值规则」只管钱包使用上的限制。
