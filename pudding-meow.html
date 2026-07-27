@@ -690,6 +690,7 @@
   .rc-pkg-grid{ margin-left:16px; width:360px; height:158px; box-sizing:border-box; background:#FFFFEA; border-radius:12px; box-shadow:0 0 10px rgba(0,0,0,.25); padding:8px; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,1fr); gap:8px; }
   .rc-pkg{ position:relative; border:1px solid var(--yellow); border-radius:8px; background:#fff; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; }
   .rc-pkg.selected{ border:2px solid var(--red); }
+  .rc-pkg.pop-open{ z-index:20; }
   .rc-pkg.selected::after{
     content:''; position:absolute; right:-2px; bottom:-2px; width:0; height:0;
     border-style:solid; border-width:0 0 18px 18px; border-color:transparent transparent var(--red) transparent;
@@ -705,6 +706,16 @@
   .rc-coin{ width:25px; height:25px; border-radius:50%; background:var(--yellow); flex-shrink:0; }
   .rc-pkg-num{ font-weight:700; font-size:24px; color:var(--red); }
   .rc-pkg-rm{ font-size:14px; color:var(--muted); text-align:center; width:100%; }
+  /* 左下角「更多赠品」小图标 + 浮层（Figma 236:159 的 12px Vector / 824:792 的浮层） */
+  .rc-pkg-more{ position:absolute; left:6px; bottom:5px; width:12px; height:12px; padding:0; border:none;
+    background:transparent; cursor:pointer; line-height:0; }
+  .rc-pkg-more svg{ width:12px; height:12px; display:block; }
+  /* 浮在卡片上方，不压住卡片里的数字；开着的那张卡抬高层级，免得被右边的卡盖住 */
+  .rc-gift-pop{ display:none; position:absolute; left:0; bottom:100%; margin-bottom:3px; z-index:20;
+    background:rgba(74,72,72,.95); border-radius:4px; padding:8px; min-width:96px; }
+  .rc-gift-pop.show{ display:block; }
+  .rc-gift-pop ul{ margin:0; padding-left:15px; list-style:disc; }
+  .rc-gift-pop li{ font-size:10px; font-weight:500; color:#fff; line-height:normal; white-space:nowrap; }
   .rc-pay-methods{ display:flex; flex-direction:column; gap:8px; margin:12px 0 0 36px; }
   .rc-pay-row{ display:flex; align-items:center; gap:7px; cursor:pointer; }
   .rc-pay-dot{ width:12px; height:12px; border-radius:50%; border:1.5px solid var(--red); box-sizing:border-box; flex-shrink:0; }
@@ -3733,14 +3744,28 @@ function loadMyCoupons(){
 }
 
 /* ===== Meow Wallet 充值 ===== */
-var RECHARGE_PACKAGES = [
-  {credit:50, price:50, special:true},
-  {credit:120, price:100},
-  {credit:200, price:150},
-  {credit:300, price:200},
-  {credit:450, price:250},
-  {credit:600, price:300}
+/* 充值套餐来自 recharge_packages 表（POS 会员运营 → 充值套餐维护），
+   跟收银台的 Top up 同一份。表没建/离线就退回下面这份兜底，跟原来写死的六档一致。 */
+var RECHARGE_FALLBACK = [
+  {id:'f1', price:50,  coins:50,  tag:'首充双倍', first_only:true,  gifts:['50 XP','1x 幸运抽奖'], enabled:true, sort_order:10},
+  {id:'f2', price:100, coins:120, tag:null, first_only:false, gifts:[], enabled:true, sort_order:20},
+  {id:'f3', price:150, coins:200, tag:null, first_only:false, gifts:[], enabled:true, sort_order:30},
+  {id:'f4', price:200, coins:300, tag:null, first_only:false, gifts:[], enabled:true, sort_order:40},
+  {id:'f5', price:250, coins:450, tag:null, first_only:false, gifts:[], enabled:true, sort_order:50},
+  {id:'f6', price:300, coins:600, tag:null, first_only:false, gifts:[], enabled:true, sort_order:60}
 ];
+var RECHARGE_PACKAGES = RECHARGE_FALLBACK.slice();
+function _rcGifts(p){ try{ return Array.isArray(p.gifts)?p.gifts:JSON.parse(p.gifts||'[]'); }catch(e){ return []; } }
+function loadRechargePackages(){
+  if(!db) return Promise.resolve();
+  return db.from('recharge_packages').select('*').order('sort_order').then(function(res){
+    if(res.error){ console.error('recharge_packages:', res.error); return; }
+    var rows=(res.data||[]).filter(function(p){ return p.enabled!==false; });
+    if(rows.length) RECHARGE_PACKAGES=rows;
+    if(_rcSelected>=RECHARGE_PACKAGES.length) _rcSelected=0;
+    renderRechargePackages();
+  }).catch(function(e){ console.error('recharge_packages:', e); });
+}
 var _rcSelected = 0;
 var _rcAlreadyRecharged = false; // 已经充值过一次了：首充双倍徽章就不该再显示
 var _rcPayMethod ='counter';   // 充值只开放柜台支付
@@ -3748,16 +3773,46 @@ function renderRcPayMethods(){
   var c=document.getElementById('rcPayDotCounter'); if(c) c.classList.add('selected');
 }
 function selectRcPay(method){ _rcPayMethod='counter'; renderRcPayMethods(); }
+/* 卡片（Figma 236:159 四态）：Paw Coin + 送的 Coin 数、下面 RM 价、
+   右上角可选标签、左下角一个小图标——有赠品时点它弹出 more gift 浮层（Figma 824:792）。 */
 function _rcPkgHtml(p, idx){
-  var cls ='rc-pkg'+(p.special?' rc-pkg-special':'')+(idx===_rcSelected?' selected':'');
-  var badge = (p.special && !_rcAlreadyRecharged) ?'<div class="rc-pkg-badge">首充双倍</div>' :'';
+  var showTag = p.tag && (!p.first_only || !_rcAlreadyRecharged);
+  var cls ='rc-pkg'+(showTag?' rc-pkg-special':'')+(idx===_rcSelected?' selected':'');
+  var badge = showTag ?'<div class="rc-pkg-badge">'+_esc(p.tag)+'</div>' :'';
+  var gifts=_rcGifts(p);
+  var more = gifts.length
+    ? '<button class="rc-pkg-more" onclick="event.stopPropagation();toggleRcGift('+idx+')" aria-label="更多赠品">'
+      +'<svg viewBox="0 0 12 12" fill="none"><path d="M1.5 1v7.5a2 2 0 0 0 2 2H11" stroke="#8D0505" stroke-width="1.4" stroke-linecap="round"/></svg></button>'
+      +'<div class="rc-gift-pop" id="rcGift'+idx+'"><ul>'+gifts.map(function(g){ return '<li>'+_esc(g)+'</li>'; }).join('')+'</ul></div>'
+    : '';
   return'<div class="'+cls+'" onclick="selectRecharge('+idx+')">'+badge
-    +'<div class="rc-pkg-inner"><div class="rc-pkg-top"><span class="rc-coin"></span><span class="rc-pkg-num">'+p.credit+'</span></div>'
-    +'<div class="rc-pkg-rm">RM '+p.price+'</div></div></div>';
+    +'<div class="rc-pkg-inner"><div class="rc-pkg-top">'+_pawSvg()+'<span class="rc-pkg-num">'+(p.coins||0)+'</span></div>'
+    +'<div class="rc-pkg-rm">RM '+Number(p.price).toFixed(0)+'</div></div>'+more+'</div>';
+}
+/* 浮层一次只开一个；点别处收起（下面 document 上挂了一个收起用的监听） */
+var _rcGiftOpen=-1;
+function toggleRcGift(idx){
+  _rcGiftOpen = (_rcGiftOpen===idx) ? -1 : idx;
+  _rcSyncGiftPops();
+}
+function _rcSyncGiftPops(){
+  document.querySelectorAll('#rcPkgGrid .rc-pkg').forEach(function(card){
+    var pop=card.querySelector('.rc-gift-pop');
+    var open = !!pop && pop.id === ('rcGift'+_rcGiftOpen);
+    if(pop) pop.classList.toggle('show', open);
+    card.classList.toggle('pop-open', open);
+  });
 }
 function renderRechargePackages(){
   document.getElementById('rcPkgGrid').innerHTML = RECHARGE_PACKAGES.map(_rcPkgHtml).join('');
+  _rcSyncGiftPops();
 }
+// 点浮层和小图标以外的地方就收起来
+document.addEventListener('click', function(ev){
+  if(_rcGiftOpen<0) return;
+  if(ev.target.closest && (ev.target.closest('.rc-gift-pop') || ev.target.closest('.rc-pkg-more'))) return;
+  _rcGiftOpen=-1; _rcSyncGiftPops();
+});
 function selectRecharge(idx){
   _rcSelected = idx;
   renderRechargePackages();
@@ -3765,8 +3820,10 @@ function selectRecharge(idx){
 function openRecharge(){
   if(!_memberId || !_memberToken){ alert('请先登录会员'); return; }
   _rcSelected = 0;
+  _rcGiftOpen = -1;
   _rcPayMethod ='counter';
   renderRechargePackages();
+  loadRechargePackages();
   renderRcPayMethods();
   var _setBal=function(){ document.getElementById('rcBalance').textContent = (_memberProfile ? (_memberProfile.wallet_balance||0) : 0).toFixed(2); };
   _setBal();
@@ -3812,14 +3869,14 @@ function doRecharge(){
     taMode:'recharge',
     memberId:_memberId,
     deviceId:_deviceId,
-    deliveryInfo:{ recharge:{ price:p.price, coins:p.credit } }
+    deliveryInfo:{ recharge:{ price:p.price, coins:(p.coins||0) } }
   };
   assignOrderNumsApp(order).then(function(){
     _orders.unshift(order);
     try{ var ex=JSON.parse(localStorage.getItem('pm_orders')||'[]'); ex.unshift(order); localStorage.setItem('pm_orders',JSON.stringify(ex)); }catch(e){}
     try{ pmBroadcastOrders(); }catch(e){}
     if(db){ db.from('orders').insert(orderToRow(order)).then(function(res){ if(res && res.error){ console.error('recharge insert', res.error); setCloudStatus('offline'); } else { setCloudStatus('online'); } }).catch(function(e){ console.error('recharge insert', e); setCloudStatus('offline'); }); }
-    alert('充值申请已提交！\n请到柜台以现金 / DuitNow 支付 RM'+p.price.toFixed(2)+'。\n店员确认收款后，您的 Meow Wallet 到账 RM'+p.price.toFixed(2)+'，并获得 '+p.credit+' Meow Coin。');
+    alert('充值申请已提交！\n请到柜台以现金 / DuitNow 支付 RM'+p.price.toFixed(2)+'。\n店员确认收款后，您的 Meow Wallet 到账 RM'+p.price.toFixed(2)+'，并获得 '+(p.coins||0)+' Meow Coin。');
     closeRecharge();
   });
 }

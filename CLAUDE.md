@@ -69,6 +69,7 @@ Both files load `@supabase/supabase-js@2` from CDN and share **one config block*
 | `menu_items` | `id, cat, name, en, price, descr, flavors(jsonb), sold_out, sort_order, channels(jsonb)` | the editable menu (`channels` = which sales channels this item is open to) |
 | `sales_channels` | `id, code, name, name_en, builtin, enabled, sort_order` | the sales channels themselves (POS 菜单管理 → 销售方式) |
 | `spec_defs` | `id, name, options(jsonb), sold_out_options(jsonb), required, sort_order, channels(jsonb), option_prices(jsonb)` | reusable spec groups (`option_prices` = default per-option surcharge) |
+| `recharge_packages` | `id, price, coins, tag, first_only, gifts(jsonb), enabled, sort_order` | 充值套餐 — the mini-program 充值 page and the POS cashier Top up read the same rows (POS 会员运营 → 充值套餐) |
 
 Field mapping between the JS order object (camelCase) and DB rows (snake_case) is done by **`orderToRow()` / `rowToOrder()`** — defined identically in both files. `orderToRow` only emits real columns, so POS-only fields (`tender`, `change`, `customerName`) are dropped on insert.
 
