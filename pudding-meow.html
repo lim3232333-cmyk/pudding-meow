@@ -2640,6 +2640,8 @@ function renderCheckout(){
   var disc=_ckCoupon?_couponDiscount(_ckCoupon, sub):0;
   var total=Math.max(0, sub+fee-disc);
   document.getElementById('ckSubtotal').textContent='RM '+sub.toFixed(2);
+  // 堂食/自取没有配送这回事，整行藏掉——留着一行「配送费 RM 0.00」只会让顾客愣一下
+  document.getElementById('ckFeeRow').style.display=isDv?'flex':'none';
   document.getElementById('ckFee').textContent='RM '+fee.toFixed(2);
   document.getElementById('ckDiscount').textContent='-RM '+disc.toFixed(2);
   document.getElementById('ckTotal').textContent='RM '+total.toFixed(2);
