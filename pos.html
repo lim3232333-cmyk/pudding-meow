@@ -2123,23 +2123,38 @@ function _rpcErr(e){
   }
   return msg+(code?('（'+code+'）'):'');
 }
+/* 收银机多半是平板，开不了开发者工具，所以把原始报错存下来、点一下就 alert 出来。
+   alert 里的文字可以长按复制，不用 Console 也能把完整错误发出来。 */
+var _posLastErr=null;
+function posShowErr(){
+  if(!_posLastErr){ showN('没有待查看的报错'); return; }
+  var e=_posLastErr;
+  alert('调用 rpc_pos_find_member 的原始报错：\n\n'
+    +'message: '+(e.message||'(无)')+'\n'
+    +'code:    '+(e.code||'(无)')+'\n'
+    +'details: '+(e.details||'(无)')+'\n'
+    +'hint:    '+(e.hint||'(无)')+'\n\n'
+    +JSON.stringify(e));
+}
 function posFindMember(){
   var raw=(document.getElementById('ctCustomer').value||'').trim();
   var digits=raw.replace(/\D/g,'');
-  if(!digits){ _posMember=null; _renderPosMember(); return; }
-  if(!db){ _posMember=null; _renderPosMember('未连接云端，无法查会员'); return; }
+  if(!digits){ _posMember=null; _posLastErr=null; _renderPosMember(); return; }
+  if(!db){ _posMember=null; _posLastErr=null; _renderPosMember('未连接云端，无法查会员'); return; }
   db.rpc('rpc_pos_find_member',{p_phone:digits}).then(function(res){
-    if(res.error){ _posMember=null; console.error('rpc_pos_find_member:',res.error); _renderPosMember(_rpcErr(res.error)); return; }
+    if(res.error){ _posMember=null; _posLastErr=res.error; console.error('rpc_pos_find_member:',res.error); _renderPosMember(_rpcErr(res.error)); return; }
+    _posLastErr=null;
     _posMember=(res.data&&res.data[0])||null;
     _renderPosMember(_posMember?null:'非会员（该号码未注册）');
-  }).catch(function(e){ _posMember=null; console.error('rpc_pos_find_member:',e); _renderPosMember(_rpcErr(e)); });
+  }).catch(function(e){ _posMember=null; _posLastErr=e; console.error('rpc_pos_find_member:',e); _renderPosMember(_rpcErr(e)); });
 }
 function _renderPosMember(msg){
   var bar=document.getElementById('ctMemberBar');
   var badge=document.getElementById('ctVoucherBadge');
   if(!bar) return;
   if(!_posMember){
-    bar.innerHTML=msg?('<span class="warn">'+esc(msg)+'</span>'):'';
+    bar.innerHTML=msg?('<span class="warn" onclick="posShowErr()">'+esc(msg)
+      +(_posLastErr?'<u style="display:block;margin-top:2px">▸ 点这里看完整报错</u>':'')+'</span>'):'';
     if(badge) badge.style.display='none';
     return;
   }
