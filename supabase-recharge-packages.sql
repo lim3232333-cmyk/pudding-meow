@@ -43,16 +43,18 @@ begin
 exception when duplicate_object then null;
 end $$;
 
--- 种子：跟原本写死的六档一模一样，跑完线上行为不变。
--- 表里已经有数据就不动（避免重复跑覆盖掉店家改过的价）。
+-- 种子只是把现在线上那六档原样搬进来（金额和 Coin 跟改造前一字不差），
+-- 跑完行为不变。xp / draw_tickets 一律给 0——这两样是新加的，
+-- 送多少该由店家自己定，种子里替店家瞎填会变成「我没说要送，它自己就发了」。
+-- 表里已经有数据就整段跳过，重复跑不会覆盖店家改过的价。
 insert into public.recharge_packages (price, coins, xp, draw_tickets, tag, first_only, gifts, sort_order)
 select * from (values
-  ( 50::numeric,  50,  50, 1, '首充双倍', true,  '[]'::jsonb, 10),
-  (100::numeric, 120, 100, 1, null,       false, '[]'::jsonb, 20),
-  (150::numeric, 200, 150, 2, null,       false, '[]'::jsonb, 30),
-  (200::numeric, 300, 200, 2, null,       false, '[]'::jsonb, 40),
-  (250::numeric, 450, 250, 3, null,       false, '[]'::jsonb, 50),
-  (300::numeric, 600, 300, 3, null,       false, '[]'::jsonb, 60)
+  ( 50::numeric,  50, 0, 0, '首充双倍', true,  '[]'::jsonb, 10),
+  (100::numeric, 120, 0, 0, null,       false, '[]'::jsonb, 20),
+  (150::numeric, 200, 0, 0, null,       false, '[]'::jsonb, 30),
+  (200::numeric, 300, 0, 0, null,       false, '[]'::jsonb, 40),
+  (250::numeric, 450, 0, 0, null,       false, '[]'::jsonb, 50),
+  (300::numeric, 600, 0, 0, null,       false, '[]'::jsonb, 60)
 ) as v(price, coins, xp, draw_tickets, tag, first_only, gifts, sort_order)
 where not exists (select 1 from public.recharge_packages);
 

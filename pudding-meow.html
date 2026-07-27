@@ -3831,12 +3831,12 @@ function loadMyCoupons(){
 /* 充值套餐来自 recharge_packages 表（POS 会员运营 → 充值套餐维护），
    跟收银台的 Top up 同一份。表没建/离线就退回下面这份兜底，跟原来写死的六档一致。 */
 var RECHARGE_FALLBACK = [
-  {id:'f1', price:50,  coins:50,  xp:50,  draw_tickets:1, tag:'首充双倍', first_only:true,  gifts:[], enabled:true, sort_order:10},
-  {id:'f2', price:100, coins:120, xp:100, draw_tickets:1, tag:null, first_only:false, gifts:[], enabled:true, sort_order:20},
-  {id:'f3', price:150, coins:200, xp:150, draw_tickets:2, tag:null, first_only:false, gifts:[], enabled:true, sort_order:30},
-  {id:'f4', price:200, coins:300, xp:200, draw_tickets:2, tag:null, first_only:false, gifts:[], enabled:true, sort_order:40},
-  {id:'f5', price:250, coins:450, xp:250, draw_tickets:3, tag:null, first_only:false, gifts:[], enabled:true, sort_order:50},
-  {id:'f6', price:300, coins:600, xp:300, draw_tickets:3, tag:null, first_only:false, gifts:[], enabled:true, sort_order:60}
+  {id:'f1', price:50,  coins:50,  xp:0, draw_tickets:0, tag:'首充双倍', first_only:true,  gifts:[], enabled:true, sort_order:10},
+  {id:'f2', price:100, coins:120, xp:0, draw_tickets:0, tag:null, first_only:false, gifts:[], enabled:true, sort_order:20},
+  {id:'f3', price:150, coins:200, xp:0, draw_tickets:0, tag:null, first_only:false, gifts:[], enabled:true, sort_order:30},
+  {id:'f4', price:200, coins:300, xp:0, draw_tickets:0, tag:null, first_only:false, gifts:[], enabled:true, sort_order:40},
+  {id:'f5', price:250, coins:450, xp:0, draw_tickets:0, tag:null, first_only:false, gifts:[], enabled:true, sort_order:50},
+  {id:'f6', price:300, coins:600, xp:0, draw_tickets:0, tag:null, first_only:false, gifts:[], enabled:true, sort_order:60}
 ];
 var RECHARGE_PACKAGES = RECHARGE_FALLBACK.slice();
 function _rcGifts(p){ try{ return Array.isArray(p.gifts)?p.gifts:JSON.parse(p.gifts||'[]'); }catch(e){ return []; } }
