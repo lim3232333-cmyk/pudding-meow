@@ -914,7 +914,7 @@
   .dv-err.show{ display:block; }
 
   /* ===== 确认订单整页（Figma 434:195，购物车点「确认下单」后进入，页内「立即支付」才真正下单）===== */
-  .ck-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:#FFFFD5; z-index:345; display:none; flex-direction:column; gap:24px; align-items:center; padding:14px 0 95px; box-sizing:border-box; overflow-y:auto; font-family:"Noto Sans SC",sans-serif; }
+  .ck-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:#FFFFD5; z-index:345; display:none; flex-direction:column; gap:24px; align-items:center; padding:14px 0 20px; box-sizing:border-box; overflow-y:auto; font-family:"Noto Sans SC",sans-serif; }
   .ck-screen.show{ display:flex; }
   .ck-head{ position:relative; width:359px; height:24px; flex-shrink:0; }
   .ck-back{ position:absolute; left:0; top:0; width:24px; height:24px; cursor:pointer; }
@@ -956,7 +956,12 @@
   .ck-price-row{ display:flex; justify-content:space-between; align-items:center; font-size:14px; color:#4A4848; }
   .ck-price-row .neg{ color:var(--red); }
   .ck-price-row.total .val{ font-weight:700; }
-  .ck-paybtn{ position:fixed; left:50%; transform:translateX(-50%); bottom:20px; z-index:5; width:361px; max-width:calc(100% - 30px); height:45px; border:none; border-radius:12px; background:var(--red); color:#FFF; font-size:14px; font-weight:700; font-family:"Noto Sans SC",sans-serif; cursor:pointer; flex-shrink:0; box-shadow:0 4px 12px rgba(0,0,0,.2); }
+  /* 用 sticky 不用 fixed：父级 .ck-screen 带 transform，会成为 fixed 子元素的包含块，
+     按钮就不再钉在视口上、而是跟着内容一起滚，划到一半就卡住。
+     sticky 是相对滚动容器定位的，不吃这个亏。margin-top:auto 让内容短时它照样落在底部。
+     离底那 20px 由 .ck-screen 的 padding-bottom 出，所以这里 bottom:0——
+     写成 bottom:20px 会和 padding 叠加成 40px。 */
+  .ck-paybtn{ position:sticky; bottom:0; margin-top:auto; z-index:5; width:361px; max-width:calc(100% - 30px); height:45px; border:none; border-radius:12px; background:var(--red); color:#FFF; font-size:14px; font-weight:700; font-family:"Noto Sans SC",sans-serif; cursor:pointer; flex-shrink:0; box-shadow:0 4px 12px rgba(0,0,0,.2); }
 
   /* ===== 新收货地址整页（点＋新收货地址 → 会员存进地址簿/游客一次性）===== */
   .addr-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:359; display:none; }

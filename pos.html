@@ -166,12 +166,12 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 .ta-switch.on::after{left:auto;right:5.06%;}
 .ta-mode{display:none;}
 /* ── 收银台会员条（Figma 97:14）+ 控制栏 Voucher/Top up（99:282）── */
-.cart-mem{flex:1;min-height:0;padding:5px 9px;background:#FFF9C4;border-radius:10px;font-size:13px;line-height:1.4;color:#202055;overflow:hidden;}
+.cart-mem{flex:1;min-height:0;padding:5px 9px;background:#FFF9C4;border-radius:10px;font-size:13px;line-height:1.4;color:#202055;overflow:auto;}
 .cart-mem:empty{display:none;}
 .cart-mem .nm{font-weight:700;color:#202055;}
 .cart-mem .lv{font-weight:700;}
 .cart-mem .r{float:right;text-align:right;font-weight:700;}
-.cart-mem .warn{color:#8D0505;font-weight:700;}
+.cart-mem .warn{color:#8D0505;font-weight:700;display:block;font-size:11px;line-height:1.35;word-break:break-word;}
 .cf-disc{width:100%;box-sizing:border-box;padding:0 18px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#8D0505;font-weight:700;margin-bottom:3px;}
 .cf-disc-x{margin-left:8px;border:none;background:#F5E9D4;color:#8D0505;border-radius:6px;padding:1px 6px;font-size:11px;cursor:pointer;}
 .tu-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
@@ -1809,8 +1809,9 @@ function askPrint(yes){
       .catch(function(e){ console.error('rpc_on_order_completed',e); });
     // 券到这一步才正式核销——挂在购物车时不扣，中途取消不会白烧
     if(db && o.couponId) db.rpc('rpc_pos_use_coupon',{p_member_coupon_id:o.couponId,p_order_id:o.id})
-      .then(function(res){ if(res&&res.error) console.error('pos use coupon',res.error); })
-      .catch(function(e){ console.error('pos use coupon',e); });
+      // 核销失败要吭声：折扣已经给出去了，券却没扣掉，得让店员知道去补
+      .then(function(res){ if(res&&res.error){ console.error('rpc_pos_use_coupon:',res.error); showN('券核销失败：'+_rpcErr(res.error)); } })
+      .catch(function(e){ console.error('rpc_pos_use_coupon:',e); showN('券核销失败：'+_rpcErr(e)); });
     if(yes) printRec(o);
     // 清空购物车
     cart=[];selIdx=-1;
@@ -2109,23 +2110,51 @@ function reprO(id){var o=_orders.find(function(x){return x.id===id;});if(o)print
    原本 POS 单从不设 member_id，柜台消费不累积 XP/Coin（markPaid 里是
    if(o.memberId) 才结算）。输入电话绑定会员后这个洞就补上了。 */
 var _posMember=null;
+/* 把 Supabase 的报错原样显示出来，别再吞成一句「查询失败」——
+   最常见的两种（函数没建、PostgREST 接口缓存没刷新）光看那句话根本查不出来。 */
+function _rpcErr(e){
+  if(!e) return '未知错误';
+  var msg=e.message||e.error_description||e.hint||String(e);
+  var code=e.code||'';
+  // 只认「函数不存在」这一种；列不存在、表不存在也会说 does not exist，别一并套上这句提示
+  if(code==='PGRST202' || /schema cache|could not find the function|function .* does not exist/i.test(msg)){
+    return '数据库里没有这个函数：请在 Supabase SQL Editor 跑一次 supabase-pos-member.sql，'
+      +'跑完再执行 select pg_notify(\'pgrst\',\'reload schema\'); 刷新接口缓存';
+  }
+  return msg+(code?('（'+code+'）'):'');
+}
+/* 收银机多半是平板，开不了开发者工具，所以把原始报错存下来、点一下就 alert 出来。
+   alert 里的文字可以长按复制，不用 Console 也能把完整错误发出来。 */
+var _posLastErr=null;
+function posShowErr(){
+  if(!_posLastErr){ showN('没有待查看的报错'); return; }
+  var e=_posLastErr;
+  alert('调用 rpc_pos_find_member 的原始报错：\n\n'
+    +'message: '+(e.message||'(无)')+'\n'
+    +'code:    '+(e.code||'(无)')+'\n'
+    +'details: '+(e.details||'(无)')+'\n'
+    +'hint:    '+(e.hint||'(无)')+'\n\n'
+    +JSON.stringify(e));
+}
 function posFindMember(){
   var raw=(document.getElementById('ctCustomer').value||'').trim();
   var digits=raw.replace(/\D/g,'');
-  if(!digits){ _posMember=null; _renderPosMember(); return; }
-  if(!db){ _posMember=null; _renderPosMember('未连接云端，无法查会员'); return; }
+  if(!digits){ _posMember=null; _posLastErr=null; _renderPosMember(); return; }
+  if(!db){ _posMember=null; _posLastErr=null; _renderPosMember('未连接云端，无法查会员'); return; }
   db.rpc('rpc_pos_find_member',{p_phone:digits}).then(function(res){
-    if(res.error){ _posMember=null; _renderPosMember('查询失败'); return; }
+    if(res.error){ _posMember=null; _posLastErr=res.error; console.error('rpc_pos_find_member:',res.error); _renderPosMember(_rpcErr(res.error)); return; }
+    _posLastErr=null;
     _posMember=(res.data&&res.data[0])||null;
     _renderPosMember(_posMember?null:'非会员（该号码未注册）');
-  }).catch(function(e){ _posMember=null; _renderPosMember('网络错误'); });
+  }).catch(function(e){ _posMember=null; _posLastErr=e; console.error('rpc_pos_find_member:',e); _renderPosMember(_rpcErr(e)); });
 }
 function _renderPosMember(msg){
   var bar=document.getElementById('ctMemberBar');
   var badge=document.getElementById('ctVoucherBadge');
   if(!bar) return;
   if(!_posMember){
-    bar.innerHTML=msg?('<span class="warn">'+esc(msg)+'</span>'):'';
+    bar.innerHTML=msg?('<span class="warn" onclick="posShowErr()">'+esc(msg)
+      +(_posLastErr?'<u style="display:block;margin-top:2px">▸ 点这里看完整报错</u>':'')+'</span>'):'';
     if(badge) badge.style.display='none';
     return;
   }
@@ -2151,10 +2180,12 @@ function posOpenVoucher(){
   document.getElementById('pvBody').innerHTML='<div style="text-align:center;padding:30px;color:#4A4848">加载中…</div>';
   document.getElementById('pvBg').classList.add('show');
   db.rpc('rpc_pos_member_coupons',{p_member_id:_posMember.id}).then(function(res){
-    if(res.error){ document.getElementById('pvBody').innerHTML='<div style="padding:20px;color:#8D0505">读取失败</div>'; return; }
+    if(res.error){ console.error('rpc_pos_member_coupons:',res.error);
+      document.getElementById('pvBody').innerHTML='<div style="padding:20px;color:#8D0505">读取失败：'+esc(_rpcErr(res.error))+'</div>'; return; }
     _posVouchers=res.data||[];
     _renderPosVoucher(_posVouchers);
-  }).catch(function(e){ document.getElementById('pvBody').innerHTML='<div style="padding:20px;color:#8D0505">网络错误</div>'; });
+  }).catch(function(e){ console.error('rpc_pos_member_coupons:',e);
+    document.getElementById('pvBody').innerHTML='<div style="padding:20px;color:#8D0505">读取失败：'+esc(_rpcErr(e))+'</div>'; });
 }
 function closePosVoucher(){ document.getElementById('pvBg').classList.remove('show'); }
 var _posVouchers=[];
@@ -2275,11 +2306,11 @@ function posDoTopup(){
   var p=POS_TOPUP_PKGS[_tuSel];
   if(!confirm('确认已收到顾客 RM'+p.price+'？\n确认后立即为其钱包到账 RM'+p.price+' + '+p.bonus+' Coin。')) return;
   db.rpc('rpc_pos_topup',{p_member_id:_posMember.id,p_price:p.price,p_bonus_coins:p.bonus,p_note:'POS 柜台充值'}).then(function(res){
-    if(res.error){ showN(''+res.error.message); return; }
+    if(res.error){ console.error('rpc_pos_topup:',res.error); showN(_rpcErr(res.error)); return; }
     showN('✓ 已到账，余额 RM '+Number(res.data).toFixed(2));
     closePosTopup();
     posFindMember();   // 刷新会员条
-  }).catch(function(e){ showN('网络错误'); });
+  }).catch(function(e){ console.error('rpc_pos_topup:',e); showN(_rpcErr(e)); });
 }
 
 /* ── DELIVERY / 叫 Lalamove 骑手 ── */
