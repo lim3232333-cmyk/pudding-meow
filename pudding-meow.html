@@ -270,12 +270,14 @@
   /* 图标：默认坐在胶囊左侧、略高于条（上下各探出一点）；空态时居中在圆里 */
   /* 吉祥物 63.45×70，往左探出胶囊 13px、往上探出 5px（Figma 586:678）。
      右边缘落在 50.45，正好让开 52 的左内边距——不然会压到「RM xx.xx」 */
-  .cartbtn-ico{ position:absolute; left:-13px; top:-5px; width:63.45px; height:70px; z-index:2; pointer-events:none; }
-  .cartbtn-ico-img{ height:70px; width:auto; display:block; margin:0 auto; }
+  /* 盒子宽度跟着图走（不写死 63.45、也不居中）——角标是这个盒子的子元素，
+     盒子一比图宽，角标就按盒子左边算，会落到袋子印花上去 */
+  .cartbtn-ico{ position:absolute; left:-13px; top:-5px; width:auto; height:70px; z-index:2; pointer-events:none; }
+  .cartbtn-ico-img{ height:70px; width:auto; display:block; }
   .cartbtn.s-empty .cartbtn-ico{ left:50%; top:50%; transform:translate(-50%,-50%); width:auto; height:auto; }
   .cartbtn.s-empty .cartbtn-ico-img{ height:50px; }
   .cartbtn-badge{
-    position:absolute; top:-5px; left:7px; z-index:3; min-width:15px; height:15px; padding:0 2px; box-sizing:border-box;
+    position:absolute; top:2px; left:2px; z-index:3; min-width:15px; height:15px; padding:0 2px; box-sizing:border-box;
     background:var(--blue); color:var(--red); border-radius:999px; font-size:10px; font-weight:700; line-height:1;
     display:flex; align-items:center; justify-content:center;
   }
