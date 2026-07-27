@@ -172,7 +172,10 @@
   /* 菜单页随文档滚动：header/分类栏用 sticky 吸顶/吸边，商品列在文档里正常流动 */
   #screen-menu{ background:var(--cream2); --menuHeaderH:78px; }
   /* ===== 点单页头（Figma 547:1199）：红底，第一行 模式胶囊+搜索，第二行 桌位/模式信息 ===== */
-  .menu-header{ position:sticky; top:0; z-index:20; background:var(--red); display:flex; flex-direction:column; gap:8px; padding:8px 16px; flex-shrink:0; }
+  /* Figma 547:1199 是 h-80 + overflow-clip：8+40+8+19+8=83 装进 80，它自己裁掉了 3px。
+     这里改成上下 6.5 的内边距，单行时正好 80、一像素不差，又不用裁；
+     外卖模式地址长了要折行，所以是 min-height 不是写死 height（写死就把第二行切没了）*/
+  .menu-header{ position:sticky; top:0; z-index:20; background:var(--red); display:flex; flex-direction:column; justify-content:center; gap:8px; padding:6.5px 16px; min-height:80px; box-sizing:border-box; flex-shrink:0; }
   .menu-h-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
   .menu-seg{ display:flex; align-items:center; gap:8px; width:200px; height:40px; background:var(--cream2); border-radius:32px; padding:4px; }
   /* 选中那格比未选的矮 3px（Figma 548:160 高 32、548:159/157 高 35），不是笔误，蓝胶囊本来就略收一点 */
@@ -184,9 +187,26 @@
   .menu-seg button .cn{ font-weight:700; font-size:12px; line-height:15px; }
   .menu-seg button .en{ font-weight:500; font-size:8px; line-height:10px; }
   .menu-seg button.active{ background:var(--blue); height:32px; }
-  .menu-search{ width:24px; height:24px; color:var(--cream2); cursor:pointer; flex-shrink:0; }
+  /* 搜索（Figma 843:918 双态）：收起只有 24px 图标；点一下往左展开成白色胶囊。
+     右边缘定住、宽度变长，所以是「往左长出来」而不是整体平移。 */
+  .menu-search{
+    flex-shrink:0; box-sizing:border-box; display:flex; align-items:center; justify-content:flex-end; gap:8px;
+    width:24px; height:32px; padding:0; border-radius:999px; background:transparent; overflow:hidden;
+    transition:width .25s cubic-bezier(.4,0,.2,1), padding .25s cubic-bezier(.4,0,.2,1), background-color .25s;
+  }
+  .menu-search.open{ width:150px; padding:0 16px; background:#fff; box-shadow:0 0 2px rgba(217,217,217,.5); }
+  .menu-search svg{ width:24px; height:24px; flex-shrink:0; color:var(--cream2); cursor:pointer; transition:color .25s; }
+  .menu-search.open svg{ color:var(--red); }
+  .menu-search input{
+    flex:1; min-width:0; width:0; border:none; outline:none; background:transparent; padding:0;
+    font-family:"Noto Sans SC",sans-serif; font-weight:400; font-size:10px; line-height:normal; color:#4a4848;
+  }
+  .menu-search input::placeholder{ color:#4a4848; opacity:1; }
+  .menu-search input::-webkit-search-cancel-button{ -webkit-appearance:none; }
+  .menu-search:not(.open) input{ display:none; }
+  .search-empty{ padding:40px 16px; text-align:center; font-size:13px; color:var(--muted); }
   /* 长地址要能折行，所以是 min-height 不是写死 height；页头一变高，--menuHeaderH 由 _syncMenuHeaderH() 实测同步 */
-  .menu-tableinfo{ display:flex; gap:8px; align-items:center; min-height:19px; color:var(--cream2); }
+  .menu-tableinfo{ display:flex; gap:8px; align-items:center; width:251px; max-width:100%; min-height:19px; color:var(--cream2); }
   .menu-tableinfo svg{ width:18px; height:18px; flex-shrink:0; }
   .menu-tableinfo span{ font-weight:500; font-size:10px; line-height:normal; }
 
@@ -1181,7 +1201,11 @@
           <button data-mode="pickup" onclick="setMenuMode(this)"><span class="cn">自取</span><span class="en">Pick-Up</span></button>
           <button data-mode="delivery" onclick="setMenuMode(this)"><span class="cn">外卖</span><span class="en">Delivery</span></button>
         </div>
-        <svg class="menu-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" onclick="alert('搜索功能即将开放，敬请期待')"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        <div class="menu-search" id="menuSearch">
+          <input id="menuSearchInput" type="search" placeholder="请输入商品" autocomplete="off"
+                 oninput="onSearchInput(this.value)" onkeydown="if(event.key==='Escape')closeSearch()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" onclick="toggleSearch()"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        </div>
       </div>
       <div class="menu-tableinfo" id="menuTableInfo">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
@@ -2638,7 +2662,8 @@ function renderCats(){
     const d = document.createElement('div');
     d.className ='cat-item' + (key===activeCat ?' active':'');
     d.innerHTML = `<span class="cn">${menu[key].cn}</span><span class="en">${menu[key].en}</span>`;
-    d.onclick = ()=>{ activeCat = key; renderCats(); renderItems(); };
+    // 点分类顺手退出搜索：搜索结果是跨分类的，留着它左边选谁都没反应，像坏了
+    d.onclick = ()=>{ activeCat = key; if(_searchQ) closeSearch(); renderCats(); renderItems(); };
     list.appendChild(d);
   });
 }
@@ -2682,10 +2707,54 @@ function _subBodyEl(cat, idxs, loose){
 
 /* 分类里的商品按子分类分段显示（Figma 841:906）：没挂子分类的散货排最前、不带标题条，
    之后每个子分类一条浅蓝标题条 +一段商品。分类下压根没有子分类时，就是一整段，跟以前一样。 */
+/* ---------- 搜索（Figma 843:918）：收起只是个图标，点一下往左展开成输入框 ---------- */
+var _searchQ='';
+function toggleSearch(){
+  var box=document.getElementById('menuSearch');
+  if(box.classList.contains('open')){ closeSearch(); return; }
+  box.classList.add('open');
+  // 等展开动画走完再聚焦，否则 iOS 会把还只有 24px 宽的框滚进视野、页面抖一下
+  setTimeout(function(){ var i=document.getElementById('menuSearchInput'); if(i) i.focus(); }, 260);
+}
+function closeSearch(){
+  var box=document.getElementById('menuSearch'); if(!box) return;
+  box.classList.remove('open');
+  var inp=document.getElementById('menuSearchInput'); if(inp){ inp.value=''; inp.blur(); }
+  if(_searchQ){ _searchQ=''; renderItems(); }
+}
+function onSearchInput(v){ _searchQ=String(v||'').trim().toLowerCase(); renderItems(); }
+/* 搜的是整份菜单，不只当前分类——顾客记得「抹茶」但未必记得它挂在哪一类下。
+   命中的行照样按 (分类, 原始下标) 取，加购路径跟平时一模一样。 */
+function _searchHits(){
+  var out=[];
+  Object.keys(menu).forEach(function(c){
+    (menu[c].items||[]).forEach(function(it, idx){
+      var hay=((it.name||'')+' '+(it.en||'')+' '+(it.desc||'')).toLowerCase();
+      if(hay.indexOf(_searchQ)>=0) out.push({cat:c, idx:idx});
+    });
+  });
+  return out;
+}
+function _renderSearchResults(list){
+  var hits=_searchHits();
+  if(!hits.length){ list.innerHTML='<div class="search-empty">没有找到「'+_searchQ+'」相关的商品</div>'; return; }
+  var byCat={}, order=[];
+  hits.forEach(function(h){ if(!byCat[h.cat]){ byCat[h.cat]=[]; order.push(h.cat); } byCat[h.cat].push(h.idx); });
+  order.forEach(function(c){
+    var g=document.createElement('div'); g.className='sub-group';
+    var t=document.createElement('div'); t.className='sub-title';
+    var en=(menu[c].en && menu[c].en!==menu[c].cn) ? ' '+String(menu[c].en).toUpperCase() :'';
+    t.innerHTML='<span>'+menu[c].cn+en+'</span>';
+    g.appendChild(t); g.appendChild(_subBodyEl(c, byCat[c], false));
+    list.appendChild(g);
+  });
+}
+
 function renderItems(){
   const list = document.getElementById('itemList');
   if(!list) return;
   list.innerHTML='';
+  if(_searchQ){ _renderSearchResults(list); return; }
   const cat = menu[activeCat];
   if(!cat) return;
   const items = cat.items || [];
