@@ -264,15 +264,20 @@
   /* 三个尺寸取自 Figma 586:763：空 70×70 圆、加购 145×56 胶囊、展开 361×56 */
   .cartbtn.s-empty{ width:70px; height:70px; min-width:0; padding:0; border-radius:50%; justify-content:center; }
   .cartbtn.s-items{ width:145px; }
-  /* 面板打开：大条落到面板底部当"底栏"，商品在它上面滚 */
-  .cartbtn.s-open{ width:361px; bottom:20px; }
+  /* 面板打开：大条落到面板底部当"底栏"，商品在它上面滚。
+     离屏底 28 = Figma 33:44 面板的 pb-28（按钮是面板最后一个子元素） */
+  .cartbtn.s-open{ width:361px; bottom:28px; }
   .cartbtn.hidden{ display:none; }   /* 开产品详情弹窗时隐藏 */
   /* 图标：默认坐在胶囊左侧、略高于条（上下各探出一点）；空态时居中在圆里 */
   /* 吉祥物 63.45×70，往左探出胶囊 13px、往上探出 5px（Figma 586:678）。
      右边缘落在 50.45，正好让开 52 的左内边距——不然会压到「RM xx.xx」 */
-  /* 盒子宽度跟着图走（不写死 63.45、也不居中）——角标是这个盒子的子元素，
-     盒子一比图宽，角标就按盒子左边算，会落到袋子印花上去 */
-  .cartbtn-ico{ position:absolute; left:-13px; top:-5px; width:auto; height:70px; z-index:2; pointer-events:none; }
+  /* left 必须是 0，不是稿子上写的 -13：Figma 那个 63.45 宽的外框左边有 13px 空白，
+     画面从 +13 才开始，所以框放 -13 时**可见部分**正好落在胶囊左边缘。我们这张 SVG
+     没有那段空白、画面填满整张图，照抄 -13 就真探出去 13px，胶囊本身已经距屏幕 16，
+     再减 13 只剩 3——整颗按钮就贴边了。放 0：画面占 0~51，也不会压到 52 处的价格。
+     盒子宽度跟着图走（不写死、也不居中）——角标是这个盒子的子元素，
+     盒子一比图宽，角标就按盒子左边算，会偏到纸盒印花中间去 */
+  .cartbtn-ico{ position:absolute; left:0; top:-5px; width:auto; height:70px; z-index:2; pointer-events:none; }
   .cartbtn-ico-img{ height:70px; width:auto; display:block; }
   .cartbtn.s-empty .cartbtn-ico{ left:50%; top:50%; transform:translate(-50%,-50%); width:auto; height:auto; }
   .cartbtn.s-empty .cartbtn-ico-img{ height:50px; }
