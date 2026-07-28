@@ -277,8 +277,11 @@
      再减 13 只剩 3——整颗按钮就贴边了。放 0：画面占 0~51，也不会压到 52 处的价格。
      盒子宽度跟着图走（不写死、也不居中）——角标是这个盒子的子元素，
      盒子一比图宽，角标就按盒子左边算，会偏到纸盒印花中间去 */
-  .cartbtn-ico{ position:absolute; left:0; top:-5px; width:auto; height:70px; z-index:2; pointer-events:none; }
-  .cartbtn-ico-img{ height:70px; width:auto; display:block; }
+  /* 高度取 61 不是 70：那个 70 是外框，框顶还有 9px 空白，画面只有 61 高
+     （-6 到 55，正好和 56 的胶囊底齐平）。按 70 放会连宽度一起放大到 51，
+     右边就顶到 52 处的价格上；61 高对应 44 宽，留出 8px 喘气 */
+  .cartbtn-ico{ position:absolute; left:0; top:-6px; width:auto; height:61px; z-index:2; pointer-events:none; }
+  .cartbtn-ico-img{ height:61px; width:auto; display:block; }
   .cartbtn.s-empty .cartbtn-ico{ left:50%; top:50%; transform:translate(-50%,-50%); width:auto; height:auto; }
   .cartbtn.s-empty .cartbtn-ico-img{ height:50px; }
   .cartbtn-badge{
