@@ -280,10 +280,11 @@
   /* 高度取 61 不是 70：那个 70 是外框，框顶还有 9px 空白，画面只有 61 高
      （-6 到 55，正好和 56 的胶囊底齐平）。按 70 放会连宽度一起放大到 51，
      右边就顶到 52 处的价格上；61 高对应 44 宽，留出 8px 喘气 */
-  .cartbtn-ico{ position:absolute; left:0; top:-6px; width:auto; height:61px; z-index:2; pointer-events:none; }
-  .cartbtn-ico-img{ height:61px; width:auto; display:block; }
+  /* 定宽 44：价格文字从 52 开始，44 + 8 = 52，间距就是写死的 8，不靠高度换算出来 */
+  .cartbtn-ico{ position:absolute; left:0; top:-6px; width:auto; height:auto; z-index:2; pointer-events:none; }
+  .cartbtn-ico-img{ width:44px; height:auto; display:block; }
   .cartbtn.s-empty .cartbtn-ico{ left:50%; top:50%; transform:translate(-50%,-50%); width:auto; height:auto; }
-  .cartbtn.s-empty .cartbtn-ico-img{ height:50px; }
+  .cartbtn.s-empty .cartbtn-ico-img{ height:50px; width:auto; }   /* 空态按高度走，得把定宽解掉，不然会压扁 */
   .cartbtn-badge{
     position:absolute; top:2px; left:2px; z-index:3; min-width:15px; height:15px; padding:0 2px; box-sizing:border-box;
     background:var(--blue); color:var(--red); border-radius:999px; font-size:10px; font-weight:700; line-height:1;
