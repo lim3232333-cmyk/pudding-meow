@@ -612,9 +612,11 @@
   .mem-mini-row{ display:flex; gap:16px; margin-top:12px; align-items:stretch; }
   .mem-mini-card{ background:#FFFFEA; border:1px solid #F5E9D4; border-radius:12px; padding:8px; min-width:0;
     height:115px; box-sizing:border-box; display:flex; flex-direction:column; gap:12px; }
-  /* 136+16+209=361，可手机内容宽只有 358（390 减两边 16），差 3px。
-     让内容固定的那张（三行文字）守住 136，剩下的给签到卡吸收，比按比例缩两张都不准强 */
-  .mem-mini-card.wk{ flex:0 0 136px; }
+  /* 按稿子的比例分，不写死像素：136 : 209（间距 16 先扣掉再分）。
+     这样 390 的容器、更窄的手机、甚至以后容器改成 393，两张卡的比例都跟稿子一致。
+     不能用 flex:136 1 0 / flex:209 1 0——flex-grow 分的是「剩余空间」不是总宽，
+     两张卡的最终比例会被各自的内容撑出来的基础宽度带偏。 */
+  .mem-mini-card.wk{ flex:0 0 calc((100% - 16px) * 136 / 345); }
   .mem-mini-card.ci{ flex:1 1 0; }
   /* 每周任务（Figma 227:128） */
   .wk-head{ display:flex; flex-direction:column; gap:4px; }
