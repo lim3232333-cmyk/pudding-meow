@@ -1410,7 +1410,7 @@
             </div>
             <div class="mem-name" id="memName">—</div>
             <span class="mem-level-pill" id="memLevelPill"><span id="memLevelNum"></span><span id="memLevelName"></span></span>
-            <div class="mem-xp-label" onclick="openMemberDetail()" style="cursor:pointer">成长值</div>
+            <div class="mem-xp-label">成长值</div>
             <div class="mem-xp-count" id="memXpNow">0/0 XP</div>
             <div class="mem-xpbar"><i id="memXpBar" style="width:0%"></i></div>
             <div class="mem-xp-next" id="memXpNext"></div>
@@ -1470,10 +1470,6 @@
           <div class="mem-promo-text">生日周享双倍快乐！</div>
 </div>
 
-        <div class="mem-coupon-card">
-          <div class="mem-coupon-head"><h4>我的优惠券</h4></div>
-          <div class="mem-coupon-list" id="memCouponList"></div>
-</div>
         <button class="mem-logout" onclick="memberLogout()">退出登录</button>
 </div>
 </div>
@@ -4270,6 +4266,7 @@ function loadMyCoupons(){
     var countEl = document.getElementById('memCouponCount');
     if(countEl) countEl.textContent = list.filter(function(c){ return c.status==='unused'; }).length;
     var box = document.getElementById('memCouponList');
+    if(!box) return;   // 「我的优惠券」那块已删，只更新会员卡上的张数就够了
     if(!list.length){
       box.innerHTML ='<div class="mem-coupon-empty">暂无优惠券</div>';
       return;
