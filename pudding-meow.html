@@ -1951,11 +1951,23 @@ function switchTab(tab){
     loadOrdersFromCloud().then(function(){ try{ renderOrdersList(); }catch(e){} });
   }
   if(tab==='profile'){ try{ renderProfileScreen(); }catch(e){} }
+  // 没在首页选过用餐方式就直接点「点单」的，先把当前方式的弹窗顶出来。
+  // 不然默认落在堂食、桌号却是空的，顾客能一路下单，厨房不知道送哪桌。
+  if(tab==='menu' && !_modeChosen) setTimeout(promptModeIfNeeded, 80);
   window.scrollTo(0,0);
 }
 
 /* ---------- home mode select ---------- */
 let currentMode ='dinein';
+/* 用餐方式是否真的"定"过了：首页点过卡片、或在弹窗里确认过桌号/地址。
+   currentMode 有默认值（dinein），光看它区分不出"顾客选的"还是"默认的"。 */
+var _modeChosen = false;
+function promptModeIfNeeded(){
+  if(_modeChosen) return;
+  if(currentMode==='dinein'){ openDine(); return; }        // 堂食：要桌号+人数
+  if(currentMode==='delivery'){ openDelivery(); return; }  // 外卖：要地址+运费
+  _modeChosen = true;                                      // 自取不需要额外信息
+}
 function selectMode(el){
   document.querySelectorAll('.hc-card').forEach(c=>c.classList.remove('active'));
   el.classList.add('active');
@@ -1963,6 +1975,7 @@ function selectMode(el){
   refilterMenuForMode();
   if(currentMode==='dinein'){ openDine(); return; }       // 堂食先选座号+人数
   if(currentMode==='delivery'){ openDelivery(); return; } // 外卖先填地址+算运费
+  _modeChosen = true;                                     // 自取：没有别的要填，选了就算定了
   setTimeout(()=>{
     switchTab('menu');
     syncMenuMode();
@@ -2009,6 +2022,7 @@ function confirmDine(){
   currentMode='dinein';
   refilterMenuForMode();
   _dineInfo={table:dineTable, pax:dinePax};
+  _modeChosen = true;
   closeDine();
   setTimeout(()=>{ switchTab('menu'); syncMenuMode(); }, 60);
 }
@@ -2186,6 +2200,7 @@ function setMenuMode(el){
   document.querySelectorAll('#seg button').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
   currentMode = el.dataset.mode;
+  _modeChosen = true;
   refilterMenuForMode();
   updateMenuTableInfo();
 }
@@ -2370,6 +2385,7 @@ function confirmDelivery(){
     fee:_dvQuote?_dvCustomerFee(_dvQuote.total):0, currency:(_dvQuote&&_dvQuote.currency)||'MYR', quotationId:(_dvQuote&&_dvQuote.quotationId)||null,
     addressId:a.id||null
   };
+  _modeChosen = true;
   var backToCheckout=_dvFromCheckout;
   closeDelivery();
   if(backToCheckout){ renderCheckout(); return; }   // 从结算页铅笔进来的：留在结算页，刷新地址和金额
@@ -2864,6 +2880,15 @@ function _pmGotoPay(url){ location.href = url; }   // 跳去外部收银页；�
 /* ---------- 确认订单整页（Figma 434:195）：购物车「确认下单」→ 本页，「立即支付」→ confirmOrder ---------- */
 function openCheckout(){
   if(!Object.keys(cart).length) return;
+  // 弹窗是可以关掉的，关掉照样能加购物车。所以这里再拦一道：堂食没桌号就结算，
+  // 单子上的桌号是空的，厨房不知道端去哪一桌——先把选桌弹窗顶出来。
+  if(currentMode==='dinein' && !_dineInfo){
+    document.getElementById('cartSheet').classList.remove('show');
+    document.getElementById('cartOverlay').classList.remove('show');
+    updateCartBadge();
+    openDine();
+    return;
+  }
   document.getElementById('cartSheet').classList.remove('show');
   renderCheckout();
   document.getElementById('ckScreen').classList.add('show');
