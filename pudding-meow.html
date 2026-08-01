@@ -611,10 +611,12 @@
      加起来 361 = 390 减掉两边 16 的留白，所以用 flex 比例还原，窄屏也不会溢出 */
   .mem-mini-row{ display:flex; gap:16px; margin-top:12px; align-items:stretch; }
   .mem-mini-card{ background:#FFFFEA; border:1px solid #F5E9D4; border-radius:12px; padding:8px; min-width:0;
-    display:flex; flex-direction:column; gap:12px; }
-  /* 136+16+209=361，可手机内容宽只有 358（390 减两边 16），差 3px。
-     让内容固定的那张（三行文字）守住 136，剩下的给签到卡吸收，比按比例缩两张都不准强 */
-  .mem-mini-card.wk{ flex:0 0 136px; }
+    height:115px; box-sizing:border-box; display:flex; flex-direction:column; gap:12px; }
+  /* 按稿子的比例分，不写死像素：136 : 209（间距 16 先扣掉再分）。
+     这样 390 的容器、更窄的手机、甚至以后容器改成 393，两张卡的比例都跟稿子一致。
+     不能用 flex:136 1 0 / flex:209 1 0——flex-grow 分的是「剩余空间」不是总宽，
+     两张卡的最终比例会被各自的内容撑出来的基础宽度带偏。 */
+  .mem-mini-card.wk{ flex:0 0 calc((100% - 16px) * 136 / 345); }
   .mem-mini-card.ci{ flex:1 1 0; }
   /* 每周任务（Figma 227:128） */
   .wk-head{ display:flex; flex-direction:column; gap:4px; }
@@ -625,9 +627,11 @@
   .wk-row span{ font-size:10px; font-weight:400; color:var(--red); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .wk-box{ width:10px; height:10px; border-radius:2px; background:var(--yellow); flex-shrink:0; }
   .wk-box svg{ width:10px; height:10px; display:block; }
+  .wk-list{ display:flex; flex-direction:column; gap:12px; }
   .wk-empty{ font-size:10px; color:var(--muted); }
   .mem-mini-title{ font-size:12px; font-weight:500; color:var(--red); }
-  .mem-mini-divider{ height:1px; background:#F5E9D4; margin:4px 0; }
+  .ci-head{ display:flex; flex-direction:column; gap:4px; }
+  .mem-mini-divider{ height:1px; background:#F5E9D4; margin:0; }
   .mem-mini-streak{ font-size:8px; color:var(--red); }
   .mem-mini-streak b{ font-size:10px; }
   .mem-ref-code-box{ margin-top:12px; background:#F5E9D4; border-radius:8px; height:32px; display:flex; align-items:center; justify-content:center; gap:6px; }
@@ -637,7 +641,9 @@
   .mem-mini-head{ display:flex; align-items:flex-start; justify-content:space-between; }
   .mem-ci-info{ width:12.5px; height:12.5px; padding:0; border:none; background:transparent; cursor:pointer; line-height:0; flex-shrink:0; }
   .mem-ci-info svg{ width:12.5px; height:12.5px; display:block; }
-  .mem-checkin-days{ display:flex; gap:8px; margin-top:12px; }
+  .mem-checkin-days{ display:flex; gap:8px; justify-content:space-between; flex-shrink:0; }
+  .mem-checkin-days > *{ width:20px; height:20px; flex-shrink:0; }
+  .mem-checkin-days svg, .mem-checkin-days img{ width:20px; height:20px; display:block; }
   .mem-ci-dot{ width:15px; height:15px; flex-shrink:0; display:block; }
   .mem-ci-dot.pending{ opacity:.38; }             /* 还没到的日子淡一点，跟已签到区分开 */
   .mem-ci-dot.today{ outline:1.5px solid var(--red); outline-offset:1px; border-radius:50%; }
@@ -655,7 +661,7 @@
   .ci-modal li b{ font-weight:700; }
   .ci-close{ position:absolute; right:-12px; top:-12px; width:24px; height:24px; padding:0; border:none; background:transparent; cursor:pointer; line-height:0; }
   .ci-close svg{ width:24px; height:24px; display:block; }
-  .mem-mini-checkin-btn{ width:100%; height:25px; background:var(--red); color:var(--cream2); border:none; border-radius:999px; font-weight:500; font-size:12px; margin-top:12px; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }
+  .mem-mini-checkin-btn{ width:100%; flex:1 0 0; min-height:0; background:var(--red); color:var(--cream2); border:none; border-radius:999px; font-weight:500; font-size:12px; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }
   .mem-mini-checkin-btn:disabled{ opacity:.5; cursor:default; }
 
   /* ---- 积分商城 / 幸运抽奖 图标格 ---- */
@@ -1450,9 +1456,10 @@
               <div class="wk-head-row"><span>每周任务</span><span class="wk-pct" id="wkPct">0%</span></div>
               <div class="mem-mini-divider" style="margin:0"></div>
             </div>
-            <div id="wkList"></div>
+            <div class="wk-list" id="wkList"></div>
 </div>
           <div class="mem-mini-card ci">
+            <div class="ci-head">
             <div class="mem-mini-head">
               <div class="mem-mini-title">每日签到</div>
               <button class="mem-ci-info" onclick="openCheckinRules()" aria-label="签到规则">
@@ -1461,6 +1468,7 @@
 </div>
             <div class="mem-mini-divider"></div>
             <div class="mem-mini-streak" id="memStreakLbl">已连续签到 0 天</div>
+</div>
             <div class="mem-checkin-days" id="memCheckinDays"></div>
             <button class="mem-mini-checkin-btn" id="memCheckinBtn" onclick="memberCheckin()">签到</button>
 </div>
