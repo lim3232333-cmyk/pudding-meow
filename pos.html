@@ -1175,6 +1175,40 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
 </div>
 </div>
 
+<!-- WEEKLY TASK MODAL — 每周任务：文案 / 统计口径 / 目标值 -->
+<div class="modal-bg" id="wkBg" onclick="if(event.target===this)closeWk()">
+  <div class="mm-box">
+    <div class="mm-hd"><h3 id="wkTitle">新增任务</h3><button class="mm-cl" onclick="closeWk()">✕</button></div>
+    <div class="mm-body">
+      <label class="mfl">顾客看到的文案 *</label><input class="mfi" id="wkName" placeholder="如：消费 2 次">
+      <label class="mfl">统计什么 *</label>
+      <select class="mfi" id="wkCode">
+        <option value="checkin_streak">本周连续签到（天）</option>
+        <option value="order_count">完成订单（单）</option>
+        <option value="spend_amount">累计消费（RM）</option>
+      </select>
+      <label class="mfl">目标值 *</label><input class="mfi" id="wkTarget" type="number" step="0.01" placeholder="2">
+      <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="wkEnabled" checked style="width:auto;margin:0;"> 启用</label>
+      <button class="mfs" onclick="saveWk()">保存 Save</button>
+</div>
+</div>
+</div>
+
+<!-- WEEKLY REWARD MODAL — 全部完成后发什么 -->
+<div class="modal-bg" id="wkrBg" onclick="if(event.target===this)closeWkr()">
+  <div class="mm-box">
+    <div class="mm-hd"><h3>全部完成后的奖励</h3><button class="mm-cl" onclick="closeWkr()">✕</button></div>
+    <div class="mm-body">
+      <div class="mfh" style="margin-top:0;">一周内把全部启用的任务做完，发一次；下周重新开始</div>
+      <label class="mfl">Paw Coins</label><input class="mfi" id="wkrCoin" type="number" step="1" placeholder="0">
+      <label class="mfl">成长值 XP</label><input class="mfi" id="wkrXp" type="number" step="1" placeholder="0">
+      <label class="mfl">幸运抽奖次数</label><input class="mfi" id="wkrTk" type="number" step="1" placeholder="0">
+      <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="wkrEnabled" checked style="width:auto;margin:0;"> 启用</label>
+      <button class="mfs" onclick="saveWkr()">保存 Save</button>
+</div>
+</div>
+</div>
+
 <!-- REFERRAL RULE MODAL — 邀请裂变：两个固定阶段（注册/首单）各自的奖励数值 -->
 <div class="modal-bg" id="refBg" onclick="if(event.target===this)closeRef()">
   <div class="mm-box">
@@ -2879,7 +2913,7 @@ function setLoyaltyTab(t){_loyaltyTab=t;renderLoyaltyAdmin();}
 function renderLoyaltyAdmin(){
   var el=document.getElementById('adminContent');
   if(!db){el.innerHTML='<div class="page-title">会员运营 Loyalty</div><div style="padding:30px;color:#8D0505">未连接云端（Supabase 未配置或离线），无法管理会员系统。</div>';return;}
-  var tabs=[['members','会员列表'],['levels','等级设置'],['xp','成长值规则'],['coin','金币规则'],['checkin','签到奖励'],['referrals','邀请规则'],['coupons','优惠券管理'],['draw','幸运抽奖'],['topup','充值套餐'],['wallet','储值规则']];
+  var tabs=[['members','会员列表'],['levels','等级设置'],['xp','成长值规则'],['coin','金币规则'],['checkin','签到奖励'],['weekly','每周任务'],['referrals','邀请规则'],['coupons','优惠券管理'],['draw','幸运抽奖'],['topup','充值套餐'],['wallet','储值规则']];
   var html='<div class="page-title">会员运营 · Loyalty</div>'
     +'<div class="ma-tabs">'+tabs.map(function(t){return'<button class="ma-tab'+(_loyaltyTab===t[0]?' a':'')+'" onclick="setLoyaltyTab(\''+t[0]+'\')">'+t[1]+'</button>';}).join('')+'</div>';
   el.innerHTML=html+'<div id="loyaltyBody">加载中…</div>';
@@ -2888,6 +2922,7 @@ function renderLoyaltyAdmin(){
   else if(_loyaltyTab==='xp') loadLoyaltyRules('xp');
   else if(_loyaltyTab==='coin') loadLoyaltyRules('coin');
   else if(_loyaltyTab==='checkin') loadLoyaltyMilestones();
+  else if(_loyaltyTab==='weekly') loadWeeklyAdmin();
   else if(_loyaltyTab==='referrals') loadLoyaltyReferralRules();
   else if(_loyaltyTab==='coupons') loadLoyaltyCoupons();
   else if(_loyaltyTab==='draw') loadLoyaltyDraw();
@@ -3511,6 +3546,104 @@ function saveMs(){
 function delMs(id){
   if(!confirm('确定删除该里程碑？'))return;
   db.from('checkin_milestones').delete().eq('id',id).then(function(res){if(res.error){showN(''+res.error.message);return;}showN('已删除');loadLoyaltyMilestones();}).catch(function(e){showN('网络错误');});
+}
+
+/* ---- 每周任务（Figma 227:128）：三项任务 + 全做完的奖励 ----
+   任务的目标值和奖励都在这里改，小程序「我的」那张卡跟着走。
+   进度是服务端按营业日周一~周日算的，跟 Transaction 看板同一个口径。 */
+var _wkTasks=[], _wkSet=null;
+var WK_CODE={checkin_streak:'本周连续签到（天）', order_count:'完成订单（单）', spend_amount:'累计消费（RM）'};
+function loadWeeklyAdmin(){
+  Promise.all([
+    db.from('weekly_tasks').select('*').order('sort_order').then(function(r){ if(r.error) throw r.error; _wkTasks=r.data||[]; }),
+    db.from('weekly_task_settings').select('*').eq('id',1).then(function(r){ if(r.error) throw r.error; _wkSet=(r.data&&r.data[0])||null; })
+  ]).then(renderWeeklyAdminBody).catch(function(e){
+    console.error('weekly', e);
+    var body=document.getElementById('loyaltyBody');
+    if(body) body.innerHTML='<div class="tx-card" style="padding:16px;color:#8D0505;font-weight:700;line-height:1.6">'
+      +'读取失败：'+esc(_rpcErr(e))+'<br>没建表的话，先在 Supabase → SQL Editor 跑一次 <code>supabase-weekly-tasks.sql</code>。</div>';
+  });
+}
+function renderWeeklyAdminBody(){
+  var body=document.getElementById('loyaltyBody'); if(!body) return;
+  var s=_wkSet||{coins:0,xp:0,draw_tickets:0,enabled:false};
+  body.innerHTML='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">'
+    +'会员一周内把下面几项全部做完，自动发一份奖励（不是每项各发一份）。'
+    +'一周按<b>营业日</b>的周一到周日算，跟 Transaction 看板同一个口径。<br>'
+    +'顾客那边不用点「领取」，打开「我的」时服务端就发了，反复刷也只发一次。</div>'
+    +_dsHint()
+    +'<div class="tx-card" style="margin-bottom:16px"><div class="tx-ch" style="align-items:center">'
+    +'<h3>任务</h3><div class="mg-acts"><button class="mg-btn add" onclick="wkAdd()">＋ 新增任务</button></div></div>'
+    +'<table><thead><tr><th>顾客看到的文案</th><th>统计什么</th><th>目标</th><th>状态</th><th>操作</th></tr></thead>'
+    +'<tbody data-sortable="weekly_tasks">'
+    +(_wkTasks.length?_wkTasks.map(function(t){
+      return '<tr data-sid="'+esc(t.id)+'" data-so="'+(t.sort_order||0)+'"'+(t.enabled?'':' style="opacity:.5"')+'>'
+        +'<td><b>'+esc(t.name)+'</b></td><td style="font-size:12px;color:#4A4848">'+esc(WK_CODE[t.code]||t.code)+'</td>'
+        +'<td>'+Number(t.target)+'</td>'
+        +'<td>'+(t.enabled?'<span style="color:#1D7715">启用</span>':'<span style="color:#8D0505">停用</span>')+'</td>'
+        +'<td style="white-space:nowrap"><div class="mg-acts">'
+        +'<button class="mg-btn edit" onclick="wkEdit(\''+t.id+'\')">改</button>'
+        +'<button class="mg-btn del" onclick="wkDel(\''+t.id+'\')">删</button>'
+        +'</div></td></tr>';
+    }).join(''):'<tr><td colspan="5" style="text-align:center;padding:20px;color:#4A4848">（还没有任务）</td></tr>')
+    +'</tbody></table></div>'
+    +'<div class="tx-card"><div class="tx-ch" style="align-items:center"><h3>全部完成后的奖励</h3>'
+    +'<div class="mg-acts"><span class="ch-tag'+(s.enabled?'':' off')+'">'+(s.enabled?'启用中':'已停用')+'</span>'
+    +'<button class="mg-btn edit" onclick="wkSetOpen()">改</button></div></div>'
+    +'<table><tbody><tr><td style="width:160px"><b>奖励</b></td><td>'
+    +'+'+(s.coins||0)+' Paw Coins、+'+(s.xp||0)+' XP'+(s.draw_tickets?('、'+s.draw_tickets+'x 幸运抽奖'):'')
+    +'</td></tr></tbody></table></div>';
+}
+var _wkEditId=null;
+function wkAdd(){ _wkEditId=null; _wkFill({code:'order_count',name:'',target:1,enabled:true}); }
+function wkEdit(id){ var t=_wkTasks.filter(function(x){return String(x.id)===String(id);})[0]; if(!t) return; _wkEditId=id; _wkFill(t); }
+function _wkFill(t){
+  document.getElementById('wkTitle').textContent=_wkEditId?'编辑任务':'新增任务';
+  document.getElementById('wkCode').value=t.code;
+  document.getElementById('wkName').value=t.name||'';
+  document.getElementById('wkTarget').value=t.target;
+  document.getElementById('wkEnabled').checked=t.enabled!==false;
+  document.getElementById('wkBg').classList.add('show');
+}
+function closeWk(){ document.getElementById('wkBg').classList.remove('show'); }
+function saveWk(){
+  var name=document.getElementById('wkName').value.trim();
+  if(!name){ showN('请填写顾客看到的文案'); return; }
+  var target=parseFloat(document.getElementById('wkTarget').value);
+  if(isNaN(target)||target<=0){ showN('目标要是大于 0 的数'); return; }
+  var payload={code:document.getElementById('wkCode').value, name:name, target:target,
+    enabled:document.getElementById('wkEnabled').checked};
+  var done=function(res){ if(res&&res.error){ showN('保存失败：'+_rpcErr(res.error)); return; }
+    showN('已保存'); closeWk(); loadWeeklyAdmin(); };
+  if(_wkEditId) db.from('weekly_tasks').update(payload).eq('id',_wkEditId).then(done).catch(function(){showN('网络错误');});
+  else{
+    payload.sort_order=_wkTasks.reduce(function(m,t){return Math.max(m,t.sort_order||0);},0)+10;
+    db.from('weekly_tasks').insert(payload).then(done).catch(function(){showN('网络错误');});
+  }
+}
+function wkDel(id){
+  var t=_wkTasks.filter(function(x){return String(x.id)===String(id);})[0]; if(!t) return;
+  if(!confirm('确定删除任务「'+t.name+'」？')) return;
+  db.from('weekly_tasks').delete().eq('id',id)
+    .then(function(res){ if(res.error){ showN('删除失败：'+_rpcErr(res.error)); return; } showN('已删除'); loadWeeklyAdmin(); })
+    .catch(function(){showN('网络错误');});
+}
+function wkSetOpen(){
+  var s=_wkSet||{coins:0,xp:0,draw_tickets:0,enabled:true};
+  document.getElementById('wkrCoin').value=s.coins||0;
+  document.getElementById('wkrXp').value=s.xp||0;
+  document.getElementById('wkrTk').value=s.draw_tickets||0;
+  document.getElementById('wkrEnabled').checked=s.enabled!==false;
+  document.getElementById('wkrBg').classList.add('show');
+}
+function closeWkr(){ document.getElementById('wkrBg').classList.remove('show'); }
+function saveWkr(){
+  var n=function(id){ var x=parseInt(document.getElementById(id).value,10); return isNaN(x)?0:Math.max(0,x); };
+  db.from('weekly_task_settings').update({coins:n('wkrCoin'), xp:n('wkrXp'), draw_tickets:n('wkrTk'),
+      enabled:document.getElementById('wkrEnabled').checked, updated_at:new Date().toISOString()}).eq('id',1)
+    .then(function(res){ if(res.error){ showN('保存失败：'+_rpcErr(res.error)); return; }
+      showN('已保存'); closeWkr(); loadWeeklyAdmin(); })
+    .catch(function(){showN('网络错误');});
 }
 
 /* ---- 邀请规则（referral_settings 单行表）----
@@ -4527,7 +4660,7 @@ function menuDel(id){
    长按 400ms 才算「拿起」——按下就能拖的话，手指在列表上滑动想滚屏会被误判成拖动。 */
 var _DS_HOLD=400, _DS_SLOP=8;
 var _dsTimer=null,_dsRow=null,_dsBox=null,_dsFrom=null,_dsPid=null;
-var _DS_RELOAD={menu_items:function(){return loadMenu();}, spec_defs:function(){return loadSpecDefs();},
+var _DS_RELOAD={menu_items:function(){return loadMenu();}, spec_defs:function(){return loadSpecDefs();}, weekly_tasks:function(){return loadWeeklyAdmin();},
                 sales_channels:function(){return loadChannels();}, recharge_packages:function(){return loadTopupPkgs();},
                 menu_categories:function(){return loadMenuCats();}};
 function _dsCancelHold(){ if(_dsTimer){ clearTimeout(_dsTimer); _dsTimer=null; } }

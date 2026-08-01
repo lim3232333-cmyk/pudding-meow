@@ -607,8 +607,25 @@
   .mem-auth-back{ position:absolute; left:16px; top:20px; width:24px; height:24px; cursor:pointer; z-index:2; }
 
   /* ---- 邀请好友 / 每日签到 小卡片 ---- */
-  .mem-mini-row{ display:flex; gap:8px; margin-top:12px; }
-  .mem-mini-card{ flex:1; background:#FFFFEA; border:1px solid #F5E9D4; border-radius:12px; padding:8px; min-width:0; }
+  /* Figma 227:126：两张卡不是等宽——每周任务 136、每日签到 209，间距 16。
+     加起来 361 = 390 减掉两边 16 的留白，所以用 flex 比例还原，窄屏也不会溢出 */
+  .mem-mini-row{ display:flex; gap:16px; margin-top:12px; align-items:stretch; }
+  .mem-mini-card{ background:#FFFFEA; border:1px solid #F5E9D4; border-radius:12px; padding:8px; min-width:0;
+    display:flex; flex-direction:column; gap:12px; }
+  /* 136+16+209=361，可手机内容宽只有 358（390 减两边 16），差 3px。
+     让内容固定的那张（三行文字）守住 136，剩下的给签到卡吸收，比按比例缩两张都不准强 */
+  .mem-mini-card.wk{ flex:0 0 136px; }
+  .mem-mini-card.ci{ flex:1 1 0; }
+  /* 每周任务（Figma 227:128） */
+  .wk-head{ display:flex; flex-direction:column; gap:4px; }
+  .wk-head-row{ display:flex; align-items:center; justify-content:space-between; color:var(--red); font-weight:500; }
+  .wk-head-row span:first-child{ font-size:12px; }
+  .wk-pct{ font-size:10px; }
+  .wk-row{ display:flex; align-items:center; justify-content:space-between; gap:6px; }
+  .wk-row span{ font-size:10px; font-weight:400; color:var(--red); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .wk-box{ width:10px; height:10px; border-radius:2px; background:var(--yellow); flex-shrink:0; }
+  .wk-box svg{ width:10px; height:10px; display:block; }
+  .wk-empty{ font-size:10px; color:var(--muted); }
   .mem-mini-title{ font-size:12px; font-weight:500; color:var(--red); }
   .mem-mini-divider{ height:1px; background:#F5E9D4; margin:4px 0; }
   .mem-mini-streak{ font-size:8px; color:var(--red); }
@@ -1428,14 +1445,14 @@
 </div>
 
         <div class="mem-mini-row">
-          <div class="mem-mini-card" onclick="openInvite()" style="cursor:pointer">
-            <div class="mem-mini-title">邀请好友</div>
-            <div class="mem-ref-code-box">
-              <span id="memRefCode">——</span>
-              <button onclick="event.stopPropagation();copyInviteCode()">复制</button>
+          <div class="mem-mini-card wk">
+            <div class="wk-head">
+              <div class="wk-head-row"><span>每周任务</span><span class="wk-pct" id="wkPct">0%</span></div>
+              <div class="mem-mini-divider" style="margin:0"></div>
+            </div>
+            <div id="wkList"></div>
 </div>
-</div>
-          <div class="mem-mini-card">
+          <div class="mem-mini-card ci">
             <div class="mem-mini-head">
               <div class="mem-mini-title">每日签到</div>
               <button class="mem-ci-info" onclick="openCheckinRules()" aria-label="签到规则">
@@ -3993,7 +4010,7 @@ function renderProfileScreen(){
       document.getElementById('memXpNow').textContent = xp+' XP';
       nextLbl.textContent ='已是最高等级';
     }
-    return Promise.all([renderCheckinStatus(), loadMyReferrals(), loadMyCoupons()]);
+    return Promise.all([renderCheckinStatus(), loadMyReferrals(), loadMyCoupons(), loadWeeklyTasks()]);
   });
 }
 function memComingSoon(){ alert('敬请期待'); }
@@ -4183,7 +4200,6 @@ function renderInvite(){
   var d = _ivData || {};
   var code = d.out_code ||'——';
   var set = function(id, v){ var el=document.getElementById(id); if(el) el.textContent = v; };
-  set('memRefCode', code);          // 「我的」页那张小卡
   set('ivCode', code);
   set('ivNick', d.out_nickname ||'——');
   set('ivL1', d.out_l1 || 0);
@@ -4251,6 +4267,37 @@ function closeInviteRules(){ document.getElementById('ivPopBg').classList.remove
     if(el) el.value = decodeURIComponent(m[1]).toUpperCase();
   }catch(e){}
 })();
+
+/* ===== 每周任务（Figma 227:128）=====
+   三项全做完，服务端在 rpc_get_my_weekly 里就地把奖励发了（幂等，反复刷不会重发），
+   所以这里没有「领取」按钮——稿子上也没有。 */
+var _wkData = null;
+function loadWeeklyTasks(){
+  if(!db || !_memberId || !_memberToken) return Promise.resolve();
+  return db.rpc('rpc_get_my_weekly', {p_member_id:_memberId, p_session_token:_memberToken}).then(function(res){
+    if(res.error){ console.error('rpc_get_my_weekly', res.error); return; }
+    _wkData = (res.data && res.data[0]) || null;
+    renderWeeklyTasks();
+  }).catch(function(e){ console.error('rpc_get_my_weekly', e); });
+}
+/* 完成 = 黄底红勾，未完成 = 纯黄小方块（Figma 865:779）*/
+function _wkBox(done){
+  return done
+    ? '<span class="wk-box"><svg viewBox="0 0 10 10" fill="none"><rect width="10" height="10" rx="2" fill="#FFDE5B"/><path d="M2.4 5.2 4.2 7l3.4-3.6" stroke="#8D0505" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>'
+    : '<span class="wk-box"></span>';
+}
+function renderWeeklyTasks(){
+  var pct=document.getElementById('wkPct'), box=document.getElementById('wkList');
+  if(!pct || !box) return;
+  var d=_wkData;
+  if(!d){ pct.textContent='0%'; box.innerHTML='<div class="wk-empty">暂无任务</div>'; return; }
+  pct.textContent=(d.out_pct||0)+'%';
+  var tasks=d.out_tasks||[];
+  if(!tasks.length){ box.innerHTML='<div class="wk-empty">暂无任务</div>'; return; }
+  box.innerHTML=tasks.map(function(t,i){
+    return '<div class="wk-row"><span>'+(i+1)+'. '+_addrEsc(t.name||'')+'</span>'+_wkBox(!!t.done)+'</div>';
+  }).join('');
+}
 
 /* ===== 优惠券钱包 ===== */
 function loadMyCoupons(){
