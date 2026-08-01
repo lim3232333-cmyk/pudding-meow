@@ -1180,10 +1180,14 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
   <div class="mm-box">
     <div class="mm-hd"><h3 id="refTitle">编辑邀请奖励</h3><button class="mm-cl" onclick="closeRef()">✕</button></div>
     <div class="mm-body">
-      <div class="mfh" id="refStageLbl" style="margin-top:0;"></div>
-      <label class="mfl">名称 *</label><input class="mfi" id="refName" placeholder="如：好友注册成功">
-      <label class="mfl">奖励成长值 XP</label><input class="mfi" id="refXp" type="number" step="1" placeholder="0">
-      <label class="mfl">奖励 Meow Coin</label><input class="mfi" id="refCoin" type="number" step="1" placeholder="0">
+      <div class="mfh" id="refStageLbl" style="margin-top:0;">奖励在好友完成首单时一次性发放</div>
+      <label class="mfl">直推 · 邀请人 Paw Coins</label><input class="mfi" id="refL1Coin" type="number" step="1" placeholder="0">
+      <label class="mfl">直推 · 邀请人 XP</label><input class="mfi" id="refL1Xp" type="number" step="1" placeholder="0">
+      <label class="mfl">直推 · 邀请人 幸运抽奖次数</label><input class="mfi" id="refL1Tk" type="number" step="1" placeholder="0">
+      <label class="mfl">直推 · 好友本人 Paw Coins</label><input class="mfi" id="refInvCoin" type="number" step="1" placeholder="0">
+      <label class="mfl">直推 · 好友本人 XP</label><input class="mfi" id="refInvXp" type="number" step="1" placeholder="0">
+      <label class="mfl">二级 · 邀请人的邀请人 Paw Coins</label><input class="mfi" id="refL2Coin" type="number" step="1" placeholder="0">
+      <label class="mfl">二级 · 邀请人的邀请人 XP</label><input class="mfi" id="refL2Xp" type="number" step="1" placeholder="0">
       <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="refEnabled" checked style="width:auto;margin:0;"> 启用</label>
       <button class="mfs" onclick="saveRef()">保存 Save</button>
 </div>
@@ -3472,50 +3476,61 @@ function delMs(id){
   db.from('checkin_milestones').delete().eq('id',id).then(function(res){if(res.error){showN(''+res.error.message);return;}showN('已删除');loadLoyaltyMilestones();}).catch(function(e){showN('网络错误');});
 }
 
-/* ---- 邀请裂变规则（固定两个阶段：注册成功 / 完成首单，不可增删，只能改数值）---- */
-var _loyaltyReferralRules=[];
+/* ---- 邀请规则（referral_settings 单行表）----
+   旧版是「注册成功 / 完成首单」两个阶段各自一套数。新版按邀请中心的设计走：
+   奖励一律在好友完成首单那一刻结算，一次发三份——邀请人、好友自己、二级邀请人。
+   小程序「邀请奖励」弹窗读的就是这张表，改完顾客那边跟着变，不会两边各说各话。 */
+var _refSet=null;
 function loadLoyaltyReferralRules(){
-  db.from('referral_rules').select('*').then(function(res){
-    if(!res.error) _loyaltyReferralRules=res.data||[];
+  db.from('referral_settings').select('*').eq('id',1).then(function(res){
+    if(res.error){ console.error('referral_settings', res.error); showN('读取失败：'+_rpcErr(res.error)); }
+    else _refSet=(res.data&&res.data[0])||null;
     renderLoyaltyReferralRulesBody();
-  }).catch(function(e){});
+  }).catch(function(e){ console.error(e); showN('网络错误'); });
 }
-var REF_STAGE_LABEL={register:'好友注册成功时',first_order:'好友完成首单时'};
 function renderLoyaltyReferralRulesBody(){
   var body=document.getElementById('loyaltyBody'); if(!body) return;
-  var html='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">会员分享邀请码给朋友，朋友用邀请码注册、下单，邀请人分阶段获得奖励。</div>';
-  html+='<div class="tx-card"><table><thead><tr><th>触发时机</th><th>名称</th><th>奖励</th><th>状态</th><th>操作</th></tr></thead><tbody>';
-  if(!_loyaltyReferralRules.length){ html+='<tr><td colspan="5" style="text-align:center;padding:30px;color:#4A4848">暂无规则</td></tr>'; }
-  else{
-    _loyaltyReferralRules.forEach(function(r){
-      html+='<tr'+(r.enabled?'':' style="opacity:.5"')+'><td><b>'+(REF_STAGE_LABEL[r.stage]||r.stage)+'</b></td><td>'+esc(r.name)+'</td>'
-        +'<td>'+(r.coin_value?('+'+r.coin_value+' Coin '):'')+(r.xp_value?('+'+r.xp_value+' XP'):'')+'</td>'
-        +'<td>'+(r.enabled?'<span style="color:#1D7715">启用</span>':'<span style="color:#8D0505">停用</span>')+'</td>'
-        +'<td><button onclick="openRef(\''+r.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">改</button></td></tr>';
-    });
+  if(!_refSet){
+    body.innerHTML='<div class="tx-card" style="padding:16px;color:#8D0505;font-weight:700;line-height:1.6">'
+      +'云端还没有 referral_settings 表。<br>请先在 Supabase → SQL Editor 跑一次 <code>supabase-referral-v2.sql</code>。</div>';
+    return;
   }
-  html+='</tbody></table></div>';
-  body.innerHTML=html;
+  var s=_refSet;
+  var row=function(who,txt){ return '<tr><td><b>'+who+'</b></td><td>'+txt+'</td></tr>'; };
+  body.innerHTML='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">'
+    +'会员分享邀请码，好友用它注册、并<b>完成首单</b>之后，三方一次性发奖。'
+    +'注册当下不发——不然注册一堆空号就能刷奖励。<br>'
+    +'这里改完，小程序邀请中心里那个「邀请奖励」弹窗跟着变。</div>'
+    +'<div class="tx-card"><div class="tx-ch" style="align-items:center"><h3>邀请奖励</h3>'
+    +'<div class="mg-acts"><span class="ch-tag'+(s.enabled?'':' off')+'">'+(s.enabled?'启用中':'已停用')+'</span>'
+    +'<button class="mg-btn edit" onclick="openRef()">改</button></div></div>'
+    +'<table><thead><tr><th style="width:160px">谁拿</th><th>奖励</th></tr></thead><tbody>'
+    +row('直推 · 邀请人','+'+s.l1_inviter_coins+' Paw Coins、+'+s.l1_inviter_xp+' XP'
+        +(s.l1_inviter_tickets?('、'+s.l1_inviter_tickets+'x 幸运抽奖'):''))
+    +row('直推 · 好友本人','+'+s.l1_invitee_coins+' Paw Coins、+'+s.l1_invitee_xp+' XP')
+    +row('二级 · 邀请人的邀请人','+'+s.l2_inviter_coins+' Paw Coins、+'+s.l2_inviter_xp+' XP')
+    +'</tbody></table></div>';
 }
-var _refEditId=null;
-function openRef(id){
-  var r=_loyaltyReferralRules.find(function(x){return x.id===id;}); if(!r) return;
-  _refEditId=id;
-  document.getElementById('refTitle').textContent='编辑邀请奖励';
-  document.getElementById('refStageLbl').textContent='触发时机：'+(REF_STAGE_LABEL[r.stage]||r.stage)+'（固定，不可改）';
-  document.getElementById('refName').value=r.name;
-  document.getElementById('refXp').value=r.xp_value||0;
-  document.getElementById('refCoin').value=r.coin_value||0;
-  document.getElementById('refEnabled').checked=r.enabled;
+function openRef(){
+  if(!_refSet){ showN('请先跑 supabase-referral-v2.sql'); return; }
+  var s=_refSet, v=function(id,val){ document.getElementById(id).value=val; };
+  v('refL1Coin',s.l1_inviter_coins); v('refL1Xp',s.l1_inviter_xp); v('refL1Tk',s.l1_inviter_tickets);
+  v('refInvCoin',s.l1_invitee_coins); v('refInvXp',s.l1_invitee_xp);
+  v('refL2Coin',s.l2_inviter_coins); v('refL2Xp',s.l2_inviter_xp);
+  document.getElementById('refEnabled').checked=s.enabled!==false;
   document.getElementById('refBg').classList.add('show');
 }
 function closeRef(){document.getElementById('refBg').classList.remove('show');}
 function saveRef(){
-  var name=document.getElementById('refName').value.trim();
-  if(!name){showN('请填写名称');return;}
-  var payload={name:name, xp_value:parseInt(document.getElementById('refXp').value)||0, coin_value:parseInt(document.getElementById('refCoin').value)||0, enabled:document.getElementById('refEnabled').checked};
-  db.from('referral_rules').update(payload).eq('id',_refEditId)
-    .then(function(res){if(res.error){showN(''+res.error.message);return;}showN('已保存');closeRef();loadLoyaltyReferralRules();}).catch(function(e){showN('网络错误');});
+  var n=function(id){ var x=parseInt(document.getElementById(id).value,10); return isNaN(x)?0:Math.max(0,x); };
+  var payload={ l1_inviter_coins:n('refL1Coin'), l1_inviter_xp:n('refL1Xp'), l1_inviter_tickets:n('refL1Tk'),
+    l1_invitee_coins:n('refInvCoin'), l1_invitee_xp:n('refInvXp'),
+    l2_inviter_coins:n('refL2Coin'), l2_inviter_xp:n('refL2Xp'),
+    enabled:document.getElementById('refEnabled').checked, updated_at:new Date().toISOString() };
+  db.from('referral_settings').update(payload).eq('id',1)
+    .then(function(res){ if(res.error){ showN('保存失败：'+_rpcErr(res.error)); return; }
+      showN('已保存'); closeRef(); loadLoyaltyReferralRules(); })
+    .catch(function(e){ showN('网络错误'); });
 }
 
 /* ---- 优惠券管理：模板 CRUD + 发放 + 已发放列表（核销）---- */
