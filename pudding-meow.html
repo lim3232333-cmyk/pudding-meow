@@ -659,6 +659,68 @@
   .lang-opt{ width:120px; height:120px; border-radius:50%; border:none; cursor:pointer; background:var(--red); color:#fff; font-size:26px; font-weight:700; font-family:"Noto Sans SC",sans-serif; transition:box-shadow .15s; }
   .lang-opt.active{ box-shadow:0 0 0 4px var(--yellow), 0 4px 12px rgba(141,5,5,.25); }
 
+  /* ===== 邀请中心（Figma 645:796）：邀请码卡 / 邀请步骤卡 / 我的成就卡 ===== */
+  .iv-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%;
+    background:var(--cream2); z-index:322; display:none; flex-direction:column; overflow-y:auto; }
+  .iv-screen.show{ display:flex; }
+  .iv-header{ position:relative; height:52px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+  .iv-back{ position:absolute; left:16px; top:50%; transform:translateY(-50%); width:24px; height:24px; cursor:pointer; }
+  .iv-title{ font-weight:700; font-size:20px; color:var(--red); }
+  .iv-body{ display:flex; flex-direction:column; gap:24px; padding:0 16px 40px; }
+  .iv-card{ background:#FFFFEA; border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:16px;
+    box-shadow:0 0 5px rgba(0,0,0,.25); }
+  .iv-card.steps{ gap:16px; box-shadow:0 0 10px rgba(0,0,0,.25); overflow:hidden; }
+  /* 邀请码卡 */
+  .iv-code-head{ display:flex; align-items:center; justify-content:space-between; padding:5px 12px; }
+  .iv-code-head b{ font-weight:500; font-size:16px; color:var(--red); }
+  .iv-share{ width:18px; height:20px; color:var(--red); cursor:pointer; flex-shrink:0; }
+  .iv-code-box{ height:100px; background:var(--red); border-radius:8px; display:flex; align-items:center; justify-content:center;
+    gap:42px; padding:8px 16px; cursor:pointer; }
+  .iv-code-box span{ font-weight:500; font-size:36px; line-height:1; color:var(--yellow); letter-spacing:1px; }
+  .iv-code-box svg{ width:25px; height:25px; color:var(--yellow); flex-shrink:0; }
+  .iv-inviter{ display:flex; align-items:center; gap:8px; padding:0 16px; }
+  .iv-inviter-l{ flex:1; min-width:0; display:flex; align-items:center; gap:8px; }
+  .iv-inviter-l img{ width:42px; height:38px; object-fit:contain; flex-shrink:0; }
+  .iv-inviter-tx{ flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+  .iv-inviter-tx b{ font-weight:500; font-size:16px; color:var(--red); }
+  .iv-inviter-tx span{ font-weight:400; font-size:12px; color:#726F6F; }
+  .iv-qr{ display:flex; flex-direction:column; align-items:center; gap:8px; flex-shrink:0; }
+  .iv-qr-box{ width:80px; height:80px; background:#726F6F; display:flex; align-items:center; justify-content:center; }
+  .iv-qr-box canvas{ display:block; width:80px; height:80px; image-rendering:pixelated; }
+  .iv-qr span{ font-weight:500; font-size:12px; color:var(--red); }
+  /* 邀请步骤卡 */
+  .iv-steps-head{ display:flex; align-items:center; justify-content:center; gap:8px; }
+  .iv-steps-head b{ font-weight:500; font-size:16px; color:var(--muted); }
+  .iv-info{ width:20px; height:20px; padding:0; border:none; background:transparent; cursor:pointer; color:var(--red); flex-shrink:0; }
+  .iv-steps-row{ display:flex; align-items:center; justify-content:center; }
+  .iv-step-ic{ flex:1; min-width:0; display:flex; justify-content:center; }
+  .iv-step-ic svg{ width:40px; height:40px; display:block; }
+  .iv-arrow{ width:20px; flex-shrink:0; color:var(--red); }
+  .iv-steps-lbl{ display:flex; gap:24px; align-items:flex-start; justify-content:center; }
+  .iv-steps-lbl span{ flex:1; min-width:0; font-weight:500; font-size:12px; color:var(--muted); text-align:center; }
+  /* 我的成就卡 */
+  .iv-ach-head{ display:flex; align-items:center; justify-content:center; gap:12px; }
+  .iv-ach-head b{ font-weight:500; font-size:16px; color:var(--muted); flex-shrink:0; }
+  .iv-ach-head i{ flex:1; height:1px; background:var(--red); opacity:.55; }
+  .iv-ach-row{ display:flex; gap:16px; align-items:stretch; }
+  .iv-ach-box{ flex:1; min-width:0; background:rgba(255,255,255,.25); border-radius:12px; padding:16px 8px;
+    display:flex; flex-direction:column; gap:10px; align-items:center; justify-content:center; text-align:center; }
+  .iv-ach-box>b{ font-weight:500; font-size:16px; color:var(--muted); }
+  .iv-ach-box p{ margin:0; font-weight:500; font-size:16px; color:var(--muted); line-height:1.35; }
+  .iv-ach-box p em{ font-style:normal; font-weight:700; font-size:24px; color:var(--red); }
+  /* 邀请奖励弹窗（Figma 646:870）：黄底、右上角关闭键探出卡片外 */
+  .iv-pop-bg{ position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:330; display:none; }
+  .iv-pop-bg.show{ display:flex; align-items:center; justify-content:center; padding:0 16px; }
+  .iv-pop{ position:relative; width:100%; max-width:371px; background:var(--yellow); border-radius:12px; padding:16px;
+    display:flex; flex-direction:column; gap:16px; }
+  .iv-pop-title{ text-align:center; font-weight:700; font-size:16px; color:var(--red); }
+  .iv-pop-close{ position:absolute; right:-6px; top:-10px; width:20px; height:20px; padding:0; border:none;
+    background:transparent; cursor:pointer; color:#000; }
+  .iv-pop-row{ display:flex; gap:10px; align-items:flex-start; }
+  .iv-pop-row>b{ flex-shrink:0; font-weight:400; font-size:12px; color:var(--red); }
+  .iv-pop-row>div{ flex:1; min-width:0; font-weight:400; font-size:12px; color:var(--muted); line-height:1.5; }
+  .iv-pop-row em{ font-style:normal; font-weight:500; }
+
   /* ===== 会员卡按等级换配色（Figma 612:1820）：#memHome 加 .mem-lvl-N 类，改 hero/黄卡框/等级胶囊/成长条 ===== */
   /* 精确渐变取自 Figma 660:859 member card：竖向多段渐变，hero 与卡体同一条；内白盒 #ffffea */
   #memHome .mem-card2-inner{ background:#ffffea; }
@@ -1366,11 +1428,11 @@
 </div>
 
         <div class="mem-mini-row">
-          <div class="mem-mini-card">
+          <div class="mem-mini-card" onclick="openInvite()" style="cursor:pointer">
             <div class="mem-mini-title">邀请好友</div>
             <div class="mem-ref-code-box">
               <span id="memRefCode">——</span>
-              <button onclick="copyReferralCode()">复制</button>
+              <button onclick="event.stopPropagation();copyInviteCode()">复制</button>
 </div>
 </div>
           <div class="mem-mini-card">
@@ -1395,8 +1457,8 @@
             <div class="mem-icon-circle"><img src="icon-luckydraw.svg" alt=""></div><span>幸运抽奖</span></div>
           <div class="mem-icon-item" onclick="openPointsMall()">
             <div class="mem-icon-circle"><img src="icon-mall.svg" alt=""></div><span>积分商城</span></div>
-          <div class="mem-icon-item" onclick="openMemberDetail()">
-            <div class="mem-icon-circle"><img src="icon-detail.svg" alt=""></div><span>会员明细</span></div>
+          <div class="mem-icon-item" onclick="openInvite()">
+            <div class="mem-icon-circle"><img src="icon-share.svg" alt=""></div><span>邀请中心</span></div>
           <div class="mem-icon-item" onclick="openDelivery()">
             <div class="mem-icon-circle"><img src="icon-address.svg" alt=""></div><span>收货地址</span></div>
           <div class="mem-icon-item" onclick="openLangPage()">
@@ -1408,15 +1470,6 @@
           <div class="mem-promo-text">生日周享双倍快乐！</div>
 </div>
 
-        <div class="mem-ref-card">
-          <div class="mem-ref-head"><h4>邀请战绩</h4><span class="mem-ref-count" id="memRefCount">已邀请 0 位</span></div>
-          <div class="mem-ref-hint">好友用你的邀请码注册，你得 20 Coin；好友完成首单，你再得 50 Coin + 30 XP</div>
-          <div class="mem-ref-friends" id="memRefFriends"></div>
-</div>
-        <div class="mem-coupon-card">
-          <div class="mem-coupon-head"><h4>我的优惠券</h4></div>
-          <div class="mem-coupon-list" id="memCouponList"></div>
-</div>
         <button class="mem-logout" onclick="memberLogout()">退出登录</button>
 </div>
 </div>
@@ -1517,6 +1570,78 @@
     <div class="lang-body">
       <button class="lang-opt" id="langZh" onclick="setLang('zh')">中文</button>
       <button class="lang-opt" id="langEn" onclick="setLang('en')">English</button>
+    </div>
+  </div>
+
+  <!-- ============ 邀请中心（Figma 645:796）+ 邀请奖励弹窗（646:870）============ -->
+  <div class="iv-screen" id="ivScreen">
+    <div class="iv-header">
+      <div class="iv-back" onclick="closeInvite()"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></div>
+      <div class="iv-title">邀请中心</div>
+    </div>
+    <div class="iv-body">
+      <div class="iv-card">
+        <div class="iv-code-head"><b>我的邀请码</b>
+          <svg class="iv-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" onclick="shareInvite()" role="button" aria-label="分享邀请链接">
+            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>
+        </div>
+        <div class="iv-code-box" onclick="copyInviteCode()">
+          <span id="ivCode">——</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </div>
+        <div class="iv-inviter">
+          <div class="iv-inviter-l">
+            <img src="Group%2029.svg" alt="">
+            <div class="iv-inviter-tx"><b id="ivNick">——</b><span>邀请你加入布丁喵会员</span></div>
+          </div>
+          <div class="iv-qr">
+            <div class="iv-qr-box" id="ivQrBox"></div>
+            <span>长按识别二维码</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="iv-card steps">
+        <div class="iv-steps-head"><b>邀请步骤</b>
+          <button class="iv-info" onclick="openInviteRules()" aria-label="邀请奖励说明">
+            <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M10 9v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M10 5.6v1.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="iv-steps-row">
+            <div class="iv-step-ic"><svg viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="20" fill="#FFDE5B"/><g stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"><circle cx="26" cy="13" r="3"/><circle cx="14" cy="20" r="3"/><circle cx="26" cy="27" r="3"/><path d="m16.6 21.5 6.8 4M23.4 14.5l-6.8 4"/></g></svg></div>
+            <div class="iv-arrow"><svg viewBox="0 0 20 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M0 4h18M14.5 1 18 4l-3.5 3"/></svg></div>
+            <div class="iv-step-ic"><svg viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="20" fill="#FFDE5B"/><g stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M22 12h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M17 15l5 5-5 5M22 20H12"/></g></svg></div>
+            <div class="iv-arrow"><svg viewBox="0 0 20 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M0 4h18M14.5 1 18 4l-3.5 3"/></svg></div>
+            <div class="iv-step-ic"><svg viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="20" fill="#FFDE5B"/><g stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"><rect x="12" y="10" width="16" height="20" rx="2"/><path d="M16 16h8M16 20h8M16 24h5"/></g></svg></div>
+            <div class="iv-arrow"><svg viewBox="0 0 20 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M0 4h18M14.5 1 18 4l-3.5 3"/></svg></div>
+            <div class="iv-step-ic"><svg viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="20" fill="#FFDE5B"/><g stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"><rect x="11" y="18" width="18" height="12" rx="1.5"/><path d="M10 14h20v4H10zM20 14v16"/><path d="M20 14s-1.2-4-4-4a2.5 2.5 0 0 0 0 5h4zM20 14s1.2-4 4-4a2.5 2.5 0 0 1 0 5h-4z"/></g></svg></div>
+          </div>
+          <div class="iv-steps-lbl"><span>分享链接给好友</span><span>好友注册加入会员</span><span>好友完成首次下单</span><span>邀请完成获得奖励</span></div>
+        </div>
+      </div>
+
+      <div class="iv-card">
+        <div class="iv-ach-head"><i></i><b>我的成就</b><i></i></div>
+        <div class="iv-ach-row">
+          <div class="iv-ach-box"><b>邀请树</b>
+            <p>直推：<em id="ivL1">0</em>人<br>二级：<em id="ivL2">0</em>人</p>
+          </div>
+          <div class="iv-ach-box"><b>累计获得</b>
+            <p><em id="ivCoins">0</em> Coins<br><em id="ivXp">0</em> XP</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="iv-pop-bg" id="ivPopBg" onclick="if(event.target===this)closeInviteRules()">
+    <div class="iv-pop">
+      <button class="iv-pop-close" onclick="closeInviteRules()" aria-label="关闭">
+        <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="10" fill="#000"/><path d="M7 7l6 6M13 7l-6 6" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+      <div class="iv-pop-title">邀请奖励</div>
+      <div class="iv-pop-row"><b>直推：</b><div id="ivRuleL1">——</div></div>
+      <div class="iv-pop-row"><b>二级：</b><div id="ivRuleL2">——</div></div>
     </div>
   </div>
 
@@ -4043,36 +4168,89 @@ function memberCheckin(){
   }).catch(function(e){ alert('签到失败，请重试'); });
 }
 
-/* ===== 邀请好友 ===== */
-function copyReferralCode(){
-  var code = document.getElementById('memRefCode').textContent;
-  if(!code || code==='——') return;
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(code).then(function(){ alert('邀请码已复制：'+code); }).catch(function(){ alert('邀请码：'+code); });
-  }else{
-    alert('邀请码：'+code);
-  }
-}
+/* ===== 邀请好友 / 邀请中心 ===== */
+var _ivData = null;
 function loadMyReferrals(){
   if(!db || !_memberId || !_memberToken) return Promise.resolve();
-  return db.rpc('rpc_get_my_referrals', {p_member_id:_memberId, p_session_token:_memberToken}).then(function(res){
-    if(res.error) return;
-    var row = res.data && res.data[0];
-    if(!row) return;
-    document.getElementById('memRefCode').textContent = row.referral_code ||'——';
-    document.getElementById('memRefCount').textContent ='已邀请 '+(row.total_referred||0)+' 位';
-    var friends = row.friends || [];
-    var box = document.getElementById('memRefFriends');
-    if(!friends.length){
-      box.innerHTML ='<div class="mem-ref-empty">还没有邀请记录，分享邀请码给朋友吧</div>';
-    }else{
-      box.innerHTML = friends.map(function(f){
-        return'<div class="mem-ref-friend-row"><span class="mem-ref-friend-name">'+(f.nickname||'喵星人')+'</span>'
-          +'<span class="mem-ref-friend-status '+(f.firstOrderDone?'done':'pending')+'">'+(f.firstOrderDone?'已首单':'待首单')+'</span></div>';
-      }).join('');
-    }
-  }).catch(function(e){});
+  return db.rpc('rpc_get_my_referral', {p_member_id:_memberId, p_session_token:_memberToken}).then(function(res){
+    // 报错别吞成"还没有邀请记录"——那样看起来像功能正常但没人用，其实是读失败
+    if(res.error){ console.error('rpc_get_my_referral', res.error); return; }
+    _ivData = (res.data && res.data[0]) || null;
+    renderInvite();
+  }).catch(function(e){ console.error('rpc_get_my_referral', e); });
 }
+function renderInvite(){
+  var d = _ivData || {};
+  var code = d.out_code ||'——';
+  var set = function(id, v){ var el=document.getElementById(id); if(el) el.textContent = v; };
+  set('memRefCode', code);          // 「我的」页那张小卡
+  set('ivCode', code);
+  set('ivNick', d.out_nickname ||'——');
+  set('ivL1', d.out_l1 || 0);
+  set('ivL2', d.out_l2 || 0);
+  set('ivCoins', d.out_coins || 0);
+  set('ivXp', d.out_xp || 0);
+}
+/* 邀请链接：带上 ?ref=CODE，好友打开注册页时自动填进邀请码框 */
+function _inviteLink(){
+  var code = (_ivData && _ivData.out_code) ||'';
+  return location.origin + location.pathname + (code ? ('?ref='+encodeURIComponent(code)) :'');
+}
+function openInvite(){
+  if(!_memberId){ alert('登录后才有自己的邀请码'); return; }
+  document.getElementById('ivScreen').classList.add('show');
+  renderInvite();
+  loadMyReferrals();
+  loadReferralSettings();
+}
+function closeInvite(){ document.getElementById('ivScreen').classList.remove('show'); }
+function copyInviteCode(){
+  var code = (_ivData && _ivData.out_code) ||'';
+  if(!code) return;
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(code).then(function(){ alert('邀请码已复制：'+code); }).catch(function(){ alert('邀请码：'+code); });
+  }else{ alert('邀请码：'+code); }
+}
+function shareInvite(){
+  var url = _inviteLink();
+  var txt = '用我的邀请码加入布丁喵会员，首单双方都有奖励！';
+  if(navigator.share){ navigator.share({title:'布丁喵 Pudding Meow', text:txt, url:url}).catch(function(){}); return; }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(function(){ alert('邀请链接已复制：\n'+url); }).catch(function(){ alert(url); });
+  }else{ alert(url); }
+}
+
+/* 邀请奖励数值：跟服务端发放读的是同一张表，弹窗上写的和实际发的不会各说各话 */
+var _refSet = null;
+function loadReferralSettings(){
+  if(!db) return Promise.resolve();
+  return db.from('referral_settings').select('*').eq('id',1).then(function(res){
+    if(res.error){ console.error('referral_settings', res.error); return; }
+    _refSet = (res.data && res.data[0]) || null;
+    renderInviteRules();
+  }).catch(function(e){ console.error('referral_settings', e); });
+}
+function renderInviteRules(){
+  var s = _refSet; if(!s) return;
+  var tickets = s.l1_inviter_tickets ? ('、'+s.l1_inviter_tickets+'x 幸运抽奖') :'';
+  document.getElementById('ivRuleL1').innerHTML =
+    '邀请人：<em>+'+s.l1_inviter_coins+' Paw Coins、+'+s.l1_inviter_xp+' XP'+tickets+'</em><br>'
+    +'好友：<em>+'+s.l1_invitee_coins+' Paw Coins、+'+s.l1_invitee_xp+' XP</em>';
+  document.getElementById('ivRuleL2').innerHTML =
+    '若好友再成功邀请其他好友加入会员并完成首单，则额外 <em>+'+s.l2_inviter_coins+' Paw Coins、+'+s.l2_inviter_xp+' XP</em>。';
+}
+function openInviteRules(){ document.getElementById('ivPopBg').classList.add('show'); loadReferralSettings(); }
+function closeInviteRules(){ document.getElementById('ivPopBg').classList.remove('show'); }
+
+/* 好友点邀请链接进来：把 ?ref= 里的码填进注册表单，省得他手抄 */
+(function(){
+  try{
+    var m = /[?&]ref=([^&]+)/.exec(location.search);
+    if(!m) return;
+    var el = document.getElementById('memRegReferral');
+    if(el) el.value = decodeURIComponent(m[1]).toUpperCase();
+  }catch(e){}
+})();
 
 /* ===== 优惠券钱包 ===== */
 function loadMyCoupons(){
@@ -4088,6 +4266,7 @@ function loadMyCoupons(){
     var countEl = document.getElementById('memCouponCount');
     if(countEl) countEl.textContent = list.filter(function(c){ return c.status==='unused'; }).length;
     var box = document.getElementById('memCouponList');
+    if(!box) return;   // 「我的优惠券」那块已删，只更新会员卡上的张数就够了
     if(!list.length){
       box.innerHTML ='<div class="mem-coupon-empty">暂无优惠券</div>';
       return;
