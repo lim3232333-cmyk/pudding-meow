@@ -523,6 +523,14 @@ body.ds-on{user-select:none;-webkit-user-select:none;}
 .kpi .l{font-size:11px;color:#4A4848;margin-bottom:8px;}
 .kpi .v{font-size:26px;font-weight:900;color:#8D0505;}
 .date-row{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;}
+/* 日期框：图标 + 文字，整块可点，原生日期选择器盖在上面（透明）*/
+.dbox{position:relative;display:inline-flex;align-items:center;gap:8px;padding:8px 18px;border-radius:999px;
+  border:1.5px solid #FFDE5B;background:#fff;color:#8D0505;font-size:13px;font-weight:700;cursor:pointer;
+  font-family:"Noto Sans SC",sans-serif;}
+.dbox.a{background:#FFDE5B;}                 /* 看的是今天 */
+.dbox svg{width:16px;height:16px;flex-shrink:0;display:block;}
+.dbox input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:none;padding:0;}
+.dbox-hint{font-size:12px;color:#4A4848;}
 .dpill{padding:8px 18px;border-radius:999px;border:1.5px solid #F5E9D4;background:#fff;font-size:13px;font-weight:700;color:#4A4848;cursor:pointer;}
 .dpill.a{background:#FFDE5B;border-color:#FFDE5B;color:#8D0505;}
 input[type=date],input[type=month]{padding:8px 16px;border-radius:999px;border:1.5px solid #F5E9D4;font-size:13px;font-family:"Noto Sans SC",sans-serif;background:#fff;outline:none;}
@@ -2263,7 +2271,7 @@ function _confirmPendPay(tender,change){
   document.getElementById('chgChange').textContent='RM '+change.toFixed(2);
   document.getElementById('changeBg').classList.add('show');
 }
-function reprO(id){var o=_orders.find(function(x){return x.id===id;});if(o)printRec(o);}
+function reprO(id){var o=_findOrder(id);if(o)printRec(o);}
 
 /* ══════════ 收银台会员 ══════════
    原本 POS 单从不设 member_id，柜台消费不累积 XP/Coin（markPaid 里是
@@ -2615,7 +2623,58 @@ function rsvCancel(id){
 }
 
 /* ── DASHBOARD ── */
+/* 看的是哪一天，'YYYY-MM-DD'，null = 今天。
+   必须自己拼本地年月日，不能用 toISOString().slice(0,10)——那是 UTC，
+   马来西亚 UTC+8，早上 8 点前会算成"昨天"，一开店就看错日子。 */
 var _vDate=null;
+function _ymd(d){
+  d = d || new Date();
+  var p=function(n){return String(n).padStart(2,'0');};
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+}
+var _WD=['周日','周一','周二','周三','周四','周五','周六'];
+/* 历史日期单独从云端按日拉一次存这里。_orders 只装"最近 200 单"，
+   过了 12 点想回头看昨天，单量一大昨天就被挤出去了——这正是"看不到昨天"的原因。 */
+var _dayCache={};
+var _dayLoading=null;
+function _dayOrders(ymd){
+  if(ymd === _ymd()) return _orders;          // 今天：用实时那份
+  return _dayCache[ymd] || _orders;           // 历史：拉到了用拉到的；还没拉到先拿本地有的顶上
+}
+/* 作废/补打要能找到历史日期里的单，不能只在 _orders 里找 */
+function _findOrder(id){
+  var o=_orders.find(function(x){return x.id===id;});
+  if(o) return o;
+  var ks=Object.keys(_dayCache);
+  for(var i=0;i<ks.length;i++){
+    o=(_dayCache[ks[i]]||[]).find(function(x){return x.id===id;});
+    if(o) return o;
+  }
+  return null;
+}
+async function loadOrdersForDay(ymd){
+  if(!db || _dayCache[ymd]) return;
+  var start=new Date(ymd+'T00:00:00');                                  // 不带 Z = 按本地时区解析，正是我们要的
+  var end=new Date(ymd+'T00:00:00'); end.setDate(end.getDate()+1);
+  _dayLoading=ymd; renderDash();
+  try{
+    var res=await db.from('orders').select('*')
+      .gte('created_at', start.toISOString()).lt('created_at', end.toISOString())
+      .order('created_at',{ascending:false});
+    if(res.error) throw res.error;
+    // 和本地那份同一天的单按 id 并起来，不是直接替换：万一有单当时离线没同步上去，
+    // 直接替换会把它从这一天的账里抹掉
+    var byId={};
+    _orders.forEach(function(o){ try{ if(_ymd(new Date(o.createdAt))===ymd) byId[o.id]=o; }catch(e){} });
+    (res.data||[]).map(rowToOrder).forEach(function(o){ byId[o.id]=o; });
+    _dayCache[ymd]=Object.keys(byId).map(function(k){return byId[k];})
+      .sort(function(a,b){ return new Date(b.createdAt)-new Date(a.createdAt); });
+  }catch(e){
+    console.error('loadOrdersForDay', e);
+    showN('读取 '+ymd+' 的交易失败：'+_rpcErr(e));
+  }
+  _dayLoading=null; renderDash();
+}
 var _txModeFilter='';
 var _txPayFilter='';
 var _txSelId=null;
@@ -2633,14 +2692,15 @@ function orderMode3(o){
   return'dinein';
 }
 function renderDash(){
-  var today=new Date().toDateString();var dd=_vDate||today;
-  var ords=_orders.filter(function(o){try{return new Date(o.createdAt).toDateString()===dd && o.taMode!=='recharge' && o.taMode!=='reservation';}catch(e){return false;}});  // 充值单/预约单不算营业额
+  var today=_ymd();var dd=_vDate||today;
+  var ords=_dayOrders(dd).filter(function(o){try{return _ymd(new Date(o.createdAt))===dd && o.taMode!=='recharge' && o.taMode!=='reservation';}catch(e){return false;}});  // 充值单/预约单不算营业额
   var live=ords.filter(function(o){return o.status!=='void';});
   var rev=live.reduce(function(s,o){return s+o.total;},0);
   var cash=live.filter(function(o){return o.payMethod==='cash';}).reduce(function(s,o){return s+o.total;},0);
   var tng=live.filter(function(o){return o.payMethod==='tng';}).reduce(function(s,o){return s+o.total;},0);
   var revShown = _revMode ? live.filter(function(o){return orderMode3(o)===_revMode;}).reduce(function(s,o){return s+o.total;},0) : rev;
-  var revLabel = {'':'今日营业额',dinein:'堂食营业额',takeaway:'打包/自取营业额',delivery:'外卖营业额'}[_revMode];
+  // 看的不是今天就别再写「今日」，不然翻到昨天还顶着今日营业额，容易看岔
+  var revLabel = {'':(dd===today?'今日营业额':'当日营业额'),dinein:'堂食营业额',takeaway:'打包/自取营业额',delivery:'外卖营业额'}[_revMode];
 
   var filtered=ords.filter(function(o){
     return (!_txModeFilter||orderMode3(o)===_txModeFilter) && (!_txPayFilter||o.payMethod===_txPayFilter);
@@ -2650,8 +2710,14 @@ function renderDash(){
 
   var el=document.getElementById('adminContent');
   el.innerHTML='<div class="page-title">Transaction</div>'
-    +'<div class="date-row"><div class="dpill'+(!_vDate||dd===today?' a':'')+'" onclick="setDD(null)">今天 Today</div>'
-    +'<input type="date" value="'+new Date().toISOString().slice(0,10)+'" onchange="setDDv(this.value)"></div>'
+    +'<div class="date-row"><label class="dbox'+(dd===today?' a':'')+'">'
+      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+      +'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>'
+      +'<span>'+(dd===today ? '今天 Today' : (dd+' '+_WD[new Date(dd+'T00:00:00').getDay()]))+'</span>'
+      // showPicker() 才是点哪都弹选择器；不加的话 Chrome 只有点到那个小日历图标才弹
+      +'<input type="date" value="'+dd+'" max="'+today+'" onclick="try{this.showPicker()}catch(e){}" onchange="setDDv(this.value)">'
+    +'</label>'
+    +(_dayLoading===dd?'<span class="dbox-hint">读取中…</span>':'')+'</div>'
     +'<div class="kpi-row">'
     +'<div class="kpi"><div class="l">'+revLabel+'<select class="th-filter" onchange="setRevMode(this.value)">'
       +'<option value=""'+(_revMode===''?' selected':'')+'>▼ 总营业额</option>'
@@ -2711,18 +2777,26 @@ function renderDash(){
       +'</div>'
     +'</div>';
 }
-function setDD(d){_vDate=d;renderDash();}
-function setDDv(v){_vDate=v?new Date(v).toDateString():null;renderDash();}
+/* 选了哪天就看哪天。选到今天就清回 null，走实时那份数据。
+   历史日期本地不一定有（_orders 只有最近 200 单），所以顺手去云端按日拉一次。 */
+function setDDv(v){
+  if(!v){ _vDate=null; renderDash(); return; }
+  _vDate = (v===_ymd()) ? null : v;
+  renderDash();
+  if(_vDate) loadOrdersForDay(_vDate);
+}
 function setRevMode(v){_revMode=v;renderDash();}
 function setTxModeFilter(v){_txModeFilter=v;renderDash();}
 function setTxPayFilter(v){_txPayFilter=v;renderDash();}
 function selectTx(id){_txSelId=id;renderDash();}
 function voidOrder(id){
   if(!confirm('确定要作废这笔订单吗？作废后不计入营业额统计。'))return;
-  var o=_orders.find(function(x){return x.id===id;});
+  var o=_findOrder(id);
   if(!o)return;
   o.status='void';
-  sj('pm_orders',_orders);
+  // 历史日期那份在 _dayCache 里，不在 _orders 里，就没什么可存回本地的；
+  // 云端那句 update 照发，作废本身不会漏
+  if(_orders.indexOf(o)>=0) sj('pm_orders',_orders);
   try{pmBroadcastOrders();}catch(e){}
   if(db) db.from('orders').update({status:'void'}).eq('id',id).then(function(res){if(res&&res.error)console.error('voidOrder',res.error);}).catch(function(e){console.error('voidOrder',e);});
   showN('已作废订单 #'+o.orderNum);
