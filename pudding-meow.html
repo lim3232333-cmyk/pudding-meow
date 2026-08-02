@@ -1185,7 +1185,7 @@
   /* 布丁喵水滴 pin（442:308，40×40 盒；水滴 inset 8.33%/16.67%，logo left16.67%/right19.44%/top-1）；logo 复用首页 PNG */
   .addr-pin{ position:relative; width:40px; height:40px; }
   .addr-pin-drop{ position:absolute; left:16.67%; right:16.67%; top:8.33%; bottom:8.33%; display:block; }
-  .addr-pin-logo{ position:absolute; left:16.67%; right:19.44%; top:-1px; height:auto; aspect-ratio:2481/3508; object-fit:contain; }
+  .addr-pin-logo{ position:absolute; left:16.67%; top:-1px; width:63.89%; height:auto; aspect-ratio:2481/3508; object-fit:contain; }
   /* 搜索框（443:422）：外壳浮顶，内含胶囊 + 联想下拉；兜底模式隐藏 */
   .addr-search-wrap{ display:none; }
   .addr-search{ display:flex; align-items:center; justify-content:space-between; height:45px; padding:8px 20px; background:#fff; border-radius:12px; box-shadow:0 0 2px rgba(217,217,217,.5); box-sizing:border-box; }
@@ -1212,6 +1212,7 @@
   .addr-map.map-on .addr-pin{ position:absolute; left:50%; top:50%; transform:translate(-50%,-100%); z-index:3; pointer-events:none; filter:drop-shadow(0 2px 3px rgba(0,0,0,.35)); }
   .addr-map.map-on .addr-locate-btn{ display:none; }
   .addr-map.map-on .addr-locstat{ position:absolute; left:12px; bottom:12px; z-index:3; max-width:70%; background:rgba(255,255,255,.9); border-radius:8px; padding:3px 8px; box-shadow:0 1px 3px rgba(0,0,0,.2); }
+  .addr-map.map-on .addr-locstat:empty{ display:none; }   /* 没状态字时别露白块 */
   /* 表单（613:2774）：2 列 gap16 px20；字段 h45 圆角12 白底 shadow(0 0 4px)；浮动标签：空态 14px 居中，聚焦/有值缩到 10px 顶部。 */
   .addr-grid{ flex-shrink:0; display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:20px; box-sizing:border-box; }
   .addr-field{ position:relative; grid-column:span 1; height:45px; background:#FFF; border-radius:12px; box-shadow:0 0 4px rgba(217,217,217,.5); box-sizing:border-box; overflow:hidden; }
