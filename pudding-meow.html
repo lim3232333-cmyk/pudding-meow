@@ -1173,7 +1173,7 @@
   /* ===== 新收货地址整页（点＋新收货地址 → 会员存进地址簿/游客一次性）===== */
   .addr-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:359; display:none; }
   .addr-overlay.show{ display:block; }
-  .addr-form-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:var(--cream2); z-index:360; display:none; flex-direction:column; overflow-y:auto; font-family:"Noto Sans SC",sans-serif; }
+  .addr-form-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:var(--cream2); z-index:360; display:none; flex-direction:column; overflow-y:auto; padding-bottom:calc(20px + env(safe-area-inset-bottom,0px)); box-sizing:border-box; font-family:"Noto Sans SC",sans-serif; }
   .addr-form-screen.show{ display:flex; }
   .addr-form-head{ position:relative; flex-shrink:0; height:54px; display:flex; align-items:center; justify-content:center; }
   .addr-back{ position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:26px; font-weight:700; color:var(--red); cursor:pointer; line-height:1; padding:4px 8px; }
@@ -1206,7 +1206,7 @@
   .addr-locate-btn:disabled{ opacity:.6; cursor:not-allowed; }
   .addr-locstat{ font-size:11px; color:var(--muted); min-height:14px; }
   /* 地图激活后：canvas 铺满（440:227 高 330）；搜索框浮顶 top16 居中 337 宽；pin 尖端落地图正中（拖图读中心坐标，尖端必须=中心）；稿子无定位按钮，隐藏。 */
-  .addr-map.map-on{ display:block; height:330px; padding:0; overflow:visible; }
+  .addr-map.map-on{ display:block; flex:1 1 auto; min-height:330px; padding:0; overflow:visible; }   /* 弹性撑开：吃掉多余空间，把资料框顶到底部、留大地图 */
   .addr-map.map-on .addr-map-canvas{ display:block; position:absolute; inset:0; overflow:hidden; }
   .addr-map.map-on .addr-search-wrap{ display:block; position:absolute; top:16px; left:50%; transform:translateX(-50%); width:337px; max-width:calc(100% - 32px); z-index:4; }
   .addr-map.map-on .addr-pin{ position:absolute; left:50%; top:50%; transform:translate(-50%,-100%); z-index:3; pointer-events:none; filter:drop-shadow(0 2px 3px rgba(0,0,0,.35)); }
@@ -1224,8 +1224,8 @@
   .addr-field input:focus ~ .lbl, .addr-field input:not(:placeholder-shown) ~ .lbl{ top:6px; font-size:10px; }
   .addr-field .req{ color:var(--red); margin-left:2px; }
   .addr-field:focus-within{ box-shadow:0 0 0 1px var(--red), 0 0 4px rgba(141,5,5,.4); }
-  .addr-save-bar{ margin-top:auto; flex-shrink:0; padding:16px 20px calc(34px + env(safe-area-inset-bottom, 0px)); box-sizing:border-box; }
-  .addr-save-btn{ width:100%; height:48px; border:none; border-radius:12px; font-size:16px; font-weight:700; font-family:"Noto Sans SC",sans-serif; cursor:pointer; background:var(--red); color:#FFFFD5; }
+  /* 确认/保存按钮：完全照结算页「立即支付」(.ck-paybtn) —— sticky 悬浮底部、361 宽、45 高、圆角12、红底白字、14px 粗体、同款投影；align-self 居中（本页是 stretch，结算页父级是 center） */
+  .addr-save-btn{ position:sticky; bottom:0; margin-top:auto; align-self:center; z-index:5; width:361px; max-width:calc(100% - 30px); height:45px; border:none; border-radius:12px; background:var(--red); color:#FFF; font-size:14px; font-weight:700; font-family:"Noto Sans SC",sans-serif; cursor:pointer; flex-shrink:0; box-shadow:0 4px 12px rgba(0,0,0,.2); }
   .addr-save-btn.disabled,.addr-save-btn:disabled{ background:#D9D9D9; color:#726F6F; cursor:not-allowed; }
   .ld-history-modal{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:340px; max-height:70vh; background:var(--cream2); border-radius:16px; z-index:350; display:none; flex-direction:column; overflow:hidden; }
   .ld-history-modal.show{ display:flex; }
@@ -2012,7 +2012,7 @@
       <div class="addr-field"><input id="afPhone" type="text" inputmode="tel" placeholder=" " oninput="_addrCheckValid()"><label class="lbl">手机号码<span class="req">*</span></label></div>
       <div class="addr-field span2"><input id="afRemarks" type="text" placeholder=" "><label class="lbl">备注</label></div>
     </div>
-    <div class="addr-save-bar"><button class="addr-save-btn disabled" id="addrSaveBtn" disabled onclick="saveAddrForm()">保存</button></div>
+    <button class="addr-save-btn disabled" id="addrSaveBtn" disabled onclick="saveAddrForm()">保存</button>
   </div>
 
   <!-- ============ product detail sheet ============ -->
