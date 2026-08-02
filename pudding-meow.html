@@ -1178,11 +1178,22 @@
   .addr-form-head{ position:relative; flex-shrink:0; height:54px; display:flex; align-items:center; justify-content:center; }
   .addr-back{ position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:26px; font-weight:700; color:var(--red); cursor:pointer; line-height:1; padding:4px 8px; }
   .addr-form-title{ font-size:18px; font-weight:700; color:var(--red); }
-  .addr-map{ flex-shrink:0; background:#D9D9D9; min-height:150px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:16px; box-sizing:border-box; }
+  /* 兜底样式（没有地图时）：跟以前一样，居中的 📍 + 定位按钮 + 状态字。 */
+  .addr-map{ position:relative; flex-shrink:0; background:#D9D9D9; min-height:150px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:16px; box-sizing:border-box; }
+  .addr-map-canvas{ display:none; }
   .addr-pin{ font-size:32px; line-height:1; }
   .addr-locate-btn{ height:38px; padding:0 18px; border:none; border-radius:999px; background:var(--red); color:#FFFFD5; font-size:13px; font-weight:500; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
   .addr-locate-btn:disabled{ opacity:.6; cursor:not-allowed; }
   .addr-locstat{ font-size:11px; color:var(--muted); min-height:14px; }
+  /* 地图激活后（.map-on）：canvas 铺满，📍 固定在正中当作落点指示（地图在下面滑，
+     指针不动，就是 Grab/Foodpanda 那种交互），定位按钮浮到右下，状态字浮到左下白底条。 */
+  .addr-map.map-on{ display:block; height:220px; padding:0; overflow:hidden; }
+  .addr-map.map-on .addr-map-canvas{ display:block; position:absolute; inset:0; }
+  .addr-map.map-on .addr-pin{ position:absolute; left:50%; top:50%; transform:translate(-50%,-100%); z-index:3; pointer-events:none; filter:drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
+  .addr-map.map-on .addr-locate-btn{ position:absolute; right:12px; bottom:12px; z-index:3; height:34px; padding:0 14px; font-size:12px; box-shadow:0 1px 4px rgba(0,0,0,.3); }
+  .addr-map.map-on .addr-locstat{ position:absolute; left:12px; bottom:16px; z-index:3; max-width:60%; background:rgba(255,255,255,.9); border-radius:8px; padding:3px 8px; box-shadow:0 1px 3px rgba(0,0,0,.2); }
+  /* Places 联想下拉（Google 注进 body 的 .pac-container）要盖在整页表单之上（z-index:360）。 */
+  .pac-container{ z-index:400 !important; font-family:"Noto Sans SC",sans-serif; border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,.2); }
   .addr-grid{ flex-shrink:0; display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:20px; box-sizing:border-box; }
   .addr-field{ grid-column:span 1; background:#FFF; border-radius:12px; padding:8px 16px; box-shadow:0 0 4px rgba(217,217,217,.5); box-sizing:border-box; }
   .addr-field.span2{ grid-column:span 2; }
@@ -1948,8 +1959,9 @@
       <div class="addr-back" onclick="closeAddrForm()">‹</div>
       <div class="addr-form-title">新收货地址</div>
     </div>
-    <div class="addr-map">
-      <div class="addr-pin">📍</div>
+    <div class="addr-map" id="addrMap">
+      <div class="addr-map-canvas" id="addrMapCanvas"></div>
+      <div class="addr-pin" id="addrPin">📍</div>
       <button class="addr-locate-btn" id="addrLocateBtn" onclick="addrLocate()">使用我的定位 Use My Location</button>
       <div class="addr-locstat" id="addrLocStat"></div>
     </div>
@@ -2011,6 +2023,14 @@
 var SUPABASE_URL ='https://vmdjsvapikfgcbthnapw.supabase.co';
 var SUPABASE_KEY ='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZtZGpzdmFwaWtmZ2NidGhuYXB3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MjczODYsImV4cCI6MjA5ODMwMzM4Nn0.gHeQR9HKfphTsJjVRamidKS2qtUqBeqvEZo8Pb1zF28';
 /* ⬆⬆⬆ 填好后保存即可。未填 / 离线 / 库加载失败时，自动回退到本地模式（写死菜单 + localStorage）。 */
+
+/* Google 地图 / 地址联想。这个 key 跟 Lalamove/HitPay 那种不一样——它就是给前端用的：
+   到 Google Cloud Console 把它锁成「HTTP referrer = 你的域名」+「只开 Maps JavaScript API、
+   Places API、Geocoding API」，即使源码里看得到也盗用不了，所以不必藏进 Edge Function。
+   没填（还是 YOUR-）/ 脚本被墙 / 库没加载出来时，新增地址页自动回退到「只有一颗 📍 + 使用我的
+   定位」的老样子，照样能手打地址 + GPS 取坐标，只是没有联想和地图。 */
+var GOOGLE_MAPS_KEY = 'YOUR-GOOGLE-MAPS-API-KEY';
+var STORE_LATLNG = {lat:2.1889, lng:102.2280};   // Kota Syahbandar, Melaka —— 地图默认落点，用户自己拖到家
 var db = (window.supabase && SUPABASE_URL.indexOf('YOUR-') < 0)
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
   : null;
@@ -2552,6 +2572,7 @@ function openAddrForm(){
   document.getElementById('addrFormScreen').classList.add('show');
   document.getElementById('dvOverlay').classList.remove('show');
   document.getElementById('dvModal').classList.remove('show');
+  _initAddrMap();   // 尽力挂上 Google 地图 + 地址联想；库不可用时静默回退到老样子
 }
 function closeAddrForm(){
   document.getElementById('addrFormOverlay').classList.remove('show');
@@ -2564,13 +2585,115 @@ function addrLocate(){
   btn.disabled=true; document.getElementById('addrLocStat').textContent='定位中… Locating...';
   navigator.geolocation.getCurrentPosition(function(pos){
     btn.disabled=false;
-    _addrLocateCoords={lat:pos.coords.latitude, lng:pos.coords.longitude};
-    document.getElementById('addrLocStat').textContent='已定位 ✓';
-    _addrCheckValid();
+    var lat=pos.coords.latitude, lng=pos.coords.longitude;
+    if(_addrMap){
+      // 有地图：把地图挪过去，坐标由地图 idle 统一从中心读；再反查一次地址，替用户填上街道/邮编/城市
+      _addrMap.panTo({lat:lat, lng:lng}); _addrMap.setZoom(17);
+      _addrReverseFill(lat, lng);
+      document.getElementById('addrLocStat').textContent='已定位 ✓ 可拖动地图微调门牌';
+    } else {
+      _addrLocateCoords={lat:lat, lng:lng};
+      document.getElementById('addrLocStat').textContent='已定位 ✓';
+      _addrCheckValid();
+    }
   }, function(err){
     btn.disabled=false;
     document.getElementById('addrLocStat').textContent='定位失败：'+(err&&err.message?err.message:'请检查定位权限');
   }, {enableHighAccuracy:true, timeout:10000});
+}
+
+/* ---------- Google 地图 + 地址联想 ---------- */
+/* 交互：地图开着时是「中心固定 📍」——顾客滑动地图把 📍 对到自家门口，坐标始终 = 地图中心
+   （读中心不花钱，不用每次反查）。地址框是 Places 联想：选一条自动定位地图 + 回填邮编/城市。
+   任何一步库不可用都回退到「只有 📍 + 定位按钮」的老样子，手打 + GPS 照样能存地址。 */
+var _addrMap=null, _addrGeocoder=null, _addrAutocomplete=null, _addrMapTried=false, _gmapsPromise=null;
+
+function _gmapsAvailable(){ return GOOGLE_MAPS_KEY && GOOGLE_MAPS_KEY.indexOf('YOUR-')<0; }
+
+function _loadGoogleMaps(){
+  if(window.google && window.google.maps && window.google.maps.places) return Promise.resolve();
+  if(_gmapsPromise) return _gmapsPromise;
+  if(!_gmapsAvailable()) return Promise.reject(new Error('no-key'));
+  _gmapsPromise=new Promise(function(resolve, reject){
+    var cbName='_gmapsCb_'+Date.now();
+    window[cbName]=function(){ try{ delete window[cbName]; }catch(e){} resolve(); };
+    var s=document.createElement('script');
+    s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(GOOGLE_MAPS_KEY)+'&libraries=places&language=zh-CN&region=MY&callback='+cbName;
+    s.async=true; s.defer=true;
+    s.onerror=function(){ reject(new Error('load-failed')); };
+    document.head.appendChild(s);
+  });
+  return _gmapsPromise;
+}
+
+function _initAddrMap(){
+  var wrap=document.getElementById('addrMap');
+  if(_addrMap){ _addrMap.setCenter(STORE_LATLNG); _addrMap.setZoom(16); google.maps.event.trigger(_addrMap,'resize'); return; }
+  if(_addrMapTried && !_gmapsAvailable()) return;   // 已知没 key，不用再试，保持兜底样式
+  _addrMapTried=true;
+  _loadGoogleMaps().then(function(){
+    wrap.classList.add('map-on');
+    _addrGeocoder=new google.maps.Geocoder();
+    _addrMap=new google.maps.Map(document.getElementById('addrMapCanvas'), {
+      center:STORE_LATLNG, zoom:16, disableDefaultUI:true, zoomControl:true,
+      clickableIcons:false, gestureHandling:'greedy'
+    });
+    // 中心即落点：地图停下时把中心记成坐标（便宜，不调 API），空地址不硬塞
+    _addrMap.addListener('idle', function(){
+      var c=_addrMap.getCenter(); if(!c) return;
+      _addrLocateCoords={lat:c.lat(), lng:c.lng()};
+      _addrCheckValid();
+    });
+    _bindAddrAutocomplete();
+  }).catch(function(){
+    // 没 key / 脚本被墙：保持兜底样式，什么都不改
+  });
+}
+
+function _bindAddrAutocomplete(){
+  var input=document.getElementById('afAddress');
+  if(!input || _addrAutocomplete) return;
+  input.setAttribute('placeholder','输入路名 / 建筑名 搜索…');
+  _addrAutocomplete=new google.maps.places.Autocomplete(input, {
+    componentRestrictions:{country:'my'},
+    fields:['geometry','address_components','name','formatted_address']
+  });
+  _addrAutocomplete.addListener('place_changed', function(){
+    var p=_addrAutocomplete.getPlace();
+    if(!p || !p.geometry || !p.geometry.location) return;
+    var loc=p.geometry.location;
+    if(_addrMap){ _addrMap.panTo(loc); _addrMap.setZoom(17); }   // idle 会顺手记坐标
+    else { _addrLocateCoords={lat:loc.lat(), lng:loc.lng()}; }
+    _fillAddrFromComponents(p.address_components||[]);
+    // 街道行：优先 place.name（多半就是路名/建筑名），否则退回 formatted_address 的第一段
+    if(p.name) input.value=p.name;
+    else if(p.formatted_address) input.value=p.formatted_address.split(',')[0];
+    document.getElementById('addrLocStat').textContent='已选定 ✓ 可拖动地图微调门牌';
+    _addrCheckValid();
+  });
+}
+
+function _acComp(comps, type){
+  var m=comps.find(function(c){ return c.types.indexOf(type)>=0; });
+  return m ? (m.long_name||m.short_name||'') : '';
+}
+function _fillAddrFromComponents(comps){
+  var pc=_acComp(comps,'postal_code');
+  var city=_acComp(comps,'locality') || _acComp(comps,'postal_town') || _acComp(comps,'administrative_area_level_2');
+  if(pc) document.getElementById('afPostcode').value=pc;
+  if(city) document.getElementById('afCity').value=city;
+}
+/* GPS 定位后没有文字地址，反查一次把街道/邮编/城市填上（只在用户主动点定位时调，省钱） */
+function _addrReverseFill(lat, lng){
+  if(!_addrGeocoder) return;
+  _addrGeocoder.geocode({location:{lat:lat, lng:lng}}, function(res, status){
+    if(status!=='OK' || !res || !res[0]) return;
+    var r=res[0];
+    _fillAddrFromComponents(r.address_components||[]);
+    var input=document.getElementById('afAddress');
+    if(input && !input.value.trim() && r.formatted_address) input.value=r.formatted_address.split(',')[0];
+    _addrCheckValid();
+  });
 }
 function _addrCheckValid(){
   var need=['afUnit','afAddress','afPostcode','afCity','afRecipient','afPhone'];
