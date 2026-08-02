@@ -2029,7 +2029,7 @@ var SUPABASE_KEY ='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIs
    Places API、Geocoding API」，即使源码里看得到也盗用不了，所以不必藏进 Edge Function。
    没填（还是 YOUR-）/ 脚本被墙 / 库没加载出来时，新增地址页自动回退到「只有一颗 📍 + 使用我的
    定位」的老样子，照样能手打地址 + GPS 取坐标，只是没有联想和地图。 */
-var GOOGLE_MAPS_KEY = 'YOUR-GOOGLE-MAPS-API-KEY';
+var GOOGLE_MAPS_KEY = 'AIzaSyB3hH1WUr3LclH_9j9GD6j3cK757qXx8gg';
 var STORE_LATLNG = {lat:2.1889, lng:102.2280};   // Kota Syahbandar, Melaka —— 地图默认落点，用户自己拖到家
 var db = (window.supabase && SUPABASE_URL.indexOf('YOUR-') < 0)
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
