@@ -95,8 +95,8 @@ Both files load `@supabase/supabase-js@2` from CDN and share **one config block*
 | `menu_categories` | `id, code, name, name_en, parent_code, enabled, sort_order` | the categories themselves, two levels (`parent_code` null = top level). Managed inline in POS 菜单管理 → 商品管理 |
 | `sales_channels` | `id, code, name, name_en, builtin, enabled, sort_order` | the sales channels themselves (POS 菜单管理 → 销售方式) |
 | `spec_defs` | `id, name, options(jsonb), sold_out_options(jsonb), required, sort_order, channels(jsonb), option_prices(jsonb)` | reusable spec groups (`option_prices` = default per-option surcharge) |
-| `recharge_packages` | `id, price, coins, xp, draw_tickets, tag, first_only, gifts(jsonb), enabled, sort_order` | 充值套餐 — **one package is one bundle** (RM50 → wallet +RM50 + coins + xp + draw tickets). The mini-program 充值 page and the POS cashier Top up read the same rows (POS 会员运营 → 充值套餐) |
-| `wallet_settings` | single row: `wallet_earns, min_topup, max_topup, max_balance, refundable` | 储值规则 — wallet limits only; the rewards live on the package. `rpc_pos_topup(member, package_id, note)` and `rpc_complete_recharge` both look the rewards up from `recharge_packages` **server-side** — the client never says how much to grant |
+| `recharge_packages` | `id, price, coins, xp, draw_tickets, tag, first_only, gifts(jsonb), enabled, sort_order` | 充值套餐 — **one package is one bundle** (RM50 → wallet +RM50 + coins + xp + draw tickets). The mini-program 充值 page and the POS cashier Top up read the same rows (POS 会员运营 → 充值管理) |
+| `wallet_settings` | single row: `wallet_earns, min_topup, max_topup, max_balance, refundable` | 钱包使用限制 — wallet limits only; the rewards live on the package. `rpc_pos_topup(member, package_id, note)` and `rpc_complete_recharge` both look the rewards up from `recharge_packages` **server-side** — the client never says how much to grant |
 
 Field mapping between the JS order object (camelCase) and DB rows (snake_case) is done by **`orderToRow()` / `rowToOrder()`** — defined identically in both files. `orderToRow` only emits real columns, so POS-only fields (`tender`, `change`, `customerName`) are dropped on insert.
 

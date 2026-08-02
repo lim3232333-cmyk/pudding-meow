@@ -2913,7 +2913,7 @@ function setLoyaltyTab(t){_loyaltyTab=t;renderLoyaltyAdmin();}
 function renderLoyaltyAdmin(){
   var el=document.getElementById('adminContent');
   if(!db){el.innerHTML='<div class="page-title">会员运营 Loyalty</div><div style="padding:30px;color:#8D0505">未连接云端（Supabase 未配置或离线），无法管理会员系统。</div>';return;}
-  var tabs=[['members','会员列表'],['levels','等级设置'],['xp','成长值规则'],['coin','金币规则'],['checkin','签到奖励'],['weekly','每周任务'],['referrals','邀请规则'],['coupons','优惠券管理'],['draw','幸运抽奖'],['topup','充值套餐'],['wallet','储值规则']];
+  var tabs=[['members','会员列表'],['levels','等级设置'],['xp','成长值规则'],['coin','金币规则'],['checkin','签到奖励'],['weekly','每周任务'],['referrals','邀请规则'],['coupons','优惠券管理'],['draw','幸运抽奖'],['topup','充值管理']];
   var html='<div class="page-title">会员运营 · Loyalty</div>'
     +'<div class="ma-tabs">'+tabs.map(function(t){return'<button class="ma-tab'+(_loyaltyTab===t[0]?' a':'')+'" onclick="setLoyaltyTab(\''+t[0]+'\')">'+t[1]+'</button>';}).join('')+'</div>';
   el.innerHTML=html+'<div id="loyaltyBody">加载中…</div>';
@@ -2926,11 +2926,10 @@ function renderLoyaltyAdmin(){
   else if(_loyaltyTab==='referrals') loadLoyaltyReferralRules();
   else if(_loyaltyTab==='coupons') loadLoyaltyCoupons();
   else if(_loyaltyTab==='draw') loadLoyaltyDraw();
-  else if(_loyaltyTab==='topup') loadTopupPkgs();
-  else if(_loyaltyTab==='wallet') loadWalletSettings();
+  else if(_loyaltyTab==='topup'){ loadTopupPkgs(); loadWalletSettings(); }
 }
 
-/* ---- 储值规则：充值奖励 + 钱包使用限制（wallet_settings 单行设置） ----
+/* ---- 钱包使用限制（wallet_settings 单行设置）：「充值管理」页的下半截 ----
    充值原本只做「钱包到账 + 套餐自带的 Coin」，不发 XP 也不发抽奖券。
    这一页配的东西由服务端 _wallet_grant_rewards / _wallet_check_limits 执行，
    不是前端算完再报给后端——anon key 是公开的，金额和上限只在前端拦拦不住。 */
@@ -2947,8 +2946,10 @@ function loadWalletSettings(){
 var _walletErr=null;
 function _wsNum(v){ return (v===null||v===undefined||v==='')?'':v; }
 function renderWalletSettingsBody(){
-  if(_loyaltyTab!=='wallet') return;   // 慢一步返回时别盖掉用户已经切走的页签
-  var body=document.getElementById('loyaltyBody'); if(!body) return;
+  if(_loyaltyTab!=='topup') return;   // 慢一步返回时别盖掉用户已经切走的页签
+  // 储值规则现在是「充值管理」页下半截，写进套餐表格后面那个容器，不占整页。
+  // 套餐那边可能还没渲染完（两份数据并行拉），容器不在就先不画，等它渲染完会再调一次。
+  var body=document.getElementById('walletRulesBox'); if(!body) return;
   if(_walletErr){
     body.innerHTML='<div style="padding:24px;color:#8D0505">读取失败：'+esc(_rpcErr(_walletErr))
       +'<br><span style="font-size:12px;color:#4A4848">没跑过 supabase-wallet-rules.sql 的话，先去 SQL Editor 跑一次</span></div>';
@@ -2963,9 +2964,9 @@ function renderWalletSettingsBody(){
     return'<input class="mfi ws-num" id="'+id+'" type="number" step="'+(step||1)+'" value="'+_wsNum(val)+'" placeholder="'+(ph||'')+'">';
   };
   body.innerHTML=
-    '<div style="font-size:13px;color:#4A4848;margin-bottom:14px">这一页管「钱进了钱包之后怎么花」。'
+    '<div style="font-size:13px;color:#4A4848;margin:24px 0 14px">下面这段管「钱进了钱包之后怎么花」。'
     +'限制由服务端执行，改完立刻生效，小程序和收银台两条充值路径都算数。<br>'
-    +'<b>送多少 Coin / XP / 抽奖券不在这里</b>——奖励是包在每一档套餐里的，去「充值套餐」那页改。</div>'
+    +'<b>送多少 Coin / XP / 抽奖券不在这里</b>——奖励是包在每一档套餐里的，在上面那张表里逐档配。</div>'
 
     +'<div class="tx-card" style="margin-bottom:16px"><div class="tx-ch"><h3>钱包使用</h3></div><div class="ws-box">'
     +row('用余额付款累积 XP / Coin','关掉后，用钱包付的单不再算消费奖励（现金和在线支付不受影响）',
@@ -3057,7 +3058,10 @@ function renderTopupPkgsBody(){
       +'<button onclick="tpDel(\''+p.id+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">删</button>'
       +'</td></tr>';
   });
-  body.innerHTML=html+'</tbody></table></div>';
+  body.innerHTML=html+'</tbody></table></div>'
+    +'<div id="walletRulesBox"></div>';
+  // 容器刚建好，把已经拉到的储值规则画进去；还没拉到的话它自己回来时会再调一次
+  try{ renderWalletSettingsBody(); }catch(e){}
 }
 var _tpEditId=null;
 function _tpAfterWrite(res,msg){ if(res&&res.error){showN(''+(res.error.message||'操作失败'));return;} showN(msg); loadTopupPkgs(); }
