@@ -1196,15 +1196,19 @@
      指示（地图在下面滑、指针不动，Grab/Foodpanda 那种）；稿子里没有定位按钮，1:1 起见隐藏它。 */
   .addr-map.map-on{ display:block; height:300px; padding:0; overflow:hidden; }
   .addr-map.map-on .addr-map-canvas{ display:block; position:absolute; inset:0; }
-  .addr-map.map-on .addr-search{ display:flex; position:absolute; left:28px; top:16px; width:337px; max-width:calc(100% - 56px); height:45px; box-sizing:border-box; align-items:center; gap:12px; padding:8px 20px; background:#fff; border-radius:12px; box-shadow:0 0 2px rgba(217,217,217,.5),0 2px 8px rgba(0,0,0,.12); z-index:4; }
+  .addr-map.map-on .addr-search{ display:flex; position:absolute; left:28px; top:16px; width:337px; max-width:calc(100% - 56px); height:45px; box-sizing:border-box; align-items:center; justify-content:space-between; gap:12px; padding:8px 20px; background:#fff; border-radius:12px; box-shadow:0 0 2px rgba(217,217,217,.5); z-index:4; }
   .addr-map.map-on .addr-pin{ position:absolute; left:50%; top:50%; transform:translate(-50%,-100%); z-index:3; pointer-events:none; filter:drop-shadow(0 2px 3px rgba(0,0,0,.35)); }
   .addr-map.map-on .addr-locate-btn{ display:none; }
   .addr-map.map-on .addr-locstat{ position:absolute; left:12px; bottom:12px; z-index:3; max-width:70%; background:rgba(255,255,255,.9); border-radius:8px; padding:3px 8px; box-shadow:0 1px 3px rgba(0,0,0,.2); }
   /* Places 联想下拉（Google 注进 body 的 .pac-container）要盖在整页表单之上（z-index:360）。 */
   .pac-container{ z-index:400 !important; font-family:"Noto Sans SC",sans-serif; border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,.2); }
-  .addr-grid{ flex-shrink:0; display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:20px; box-sizing:border-box; }
+  .addr-grid{ flex-shrink:0; display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:20px; box-sizing:border-box; }
   .addr-field{ grid-column:span 1; background:#FFF; border-radius:12px; padding:8px 16px; box-shadow:0 0 4px rgba(217,217,217,.5); box-sizing:border-box; }
   .addr-field.span2{ grid-column:span 2; }
+  /* 游客（未登录）：只留 地址/收件人/手机/备注，会员专属字段隐藏；地址簿是会员才有的 */
+  .addr-form-screen.guest .addr-field.mem-only{ display:none; }
+  /* 表头右上角会员图标（Figma 613:2776）：游客点它去注册，成为会员才有地址簿 */
+  .addr-prof{ position:absolute; right:14px; top:50%; transform:translateY(-50%); cursor:pointer; }
   .addr-field .lbl{ display:block; font-size:10px; color:#726F6F; font-family:"Noto Sans SC",sans-serif; }
   .addr-field .req{ color:var(--red); margin-left:2px; }
   .addr-field input{ width:100%; border:none; outline:none; background:transparent; font-size:14px; color:var(--muted); font-family:"Noto Sans SC",sans-serif; padding:2px 0 0; box-sizing:border-box; }
@@ -1966,12 +1970,13 @@
     <div class="addr-form-head">
       <div class="addr-back" onclick="closeAddrForm()">‹</div>
       <div class="addr-form-title">新收货地址</div>
+      <svg class="addr-prof" onclick="_addrHeaderProfile()" width="20" height="22" viewBox="0 0 20 22" fill="none" stroke="#8D0505" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" role="button" aria-label="会员"><circle cx="10" cy="6" r="4"/><path d="M2.5 20a7.5 7.5 0 0 1 15 0"/></svg>
     </div>
     <div class="addr-map" id="addrMap">
       <div class="addr-map-canvas" id="addrMapCanvas"></div>
       <!-- 搜索地址框 (Figma 443:423)：地址联想绑在这里，选一条自动定位地图 + 回填表单 -->
       <div class="addr-search" id="addrSearchBox">
-        <input class="addr-search-inp" id="addrSearch" type="text" placeholder="搜索地址 Search address" autocomplete="off">
+        <input class="addr-search-inp" id="addrSearch" type="text" placeholder="搜索地址" autocomplete="off">
         <svg class="addr-search-ico" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" onclick="addrLocate()" role="button" aria-label="使用我的定位"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
       </div>
       <!-- 布丁喵水滴 pin (Figma 442:308)：logo 图在 openAddrForm 里从首页 logo 复制过来 -->
@@ -1983,11 +1988,11 @@
       <button class="addr-locate-btn" id="addrLocateBtn" onclick="addrLocate()">使用我的定位 Use My Location</button>
     </div>
     <div class="addr-grid">
-      <div class="addr-field span2"><label class="lbl">地点名称（e.g. Home, Office）</label><input id="afLabel" type="text" placeholder="Home"></div>
-      <div class="addr-field span2"><label class="lbl">单位号/门牌号<span class="req">*</span></label><input id="afUnit" type="text" oninput="_addrCheckValid()"></div>
+      <div class="addr-field span2 mem-only"><label class="lbl">地点名称（e.g. Home, Office）</label><input id="afLabel" type="text" placeholder="Home"></div>
+      <div class="addr-field span2 mem-only"><label class="lbl">单位号/门牌号<span class="req">*</span></label><input id="afUnit" type="text" oninput="_addrCheckValid()"></div>
       <div class="addr-field span2"><label class="lbl">地址<span class="req">*</span></label><input id="afAddress" type="text" oninput="_addrCheckValid()"></div>
-      <div class="addr-field"><label class="lbl">邮政编码<span class="req">*</span></label><input id="afPostcode" type="text" inputmode="numeric" oninput="_addrCheckValid()"></div>
-      <div class="addr-field"><label class="lbl">城市<span class="req">*</span></label><input id="afCity" type="text" oninput="_addrCheckValid()"></div>
+      <div class="addr-field mem-only"><label class="lbl">邮政编码<span class="req">*</span></label><input id="afPostcode" type="text" inputmode="numeric" oninput="_addrCheckValid()"></div>
+      <div class="addr-field mem-only"><label class="lbl">城市<span class="req">*</span></label><input id="afCity" type="text" oninput="_addrCheckValid()"></div>
       <div class="addr-field"><label class="lbl">收件人姓名<span class="req">*</span></label><input id="afRecipient" type="text" oninput="_addrCheckValid()"></div>
       <div class="addr-field"><label class="lbl">手机号码<span class="req">*</span></label><input id="afPhone" type="text" inputmode="tel" oninput="_addrCheckValid()"></div>
       <div class="addr-field span2"><label class="lbl">备注</label><input id="afRemarks" type="text"></div>
@@ -2586,6 +2591,10 @@ function openAddrForm(){
   document.getElementById('addrSearch').value='';
   var _pinLogo=document.getElementById('addrPinLogo'), _brand=document.getElementById('brandLogoImg');
   if(_pinLogo && _brand && _brand.src) _pinLogo.src=_brand.src;   // pin 复用首页布丁喵 logo，不重复塞 base64
+  // 游客（未登录）：精简表单 + 「确认」；会员：完整表单 + 「保存」到地址簿
+  var _isGuest=!(_memberId && _memberToken && db);
+  document.getElementById('addrFormScreen').classList.toggle('guest', _isGuest);
+  document.getElementById('addrSaveBtn').textContent = _isGuest ? '确认' : '保存';
   document.getElementById('addrLocStat').textContent='';
   _addrCheckValid();
   document.getElementById('addrFormOverlay').classList.add('show');
@@ -2719,20 +2728,28 @@ function _addrReverseFill(lat, lng){
   });
 }
 function _addrCheckValid(){
-  var need=['afUnit','afAddress','afPostcode','afCity','afRecipient','afPhone'];
+  var isGuest=!(_memberId && _memberToken && db);
+  var need = isGuest ? ['afAddress','afRecipient','afPhone']   // 游客只要 地址/收件人/手机
+                     : ['afUnit','afAddress','afPostcode','afCity','afRecipient','afPhone'];
   var ok=need.every(function(id){ return document.getElementById(id).value.trim(); }) && !!_addrLocateCoords;
   var btn=document.getElementById('addrSaveBtn');
   btn.disabled=!ok; btn.classList.toggle('disabled', !ok);
 }
+/* 表头会员图标：游客点它去注册（成为会员才有地址簿），会员本身不需要 */
+function _addrHeaderProfile(){
+  if(!(_memberId && _memberToken && db)){ closeAddrForm(); openRegister(); }
+}
 function saveAddrForm(){
   if(!_addrLocateCoords) return;
   var v=function(id){ return document.getElementById(id).value.trim(); };
+  var isGuest=!(_memberId && _memberToken && db);
   var unit=v('afUnit'), address=v('afAddress'), postcode=v('afPostcode'), city=v('afCity'), recipient=v('afRecipient'), phone=v('afPhone');
-  if(!unit||!address||!postcode||!city||!recipient||!phone) return;
+  if(!address||!recipient||!phone) return;             // 两种模式都必填
+  if(!isGuest && (!unit||!postcode||!city)) return;    // 单位号/邮编/城市只有会员必填
   var label=v('afLabel'), remarks=v('afRemarks');
   var lat=_addrLocateCoords.lat, lng=_addrLocateCoords.lng;
 
-  if(_memberId && _memberToken && db){
+  if(!isGuest){
     var btn=document.getElementById('addrSaveBtn'); btn.disabled=true;
     db.rpc('rpc_save_address', {p_member_id:_memberId, p_session_token:_memberToken,
       p_unit_no:unit, p_address:address, p_postcode:postcode, p_city:city, p_recipient_name:recipient, p_phone:phone,
