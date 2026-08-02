@@ -18,15 +18,14 @@
 
 ---
 
-## 第 2 步：把网站放上线（GitHub Pages，免费）
+## 第 2 步：把网站放上线（Vercel，免费）
 
-前提：先把本次改动的 PR 合并到 `main` 分支（在 GitHub 点 Merge）。
+前提：先把本次改动的 PR 合并到 `main` 分支（在 GitHub 点 Merge）。Vercel 连着你的仓库，合并后会自动重新部署。
 
-1. GitHub 仓库 → **Settings** → 左侧 **Pages**
-2. **Source** 选 **Deploy from a branch** → 分支选 **main** → 目录 **/(root)** → **Save**
-3. 等 1–2 分钟，你会得到两个网址：
-   - 顾客点单：`https://lim3232333-cmyk.github.io/pudding-meow/pudding-meow.html`
-   - 店里 POS：`https://lim3232333-cmyk.github.io/pudding-meow/pos.html`
+1. Vercel 已连本仓库，`main` 分支一有更新就自动上线。
+2. 部署好后的两个网址：
+   - 顾客点单：`https://pudding-meow.vercel.app/pudding-meow.html`
+   - 店里 POS：`https://pudding-meow.vercel.app/pos.html`
 
 > 两个页面同源，实时联动天然成立。想要更短的自定义域名（如 `puddingmeow.com`）可以后面再加，告诉我即可。
 
@@ -54,7 +53,7 @@
 4. 「API 和服务」→「凭据」→「+ 创建凭据」→「API 密钥」，复制那串 `AIzaSy...`。
 5. **给密钥上锁（最重要，别跳过）**——密钥会出现在网页源码里谁都看得到，锁死用途后别人偷了也没用：
    - **应用限制** → 选「HTTP 引荐来源网址」，加你的域名，如
-     `https://lim3232333-cmyk.github.io/*`（用自定义域名就填你自己的）。
+     `https://pudding-meow.vercel.app/*`（末尾用 `*`，这样带 `?ref=邀请码` 参数的链接也不会被拦；用自定义域名就填你自己的）。
    - **API 限制** → 选「限制密钥」→ 只勾上上面那 3 个 API。
    - 保存。
 
