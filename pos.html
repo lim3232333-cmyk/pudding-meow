@@ -2594,7 +2594,9 @@ function payPend(id){
   _pendReviewOrder=o;
   _payPendId=id;
   cart=(o.items||[]).map(function(it){
-    return {name:it.name,name_cn:it.name_cn||it.name,price:Number(it.price)||0,qty:it.qty||1,
+    // 顾客app下的单，items 里 name 存的是中文、en 才是英文（跟制作单/收据的 it.en||it.name 一个套路）；
+    // POS 自己开的单反过来，name 本来就是英文——所以两边统一用 it.en||it.name 取英文显示
+    return {name:it.en||it.name,name_cn:it.name_cn||it.name,price:Number(it.price)||0,qty:it.qty||1,
       specText:_itemSpecText(it),specs:it.specs||[]};
   });
   selIdx=-1;
