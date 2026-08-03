@@ -2297,13 +2297,11 @@ function askPrint(yes){
   document.getElementById('askBg').classList.remove('show');
   var o=_pendingOrder;
   if(!o) return;
-  // 待付款队列收的款：单子早就在 _orders 和云端了，只补打收据，不再入库；
-  // 购物栏刚才是拿来核对这单用的，收完要还原成空的，不然店员没法开下一单
+  // 待付款队列收的款：单子早就在 _orders 和云端了，只补打收据，不再入库。
+  // 购物栏已在 _confirmPendPay 收款那一刻清空退出核对了，这里只管补打收据
   if(_pendExisting){
     _pendExisting=false; _pendingOrder=null;
     if(yes) printRec(o);
-    _exitPendReview();
-    updPend();
     return;
   }
   (_pendingNums||Promise.resolve()).then(function(){
@@ -2669,6 +2667,9 @@ function _confirmPendPay(tender,change){
   updPend(); _refreshPendIfOpen();
   // 接回找零 → 制作单 → 问收据 这条链；_pendExisting 让 askPrint 知道这单早就在库里，别再 insert
   _pendingOrder=o; _pendingNums=null; _pendExisting=true;
+  // 收款确认的这一刻订单已经落库、算进营业额了，购物栏立刻清空退出核对——
+  // 后面的找零/制作单/收据都是用已存下的 o 打印，不再依赖购物栏，所以先清不影响打印
+  _exitPendReview();
   document.getElementById('chgAmount').textContent='RM '+(Number(o.total)||0).toFixed(2);
   document.getElementById('chgTender').textContent='RM '+tender.toFixed(2);
   document.getElementById('chgChange').textContent='RM '+change.toFixed(2);
