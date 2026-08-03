@@ -618,8 +618,11 @@
   /* Figma 227:126：两张卡不是等宽——每周任务 136、每日签到 209，间距 16。
      加起来 361 = 390 减掉两边 16 的留白，所以用 flex 比例还原，窄屏也不会溢出 */
   .mem-mini-row{ display:flex; gap:16px; margin-top:12px; align-items:stretch; }
+  /* 高度不写死：Figma 227:128/227:129 两张卡都是 self-stretch（内容撑开、互相拉到同高），
+     之前定高 115px 比实际内容（标题+分割线+文字+7个签到图标+按钮）需要的空间小，
+     签到按钮是 flex:1 会被挤扁——这就是内容显得很挤的原因。 */
   .mem-mini-card{ background:#FFFFEA; border:1px solid #F5E9D4; border-radius:12px; padding:8px; min-width:0;
-    height:115px; box-sizing:border-box; display:flex; flex-direction:column; gap:12px; }
+    box-sizing:border-box; display:flex; flex-direction:column; gap:12px; }
   /* 按稿子的比例分，不写死像素：136 : 209（间距 16 先扣掉再分）。
      这样 390 的容器、更窄的手机、甚至以后容器改成 393，两张卡的比例都跟稿子一致。
      不能用 flex:136 1 0 / flex:209 1 0——flex-grow 分的是「剩余空间」不是总宽，
@@ -669,7 +672,7 @@
   .ci-modal li b{ font-weight:700; }
   .ci-close{ position:absolute; right:-12px; top:-12px; width:24px; height:24px; padding:0; border:none; background:transparent; cursor:pointer; line-height:0; }
   .ci-close svg{ width:24px; height:24px; display:block; }
-  .mem-mini-checkin-btn{ width:100%; flex:1 0 0; min-height:0; background:var(--red); color:var(--cream2); border:none; border-radius:999px; font-weight:500; font-size:12px; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }
+  .mem-mini-checkin-btn{ width:100%; height:28px; flex-shrink:0; background:var(--red); color:var(--cream2); border:none; border-radius:999px; font-weight:500; font-size:12px; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }   /* Figma h-28，别再用 flex:1 挤扁 */
   .mem-mini-checkin-btn:disabled{ opacity:.5; cursor:default; }
 
   /* ---- 积分商城 / 幸运抽奖 图标格 ---- */
@@ -770,16 +773,17 @@
   #memHome.mem-lvl-0 .mem-xp-next{ color:#4A4848; }
   #memHome.mem-lvl-0 .mem-stats-row{ --mstFg:#4A4848; --mstIcBg:#726F6F; --mstIcFg:#FFFFFF; --mstLine:#726F6F; }
 
-  /* Lv.1 新生小猫（橙 · 橙-奶油-橙） */
-  #memHome.mem-lvl-1 .mem-hero,
+  /* Lv.1 新生小猫（橙）：hero 横幅是独立的对角线渐变（Figma 926:1445，-58°、等级色→#FFFFEA），
+     跟下面会员卡那条垂直多段渐变是两回事，不能共用一条规则——这是之前颜色不对的原因。 */
+  #memHome.mem-lvl-1 .mem-hero{ background:linear-gradient(-58deg,#CD680B 0%,#FFFFEA 100%); }
   #memHome.mem-lvl-1 .mem-card2{ background:linear-gradient(180deg,#CD680B 0%,#FFFFD5 50%,#CD680B 100%); }
   #memHome.mem-lvl-1 .mem-hero-word{ color:var(--red); }
   #memHome.mem-lvl-1 .mem-level-pill{ background:#CD6B0D; color:#fff; }
   #memHome.mem-lvl-1 .mem-xpbar i{ background:#CD680B; }
   #memHome.mem-lvl-1 .mem-stats-row{ --mstFg:#FFFFFF; --mstIcBg:#FFDE5B; --mstIcFg:#8D0505; --mstLine:#FFFFFF; }
 
-  /* Lv.2 幼猫（灰↔浅蓝 条纹） */
-  #memHome.mem-lvl-2 .mem-hero,
+  /* Lv.2 幼猫（浅蓝）：hero 对角线渐变 -58°、#E2FAFF→#FFFFEA */
+  #memHome.mem-lvl-2 .mem-hero{ background:linear-gradient(-58deg,#E2FAFF 0%,#FFFFEA 100%); }
   #memHome.mem-lvl-2 .mem-card2{ background:linear-gradient(180deg,#BFBFBF 0%,#E2FAFF 33%,#BFBFBF 66%,#E2FAFF 100%); }
   #memHome.mem-lvl-2 .mem-hero-word{ color:var(--red); }
   #memHome.mem-lvl-2 .mem-level-pill{ background:#D9D9D9; color:#202055; }
@@ -787,18 +791,18 @@
   #memHome.mem-lvl-2 .mem-stats-row{ --mstFg:#202055; --mstIcBg:#FFFFEA; --mstIcFg:#202055; --mstLine:#202055; }
   #memHome.mem-lvl-2 .mem-name, #memHome.mem-lvl-2 .mem-xp-label, #memHome.mem-lvl-2 .mem-xp-count, #memHome.mem-lvl-2 .mem-xp-next{ color:#202055; }
 
-  /* Lv.3 青年猫（金黄 · 金-奶油-金） */
-  #memHome.mem-lvl-3 .mem-hero,
+  /* Lv.3 青年猫（金黄）：hero 对角线渐变 -58°、#FFDE5B→#FFFFEA */
+  #memHome.mem-lvl-3 .mem-hero{ background:linear-gradient(-58deg,#FFDE5B 0%,#FFFFEA 100%); }
   #memHome.mem-lvl-3 .mem-card2{ background:linear-gradient(180deg,#E1B401 0%,#FEFFD0 33%,#E1B401 66%,#FFFFD5 100%); }
   #memHome.mem-lvl-3 .mem-hero-word{ color:var(--red); }
   #memHome.mem-lvl-3 .mem-level-pill{ background:#FFED63; color:var(--red); }
   #memHome.mem-lvl-3 .mem-xpbar i{ background:#D9A400; }
   #memHome.mem-lvl-3 .mem-stats-row{ --mstFg:#8D0505; --mstIcBg:#8D0505; --mstIcFg:#FFFFEA; --mstLine:#8D0505; }
 
-  /* Lv.Max 布丁猫（暗红-黑-暗红） */
-  #memHome.mem-lvl-4 .mem-hero,
+  /* Lv.Max 布丁猫（暗红）：hero 对角线渐变 -58°、#240505→#8D0505 */
+  #memHome.mem-lvl-4 .mem-hero{ background:linear-gradient(-58deg,#240505 0%,#8D0505 100%); }
   #memHome.mem-lvl-4 .mem-card2{ background:linear-gradient(180deg,#8D0505 0%,#000000 50%,#8D0505 100%); }
-  #memHome.mem-lvl-4 .mem-hero-word{ color:var(--cream2); }
+  #memHome.mem-lvl-4 .mem-hero-word{ color:#FFFFEA; }
   #memHome.mem-lvl-4 .mem-level-pill{ background:#8D0505; color:var(--cream2); }
   #memHome.mem-lvl-4 .mem-xpbar i{ background:#8D0505; }
   #memHome.mem-lvl-4 .mem-stats-row{ --mstFg:#FFFFEA; --mstIcBg:#FFFFEA; --mstIcFg:#000000; --mstLine:#FFFFEA; }
