@@ -1185,7 +1185,7 @@
   /* 布丁喵水滴 pin（442:308，40×40 盒；水滴 inset 8.33%/16.67%，logo left16.67%/right19.44%/top-1）；logo 复用首页 PNG */
   .addr-pin{ position:relative; width:40px; height:40px; }
   .addr-pin-drop{ position:absolute; left:16.67%; right:16.67%; top:8.33%; bottom:8.33%; display:block; }
-  .addr-pin-logo{ position:absolute; left:16.67%; top:-1px; width:63.89%; height:auto; aspect-ratio:2481/3508; object-fit:contain; }
+  .addr-pin-logo{ position:absolute; left:50%; top:40%; transform:translate(-50%,-50%); width:46%; height:auto; object-fit:contain; }   /* 居中在水滴圆心、缩小到不超出红指针 */
   /* 搜索框（443:422）：外壳浮顶，内含胶囊 + 联想下拉；兜底模式隐藏 */
   .addr-search-wrap{ display:none; }
   .addr-search{ display:flex; align-items:center; justify-content:space-between; height:45px; padding:8px 20px; background:#fff; border-radius:12px; box-shadow:0 0 2px rgba(217,217,217,.5); box-sizing:border-box; }
@@ -1205,13 +1205,16 @@
   .addr-locate-btn{ height:38px; padding:0 18px; border:none; border-radius:999px; background:var(--red); color:#FFFFD5; font-size:13px; font-weight:500; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
   .addr-locate-btn:disabled{ opacity:.6; cursor:not-allowed; }
   .addr-locstat{ font-size:11px; color:var(--muted); min-height:14px; }
-  /* 地图激活后：canvas 铺满（440:227 高 330）；搜索框浮顶 top16 居中 337 宽；pin 尖端落地图正中（拖图读中心坐标，尖端必须=中心）；稿子无定位按钮，隐藏。 */
+  /* 地图激活后：canvas 铺满；搜索框浮顶 top16、左右各留 16（整宽，稿子已改）；pin 尖端落地图正中（拖图读中心坐标，尖端必须=中心）；右下角 38 定位圆钮（442:282）。 */
   .addr-map.map-on{ display:block; flex:1 1 auto; min-height:330px; padding:0; overflow:visible; }   /* 弹性撑开：吃掉多余空间，把资料框顶到底部、留大地图 */
   .addr-map.map-on .addr-map-canvas{ display:block; position:absolute; inset:0; overflow:hidden; }
-  .addr-map.map-on .addr-search-wrap{ display:block; position:absolute; top:16px; left:50%; transform:translateX(-50%); width:337px; max-width:calc(100% - 32px); z-index:4; }
+  .addr-map.map-on .addr-search-wrap{ display:block; position:absolute; top:16px; left:16px; right:16px; z-index:4; }
   .addr-map.map-on .addr-pin{ position:absolute; left:50%; top:50%; transform:translate(-50%,-100%); z-index:3; pointer-events:none; filter:drop-shadow(0 2px 3px rgba(0,0,0,.35)); }
   .addr-map.map-on .addr-locate-btn{ display:none; }
-  .addr-map.map-on .addr-locstat{ position:absolute; left:12px; bottom:12px; z-index:3; max-width:70%; background:rgba(255,255,255,.9); border-radius:8px; padding:3px 8px; box-shadow:0 1px 3px rgba(0,0,0,.2); }
+  /* 定位圆钮（Figma 442:282）：38 白圆 + 红准星，right16/bottom14，点了 GPS 定位 */
+  .addr-track-btn{ display:none; }
+  .addr-map.map-on .addr-track-btn{ display:flex; position:absolute; right:16px; bottom:14px; width:38px; height:38px; border:none; border-radius:50%; background:#fff; align-items:center; justify-content:center; box-shadow:0 1px 4px rgba(0,0,0,.28); z-index:4; cursor:pointer; padding:0; }
+  .addr-map.map-on .addr-locstat{ position:absolute; left:12px; bottom:16px; z-index:3; max-width:60%; background:rgba(255,255,255,.9); border-radius:8px; padding:3px 8px; box-shadow:0 1px 3px rgba(0,0,0,.2); }
   .addr-map.map-on .addr-locstat:empty{ display:none; }   /* 没状态字时别露白块 */
   /* 表单（613:2774）：2 列 gap16 px20；字段 h45 圆角12 白底 shadow(0 0 4px)；浮动标签：空态 14px 居中，聚焦/有值缩到 10px 顶部。 */
   .addr-grid{ flex-shrink:0; display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:20px; box-sizing:border-box; }
@@ -1988,7 +1991,7 @@
       <!-- 搜索框 (Figma 443:422)：4 态 —— 空/聚焦=放大镜，输入=✕清除+自定义联想下拉，已选=回显地址 -->
       <div class="addr-search-wrap" id="addrSearchWrap">
         <div class="addr-search" id="addrSearchBox">
-          <input class="addr-search-inp" id="addrSearch" type="text" placeholder="搜索地址" autocomplete="off" oninput="_addrSuggest()" onfocus="_addrSuggest()" onblur="_addrSuggBlur()">
+          <input class="addr-search-inp" id="addrSearch" type="text" placeholder="搜索地址" autocomplete="off" enterkeyhint="search" inputmode="search" oninput="_addrSuggest()" onfocus="_addrSuggest()" onblur="_addrSuggBlur()" onkeydown="_addrSearchKey(event)">
           <svg class="addr-search-ico addr-ico-search" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
           <svg class="addr-search-ico addr-ico-clear" viewBox="0 0 24 24" onclick="_addrClearSearch()" role="button" aria-label="清除"><circle cx="12" cy="12" r="10" fill="#8D0505"/><path d="M15 9l-6 6M9 9l6 6" stroke="#FFFFD5" stroke-width="2" stroke-linecap="round"/></svg>
         </div>
@@ -1997,8 +2000,12 @@
       <!-- 布丁喵水滴 pin (Figma 442:308)：40×40 盒，logo 图在 openAddrForm 里从首页 logo 复制过来 -->
       <div class="addr-pin" id="addrPin">
         <svg class="addr-pin-drop" viewBox="0 0 27 34" fill="none"><path d="M13.33 0C5.97 0 0 5.97 0 13.33 0 23.33 13.33 33.33 13.33 33.33S26.67 23.33 26.67 13.33C26.67 5.97 20.7 0 13.33 0Z" fill="#8D0505"/></svg>
-        <img class="addr-pin-logo" id="addrPinLogo" alt="">
+        <img class="addr-pin-logo" id="addrPinLogo" src="logo.svg" alt="布丁喵">
       </div>
+      <!-- 定位圆钮 (Figma 442:282)：点了 GPS 定位、地图挪过去 + 回填地址 -->
+      <button class="addr-track-btn" id="addrTrackBtn" onclick="addrLocate()" aria-label="定位到我的位置">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="1.6" fill="#8D0505" stroke="none"/><path d="M12 1.6V4.4M12 19.6v2.8M1.6 12H4.4M19.6 12h2.8"/></svg>
+      </button>
       <div class="addr-locstat" id="addrLocStat"></div>
       <button class="addr-locate-btn" id="addrLocateBtn" onclick="addrLocate()">使用我的定位 Use My Location</button>
     </div>
@@ -2604,8 +2611,7 @@ function openAddrForm(){
   _addrLocateCoords=null;
   ['afLabel','afUnit','afAddress','afPostcode','afCity','afRecipient','afPhone','afRemarks'].forEach(function(id){ document.getElementById(id).value=''; });
   document.getElementById('addrSearch').value='';
-  var _pinLogo=document.getElementById('addrPinLogo'), _brand=document.getElementById('brandLogoImg');
-  if(_pinLogo && _brand && _brand.src) _pinLogo.src=_brand.src;   // pin 复用首页布丁喵 logo，不重复塞 base64
+  // pin 用仓库里的 logo.svg（HTML 里已静态设 src），不再用首页 PNG 覆盖
   // 游客（未登录）：精简表单 + 「确认」；会员：完整表单 + 「保存」到地址簿
   var _isGuest=!(_memberId && _memberToken && db);
   document.getElementById('addrFormScreen').classList.toggle('guest', _isGuest);
@@ -2739,6 +2745,13 @@ function _addrClearSearch(){
   sugg.classList.remove('show'); sugg.innerHTML=''; inp.focus();
 }
 function _addrSuggBlur(){ clearTimeout(_addrSuggBlurTimer); _addrSuggBlurTimer=setTimeout(function(){ document.getElementById('addrSugg').classList.remove('show'); }, 150); }
+/* 手机键盘的「搜索」键（enterkeyhint=search）：按下就选第一条联想，选不到就收起键盘 */
+function _addrSearchKey(e){
+  if(e.key!=='Enter') return;
+  e.preventDefault();
+  if(_addrPreds && _addrPreds.length){ _addrPickSugg(0); }
+  document.getElementById('addrSearch').blur();
+}
 function _addrPickSugg(i){
   var sugg=document.getElementById('addrSugg'); sugg.classList.remove('show'); sugg.innerHTML='';
   var pred=_addrPreds[i]; if(!pred || !pred.toPlace) return;
@@ -2748,10 +2761,11 @@ function _addrPickSugg(i){
     if(_addrMap){ _addrMap.panTo(loc); _addrMap.setZoom(17); }   // idle 会顺手记坐标
     else { _addrLocateCoords={lat:loc.lat(), lng:loc.lng()}; }
     _fillAddrFromComponents(place.addressComponents||[]);
-    var street = place.displayName || (place.formattedAddress ? place.formattedAddress.split(',')[0] : '');
-    if(street) document.getElementById('afAddress').value=street;
+    // 完整地址写进「地址」栏，供顾客修改（万一搜不到精确门牌）
+    var full = place.formattedAddress || place.displayName || '';
+    if(full) document.getElementById('afAddress').value=full;
     var inp=document.getElementById('addrSearch');
-    inp.value = place.formattedAddress || street;           // Done 态：回显完整地址
+    inp.value = full;                                       // Done 态：回显完整地址
     document.getElementById('addrSearchBox').classList.add('has-text');
     document.getElementById('addrLocStat').textContent='已选定 ✓ 可拖动地图微调门牌';
     try{ _addrSessTok=new google.maps.places.AutocompleteSessionToken(); }catch(e){}   // 选定后 token 作废，下轮新建
@@ -2777,8 +2791,8 @@ function _addrReverseFill(lat, lng){
     if(status!=='OK' || !res || !res[0]) return;
     var r=res[0];
     _fillAddrFromComponents(r.address_components||[]);
-    var input=document.getElementById('afAddress');
-    if(input && !input.value.trim() && r.formatted_address) input.value=r.formatted_address.split(',')[0];
+    var input=document.getElementById('afAddress');   // 完整地址写进「地址」栏，供顾客修改
+    if(input && r.formatted_address) input.value=r.formatted_address;
     var sb=document.getElementById('addrSearch');   // 搜索框回显完整地址（Done 态）
     if(sb && r.formatted_address){ sb.value=r.formatted_address; document.getElementById('addrSearchBox').classList.add('has-text'); }
     _addrCheckValid();
