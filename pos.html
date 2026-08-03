@@ -1692,6 +1692,15 @@ function _chTagsHtml(channels){
 
 /* ── STATE ── */
 var cart=[],selIdx=-1,payMethod='cash',taMode=true;
+/* 待付款单核对模式：点 Pending Payment 队列的 Payment 后，把该单商品+会员资料
+   载入购物栏方便核对/揪重复单，不是在建新单——所以购物栏的增删改这时候要挡住，
+   只留「选中查看」和「Delete All 整单取消」。真正收款走 _payPendId 那条老路，
+   _pendReviewOrder 只多管「购物栏现在是不是在核对某张待付款单」这一件事。 */
+var _pendReviewOrder=null;
+function _reviewGuard(){
+  if(_pendReviewOrder){ showN('核对待付款单时不可编辑，如需取消请点旁边三角形 → Delete All 整单取消'); return true; }
+  return false;
+}
 var _orders=gj('pm_orders',[]);
 var _members=gj('pm_members',[]);
 var tenderInput='';
@@ -1753,6 +1762,7 @@ function toggleTA(){
 
 /* ── QTY ADJUSTER (+/- 联动购物车选中项) ── */
 function qtyAdjust(delta){
+  if(_reviewGuard())return;
   if(selIdx<0||!cart[selIdx]){showN('请先在购物车里选中一个商品');return;}
   var next=cart[selIdx].qty+delta;
   if(next<=0){
@@ -1770,6 +1780,7 @@ function updateQtyDisplay(){
 /* ── QTY SLOT PICKER (数字滚轮) ── */
 var slotValue=1, slotMax=99;
 function openQtySlot(){
+  if(_reviewGuard())return;
   if(selIdx<0||!cart[selIdx]){showN('请先在购物车里选中一个商品');return;}
   slotValue=cart[selIdx].qty;
   buildSlotWheel();
@@ -1892,6 +1903,7 @@ function addItem(cat,i){
   hideitems();renderCart();showN('已加入：'+it.name);
 }
 function _cartAdd(it, specs){
+  if(_reviewGuard())return;
   // 行价 = 商品基础价 + 选中选项的加价；规格文字也带上「L +2.00」，收据才对得上账
   var specText=(specs||[]).map(function(s){
     var a=Number(s.add)||0; return s.value ? (s.value+(a?(' '+_addTxt(a)):'')) : '';
@@ -2040,6 +2052,7 @@ function openItemSpace(){ oiName+=' '; document.getElementById('oiNameVal').valu
   });
 })();
 function openItem(){
+  if(_reviewGuard())return;
   oiName=''; oiCaps=false;
   buildOpenItemKeyboard();
   document.getElementById('oiNameVal').value='';
@@ -2058,6 +2071,7 @@ function openItemNext(){
   try{ document.getElementById('priceAmtVal').focus(); document.getElementById('priceAmtVal').select(); }catch(e){}
 }
 function deleteItem(){
+  if(_reviewGuard())return;
   if(selIdx<0){showN('请先选中要删除的商品');return;}
   var n=cart[selIdx].name;cart.splice(selIdx,1);selIdx=-1;renderCart();showN('已删除：'+n);
 }
@@ -2072,6 +2086,14 @@ document.addEventListener('click',function(e){
 });
 function deleteAllCart(){
   closeDeleteMenu();
+  // 核对待付款单时，Delete All 不是清空购物栏草稿，是取消这一整张待付款单（重复单场景）
+  if(_pendReviewOrder){
+    var oid=_pendReviewOrder.id;
+    voidOrder(oid);   // 里面自带 confirm()，店员没确认就什么都不会变
+    var o=_findOrder(oid);
+    if(o && o.status==='void'){ _exitPendReview(); updPend(); }
+    return;
+  }
   if(!cart.length){ showN('购物车是空的'); return; }
   if(!confirm('确定清空购物车全部商品？')) return;
   cart=[]; selIdx=-1; renderCart(); showN('已清空购物车');
@@ -2114,6 +2136,7 @@ function priceNumpadPress(v){
   });
 })();
 function showPricePanel(){
+  if(_reviewGuard())return;
   if(selIdx<0){ showN('请先选中要改价的商品'); return; }
   _priceMode='edit';
   priceInput=String(cart[selIdx].price);
@@ -2189,10 +2212,19 @@ function updTenderDisplay(){
 })();
 function showPayment(){
   if(!cart.length){showN('购物车是空的');return;}
-  _payPendId=null;   // 收银台结账：确保不会误用待付款队列的结算分支
-  var _sub=cart.reduce(function(s,it){return s+it.qty*it.price;},0);
-  var _disc=_posCoupon?_posCouponDisc(_posCoupon,_sub):0;
-  payTotalAmount=Math.max(0,_sub-_disc);   // 用券后按折后金额收钱
+  if(_pendReviewOrder){
+    // 待付款单核对模式：购物栏只是核对展示，金额按该单原本落库的 total 收，不按购物栏现算
+    // （购物栏里的行不接受编辑，但保险起见别信它）；顺便防两台设备同时结这一单
+    var o=_orders.find(function(x){return x.id===_pendReviewOrder.id;});
+    if(!o || o.status!=='pending'){ showN('这单已经被处理过了，请回待付款列表刷新看看'); return; }
+    _payPendId=o.id;
+    payTotalAmount=Number(o.total)||0;
+  } else {
+    _payPendId=null;   // 收银台结账：确保不会误用待付款队列的结算分支
+    var _sub=cart.reduce(function(s,it){return s+it.qty*it.price;},0);
+    var _disc=_posCoupon?_posCouponDisc(_posCoupon,_sub):0;
+    payTotalAmount=Math.max(0,_sub-_disc);   // 用券后按折后金额收钱
+  }
   payMethod='cash';
   tenderInput='';
   document.getElementById('payAmt').textContent=payTotalAmount.toFixed(2);
@@ -2203,7 +2235,11 @@ function showPayment(){
   document.getElementById('payBg').classList.add('show');
   try{ document.getElementById('payTender').focus(); }catch(e){}
 }
-function closePayment(){_payPendId=null;document.getElementById('payBg').classList.remove('show');}
+function closePayment(){
+  // 不清 _payPendId/_pendReviewOrder：取消付款面板只是退回核对界面，不等于放弃这单
+  // （真正结束核对要么真的收了款，要么点 Delete All 整单取消）
+  document.getElementById('payBg').classList.remove('show');
+}
 function setPayM(m){
   payMethod=m;
   document.getElementById('pay-cash').classList.toggle('a',m==='cash');
@@ -2265,10 +2301,13 @@ function askPrint(yes){
   document.getElementById('askBg').classList.remove('show');
   var o=_pendingOrder;
   if(!o) return;
-  // 待付款队列收的款：单子早就在 _orders 和云端了，只补打收据，不再入库、也不清收银台购物车
+  // 待付款队列收的款：单子早就在 _orders 和云端了，只补打收据，不再入库；
+  // 购物栏刚才是拿来核对这单用的，收完要还原成空的，不然店员没法开下一单
   if(_pendExisting){
     _pendExisting=false; _pendingOrder=null;
     if(yes) printRec(o);
+    _exitPendReview();
+    updPend();
     return;
   }
   (_pendingNums||Promise.resolve()).then(function(){
@@ -2523,24 +2562,80 @@ function showPending(){
   document.getElementById('pendBg').classList.add('show');
 }
 function closePending(){document.getElementById('pendBg').classList.remove('show');}
-/* 待付款队列点 Payment：复用收银台那个 Cash/DuitNow 面板给这一单收款。
+/* 待付款队列点 Payment：把这一单的商品 + 会员资料 + 桌号人数载入购物栏，
+   方便店员先核对一遍（揪出重复单）；核对完点收银台的 Payment 才真正收款。
    _payPendId 非空时，confirmPayment() 走 _confirmPendPay 结算已存在的订单，
    而不是像购物车结账那样新建一单。 */
 var _payPendId=null;
 function payPend(id){
   var o=_orders.find(function(x){return x.id===id;});
   if(!o) return;
+  // 充值单不是「商品」单，购物栏核对这套对它没意义，照老样子直接开收款面板
+  if(o.taMode==='recharge'){
+    _payPendId=id;
+    closePending();
+    payTotalAmount=Number(o.total)||0;
+    payMethod='cash';
+    tenderInput='';
+    document.getElementById('payAmt').textContent=payTotalAmount.toFixed(2);
+    updTenderDisplay();
+    document.getElementById('pay-cash').classList.add('a');
+    document.getElementById('pay-tng').classList.remove('a');
+    document.getElementById('payBg').classList.add('show');
+    try{ document.getElementById('payTender').focus(); }catch(e){}
+    return;
+  }
+  // 购物栏里有未结的新单在建，别把待付款单的内容混进去——先处理完手上那单
+  if(cart.length && !_pendReviewOrder){
+    showN('购物栏还有未结商品，请先完成或清空手上这单，再核对待付款单');
+    return;
+  }
+  closePending();
+  _pendReviewOrder=o;
   _payPendId=id;
-  closePending();   // 收款面板顶上来，待付款列表自动收起，不用店员手动关
-  payTotalAmount=Number(o.total)||0;
-  payMethod='cash';
-  tenderInput='';
-  document.getElementById('payAmt').textContent=payTotalAmount.toFixed(2);
-  updTenderDisplay();
-  document.getElementById('pay-cash').classList.add('a');
-  document.getElementById('pay-tng').classList.remove('a');
-  document.getElementById('payBg').classList.add('show');
-  try{ document.getElementById('payTender').focus(); }catch(e){}
+  cart=(o.items||[]).map(function(it){
+    return {name:it.name,name_cn:it.name_cn||it.name,price:Number(it.price)||0,qty:it.qty||1,
+      specText:_itemSpecText(it),specs:it.specs||[]};
+  });
+  selIdx=-1;
+  renderCart();
+  var lbl=_orderTypeLabel(o);
+  var paxM=String(o.tableName||'').match(/(\d+)\s*人/);
+  var tblEl=document.getElementById('ctTable');
+  tblEl.value=lbl+(paxM?(' · '+paxM[1]+'人'):'');
+  tblEl.readOnly=true;
+  var custEl=document.getElementById('ctCustomer');
+  custEl.readOnly=true;
+  if(o.memberId && db){
+    custEl.value='加载会员资料…';
+    _posMember=null; _renderPosMember();
+    db.rpc('rpc_pos_member_by_id',{p_member_id:o.memberId}).then(function(res){
+      if(!_pendReviewOrder||_pendReviewOrder.id!==o.id) return;   // 核对期间店员已经切走了，别把结果写错单
+      var m=res && !res.error && res.data && res.data[0] ? res.data[0] : null;
+      _posMember=m;
+      _renderPosMember(m?null:'会员资料加载失败');
+      custEl.value=m?(m.nickname||m.phone||''):(o.customerName||'');
+    }).catch(function(){
+      if(!_pendReviewOrder||_pendReviewOrder.id!==o.id) return;
+      _posMember=null; _renderPosMember('会员资料加载失败');
+      custEl.value=o.customerName||'';
+    });
+  } else {
+    _posMember=null; _renderPosMember();
+    custEl.value=o.customerName||'';
+  }
+  showN('待付款单已载入购物栏，核对无误请点 Payment 收款；重复单用三角形 → Delete All 整单取消');
+}
+/* 核对结束（付完款或整单取消）：把购物栏、桌号/电话框、会员资料都还原成建新单前的样子 */
+function _exitPendReview(){
+  _pendReviewOrder=null; _payPendId=null;
+  cart=[]; selIdx=-1;
+  _posMember=null; _posCoupon=null;
+  try{ _renderPosMember(); }catch(e){}
+  var t=document.getElementById('ctTable'), c=document.getElementById('ctCustomer');
+  if(t){ t.value=''; t.readOnly=false; }
+  if(c){ c.value=''; c.readOnly=false; }
+  renderCart();
 }
 function _confirmPendPay(tender,change){
   var o=_orders.find(function(x){return x.id===_payPendId;});
@@ -2648,6 +2743,7 @@ function _posNeedMember(){
 
 /* ── Voucher：看该会员没用的券，可当场核销 ── */
 function posOpenVoucher(){
+  if(_reviewGuard())return;
   if(!_posNeedMember()) return;
   document.getElementById('pvTitle').textContent=(_posMember.nickname||_posMember.phone)+' 的优惠券';
   document.getElementById('pvBody').innerHTML='<div style="text-align:center;padding:30px;color:#4A4848">加载中…</div>';
@@ -2753,6 +2849,7 @@ function _tuPkgs(){
 }
 var _tuSel=0;
 function posOpenTopup(){
+  if(_reviewGuard())return;
   if(!_posNeedMember()) return;
   _tuSel=0;
   document.getElementById('tuTitle').textContent='为 '+(_posMember.nickname||_posMember.phone)+' 充值';
