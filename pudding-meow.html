@@ -1185,7 +1185,7 @@
   /* 布丁喵水滴 pin（442:308，40×40 盒；水滴 inset 8.33%/16.67%，logo left16.67%/right19.44%/top-1）；logo 复用首页 PNG */
   .addr-pin{ position:relative; width:40px; height:40px; }
   .addr-pin-drop{ position:absolute; left:16.67%; right:16.67%; top:8.33%; bottom:8.33%; display:block; }
-  .addr-pin-logo{ position:absolute; left:16.67%; top:-1px; width:63.89%; height:auto; aspect-ratio:2481/3508; object-fit:contain; }
+  .addr-pin-logo{ position:absolute; left:50%; top:40%; transform:translate(-50%,-50%); width:46%; height:auto; object-fit:contain; }   /* 居中在水滴圆心、缩小到不超出红指针 */
   /* 搜索框（443:422）：外壳浮顶，内含胶囊 + 联想下拉；兜底模式隐藏 */
   .addr-search-wrap{ display:none; }
   .addr-search{ display:flex; align-items:center; justify-content:space-between; height:45px; padding:8px 20px; background:#fff; border-radius:12px; box-shadow:0 0 2px rgba(217,217,217,.5); box-sizing:border-box; }
@@ -2000,7 +2000,7 @@
       <!-- 布丁喵水滴 pin (Figma 442:308)：40×40 盒，logo 图在 openAddrForm 里从首页 logo 复制过来 -->
       <div class="addr-pin" id="addrPin">
         <svg class="addr-pin-drop" viewBox="0 0 27 34" fill="none"><path d="M13.33 0C5.97 0 0 5.97 0 13.33 0 23.33 13.33 33.33 13.33 33.33S26.67 23.33 26.67 13.33C26.67 5.97 20.7 0 13.33 0Z" fill="#8D0505"/></svg>
-        <img class="addr-pin-logo" id="addrPinLogo" alt="">
+        <img class="addr-pin-logo" id="addrPinLogo" src="logo.svg" alt="布丁喵">
       </div>
       <!-- 定位圆钮 (Figma 442:282)：点了 GPS 定位、地图挪过去 + 回填地址 -->
       <button class="addr-track-btn" id="addrTrackBtn" onclick="addrLocate()" aria-label="定位到我的位置">
@@ -2611,8 +2611,7 @@ function openAddrForm(){
   _addrLocateCoords=null;
   ['afLabel','afUnit','afAddress','afPostcode','afCity','afRecipient','afPhone','afRemarks'].forEach(function(id){ document.getElementById(id).value=''; });
   document.getElementById('addrSearch').value='';
-  var _pinLogo=document.getElementById('addrPinLogo'), _brand=document.getElementById('brandLogoImg');
-  if(_pinLogo && _brand && _brand.src) _pinLogo.src=_brand.src;   // pin 复用首页布丁喵 logo，不重复塞 base64
+  // pin 用仓库里的 logo.svg（HTML 里已静态设 src），不再用首页 PNG 覆盖
   // 游客（未登录）：精简表单 + 「确认」；会员：完整表单 + 「保存」到地址簿
   var _isGuest=!(_memberId && _memberToken && db);
   document.getElementById('addrFormScreen').classList.toggle('guest', _isGuest);
