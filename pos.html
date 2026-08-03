@@ -92,9 +92,11 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 .lb{background:#FFFFD5;border-radius:24px;padding:36px 30px;width:300px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4);}
 .lb-logo{font-size:32px;font-weight:700;color:#8D0505;margin-bottom:4px;}
 .lb-sub{font-size:13px;color:#4A4848;margin-bottom:22px;}
-.pin-dots{display:flex;justify-content:center;gap:10px;margin-bottom:14px;}
+.pin-dots{position:relative;display:flex;justify-content:center;gap:10px;margin-bottom:14px;}
 .pd{width:13px;height:13px;border-radius:50%;border:2px solid #8D0505;}
 .pd.on{background:#8D0505;}
+/* 透明 input 盖住整个 PIN 区，只接键盘事件不挡视觉；虚拟数字键在它上层照常点 */
+.pin-kbd-input{position:absolute;inset:-20px;width:calc(100% + 40px);height:calc(100% + 40px);opacity:0;border:none;outline:none;padding:0;cursor:default;}
 .numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
 .nb{height:52px;border-radius:12px;border:none;background:#fff;font-size:20px;font-weight:700;color:#8D0505;box-shadow:0 2px 8px rgba(0,0,0,.1);}
 .nb.del{background:#8D0505;color:#FFDE5B;}
@@ -378,6 +380,8 @@ body.ds-on{user-select:none;-webkit-user-select:none;}
 }
 .pdt-divider{width:2px;height:52px;background:#000;opacity:.15;flex-shrink:0;}
 .pdt-chip{flex:1;height:52px;background:#E8E8E8;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:48px;color:#000;overflow:hidden;}
+/* 这三处（Tender/Price/Item Name）改成真 <input>，实体键盘能直接打字；虚拟键盘照旧点按钮写 .value */
+input.pdt-chip{border:none;outline:none;font-family:"Noto Sans SC",sans-serif;text-align:center;padding:0;width:100%;}
 /* Numpad — left:23, top:238, 3×4 grid, each 100×100, gap:20 */
 .pay-numpad{
   position:absolute;left:23px;top:238px;
@@ -434,7 +438,7 @@ body.ds-on{user-select:none;-webkit-user-select:none;}
 .oi-name-row{display:flex;align-items:center;justify-content:flex-end;gap:24px;}
 .oi-name-lbl{font-weight:500;font-size:24px;color:#000;flex-shrink:0;font-family:"Noto Sans SC",sans-serif;}
 .oi-name-disp{flex:1;height:90px;background:#fff;border-radius:16px;display:flex;align-items:center;gap:2px;padding:0 24px;box-sizing:border-box;}
-.oi-name-disp .pdt-chip{justify-content:flex-start;font-size:32px;overflow:hidden;white-space:nowrap;}
+.oi-name-disp .pdt-chip{justify-content:flex-start;text-align:left;font-size:32px;overflow:hidden;white-space:nowrap;}
 .oi-kbd-row{display:flex;gap:24px;justify-content:center;}
 .oik{width:80px;height:80px;border-radius:16px;border:none;background:#4A4848;color:#fff;font-weight:700;font-size:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:"Noto Sans SC",sans-serif;flex-shrink:0;box-sizing:border-box;text-transform:none;}
 .oik:active{transform:scale(.92);background:#3a3a3a;}
@@ -755,6 +759,8 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
     <div class="pin-dots">
       <div class="pd" id="d0"></div><div class="pd" id="d1"></div>
       <div class="pd" id="d2"></div><div class="pd" id="d3"></div>
+      <!-- 实体键盘也能打 PIN：透明 input 盖在圆点上接键盘事件，虚拟数字键照旧走 ep()/dp() -->
+      <input class="pin-kbd-input" id="pinInput" type="password" inputmode="numeric" autocomplete="off" maxlength="4">
 </div>
     <div class="numpad">
       <button class="nb" onclick="ep(1)">1</button><button class="nb" onclick="ep(2)">2</button><button class="nb" onclick="ep(3)">3</button>
@@ -906,7 +912,7 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
     <!-- Amount display: left:337, top:20, 210×90, #D9D9D9 -->
     <div class="pay-disp-amount" id="payAmt">0.00</div>
     <!-- Tender display: left:337, top:130, 197×90, white + 分隔线 + 灰色 chip -->
-    <div class="pay-disp-tender"><div class="pdt-divider"></div><div class="pdt-chip" id="payTender">0.00</div></div>
+    <div class="pay-disp-tender"><div class="pdt-divider"></div><input class="pdt-chip" id="payTender" type="text" inputmode="decimal" autocomplete="off" value="0.00"></div>
     <!-- Numpad: left:23, top:238, 3×4, each 100×100, gap:20 -->
     <div class="pay-numpad" id="payNumpad"></div>
     <!-- Cancel: left:392, top:500, 150×85, #8D0505 -->
@@ -921,7 +927,7 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
   <div class="price-panel">
     <div class="price-amount-row">
       <div class="price-lbl">Amount</div>
-      <div class="price-disp"><div class="pdt-divider"></div><div class="pdt-chip" id="priceAmtVal">0.00</div></div>
+      <div class="price-disp"><div class="pdt-divider"></div><input class="pdt-chip" id="priceAmtVal" type="text" inputmode="decimal" autocomplete="off" value="0.00"></div>
     </div>
     <div class="price-bottom-row">
       <div class="price-numpad" id="priceNumpad"></div>
@@ -938,7 +944,7 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
   <div class="oi-panel">
     <div class="oi-name-row">
       <div class="oi-name-lbl">Item Name</div>
-      <div class="oi-name-disp"><div class="pdt-divider"></div><div class="pdt-chip" id="oiNameVal"></div></div>
+      <div class="oi-name-disp"><div class="pdt-divider"></div><input class="pdt-chip" id="oiNameVal" type="text" autocomplete="off" maxlength="40"></div>
     </div>
     <div id="oiKeyboard"></div>
     <div class="oi-bottom-row">
@@ -1691,11 +1697,15 @@ var _members=gj('pm_members',[]);
 var tenderInput='';
 var payTotalAmount=0;
 
-/* ── LOGIN ── */
+/* ── LOGIN ──（实体键盘：#pinInput 是盖在圆点上的透明 input，keydown 直接打数字；
+   虚拟数字键 ep()/dp() 和物理键盘共用同一个 pin 变量 + updD() 渲染，两边不会打架） */
 var pin='';
 function ep(n){if(pin.length>=4)return;pin+=String(n);updD();if(pin.length===4)setTimeout(doPin,150);}
 function dp(){pin=pin.slice(0,-1);updD();}
-function updD(){for(var i=0;i<4;i++)document.getElementById('d'+i).className='pd'+(i<pin.length?' on':'');}
+function updD(){
+  for(var i=0;i<4;i++)document.getElementById('d'+i).className='pd'+(i<pin.length?' on':'');
+  var el=document.getElementById('pinInput'); if(el && el.value!==pin) el.value=pin;
+}
 function doPin(){
   var ok=sg('pm_pin','0000');
   if(pin===ok){
@@ -1711,7 +1721,20 @@ function doLogout(){
   ['posView','adminView'].forEach(function(id){document.getElementById(id).style.display='none';});
   document.getElementById('loginScreen').style.display='flex';
   pin='';updD();
+  focusPinInput();
 }
+function focusPinInput(){ try{ document.getElementById('pinInput').focus(); }catch(e){} }
+(function(){
+  var el=document.getElementById('pinInput');
+  if(!el) return;
+  el.addEventListener('input',function(){
+    pin=el.value.replace(/\D/g,'').slice(0,4);
+    if(el.value!==pin) el.value=pin;
+    updD();
+    if(pin.length===4) setTimeout(doPin,150);
+  });
+  focusPinInput();
+})();
 
 /* ── INIT ── */
 function initPOS(){renderCart();updPend();updDlv();buildNumpad();buildPriceNumpad();
@@ -2005,15 +2028,24 @@ function oiKeyPress(k){
   if(k==='shift'){ oiCaps=!oiCaps; document.getElementById('oikShift').classList.toggle('on',oiCaps); return; }
   if(k==='back'){ oiName=oiName.slice(0,-1); }
   else { oiName+=(oiCaps?k.toUpperCase():k); }
-  document.getElementById('oiNameVal').textContent=oiName;
+  document.getElementById('oiNameVal').value=oiName;
 }
-function openItemSpace(){ oiName+=' '; document.getElementById('oiNameVal').textContent=oiName; }
+function openItemSpace(){ oiName+=' '; document.getElementById('oiNameVal').value=oiName; }
+/* 实体键盘打商品名：input 事件跟虚拟键盘共用 oiName，两边同步 */
+(function(){
+  var el=document.getElementById('oiNameVal');
+  if(!el) return;
+  el.addEventListener('input',function(){
+    oiName=el.value;
+  });
+})();
 function openItem(){
   oiName=''; oiCaps=false;
   buildOpenItemKeyboard();
-  document.getElementById('oiNameVal').textContent='';
+  document.getElementById('oiNameVal').value='';
   var sh=document.getElementById('oikShift'); if(sh) sh.classList.remove('on');
   document.getElementById('openItemBg').classList.add('show');
+  try{ document.getElementById('oiNameVal').focus(); }catch(e){}
 }
 function closeOpenItem(){ document.getElementById('openItemBg').classList.remove('show'); }
 function openItemNext(){
@@ -2021,8 +2053,9 @@ function openItemNext(){
   closeOpenItem();
   _priceMode='open-item';
   priceInput='';
-  document.getElementById('priceAmtVal').textContent='0';
+  document.getElementById('priceAmtVal').value='0';
   document.getElementById('priceBg').classList.add('show');
+  try{ document.getElementById('priceAmtVal').focus(); document.getElementById('priceAmtVal').select(); }catch(e){}
 }
 function deleteItem(){
   if(selIdx<0){showN('请先选中要删除的商品');return;}
@@ -2067,14 +2100,26 @@ function priceNumpadPress(v){
   else if(v==='.'){ if(priceInput.includes('.'))return; if(!priceInput)priceInput='0'; priceInput+='.'; }
   else if(priceInput.length>=9) return;
   else priceInput+=v;
-  document.getElementById('priceAmtVal').textContent=priceInput||'0';
+  var el=document.getElementById('priceAmtVal'); if(el && el.value!==priceInput) el.value=priceInput||'0';
 }
+/* 实体键盘打价格：input 事件跟虚拟数字键共用 priceInput，两边同步 */
+(function(){
+  var el=document.getElementById('priceAmtVal');
+  if(!el) return;
+  el.addEventListener('input',function(){
+    var v=el.value.replace(/[^0-9.]/g,'');
+    var dot=v.indexOf('.'); if(dot>=0) v=v.slice(0,dot+1)+v.slice(dot+1).replace(/\./g,'');
+    if(v.length>9) v=v.slice(0,9);
+    priceInput=v; if(el.value!==v) el.value=v;
+  });
+})();
 function showPricePanel(){
   if(selIdx<0){ showN('请先选中要改价的商品'); return; }
   _priceMode='edit';
   priceInput=String(cart[selIdx].price);
-  document.getElementById('priceAmtVal').textContent=priceInput;
+  document.getElementById('priceAmtVal').value=priceInput;
   document.getElementById('priceBg').classList.add('show');
+  try{ document.getElementById('priceAmtVal').focus(); document.getElementById('priceAmtVal').select(); }catch(e){}
 }
 function closePricePanel(){ document.getElementById('priceBg').classList.remove('show'); }
 function confirmPriceEdit(){
@@ -2128,8 +2173,20 @@ function numpadPress(v){
   updTenderDisplay();
 }
 function updTenderDisplay(){
-  document.getElementById('payTender').textContent=tenderInput||'0';
+  var el=document.getElementById('payTender'); if(el && el.value!==tenderInput) el.value=tenderInput;
 }
+/* 实体键盘打 Tender：input 事件跟虚拟数字键共用 tenderInput + updTenderDisplay()，两边同步 */
+(function(){
+  var el=document.getElementById('payTender');
+  if(!el) return;
+  el.addEventListener('input',function(){
+    if(payMethod!=='cash'){ el.value=tenderInput; return; }
+    var v=el.value.replace(/[^0-9.]/g,'');
+    var dot=v.indexOf('.'); if(dot>=0) v=v.slice(0,dot+1)+v.slice(dot+1).replace(/\./g,'');
+    if(v.length>9) v=v.slice(0,9);
+    tenderInput=v; if(el.value!==v) el.value=v;
+  });
+})();
 function showPayment(){
   if(!cart.length){showN('购物车是空的');return;}
   _payPendId=null;   // 收银台结账：确保不会误用待付款队列的结算分支
@@ -2144,6 +2201,7 @@ function showPayment(){
   document.getElementById('pay-cash').classList.add('a');
   document.getElementById('pay-tng').classList.remove('a');
   document.getElementById('payBg').classList.add('show');
+  try{ document.getElementById('payTender').focus(); }catch(e){}
 }
 function closePayment(){_payPendId=null;document.getElementById('payBg').classList.remove('show');}
 function setPayM(m){
@@ -2482,6 +2540,7 @@ function payPend(id){
   document.getElementById('pay-cash').classList.add('a');
   document.getElementById('pay-tng').classList.remove('a');
   document.getElementById('payBg').classList.add('show');
+  try{ document.getElementById('payTender').focus(); }catch(e){}
 }
 function _confirmPendPay(tender,change){
   var o=_orders.find(function(x){return x.id===_payPendId;});
