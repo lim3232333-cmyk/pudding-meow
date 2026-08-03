@@ -947,9 +947,11 @@
   .pm-my-stub-art{ width:70px; height:66px; }
   .pm-my-stub-sym{ font-size:44px; font-weight:700; color:var(--yellow); line-height:1; }
   .pm-my-main{ position:relative; flex:1; min-width:0; background:#fff; box-sizing:border-box; padding:12px 16px;
-    display:flex; flex-direction:column; justify-content:center; gap:6px; }
+    display:flex; flex-direction:column; justify-content:center; gap:8px; }
   .pm-my-name{ font-size:16px; font-weight:500; color:var(--red); word-break:break-word; padding-right:56px; }
   .pm-my-cond{ font-size:12px; color:#4A4848; }
+  /* 我的/结算态：日期左对齐、跟在满减下方，间距大一点（稿子 869:1125/1126）；避开右侧的勾 */
+  .pm-my-validity{ font-size:12px; color:#4A4848; margin-top:12px; padding-right:36px; word-break:break-word; }
   .pm-my-coin{ display:flex; align-items:center; gap:8px; }
   .pm-my-coin b{ font-size:14px; font-weight:500; color:var(--red); }
   .pm-my-date{ position:absolute; right:16px; bottom:8px; font-size:10px; color:#4A4848; text-align:right; }
@@ -4874,7 +4876,7 @@ function _pmMineHtml(mc){
     +'<div class="pm-my-main">'
     +'<div class="pm-my-name">'+_esc(mc.name)+'</div>'
     +'<div class="pm-my-cond">'+_couponCondTxt(mc)+'</div>'
-    +'<div class="pm-my-date">'+_esc(_pmDateTxt(mc))+'</div>'
+    +'<div class="pm-my-validity">'+_esc(_pmDateTxt(mc))+'</div>'   // 我的/结算态：日期左对齐、跟在满减下方（稿子 869:1125/1126），非右下角
     +rightEl+'</div></div>';
 }
 /* 点卡＝选这张券。一单只能用一张，所以再点一次是取消，选别的会换掉。
