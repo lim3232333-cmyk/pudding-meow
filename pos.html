@@ -266,15 +266,25 @@ body.ds-on{user-select:none;-webkit-user-select:none;}
 .sd-req-opt input{width:16px;height:16px;cursor:pointer;}
 .ic-price{font-weight:700;font-size:18px;color:#8D0505;}
 
-/* ACTION BAR — x:413, y:669, w:953, h:99 */
+/* ACTION BAR — Figma 80:98 — x:413, y:669, w:953, h:99 */
 .action-bar{position:absolute;left:413px;top:669px;width:953px;height:99px;background:#8D0505;}
 /* 4 buttons — each w:218.25, h:67, spaced at x:16, 250.25, 484.5, 718.75 within action bar; y:16 */
-.ab{position:absolute;top:16px;width:218px;height:67px;background:#FFDE5B;border-radius:14px;border:none;font-weight:700;font-size:22px;color:#000;display:flex;align-items:center;justify-content:center;}
+.ab{position:absolute;top:16px;width:218px;height:67px;background:#FFDE5B;border-radius:16px;border:none;font-weight:700;font-size:28px;color:#000;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
 .ab:active{opacity:.8;}
 .ab1{left:16px;}
 .ab2{left:251px;}
 .ab3{left:485px;}
-.ab4{left:719px;}
+/* Delete（Figma 933:2217）：文字靠左 + 右侧三角形，点三角形往上划出 Delete All 面板（933:2218） */
+.ab4{left:719px;justify-content:space-between;padding:0 24px;box-sizing:border-box;}
+.ab-tri{width:22px;height:22px;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.ab-tri svg{display:block;width:100%;height:100%;}
+/* Delete All 滑出面板：紧贴在 action-bar 上方、跟 Delete 按钮同一条竖线（Figma 933:2216，w225/h138/gap4） */
+.del-menu{position:absolute;left:719px;bottom:99px;width:218px;display:none;flex-direction:column;gap:4px;z-index:5;}
+.del-menu.show{display:flex;}
+.del-menu-btn{height:67px;background:#FFDE5B;border:none;border-radius:16px;font-weight:700;font-size:28px;color:#000;cursor:pointer;display:flex;align-items:center;padding:0 24px;box-sizing:border-box;font-family:"Noto Sans SC",sans-serif;}
+.del-menu-btn.all{justify-content:flex-start;}
+.del-menu-btn.one{justify-content:space-between;}
+.del-menu-btn:active{opacity:.8;}
 
 /* ═══════ MODAL BACKGROUND (dim 50%) ═══════ */
 .modal-bg{position:fixed;left:0;top:0;width:1366px;height:768px;background:rgba(0,0,0,.5);z-index:400;display:none;align-items:center;justify-content:center;}
@@ -324,7 +334,7 @@ body.ds-on{user-select:none;-webkit-user-select:none;}
 /* ═══════ PAYMENT PANEL — 570×722px exact Figma ═══════ */
 .pay-panel{
   position:relative;
-  background:#B6F3FF;
+  background:#EBFCFF;
   border-radius:16px;
   width:570px;
   height:722px;
@@ -337,7 +347,7 @@ body.ds-on{user-select:none;-webkit-user-select:none;}
   position:absolute;left:23px;width:185px;height:90px;
   border-radius:16px;border:none;
   font-weight:700;font-size:32px;cursor:pointer;
-  background:#FFFFD5;color:#000;
+  background:#D9D9D9;color:#000;
   transition:background .1s,color .1s;
 }
 .pay-cash{top:20px;}
@@ -359,12 +369,15 @@ body.ds-on{user-select:none;-webkit-user-select:none;}
   font-weight:700;font-size:48px;color:#000;
 }
 /* Tender display — left:337, top:130, w:210 */
+/* Tender 显示框（Figma「Component 3」）：白底 + 竖分隔线 + 内层灰色 chip 装数值，不是纯边框方块 */
 .pay-disp-tender{
-  position:absolute;left:337px;top:130px;width:210px;height:90px;
-  background:#fff;border-radius:16px;border:1.5px solid #000;
-  display:flex;align-items:center;justify-content:center;
-  font-weight:700;font-size:48px;color:#000;
+  position:absolute;left:337px;top:130px;width:197px;height:90px;
+  background:#fff;border-radius:16px;
+  display:flex;align-items:center;justify-content:center;gap:2px;
+  padding:0 20px;box-sizing:border-box;
 }
+.pdt-divider{width:2px;height:52px;background:#000;opacity:.15;flex-shrink:0;}
+.pdt-chip{flex:1;height:52px;background:#E8E8E8;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:48px;color:#000;overflow:hidden;}
 /* Numpad — left:23, top:238, 3×4 grid, each 100×100, gap:20 */
 .pay-numpad{
   position:absolute;left:23px;top:238px;
@@ -373,25 +386,43 @@ body.ds-on{user-select:none;-webkit-user-select:none;}
 }
 .pnb{
   width:100px;height:100px;border-radius:16px;border:none;
-  background:#202055;color:#FFFFD5;font-weight:700;font-size:48px;
+  background:#4A4848;color:#FFFFFF;font-weight:700;font-size:48px;
   cursor:pointer;display:flex;align-items:center;justify-content:center;
 }
-.pnb:active{transform:scale(.92);background:#2d2d6b;}
+.pnb:active{transform:scale(.92);background:#3a3a3a;}
 .pnb-del{background:#8D0505;font-size:32px;}
 /* Cancel — left:392, top:500, w:150, h:85 */
 .pay-cancel-btn{
   position:absolute;left:392px;top:500px;width:150px;height:85px;
   background:#8D0505;border-radius:16px;border:none;
-  font-weight:700;font-size:36px;color:#FFFFD5;cursor:pointer;
+  font-weight:700;font-size:36px;color:#FFFFFF;cursor:pointer;
 }
 .pay-cancel-btn:active{opacity:.8;}
 /* Done — left:392, top:610, w:150, h:85 */
 .pay-done-btn{
   position:absolute;left:392px;top:610px;width:150px;height:85px;
   background:#1D7715;border-radius:16px;border:none;
-  font-weight:700;font-size:36px;color:#FFFFD5;cursor:pointer;
+  font-weight:700;font-size:36px;color:#FFFFFF;cursor:pointer;
 }
 .pay-done-btn:active{opacity:.8;}
+
+/* ═══════ PRICE PANEL（Figma 934:2460）：改选中购物车行的单价，跟 Payment 面板同一套视觉语言 ═══════ */
+.price-panel{
+  position:relative;background:#EBFCFF;border-radius:16px;
+  width:562px;box-shadow:0 20px 60px rgba(0,0,0,.35);
+  padding:24px;box-sizing:border-box;
+  display:flex;flex-direction:column;gap:24px;flex-shrink:0;
+}
+.price-amount-row{display:flex;align-items:center;gap:24px;}
+.price-lbl{font-weight:500;font-size:24px;color:#000;flex-shrink:0;font-family:"Noto Sans SC",sans-serif;}
+.price-disp{flex:1;height:90px;background:#fff;border-radius:16px;display:flex;align-items:center;justify-content:center;gap:2px;padding:0 24px;box-sizing:border-box;}
+.price-bottom-row{display:flex;gap:24px;align-items:flex-end;justify-content:center;}
+.price-numpad{display:grid;grid-template-columns:repeat(3,100px);grid-template-rows:repeat(4,100px);gap:20px;}
+.price-btn-col{display:flex;flex-direction:column;gap:25px;width:150px;flex-shrink:0;}
+.price-cancel-btn,.price-done-btn{width:100%;height:85px;border-radius:16px;border:none;font-weight:700;font-size:36px;color:#FFFFFF;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
+.price-cancel-btn{background:#8D0505;}
+.price-done-btn{background:#1D7715;}
+.price-cancel-btn:active,.price-done-btn:active{opacity:.8;}
 
 /* ═══════ CHANGE OVERLAY (找零) — Payment Panel 风格 ═══════ */
 .change-panel{
@@ -797,12 +828,23 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
 </div>
 </div>
 
-  <!-- ACTION BAR -->
+  <!-- ACTION BAR（Figma 80:98）：第二格是 Price（点选中的购物车行改单价），Delete 旁的三角形
+       点了往上划出 Delete All 面板（Figma 933:2218），不是普通按钮 -->
   <div class="action-bar">
     <button class="ab ab1" onclick="showPayment()">Payment</button>
-    <button class="ab ab2" onclick="printCurrent()">Print Receipt</button>
+    <button class="ab ab2" onclick="showPricePanel()">Price</button>
     <button class="ab ab3" onclick="openItem()">Open Item</button>
-    <button class="ab ab4" onclick="deleteItem()">Delete</button>
+    <div class="ab ab4" onclick="deleteItem()">
+      <span>Delete</span>
+      <span class="ab-tri" onclick="event.stopPropagation();toggleDeleteMenu()"><svg viewBox="0 0 24 24"><path d="M12 3 L22 21 L2 21 Z" fill="#8D0505"/></svg></span>
+    </div>
+    <div class="del-menu" id="delMenu">
+      <button class="del-menu-btn all" onclick="deleteAllCart()">Delete All</button>
+      <button class="del-menu-btn one" onclick="deleteItem();closeDeleteMenu()">
+        <span>Delete</span>
+        <span class="ab-tri"><svg viewBox="0 0 24 24"><path d="M12 3 L22 21 L2 21 Z" fill="#8D0505"/></svg></span>
+      </button>
+    </div>
 </div>
 
 </div><!-- /posView -->
@@ -839,8 +881,8 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
     <div class="pay-lbl-tender">Tender</div>
     <!-- Amount display: left:337, top:20, 210×90, #D9D9D9 -->
     <div class="pay-disp-amount" id="payAmt">0.00</div>
-    <!-- Tender display: left:337, top:130, 210×90, white border -->
-    <div class="pay-disp-tender" id="payTender">0.00</div>
+    <!-- Tender display: left:337, top:130, 197×90, white + 分隔线 + 灰色 chip -->
+    <div class="pay-disp-tender"><div class="pdt-divider"></div><div class="pdt-chip" id="payTender">0.00</div></div>
     <!-- Numpad: left:23, top:238, 3×4, each 100×100, gap:20 -->
     <div class="pay-numpad" id="payNumpad"></div>
     <!-- Cancel: left:392, top:500, 150×85, #8D0505 -->
@@ -848,6 +890,23 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
     <!-- Done: left:392, top:610, 150×85, #1D7715 -->
     <button class="pay-done-btn" onclick="confirmPayment()">Done</button>
 </div>
+</div>
+
+<!-- PRICE MODAL（Figma 934:2460）：点选中的购物车行改单价，跟 Payment 面板同一套视觉，少了 Cash/DuitNow 那栏 -->
+<div class="modal-bg" id="priceBg" onclick="if(event.target===this)closePricePanel()">
+  <div class="price-panel">
+    <div class="price-amount-row">
+      <div class="price-lbl">Amount</div>
+      <div class="price-disp"><div class="pdt-divider"></div><div class="pdt-chip" id="priceAmtVal">0.00</div></div>
+    </div>
+    <div class="price-bottom-row">
+      <div class="price-numpad" id="priceNumpad"></div>
+      <div class="price-btn-col">
+        <button class="price-cancel-btn" onclick="closePricePanel()">Cancel</button>
+        <button class="price-done-btn" onclick="confirmPriceEdit()">Done</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- CHANGE OVERLAY (找零) -->
@@ -1615,7 +1674,7 @@ function doLogout(){
 }
 
 /* ── INIT ── */
-function initPOS(){renderCart();updPend();updDlv();buildNumpad();
+function initPOS(){renderCart();updPend();updDlv();buildNumpad();buildPriceNumpad();
   // 预热收据标题字体（收据平时隐藏，字体不会自动加载）——首次打印也能立刻用上 Pattaya
   try{ if(document.fonts&&document.fonts.load){ document.fonts.load('22px "PattayaRC"'); document.fonts.load('12px "PlexRC"'); document.fonts.load('700 20px "PlexRC"'); } }catch(e){}
 }
@@ -1884,6 +1943,61 @@ function openItem(){
 function deleteItem(){
   if(selIdx<0){showN('请先选中要删除的商品');return;}
   var n=cart[selIdx].name;cart.splice(selIdx,1);selIdx=-1;renderCart();showN('已删除：'+n);
+}
+/* Delete 旁的三角形（Figma 933:2218）：往上划出 Delete All 面板；点面板外/再点一次三角形收起 */
+function toggleDeleteMenu(){ document.getElementById('delMenu').classList.toggle('show'); }
+function closeDeleteMenu(){ document.getElementById('delMenu').classList.remove('show'); }
+document.addEventListener('click',function(e){
+  var menu=document.getElementById('delMenu');
+  if(!menu||!menu.classList.contains('show')) return;
+  if(menu.contains(e.target)||e.target.closest('.ab-tri')) return;
+  closeDeleteMenu();
+});
+function deleteAllCart(){
+  closeDeleteMenu();
+  if(!cart.length){ showN('购物车是空的'); return; }
+  if(!confirm('确定清空购物车全部商品？')) return;
+  cart=[]; selIdx=-1; renderCart(); showN('已清空购物车');
+}
+
+/* ── PRICE PANEL（Figma 934:2460）：改选中购物车行的单价，数字键盘跟收银面板同一套逻辑 ── */
+var priceInput='';
+function buildPriceNumpad(){
+  var nums=['1','2','3','4','5','6','7','8','9','⌫','0','.'];
+  var np=document.getElementById('priceNumpad');
+  np.innerHTML=nums.map(function(n){
+    var cls=n==='⌫'?'pnb pnb-del':'pnb';
+    return'<button class="'+cls+'" data-key="'+n+'">'+(n==='⌫'?'✕':n)+'</button>';
+  }).join('');
+  np.addEventListener('pointerdown',function(e){
+    var btn=e.target.closest('.pnb');
+    if(!btn) return;
+    e.preventDefault();
+    priceNumpadPress(btn.dataset.key);
+  });
+}
+function priceNumpadPress(v){
+  if(v==='⌫'){ priceInput=priceInput.slice(0,-1); }
+  else if(v==='.'){ if(priceInput.includes('.'))return; if(!priceInput)priceInput='0'; priceInput+='.'; }
+  else if(priceInput.length>=9) return;
+  else priceInput+=v;
+  document.getElementById('priceAmtVal').textContent=priceInput||'0';
+}
+function showPricePanel(){
+  if(selIdx<0){ showN('请先选中要改价的商品'); return; }
+  priceInput=String(cart[selIdx].price);
+  document.getElementById('priceAmtVal').textContent=priceInput;
+  document.getElementById('priceBg').classList.add('show');
+}
+function closePricePanel(){ document.getElementById('priceBg').classList.remove('show'); }
+function confirmPriceEdit(){
+  if(selIdx<0||!cart[selIdx]){ closePricePanel(); return; }
+  var p=parseFloat(priceInput);
+  if(!p||p<=0){ showN('请输入有效价格'); return; }
+  cart[selIdx].price=p;
+  renderCart();
+  closePricePanel();
+  showN('已改价');
 }
 function printCurrent(){
   if(!cart.length){showN('购物车是空的');return;}
