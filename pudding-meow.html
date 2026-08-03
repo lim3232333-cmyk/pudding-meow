@@ -1185,7 +1185,7 @@
   /* 布丁喵水滴 pin（442:308，40×40 盒；水滴 inset 8.33%/16.67%，logo left16.67%/right19.44%/top-1）；logo 复用首页 PNG */
   .addr-pin{ position:relative; width:40px; height:40px; }
   .addr-pin-drop{ position:absolute; left:16.67%; right:16.67%; top:8.33%; bottom:8.33%; display:block; }
-  .addr-pin-logo{ position:absolute; left:50%; top:40%; transform:translate(-50%,-50%); width:46%; height:auto; object-fit:contain; }   /* 居中在水滴圆心、缩小到不超出红指针 */
+  .addr-pin-logo{ position:absolute; left:50%; top:41%; transform:translate(-50%,-50%); width:42%; height:auto; object-fit:contain; }   /* 精确对到水滴圆心（19.84,16.4≈50%/41%），缩到留出红边、不超红指针 */
   /* 搜索框（443:422）：外壳浮顶，内含胶囊 + 联想下拉；兜底模式隐藏 */
   .addr-search-wrap{ display:none; }
   .addr-search{ display:flex; align-items:center; justify-content:space-between; height:45px; padding:8px 20px; background:#fff; border-radius:12px; box-shadow:0 0 2px rgba(217,217,217,.5); box-sizing:border-box; }
@@ -2687,7 +2687,7 @@ function _initAddrMap(){
     wrap.classList.add('map-on');
     _addrGeocoder=new google.maps.Geocoder();
     _addrMap=new google.maps.Map(document.getElementById('addrMapCanvas'), {
-      center:STORE_LATLNG, zoom:16, disableDefaultUI:true, zoomControl:true,
+      center:STORE_LATLNG, zoom:16, disableDefaultUI:true, zoomControl:false,
       clickableIcons:false, gestureHandling:'greedy'
     });
     // 中心即落点：地图停下时把中心记成坐标（便宜，不调 API），空地址不硬塞
@@ -2802,7 +2802,8 @@ function _addrCheckValid(){
   var isGuest=!(_memberId && _memberToken && db);
   var need = isGuest ? ['afAddress','afRecipient','afPhone']   // 游客只要 地址/收件人/手机
                      : ['afUnit','afAddress','afPostcode','afCity','afRecipient','afPhone'];
-  var ok=need.every(function(id){ return document.getElementById(id).value.trim(); }) && !!_addrLocateCoords;
+  // 只按红*必填项判定：填完就可用（坐标由地图中心兜底，见 saveAddrForm，不再卡按钮）
+  var ok=need.every(function(id){ return document.getElementById(id).value.trim(); });
   var btn=document.getElementById('addrSaveBtn');
   btn.disabled=!ok; btn.classList.toggle('disabled', !ok);
 }
@@ -2811,14 +2812,15 @@ function _addrHeaderProfile(){
   if(!(_memberId && _memberToken && db)){ closeAddrForm(); openRegister(); }
 }
 function saveAddrForm(){
-  if(!_addrLocateCoords) return;
+  // 坐标兜底：正常由地图 idle 设好；万一还没有，直接读地图中心（拖图取中心那套）
+  if(!_addrLocateCoords && _addrMap){ var _c=_addrMap.getCenter(); if(_c) _addrLocateCoords={lat:_c.lat(), lng:_c.lng()}; }
   var v=function(id){ return document.getElementById(id).value.trim(); };
   var isGuest=!(_memberId && _memberToken && db);
   var unit=v('afUnit'), address=v('afAddress'), postcode=v('afPostcode'), city=v('afCity'), recipient=v('afRecipient'), phone=v('afPhone');
   if(!address||!recipient||!phone) return;             // 两种模式都必填
   if(!isGuest && (!unit||!postcode||!city)) return;    // 单位号/邮编/城市只有会员必填
   var label=v('afLabel'), remarks=v('afRemarks');
-  var lat=_addrLocateCoords.lat, lng=_addrLocateCoords.lng;
+  var lat=_addrLocateCoords?_addrLocateCoords.lat:null, lng=_addrLocateCoords?_addrLocateCoords.lng:null;
 
   if(!isGuest){
     var btn=document.getElementById('addrSaveBtn'); btn.disabled=true;
