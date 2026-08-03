@@ -944,6 +944,8 @@
     -webkit-mask:radial-gradient(circle 3.5px at left center, transparent 3.5px, #000 4px) left top/100% 12.5px repeat-y;
             mask:radial-gradient(circle 3.5px at left center, transparent 3.5px, #000 4px) left top/100% 12.5px repeat-y; }
   .pm-my-stub.dessert{ background:var(--yellow); }
+  /* 现金/百分比券：票根用上传的锯齿红图（自带半圆孔），关掉 CSS 挖孔，避免叠两层 */
+  .pm-my-stub.cash{ background:url('voucher%20side.svg') center/100% 100% no-repeat; -webkit-mask:none; mask:none; }
   .pm-my-stub-art{ width:70px; height:66px; }
   .pm-my-stub-sym{ font-size:44px; font-weight:700; color:var(--yellow); line-height:1; }
   .pm-my-main{ position:relative; flex:1; min-width:0; background:#fff; box-sizing:border-box; padding:12px 16px;
@@ -4806,7 +4808,7 @@ function _pmStub(c){
       ? '<div class="pm-my-stub dessert" style="background-image:url(\''+_esc(c.menu_item_image)+'\')"></div>'
       : '<div class="pm-my-stub dessert">'+_dessertArt()+'</div>';
   }
-  return '<div class="pm-my-stub"><span class="pm-my-stub-sym">'+(c.type==='percent_off'?'%':'$')+'</span></div>';
+  return '<div class="pm-my-stub cash"><span class="pm-my-stub-sym">'+(c.type==='percent_off'?'%':'$')+'</span></div>';
 }
 function _pmDateTxt(c){ return c.expires_at ? ('有效期至 '+new Date(c.expires_at).toLocaleDateString()) : '永久有效'; }
 /* 商城态（In shop）：票根 + 标题 + 满减 + Paw Coin 价 + 右侧「兑换」按钮 + 右下日期 */
