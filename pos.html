@@ -1693,12 +1693,14 @@ function _chTagsHtml(channels){
 /* ── STATE ── */
 var cart=[],selIdx=-1,payMethod='cash',taMode=true;
 /* 待付款单核对模式：点 Pending Payment 队列的 Payment 后，把该单商品+会员资料
-   载入购物栏方便核对/揪重复单，不是在建新单——所以购物栏的增删改这时候要挡住，
-   只留「选中查看」和「Delete All 整单取消」。真正收款走 _payPendId 那条老路，
-   _pendReviewOrder 只多管「购物栏现在是不是在核对某张待付款单」这一件事。 */
+   载入购物栏——购物栏这时候是可以编辑的（删行/改数量/改价，正常购物栏能干的这里都能干），
+   店员发现有重复/多点的行可以直接删/改，改完点 Payment 会按购物栏现在的样子收款、
+   并把订单同步成编辑后的内容（_confirmPendPay 里落库）。真要整单作废用旁边三角形
+   → Delete All（voidOrder）。_pendReviewOrder 只管「购物栏现在是不是在核对某张待付款单」，
+   会员/充值这类跟单据编辑无关的操作（Voucher/Top up）还是挡住，避免跟核对流程混在一起。 */
 var _pendReviewOrder=null;
 function _reviewGuard(){
-  if(_pendReviewOrder){ showN('核对待付款单时不可编辑，如需取消请点旁边三角形 → Delete All 整单取消'); return true; }
+  if(_pendReviewOrder){ showN('核对待付款单时不能用会员功能，请先完成或取消这单'); return true; }
   return false;
 }
 var _orders=gj('pm_orders',[]);
@@ -1762,7 +1764,6 @@ function toggleTA(){
 
 /* ── QTY ADJUSTER (+/- 联动购物车选中项) ── */
 function qtyAdjust(delta){
-  if(_reviewGuard())return;
   if(selIdx<0||!cart[selIdx]){showN('请先在购物车里选中一个商品');return;}
   var next=cart[selIdx].qty+delta;
   if(next<=0){
@@ -1780,7 +1781,6 @@ function updateQtyDisplay(){
 /* ── QTY SLOT PICKER (数字滚轮) ── */
 var slotValue=1, slotMax=99;
 function openQtySlot(){
-  if(_reviewGuard())return;
   if(selIdx<0||!cart[selIdx]){showN('请先在购物车里选中一个商品');return;}
   slotValue=cart[selIdx].qty;
   buildSlotWheel();
@@ -1903,7 +1903,6 @@ function addItem(cat,i){
   hideitems();renderCart();showN('已加入：'+it.name);
 }
 function _cartAdd(it, specs){
-  if(_reviewGuard())return;
   // 行价 = 商品基础价 + 选中选项的加价；规格文字也带上「L +2.00」，收据才对得上账
   var specText=(specs||[]).map(function(s){
     var a=Number(s.add)||0; return s.value ? (s.value+(a?(' '+_addTxt(a)):'')) : '';
@@ -2052,7 +2051,6 @@ function openItemSpace(){ oiName+=' '; document.getElementById('oiNameVal').valu
   });
 })();
 function openItem(){
-  if(_reviewGuard())return;
   oiName=''; oiCaps=false;
   buildOpenItemKeyboard();
   document.getElementById('oiNameVal').value='';
@@ -2071,7 +2069,6 @@ function openItemNext(){
   try{ document.getElementById('priceAmtVal').focus(); document.getElementById('priceAmtVal').select(); }catch(e){}
 }
 function deleteItem(){
-  if(_reviewGuard())return;
   if(selIdx<0){showN('请先选中要删除的商品');return;}
   var n=cart[selIdx].name;cart.splice(selIdx,1);selIdx=-1;renderCart();showN('已删除：'+n);
 }
@@ -2136,7 +2133,6 @@ function priceNumpadPress(v){
   });
 })();
 function showPricePanel(){
-  if(_reviewGuard())return;
   if(selIdx<0){ showN('请先选中要改价的商品'); return; }
   _priceMode='edit';
   priceInput=String(cart[selIdx].price);
@@ -2213,18 +2209,18 @@ function updTenderDisplay(){
 function showPayment(){
   if(!cart.length){showN('购物车是空的');return;}
   if(_pendReviewOrder){
-    // 待付款单核对模式：购物栏只是核对展示，金额按该单原本落库的 total 收，不按购物栏现算
-    // （购物栏里的行不接受编辑，但保险起见别信它）；顺便防两台设备同时结这一单
+    // 待付款单核对模式：购物栏这时候是可以编辑的（删行/改数量/改价），
+    // 所以金额跟正常建新单一样按购物栏现算，不是照搬该单原本落库的 total；
+    // 顺便防两台设备同时结这一单
     var o=_orders.find(function(x){return x.id===_pendReviewOrder.id;});
     if(!o || o.status!=='pending'){ showN('这单已经被处理过了，请回待付款列表刷新看看'); return; }
     _payPendId=o.id;
-    payTotalAmount=Number(o.total)||0;
   } else {
     _payPendId=null;   // 收银台结账：确保不会误用待付款队列的结算分支
-    var _sub=cart.reduce(function(s,it){return s+it.qty*it.price;},0);
-    var _disc=_posCoupon?_posCouponDisc(_posCoupon,_sub):0;
-    payTotalAmount=Math.max(0,_sub-_disc);   // 用券后按折后金额收钱
   }
+  var _sub=cart.reduce(function(s,it){return s+it.qty*it.price;},0);
+  var _disc=_posCoupon?_posCouponDisc(_posCoupon,_sub):0;
+  payTotalAmount=Math.max(0,_sub-_disc);   // 用券后按折后金额收钱
   payMethod='cash';
   tenderInput='';
   document.getElementById('payAmt').textContent=payTotalAmount.toFixed(2);
@@ -2657,10 +2653,14 @@ function _confirmPendPay(tender,change){
     }).catch(function(e){ console.error('rpc_complete_recharge',e); alert('充值到账失败，请重试'); });
     return;
   }
+  // 核对这段购物栏是可以编辑的（删行/改数量/改价），落库前把订单同步成购物栏现在的样子，
+  // 不然收据/制作单印出来的还是店员改之前的旧内容
+  o.items=cart.map(function(i){return{name:i.name,name_cn:i.name_cn,price:i.price,qty:i.qty,specs:i.specs||[],flavor:i.specText||i.flavor||""};});
+  o.total=payTotalAmount;
   o.status=(o.source==='app'?'preparing':'paid');
   sj('pm_orders',_orders); pmBroadcastOrders();
   if(db){
-    db.from('orders').update({status:o.status,pay_method:o.payMethod}).eq('id',o.id)
+    db.from('orders').update({status:o.status,pay_method:o.payMethod,items:o.items,total:o.total}).eq('id',o.id)
       .then(function(res){if(res&&res.error)console.error('payPend update',res.error);})
       .catch(function(e){console.error('payPend update',e);});
     if(o.memberId) db.rpc('rpc_on_order_completed',{p_member_id:o.memberId,p_order_id:o.id,p_amount:o.total})
