@@ -1188,8 +1188,9 @@
   .addr-pin-logo{ position:absolute; left:50%; top:41%; transform:translate(-50%,-50%); width:42%; height:auto; object-fit:contain; }   /* 精确对到水滴圆心（19.84,16.4≈50%/41%），缩到留出红边、不超红指针 */
   /* 搜索框（443:422）：外壳浮顶，内含胶囊 + 联想下拉；兜底模式隐藏 */
   .addr-search-wrap{ display:none; }
-  .addr-search{ display:flex; align-items:center; justify-content:space-between; height:45px; padding:8px 20px; background:#fff; border-radius:12px; box-shadow:0 0 2px rgba(217,217,217,.5); box-sizing:border-box; }
-  .addr-search-inp{ flex:1; min-width:0; border:none; outline:none; background:transparent; font-size:14px; color:var(--muted); caret-color:var(--red); font-family:"Noto Sans SC",sans-serif; text-overflow:ellipsis; }
+  .addr-search{ display:flex; align-items:center; justify-content:space-between; height:45px; margin:0; padding:8px 20px; background:#fff; border-radius:12px; box-shadow:0 0 2px rgba(217,217,217,.5); box-sizing:border-box; }
+  .addr-search-inp{ flex:1; min-width:0; border:none; outline:none; background:transparent; font-size:14px; color:var(--muted); caret-color:var(--red); font-family:"Noto Sans SC",sans-serif; text-overflow:ellipsis; -webkit-appearance:none; appearance:none; }
+  .addr-search-inp::-webkit-search-cancel-button,.addr-search-inp::-webkit-search-decoration{ -webkit-appearance:none; display:none; }
   .addr-search-inp::placeholder{ color:var(--muted); opacity:1; }
   .addr-search-ico{ width:24px; height:24px; flex-shrink:0; margin-left:12px; cursor:pointer; }
   .addr-ico-clear{ display:none; }
@@ -1990,11 +1991,12 @@
       <div class="addr-map-canvas" id="addrMapCanvas"></div>
       <!-- 搜索框 (Figma 443:422)：4 态 —— 空/聚焦=放大镜，输入=✕清除+自定义联想下拉，已选=回显地址 -->
       <div class="addr-search-wrap" id="addrSearchWrap">
-        <div class="addr-search" id="addrSearchBox">
-          <input class="addr-search-inp" id="addrSearch" type="text" placeholder="搜索地址" autocomplete="off" enterkeyhint="search" inputmode="search" oninput="_addrSuggest()" onfocus="_addrSuggest()" onblur="_addrSuggBlur()" onkeydown="_addrSearchKey(event)">
+        <!-- 用 <form> + type=search：iOS 中文/拼音键盘只认这个才把回车键变成 🔍（enterkeyhint 它不认） -->
+        <form class="addr-search" id="addrSearchBox" action="#" onsubmit="return _addrSearchSubmit(event)">
+          <input class="addr-search-inp" id="addrSearch" type="search" placeholder="搜索地址" autocomplete="off" enterkeyhint="search" oninput="_addrSuggest()" onfocus="_addrSuggest()" onblur="_addrSuggBlur()">
           <svg class="addr-search-ico addr-ico-search" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
           <svg class="addr-search-ico addr-ico-clear" viewBox="0 0 24 24" onclick="_addrClearSearch()" role="button" aria-label="清除"><circle cx="12" cy="12" r="10" fill="#8D0505"/><path d="M15 9l-6 6M9 9l6 6" stroke="#FFFFD5" stroke-width="2" stroke-linecap="round"/></svg>
-        </div>
+        </form>
         <div class="addr-sugg" id="addrSugg"></div>
       </div>
       <!-- 布丁喵水滴 pin (Figma 442:308)：40×40 盒，logo 图在 openAddrForm 里从首页 logo 复制过来 -->
@@ -2745,12 +2747,12 @@ function _addrClearSearch(){
   sugg.classList.remove('show'); sugg.innerHTML=''; inp.focus();
 }
 function _addrSuggBlur(){ clearTimeout(_addrSuggBlurTimer); _addrSuggBlurTimer=setTimeout(function(){ document.getElementById('addrSugg').classList.remove('show'); }, 150); }
-/* 手机键盘的「搜索」键（enterkeyhint=search）：按下就选第一条联想，选不到就收起键盘 */
-function _addrSearchKey(e){
-  if(e.key!=='Enter') return;
-  e.preventDefault();
+/* 手机键盘的「搜索」键 = 提交表单：按下就选第一条联想，选不到就收起键盘（return false 阻止页面跳转） */
+function _addrSearchSubmit(e){
+  if(e) e.preventDefault();
   if(_addrPreds && _addrPreds.length){ _addrPickSugg(0); }
   document.getElementById('addrSearch').blur();
+  return false;
 }
 function _addrPickSugg(i){
   var sugg=document.getElementById('addrSugg'); sugg.classList.remove('show'); sugg.innerHTML='';
