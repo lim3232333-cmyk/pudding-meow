@@ -1193,7 +1193,7 @@
   /* 布丁喵水滴 pin（442:308，40×40 盒；水滴 inset 8.33%/16.67%，logo left16.67%/right19.44%/top-1）；logo 复用首页 PNG */
   .addr-pin{ position:relative; width:40px; height:40px; }
   .addr-pin-drop{ position:absolute; left:16.67%; right:16.67%; top:8.33%; bottom:8.33%; display:block; }
-  .addr-pin-logo{ position:absolute; left:50%; top:41%; transform:translate(-50%,-50%); width:42%; height:auto; object-fit:contain; }   /* 精确对到水滴圆心（19.84,16.4≈50%/41%），缩到留出红边、不超红指针 */
+  .addr-pin-logo{ position:absolute; left:50%; top:41%; transform:translate(-50%,-50%); width:50%; height:auto; object-fit:contain; }   /* 对到水滴圆心（50%/41%）、放大填满圆形部分（小了会显得飘、像歪的），仍不出红边 */
   /* 搜索框（443:422）：外壳浮顶，内含胶囊 + 联想下拉；兜底模式隐藏 */
   .addr-search-wrap{ display:none; }
   .addr-search{ display:flex; align-items:center; justify-content:space-between; height:45px; margin:0; padding:8px 20px; background:#fff; border-radius:12px; box-shadow:0 0 2px rgba(217,217,217,.5); box-sizing:border-box; }
