@@ -424,6 +424,30 @@ body.ds-on{user-select:none;-webkit-user-select:none;}
 .price-done-btn{background:#1D7715;}
 .price-cancel-btn:active,.price-done-btn:active{opacity:.8;}
 
+/* ═══════ OPEN ITEM PANEL（Figma 953:1497）：新建一个不在菜单里的临时商品——
+   虚拟键盘打名字，Next 接到上面同一个 Price Panel 设价格，Done 直接新增一行到购物车 ═══════ */
+.oi-panel{
+  position:relative;background:#EBFCFF;border-radius:16px;
+  width:1064px;box-sizing:border-box;padding:24px;
+  display:flex;flex-direction:column;gap:24px;
+}
+.oi-name-row{display:flex;align-items:center;justify-content:flex-end;gap:24px;}
+.oi-name-lbl{font-weight:500;font-size:24px;color:#000;flex-shrink:0;font-family:"Noto Sans SC",sans-serif;}
+.oi-name-disp{flex:1;height:90px;background:#fff;border-radius:16px;display:flex;align-items:center;gap:2px;padding:0 24px;box-sizing:border-box;}
+.oi-name-disp .pdt-chip{justify-content:flex-start;font-size:32px;overflow:hidden;white-space:nowrap;}
+.oi-kbd-row{display:flex;gap:24px;justify-content:center;}
+.oik{width:80px;height:80px;border-radius:16px;border:none;background:#4A4848;color:#fff;font-weight:700;font-size:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:"Noto Sans SC",sans-serif;flex-shrink:0;box-sizing:border-box;text-transform:none;}
+.oik:active{transform:scale(.92);background:#3a3a3a;}
+.oik-shift,.oik-bksp{background:#D9641B;}
+.oik-shift.on{background:#8D0505;}
+.oik-space{width:461px;height:80px;border-radius:16px;border:none;background:#4A4848;color:#fff;font-weight:700;font-size:36px;cursor:pointer;font-family:"Noto Sans SC",sans-serif;flex-shrink:0;}
+.oik-space:active{background:#3a3a3a;}
+.oi-bottom-row{display:flex;gap:24px;align-items:center;}
+.oi-cancel-btn,.oi-next-btn{flex:1;height:85px;border-radius:16px;border:none;font-weight:700;font-size:36px;color:#fff;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
+.oi-cancel-btn{background:#8D0505;}
+.oi-next-btn{background:#1D7715;}
+.oi-cancel-btn:active,.oi-next-btn:active{opacity:.8;}
+
 /* ═══════ CHANGE OVERLAY (找零) — Payment Panel 风格 ═══════ */
 .change-panel{
   position:relative;background:#B6F3FF;border-radius:16px;
@@ -905,6 +929,22 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
         <button class="price-cancel-btn" onclick="closePricePanel()">Cancel</button>
         <button class="price-done-btn" onclick="confirmPriceEdit()">Done</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- OPEN ITEM MODAL（Figma 953:1497）：虚拟键盘打商品名，Next 接到上面的 Price Panel 设价格 -->
+<div class="modal-bg" id="openItemBg" onclick="if(event.target===this)closeOpenItem()">
+  <div class="oi-panel">
+    <div class="oi-name-row">
+      <div class="oi-name-lbl">Item Name</div>
+      <div class="oi-name-disp"><div class="pdt-divider"></div><div class="pdt-chip" id="oiNameVal"></div></div>
+    </div>
+    <div id="oiKeyboard"></div>
+    <div class="oi-bottom-row">
+      <button class="oi-cancel-btn" onclick="closeOpenItem()">Cancel</button>
+      <button class="oik-space" onclick="openItemSpace()">space</button>
+      <button class="oi-next-btn" onclick="openItemNext()">Next</button>
     </div>
   </div>
 </div>
@@ -1930,15 +1970,59 @@ function renderCart(){
 function selCart(i){selIdx=(i===selIdx)?-1:i;renderCart();}
 
 /* ── ACTIONS ── */
+/* ── OPEN ITEM（Figma 953:1497）：新建一个不在菜单里的临时商品。
+   改数量已经有 T/A Control Panel 那组 +/-/数字轮盘（qtyAdjust/openQtySlot）单独管，这里不重复。 ── */
+var oiName='', oiCaps=false;
+var OI_ROWS=[
+  ['1','2','3','4','5','6','7','8','9','0'],
+  ['q','w','e','r','t','y','u','i','o','p'],
+  ['a','s','d','f','g','h','j','k','l'],
+  ['shift','z','x','c','v','b','n','m','.','back']
+];
+function _oiIcon(key){
+  if(key==='shift') return '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 L21 14 H15 V21 H9 V14 H3 Z"/></svg>';
+  return '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5 L2 12 L9 19 H21 V5 Z"/><path d="M13 9 L18 15 M18 9 L13 15"/></svg>';
+}
+function buildOpenItemKeyboard(){
+  var kb=document.getElementById('oiKeyboard');
+  if(!kb || kb.dataset.built) return;
+  kb.dataset.built='1';
+  kb.innerHTML=OI_ROWS.map(function(row){
+    return '<div class="oi-kbd-row">'+row.map(function(k){
+      if(k==='shift') return '<button class="oik oik-shift" id="oikShift" data-key="shift">'+_oiIcon('shift')+'</button>';
+      if(k==='back') return '<button class="oik oik-bksp" data-key="back">'+_oiIcon('back')+'</button>';
+      return '<button class="oik" data-key="'+k+'">'+k+'</button>';
+    }).join('')+'</div>';
+  }).join('');
+  kb.addEventListener('pointerdown',function(e){
+    var btn=e.target.closest('.oik');
+    if(!btn) return;
+    e.preventDefault();
+    oiKeyPress(btn.dataset.key);
+  });
+}
+function oiKeyPress(k){
+  if(k==='shift'){ oiCaps=!oiCaps; document.getElementById('oikShift').classList.toggle('on',oiCaps); return; }
+  if(k==='back'){ oiName=oiName.slice(0,-1); }
+  else { oiName+=(oiCaps?k.toUpperCase():k); }
+  document.getElementById('oiNameVal').textContent=oiName;
+}
+function openItemSpace(){ oiName+=' '; document.getElementById('oiNameVal').textContent=oiName; }
 function openItem(){
-  if(selIdx<0){showN('请先选中一个商品');return;}
-  var it=cart[selIdx];
-  var n=prompt('修改数量 ('+it.name+')：', String(it.qty));
-  if(n===null) return;
-  var q=parseInt(n);
-  if(!q||q<1){cart.splice(selIdx,1);selIdx=-1;}
-  else cart[selIdx].qty=q;
-  renderCart();
+  oiName=''; oiCaps=false;
+  buildOpenItemKeyboard();
+  document.getElementById('oiNameVal').textContent='';
+  var sh=document.getElementById('oikShift'); if(sh) sh.classList.remove('on');
+  document.getElementById('openItemBg').classList.add('show');
+}
+function closeOpenItem(){ document.getElementById('openItemBg').classList.remove('show'); }
+function openItemNext(){
+  if(!oiName.trim()){ showN('请输入商品名称'); return; }
+  closeOpenItem();
+  _priceMode='open-item';
+  priceInput='';
+  document.getElementById('priceAmtVal').textContent='0';
+  document.getElementById('priceBg').classList.add('show');
 }
 function deleteItem(){
   if(selIdx<0){showN('请先选中要删除的商品');return;}
@@ -1960,8 +2044,10 @@ function deleteAllCart(){
   cart=[]; selIdx=-1; renderCart(); showN('已清空购物车');
 }
 
-/* ── PRICE PANEL（Figma 934:2460）：改选中购物车行的单价，数字键盘跟收银面板同一套逻辑 ── */
-var priceInput='';
+/* ── PRICE PANEL（Figma 934:2460）：数字键盘跟收银面板同一套逻辑。
+   两种用法共用同一个面板：_priceMode='edit' 改选中购物车行的单价；
+   'open-item' 是从 Open Item 流程接过来，Done 时新增一整行到购物车（不是改价） ── */
+var priceInput='', _priceMode='edit';
 function buildPriceNumpad(){
   var nums=['1','2','3','4','5','6','7','8','9','⌫','0','.'];
   var np=document.getElementById('priceNumpad');
@@ -1985,15 +2071,24 @@ function priceNumpadPress(v){
 }
 function showPricePanel(){
   if(selIdx<0){ showN('请先选中要改价的商品'); return; }
+  _priceMode='edit';
   priceInput=String(cart[selIdx].price);
   document.getElementById('priceAmtVal').textContent=priceInput;
   document.getElementById('priceBg').classList.add('show');
 }
 function closePricePanel(){ document.getElementById('priceBg').classList.remove('show'); }
 function confirmPriceEdit(){
-  if(selIdx<0||!cart[selIdx]){ closePricePanel(); return; }
   var p=parseFloat(priceInput);
   if(!p||p<=0){ showN('请输入有效价格'); return; }
+  if(_priceMode==='open-item'){
+    cart.push({name:oiName,name_cn:oiName,price:p,qty:1,specText:'',specs:[]});
+    selIdx=cart.length-1;
+    renderCart();
+    closePricePanel();
+    showN('已新增商品：'+oiName);
+    return;
+  }
+  if(selIdx<0||!cart[selIdx]){ closePricePanel(); return; }
   cart[selIdx].price=p;
   renderCart();
   closePricePanel();
