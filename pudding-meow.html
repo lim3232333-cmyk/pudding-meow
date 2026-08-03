@@ -104,16 +104,24 @@
 
   /* 会员横幅 + 用餐方式格（Figma 677:901）：整块宽 358，黄条圆上角、红格圆下角 */
   .hc-memberbox{ width:358px; flex-shrink:0; }
-  .hc-member-bg{ display:flex; align-items:center; gap:12px; padding:8px 16px; background:var(--yellow); border-radius:12px 12px 0 0; }
+  .hc-member-bg{ display:flex; align-items:center; gap:12px; padding:16px; background:var(--yellow); border-radius:12px 12px 0 0; box-sizing:border-box; }   /* Figma 872:1775 p-16 */
   .hc-member-txt{ flex:1; min-width:0; }
   .hc-member-title{ font-weight:500; font-size:16px; line-height:19px; color:var(--red); }
   .hc-member-sub{ font-weight:500; font-size:11px; line-height:13px; color:var(--muted); }
   .hc-register{
-    flex-shrink:0; padding:4px 12px; background:var(--blue); border:none; border-radius:999px;
+    flex-shrink:0; height:32px; padding:4px 16px; background:var(--blue); border:none; border-radius:999px;
     filter:drop-shadow(0 4px 2px rgba(32,32,85,.25)); cursor:pointer;
-    font-family:'Noto Sans SC',sans-serif; font-weight:500; font-size:16px; line-height:19px; color:var(--red);
+    font-family:'Noto Sans SC',sans-serif; font-weight:500; font-size:16px; line-height:24px; color:var(--red);
   }
   .hc-register:active{ transform:translateY(2px); filter:none; }
+  /* 会员态（Figma 872:1773）：钱包 / 币 / 券 三块 + 竖线分隔 */
+  .hc-member-bg.is-member{ gap:0; }
+  .hc-stat{ flex:1 1 0; min-width:0; display:flex; gap:8px; align-items:center; justify-content:center; }
+  .hc-stat-ico{ width:30px; height:30px; flex-shrink:0; display:block; }
+  .hc-stat-txt{ display:flex; flex-direction:column; }
+  .hc-stat-num{ font-weight:700; font-size:16px; line-height:1.15; color:#202055; white-space:nowrap; }
+  .hc-stat-lbl{ font-weight:400; font-size:10px; line-height:1.2; color:#202055; white-space:nowrap; }
+  .hc-stat-div{ flex-shrink:0; width:1px; height:30px; background:rgba(141,5,5,.35); }
 
   .hc-modebox{
     width:358px; height:201px; background:var(--red); border-radius:0 0 12px 12px;
@@ -1276,13 +1284,8 @@
 
       <!-- 会员横幅 + 用餐方式 2×2（Figma 677:901）：上排 堂食/自取，下排 预约/外卖 -->
       <div class="hc-memberbox">
-        <div class="hc-member-bg">
-          <div class="hc-member-txt">
-            <div class="hc-member-title">加入会员获取更多优惠！</div>
-            <div class="hc-member-sub">Member exclusive perks</div>
-          </div>
-          <button class="hc-register" onclick="openRegister()">立即注册</button>
-        </div>
+        <!-- 引导注册条（Figma 872:1775）：游客=加入会员+立即注册；会员=钱包/币/券三块。由 _renderHomeMemberBar() 填充 -->
+        <div class="hc-member-bg" id="hcMemberBar"></div>
 
         <div class="hc-modebox">
           <div class="hc-card hc-dinein" data-mode="dinein" onclick="selectMode(this)">
@@ -4127,9 +4130,11 @@ function _memSaveSession(id, token){
 }
 function _memClearSession(){
   _memberId = null; _memberToken = null; _memberProfile = null;
+  _myCouponCount = 0; _homeCouponsTried = false;
   try{ localStorage.removeItem('pm_member_id'); localStorage.removeItem('pm_member_token'); }catch(e){}
   _orders = []; try{ subscribeOrders(); }catch(e){}
   try{ subscribeMemberEvents(); }catch(e){}   // 退出登录：内部会因 _memberId 为空而退订
+  try{ _renderHomeMemberBar(); }catch(e){}    // 退出登录 → 首页引导条切回游客态
 }
 function memSwitchAuthTab(tab){
   document.getElementById('memTabLogin').classList.toggle('active', tab==='login');
@@ -4203,7 +4208,32 @@ function refreshMemberProfile(){
   return db.rpc('rpc_get_my_profile', {p_member_id:_memberId, p_session_token:_memberToken}).then(function(res){
     if(res.error){ _memClearSession(); return; }
     _memberProfile = res.data && res.data[0];
+    _renderHomeMemberBar();
   }).catch(function(e){});
+}
+
+/* ===== 首页引导注册条（Figma 872:1775）两态：游客(Frame375) ↔ 会员(Frame374) ===== */
+var _myCouponCount = 0, _homeCouponsTried = false;
+/* 三个图标：深红圆底 + 奶黄符号（跟黄条不撞色）。近似稿子，真图可后续换 */
+var _HC_ICO_WALLET='<svg class="hc-stat-ico" viewBox="0 0 30 30" fill="none"><circle cx="15" cy="15" r="15" fill="#8D0505"/><rect x="8" y="11" width="14" height="9" rx="2" stroke="#FFDE5B" stroke-width="1.6"/><path d="M8 14h14" stroke="#FFDE5B" stroke-width="1.6"/><circle cx="18" cy="16.6" r="1.3" fill="#FFDE5B"/></svg>';
+var _HC_ICO_PAW='<svg class="hc-stat-ico" viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="20" fill="#8D0505"/><path d="M30.9453 26.2004C30.4297 24.7297 29.2279 23.9844 28.0678 23.2637C27.0582 22.6361 26.1049 22.0432 25.4814 20.9785C23.7629 18.0295 22.8189 16.25 20.0035 16.25C17.1881 16.25 16.2412 18.0301 14.5186 20.9779C13.8945 22.0449 12.9365 22.6391 11.9258 23.2678C10.7656 23.9891 9.56621 24.7326 9.04883 26.2004C8.84752 26.7297 8.74619 27.2917 8.75 27.858C8.75 30.2451 10.6514 32.1875 12.7578 32.1875C14.8643 32.1875 17.6393 31.1252 20.0094 31.1252C22.3795 31.1252 25.1158 32.1875 27.2486 32.1875C29.3814 32.1875 31.25 30.2451 31.25 27.858C31.2517 27.2914 31.1484 26.7294 30.9453 26.2004Z" fill="#FFDE5B"/><path d="M9.21875 21.875C11.0309 21.875 12.5 19.9862 12.5 17.6562C12.5 15.3263 11.0309 13.4375 9.21875 13.4375C7.40657 13.4375 5.9375 15.3263 5.9375 17.6562C5.9375 19.9862 7.40657 21.875 9.21875 21.875Z" fill="#FFDE5B"/><path d="M15.7812 16.25C17.5934 16.25 19.0625 14.3612 19.0625 12.0312C19.0625 9.7013 17.5934 7.8125 15.7812 7.8125C13.9691 7.8125 12.5 9.7013 12.5 12.0312C12.5 14.3612 13.9691 16.25 15.7812 16.25Z" fill="#FFDE5B"/><path d="M24.2188 16.25C26.0309 16.25 27.5 14.3612 27.5 12.0312C27.5 9.7013 26.0309 7.8125 24.2188 7.8125C22.4066 7.8125 20.9375 9.7013 20.9375 12.0312C20.9375 14.3612 22.4066 16.25 24.2188 16.25Z" fill="#FFDE5B"/><path d="M30.7812 21.875C32.5934 21.875 34.0625 19.9862 34.0625 17.6562C34.0625 15.3263 32.5934 13.4375 30.7812 13.4375C28.9691 13.4375 27.5 15.3263 27.5 17.6562C27.5 19.9862 28.9691 21.875 30.7812 21.875Z" fill="#FFDE5B"/></svg>';
+var _HC_ICO_VOUCHER='<svg class="hc-stat-ico" viewBox="0 0 30 30" fill="none"><circle cx="15" cy="15" r="15" fill="#8D0505"/><path d="M9 11.5h12c.55 0 1 .45 1 1v1.3a1.7 1.7 0 0 0 0 3.4v1.3c0 .55-.45 1-1 1H9c-.55 0-1-.45-1-1v-1.3a1.7 1.7 0 0 0 0-3.4v-1.3c0-.55.45-1 1-1Z" fill="#FFDE5B"/><path d="M15 12v6" stroke="#8D0505" stroke-width="1" stroke-dasharray="1.4 1.4"/></svg>';
+function _hcStat(ico,num,lbl){ return '<div class="hc-stat">'+ico+'<div class="hc-stat-txt"><div class="hc-stat-num">'+num+'</div><div class="hc-stat-lbl">'+lbl+'</div></div></div>'; }
+function _renderHomeMemberBar(){
+  var bar=document.getElementById('hcMemberBar'); if(!bar) return;
+  if(_memberId && _memberToken && _memberProfile){
+    bar.classList.add('is-member');
+    var wb=Number(_memberProfile.wallet_balance)||0;
+    var wallet='RM '+(wb%1===0 ? wb : wb.toFixed(2));
+    bar.innerHTML = _hcStat(_HC_ICO_WALLET, wallet, 'Meow Wallet')
+      + '<div class="hc-stat-div"></div>' + _hcStat(_HC_ICO_PAW, (_memberProfile.coins||0), 'Meow Coin')
+      + '<div class="hc-stat-div"></div>' + _hcStat(_HC_ICO_VOUCHER, _myCouponCount, '优惠卷');
+    if(!_homeCouponsTried && db){ _homeCouponsTried=true; try{ loadMyCoupons(); }catch(e){} }   // 拉券数，回来会重渲染
+  } else {
+    bar.classList.remove('is-member');
+    bar.innerHTML = '<div class="hc-member-txt"><div class="hc-member-title">加入会员获取更多优惠！</div><div class="hc-member-sub">Member exclusive perks</div></div>'
+      + '<button class="hc-register" onclick="openRegister()">立即注册</button>';
+  }
 }
 function renderProfileScreen(){
   var authEl = document.getElementById('memAuth'), homeEl = document.getElementById('memHome');
@@ -4556,8 +4586,10 @@ function loadMyCoupons(){
       return;
     }
     var list = res.data || [];
+    _myCouponCount = list.filter(function(c){ return c.status==='unused'; }).length;
     var countEl = document.getElementById('memCouponCount');
-    if(countEl) countEl.textContent = list.filter(function(c){ return c.status==='unused'; }).length;
+    if(countEl) countEl.textContent = _myCouponCount;
+    try{ _renderHomeMemberBar(); }catch(e){}   // 券数变了，顺手刷新首页引导条的「优惠卷」
     var box = document.getElementById('memCouponList');
     if(!box) return;   // 「我的优惠券」那块已删，只更新会员卡上的张数就够了
     if(!list.length){
@@ -5145,6 +5177,8 @@ loadOrdersFromCloud().then(function(){ try{ renderOrdersList(); }catch(e){} });
 subscribeOrders();
 /* 会员数据即时刷新：会话是从 localStorage 恢复的，启动时也要订阅一次门铃 */
 try{ subscribeMemberEvents(); }catch(e){}
+/* 首页引导条：先渲染游客态；若已登录（会话恢复自 localStorage）→ 拉资料后自动切会员态 */
+try{ _renderHomeMemberBar(); if(_memberId && _memberToken) refreshMemberProfile(); }catch(e){}
 /* 等级/成长值规则改动也实时同步（全店配置，与是否登录无关） */
 try{ subscribeLoyaltyConfig(); }catch(e){}
 
