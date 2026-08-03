@@ -944,14 +944,18 @@
     -webkit-mask:radial-gradient(circle 3.5px at left center, transparent 3.5px, #000 4px) left top/100% 12.5px repeat-y;
             mask:radial-gradient(circle 3.5px at left center, transparent 3.5px, #000 4px) left top/100% 12.5px repeat-y; }
   .pm-my-stub.dessert{ background:var(--yellow); }
+  /* 现金/百分比券：票根用上传的锯齿红图（自带半圆孔），关掉 CSS 挖孔，避免叠两层 */
+  .pm-my-stub.cash{ background:url('voucher%20side.svg') center/100% 100% no-repeat; -webkit-mask:none; mask:none; }
   .pm-my-stub-art{ width:70px; height:66px; }
   .pm-my-stub-sym{ font-size:44px; font-weight:700; color:var(--yellow); line-height:1; }
   .pm-my-main{ position:relative; flex:1; min-width:0; background:#fff; box-sizing:border-box; padding:12px 16px;
     display:flex; flex-direction:column; justify-content:center; gap:8px; }
   .pm-my-name{ font-size:16px; font-weight:500; color:var(--red); word-break:break-word; padding-right:56px; }
   .pm-my-cond{ font-size:12px; color:#4A4848; }
-  /* 我的/结算态：日期左对齐、跟在满减下方，间距大一点（稿子 869:1125/1126）；避开右侧的勾 */
-  .pm-my-validity{ font-size:12px; color:#4A4848; margin-top:12px; padding-right:36px; word-break:break-word; }
+  /* 我的/结算态：标题+满减在上、日期推到卡片底部（左下），避开右侧的勾（稿子 869:1125/1126） */
+  .pm-my-main.mine{ justify-content:flex-start; }
+  .pm-my-validity{ font-size:12px; color:#4A4848; padding-right:36px; word-break:break-word; }
+  .pm-my-main.mine .pm-my-validity{ margin-top:auto; }
   .pm-my-coin{ display:flex; align-items:center; gap:8px; }
   .pm-my-coin b{ font-size:14px; font-weight:500; color:var(--red); }
   .pm-my-date{ position:absolute; right:16px; bottom:8px; font-size:10px; color:#4A4848; text-align:right; }
@@ -4804,7 +4808,7 @@ function _pmStub(c){
       ? '<div class="pm-my-stub dessert" style="background-image:url(\''+_esc(c.menu_item_image)+'\')"></div>'
       : '<div class="pm-my-stub dessert">'+_dessertArt()+'</div>';
   }
-  return '<div class="pm-my-stub"><span class="pm-my-stub-sym">'+(c.type==='percent_off'?'%':'$')+'</span></div>';
+  return '<div class="pm-my-stub cash"><span class="pm-my-stub-sym">'+(c.type==='percent_off'?'%':'$')+'</span></div>';
 }
 function _pmDateTxt(c){ return c.expires_at ? ('有效期至 '+new Date(c.expires_at).toLocaleDateString()) : '永久有效'; }
 /* 商城态（In shop）：票根 + 标题 + 满减 + Paw Coin 价 + 右侧「兑换」按钮 + 右下日期 */
@@ -4873,7 +4877,7 @@ function _pmMineHtml(mc){
     : '';
   return'<div class="pm-my-card'+(dim?' dim':'')+'"'+(clickable?(' onclick="pmPickCoupon(\''+mc.id+'\')"'):'')+'>'
     +_pmStub(mc)
-    +'<div class="pm-my-main">'
+    +'<div class="pm-my-main mine">'
     +'<div class="pm-my-name">'+_esc(mc.name)+'</div>'
     +'<div class="pm-my-cond">'+_couponCondTxt(mc)+'</div>'
     +'<div class="pm-my-validity">'+_esc(_pmDateTxt(mc))+'</div>'   // 我的/结算态：日期左对齐、跟在满减下方（稿子 869:1125/1126），非右下角
