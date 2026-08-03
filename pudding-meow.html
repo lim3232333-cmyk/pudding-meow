@@ -933,41 +933,32 @@
   .pm-empty{ text-align:center; padding:48px 20px; font-size:13px; color:var(--muted); }
   .pm-use-btn{ margin-top:8px; background:var(--yellow); color:var(--red); border:none; border-radius:999px; padding:5px 16px; font-size:12px; font-weight:700; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }
   .pm-use-no{ display:inline-block; margin-top:8px; font-size:10.5px; opacity:.75; }
-  .pm-item-card{ background:#fff; border-radius:12px; padding:16px; display:flex; align-items:center; justify-content:space-between; box-sizing:border-box; box-shadow:0 4px 10px rgba(0,0,0,.25); }
-  .pm-item-img{ width:80px; height:80px; border-radius:16px; background:#D9D9D9; flex-shrink:0; overflow:hidden; }
-  .pm-item-img-logo{ background:var(--red); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; box-sizing:border-box; padding:8px; }
-  .pm-item-img-logo img{ width:56px; height:44px; object-fit:contain; }
-  .pm-item-img-logo span{ font-size:12px; color:var(--cream2); font-weight:500; }
-  .pm-item-info{ display:flex; flex-direction:column; gap:20px; width:142px; flex-shrink:0; }
-  .pm-item-name{ font-size:16px; font-weight:500; color:var(--red); }
-  .pm-item-coin-row{ display:flex; align-items:center; gap:8px; }
-  .pm-item-coin-dot{ width:15px; height:15px; border-radius:50%; background:var(--yellow); flex-shrink:0; }
-  .pm-item-coin-txt{ font-size:14px; font-weight:500; color:var(--red); }
-  .pm-item-redeem{ background:var(--red); color:var(--cream2); border:none; border-radius:999px; width:52px; height:25px; font-size:14px; font-weight:500; font-family:"Noto Sans SC",sans-serif; cursor:pointer; flex-shrink:0; }
-
-  /* ===== 「我的」那一页的券卡（Figma 818:1340 选中 / 818:1341 未选中）=====
-     跟其他页签的兑换卡是两回事：左边 100px 是票根（现金券深红配 $ / 甜品券黄底配商品图），
-     右边白底 261px，最右不是「兑换」按钮而是一个勾——这一页是「挑一张来用」，不是买。 */
-  .pm-my-card{ display:flex; width:100%; height:100px; border-radius:12px; box-sizing:border-box;
-    box-shadow:0 4px 5px rgba(0,0,0,.25); overflow:hidden; }
+  /* ===== 积分商城券卡（Figma 869:1128 / 869:1132）：100px 票根 + 白色主体，商城/结算/我的三态共用。
+     票根：现金券深红配 $、百分比券配 %、甜品券黄底配商品图；左缘锯齿孔用 mask 挖。
+     主体三行：标题 16 / 满减条件 12 / 日期 10（右下角）；右侧按态放 兑换按钮 / 打勾 / 状态字。 */
+  .pm-item-card,.pm-my-card{ display:flex; width:100%; min-height:100px; border-radius:12px; box-sizing:border-box; box-shadow:0 4px 8px rgba(0,0,0,.2); overflow:hidden; }
   .pm-my-card[onclick]{ cursor:pointer; }
-  .pm-my-card.dim{ opacity:.5; cursor:default; }
-  .pm-my-stub{ position:relative; width:100px; height:100px; flex-shrink:0; background:var(--red);
+  .pm-item-card.dim,.pm-my-card.dim{ opacity:.5; cursor:default; }
+  .pm-my-stub{ position:relative; width:100px; flex-shrink:0; align-self:stretch; background:var(--red);
     display:flex; align-items:center; justify-content:center; background-size:cover; background-position:center;
-    /* 票根左缘的锯齿孔：用 mask 沿左边每 12.5px 挖一个 3.5px 的半圆 */
     -webkit-mask:radial-gradient(circle 3.5px at left center, transparent 3.5px, #000 4px) left top/100% 12.5px repeat-y;
             mask:radial-gradient(circle 3.5px at left center, transparent 3.5px, #000 4px) left top/100% 12.5px repeat-y; }
   .pm-my-stub.dessert{ background:var(--yellow); }
   .pm-my-stub-art{ width:70px; height:66px; }
   .pm-my-stub-sym{ font-size:44px; font-weight:700; color:var(--yellow); line-height:1; }
-  .pm-my-main{ flex:1; min-width:0; background:#fff; display:flex; align-items:center; justify-content:space-between;
-    gap:8px; padding:8px 16px; box-sizing:border-box; }
-  .pm-my-info{ display:flex; flex-direction:column; gap:20px; min-width:0; flex:1; }
-  .pm-my-name{ font-size:16px; font-weight:500; color:var(--red); word-break:break-word; }
-  .pm-my-sub{ display:flex; align-items:center; gap:8px; font-size:14px; font-weight:500; color:var(--red); }
+  .pm-my-main{ position:relative; flex:1; min-width:0; background:#fff; box-sizing:border-box; padding:12px 16px;
+    display:flex; flex-direction:column; justify-content:center; gap:6px; }
+  .pm-my-name{ font-size:16px; font-weight:500; color:var(--red); word-break:break-word; padding-right:56px; }
+  .pm-my-cond{ font-size:12px; color:#4A4848; }
+  .pm-my-coin{ display:flex; align-items:center; gap:8px; }
+  .pm-my-coin b{ font-size:14px; font-weight:500; color:var(--red); }
+  .pm-my-date{ position:absolute; right:16px; bottom:8px; font-size:10px; color:#4A4848; text-align:right; }
   .pm-my-paw{ width:25px; height:25px; flex-shrink:0; }
+  .pm-my-redeem{ position:absolute; right:16px; top:50%; transform:translateY(-50%); background:var(--red); color:var(--cream2); border:none; border-radius:999px; width:52px; height:25px; font-size:14px; font-weight:500; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
+  .pm-my-redeem:disabled{ opacity:.45; cursor:not-allowed; }
+  .pm-my-tickwrap{ position:absolute; right:16px; top:50%; transform:translateY(-50%); display:flex; }
   .pm-my-tick{ width:20px; height:20px; flex-shrink:0; }
-  .pm-my-why{ font-size:10.5px; color:var(--red); opacity:.75; flex-shrink:0; max-width:78px; text-align:right; }
+  .pm-my-why{ position:absolute; right:16px; top:50%; transform:translateY(-50%); font-size:10.5px; color:var(--red); opacity:.75; max-width:80px; text-align:right; }
 
   /* ===== 会员：幸运抽奖 Lucky Draw ===== */
   .ld-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:var(--cream2); z-index:300; display:none; flex-direction:column; overflow-y:auto; }
@@ -1191,9 +1182,8 @@
   .addr-map{ position:relative; flex-shrink:0; background:#D9D9D9; min-height:150px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:16px; box-sizing:border-box; }
   .addr-map-canvas{ display:none; }
   /* 布丁喵水滴 pin（442:308，40×40 盒；水滴 inset 8.33%/16.67%，logo left16.67%/right19.44%/top-1）；logo 复用首页 PNG */
-  .addr-pin{ position:relative; width:40px; height:40px; }
-  .addr-pin-drop{ position:absolute; left:16.67%; right:16.67%; top:8.33%; bottom:8.33%; display:block; }
-  .addr-pin-logo{ position:absolute; left:50%; top:41%; transform:translate(-50%,-50%); width:50%; height:auto; object-fit:contain; }   /* 对到水滴圆心（50%/41%）、放大填满圆形部分（小了会显得飘、像歪的），仍不出红边 */
+  .addr-pin{ position:relative; width:40px; height:50px; }   /* pin.svg 比例 36:45 ≈ 40:50 */
+  .addr-pin-img{ display:block; width:100%; height:100%; }
   /* 搜索框（443:422）：外壳浮顶，内含胶囊 + 联想下拉；兜底模式隐藏 */
   .addr-search-wrap{ display:none; }
   .addr-search{ display:flex; align-items:center; justify-content:space-between; height:45px; margin:0; padding:8px 20px; background:#fff; border-radius:12px; box-shadow:0 0 2px rgba(217,217,217,.5); box-sizing:border-box; }
@@ -2002,11 +1992,8 @@
         </form>
         <div class="addr-sugg" id="addrSugg"></div>
       </div>
-      <!-- 布丁喵水滴 pin (Figma 442:308)：40×40 盒，logo 图在 openAddrForm 里从首页 logo 复制过来 -->
-      <div class="addr-pin" id="addrPin">
-        <svg class="addr-pin-drop" viewBox="0 0 27 34" fill="none"><path d="M13.33 0C5.97 0 0 5.97 0 13.33 0 23.33 13.33 33.33 13.33 33.33S26.67 23.33 26.67 13.33C26.67 5.97 20.7 0 13.33 0Z" fill="#8D0505"/></svg>
-        <img class="addr-pin-logo" id="addrPinLogo" src="logo.svg" alt="布丁喵">
-      </div>
+      <!-- 完整图钉：一整张 pin.svg（水滴+布丁喵合一，尖角在底部正中），尖对地图中心 -->
+      <div class="addr-pin" id="addrPin"><img class="addr-pin-img" src="pin.svg" alt="布丁喵" draggable="false"></div>
       <!-- 定位圆钮 (Figma 442:282)：点了 GPS 定位、地图挪过去 + 回填地址 -->
       <button class="addr-track-btn" id="addrTrackBtn" onclick="addrLocate()" aria-label="定位到我的位置">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="1.6" fill="#8D0505" stroke="none"/><path d="M12 1.6V4.4M12 19.6v2.8M1.6 12H4.4M19.6 12h2.8"/></svg>
@@ -4808,12 +4795,27 @@ function _pmImg(c){
   if(c.menu_item_image) return '<div class="pm-item-img" style="background-image:url(\''+_esc(c.menu_item_image)+'\');background-size:cover;background-position:center"></div>';
   return '<div class="pm-item-img pm-item-img-logo"><img alt=""><span>'+_pmValTxt(c)+'</span></div>';
 }
+/* 券卡票根（100px）：甜品券=黄底+商品图/甜品图；现金券=深红+$；百分比券=深红+% —— 跟稿子一致 */
+function _pmStub(c){
+  if(c.type==='dessert'){
+    return c.menu_item_image
+      ? '<div class="pm-my-stub dessert" style="background-image:url(\''+_esc(c.menu_item_image)+'\')"></div>'
+      : '<div class="pm-my-stub dessert">'+_dessertArt()+'</div>';
+  }
+  return '<div class="pm-my-stub"><span class="pm-my-stub-sym">'+(c.type==='percent_off'?'%':'$')+'</span></div>';
+}
+function _pmDateTxt(c){ return c.expires_at ? ('有效期至 '+new Date(c.expires_at).toLocaleDateString()) : '永久有效'; }
+/* 商城态（In shop）：票根 + 标题 + 满减 + Paw Coin 价 + 右侧「兑换」按钮 + 右下日期 */
 function _pmItemHtml(c){
   var afford=!_memberProfile || (_memberProfile.coins||0) >= c.coin_price;
-  return'<div class="pm-item-card">'+_pmImg(c)
-    +'<div class="pm-item-info"><div class="pm-item-name">'+_esc(c.name)+'</div>'
-    +'<div class="pm-item-coin-row"><span class="pm-item-coin-dot"></span><span class="pm-item-coin-txt">'+c.coin_price+' Coin</span></div></div>'
-    +'<button class="pm-item-redeem"'+(afford?'':' style="opacity:.45"')+' onclick="redeemMallCoupon(\''+c.id+'\')">兑换</button></div>';
+  return '<div class="pm-my-card">'+_pmStub(c)
+    +'<div class="pm-my-main">'
+    +'<div class="pm-my-name">'+_esc(c.name)+'</div>'
+    +'<div class="pm-my-cond">'+_couponCondTxt(c)+'</div>'
+    +'<div class="pm-my-coin">'+_pawSvg()+'<b>'+c.coin_price+'</b></div>'
+    +'<div class="pm-my-date">'+_esc(_pmDateTxt(c))+'</div>'
+    +'<button class="pm-my-redeem"'+(afford?'':' disabled')+' onclick="redeemMallCoupon(\''+c.id+'\')">兑换</button>'
+    +'</div></div>';
 }
 /* 「我的」：已兑到手的券。未使用的排在前面 */
 var _pmFromCheckout=false;
@@ -4862,18 +4864,18 @@ function _pmMineHtml(mc){
     right = mc.status==='unused' ? '' : '<span class="pm-my-why">'+_esc(ST[mc.status]||mc.status)+'</span>';
   }
   var dim = mc.status!=='unused' || (picking && !usable);
-  var stub = mc.type==='dessert'
-    ? (mc.menu_item_image
-        ? '<div class="pm-my-stub dessert" style="background-image:url(\''+_esc(mc.menu_item_image)+'\')"></div>'
-        : '<div class="pm-my-stub dessert">'+_dessertArt()+'</div>')   // 商品没配图就放店家给的甜品图
-    : '<div class="pm-my-stub"><span class="pm-my-stub-sym">'+_pmStubSym(mc)+'</span></div>';
   var clickable = picking && usable;
+  // 挑券态给「打勾」，翻看态用过/过期给状态字，其余右侧留白；三行=标题/满减/日期，跟稿子一致
+  var rightEl = right
+    ? (right.indexOf('pm-my-tick')>=0 ? '<div class="pm-my-tickwrap">'+right+'</div>' : right)
+    : '';
   return'<div class="pm-my-card'+(dim?' dim':'')+'"'+(clickable?(' onclick="pmPickCoupon(\''+mc.id+'\')"'):'')+'>'
-    +stub
-    +'<div class="pm-my-main"><div class="pm-my-info">'
+    +_pmStub(mc)
+    +'<div class="pm-my-main">'
     +'<div class="pm-my-name">'+_esc(mc.name)+'</div>'
-    +'<div class="pm-my-sub">'+_pmMineSub(mc)+'</div>'
-    +'</div>'+right+'</div></div>';
+    +'<div class="pm-my-cond">'+_couponCondTxt(mc)+'</div>'
+    +'<div class="pm-my-date">'+_esc(_pmDateTxt(mc))+'</div>'
+    +rightEl+'</div></div>';
 }
 /* 点卡＝选这张券。一单只能用一张，所以再点一次是取消，选别的会换掉。
    只有从结算页进来才走得到这里，选完直接回结算页——等价于原来那个「使用」按钮。 */
