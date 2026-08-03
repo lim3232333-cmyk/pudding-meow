@@ -2664,7 +2664,7 @@ function _loadGoogleMaps(){
     var cbName='_gmapsCb_'+Date.now();
     window[cbName]=function(){ try{ delete window[cbName]; }catch(e){} resolve(); };
     var s=document.createElement('script');
-    s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(GOOGLE_MAPS_KEY)+'&libraries=places&language=zh-CN&region=MY&callback='+cbName;
+    s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(GOOGLE_MAPS_KEY)+'&libraries=places&loading=async&language=zh-CN&region=MY&callback='+cbName;
     s.async=true; s.defer=true;
     s.onerror=function(){ reject(new Error('load-failed')); };
     document.head.appendChild(s);
@@ -2690,19 +2690,23 @@ function _initAddrMap(){
       _addrLocateCoords={lat:c.lat(), lng:c.lng()};
       _addrCheckValid();
     });
-    _bindAddrAutocomplete();
+    // 容器是弹性高度、又是刚显示出来的：下一帧触发一次 resize + 重置中心，防止地图读到旧尺寸而灰屏
+    requestAnimationFrame(function(){ try{ google.maps.event.trigger(_addrMap,'resize'); _addrMap.setCenter(STORE_LATLNG); }catch(e){} });
+    try{ _bindAddrAutocomplete(); }catch(e){}   // 联想（Places）挂了绝不能连累地图
   }).catch(function(){
     // 没 key / 脚本被墙：保持兜底样式，什么都不改
   });
 }
 
-/* 搜索框用自己渲染的联想下拉（Figma 443:422 的 4 态），不用 Google 自带的 .pac 下拉，
-   这样才能做到稿子那个白卡 + 红 map-pin 行 + 分隔线的样式，以及输入态的 ✕ 清除键。 */
-var _addrACSvc=null, _addrPlacesSvc=null, _addrSuggTimer=null, _addrSuggBlurTimer=null;
+/* 搜索框用自己渲染的联想下拉（Figma 443:422 的 4 态），不用 Google 自带的 .pac 下拉。
+   ★ 用「新版」Places API：AutocompleteSuggestion 取联想 + Place 取详情。
+     旧版 AutocompleteService / PlacesService 已对 2025-3-1 起注册的新 Google 账号停用，
+     用它们会灰屏/搜不出——本店的项目正是新账号。 */
+var _addrSuggTimer=null, _addrSuggBlurTimer=null, _addrPreds=[], _addrSessTok=null, _addrPlacesReady=false;
 function _bindAddrAutocomplete(){
-  if(_addrACSvc) return;
-  _addrACSvc=new google.maps.places.AutocompleteService();
-  _addrPlacesSvc=new google.maps.places.PlacesService(document.getElementById('addrMapCanvas'));
+  // 新版 API 无需构造 service；这里只确认库在、建一个 session token（把「联想多次 + 详情一次」算作一次计费）
+  _addrPlacesReady = !!(window.google && google.maps && google.maps.places && google.maps.places.AutocompleteSuggestion);
+  try{ if(google.maps.places.AutocompleteSessionToken) _addrSessTok=new google.maps.places.AutocompleteSessionToken(); }catch(e){}
 }
 function _addrEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 var _ADDR_PIN_ICO='<svg class="addr-sugg-ico" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg>';
@@ -2710,17 +2714,24 @@ function _addrSuggest(){
   var inp=document.getElementById('addrSearch'), box=document.getElementById('addrSearchBox'), sugg=document.getElementById('addrSugg');
   box.classList.toggle('has-text', !!inp.value);           // 有字→显示 ✕，无字→显示放大镜
   var q=inp.value.trim();
-  if(!q || !_addrACSvc){ sugg.classList.remove('show'); sugg.innerHTML=''; return; }
+  if(!q || !_addrPlacesReady){ sugg.classList.remove('show'); sugg.innerHTML=''; return; }
   clearTimeout(_addrSuggTimer);
-  _addrSuggTimer=setTimeout(function(){
-    _addrACSvc.getPlacePredictions({input:q, componentRestrictions:{country:'my'}}, function(preds, status){
-      if(status!==google.maps.places.PlacesServiceStatus.OK || !preds || !preds.length){ sugg.classList.remove('show'); sugg.innerHTML=''; return; }
-      sugg.innerHTML=preds.slice(0,5).map(function(p){
-        return '<div class="addr-sugg-row" onmousedown="event.preventDefault()" onclick="_addrPickSugg(\''+p.place_id+'\')">'+_ADDR_PIN_ICO+'<div class="addr-sugg-txt">'+_addrEsc(p.description)+'</div></div>';
-      }).join('');
-      sugg.classList.add('show');
-    });
-  }, 180);
+  _addrSuggTimer=setTimeout(function(){ _addrFetchSuggest(q); }, 180);
+}
+function _addrFetchSuggest(q){
+  var sugg=document.getElementById('addrSugg');
+  var req={ input:q, includedRegionCodes:['my'], language:'zh-CN' };
+  if(_addrSessTok) req.sessionToken=_addrSessTok;
+  google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions(req).then(function(res){
+    var list=(res && res.suggestions) || [];
+    _addrPreds = list.map(function(s){ return s.placePrediction; }).filter(Boolean);
+    if(!_addrPreds.length){ sugg.classList.remove('show'); sugg.innerHTML=''; return; }
+    sugg.innerHTML=_addrPreds.slice(0,5).map(function(p,i){
+      var t=(p.text && p.text.text) || (p.mainText && p.mainText.text) || '';
+      return '<div class="addr-sugg-row" onmousedown="event.preventDefault()" onclick="_addrPickSugg('+i+')">'+_ADDR_PIN_ICO+'<div class="addr-sugg-txt">'+_addrEsc(t)+'</div></div>';
+    }).join('');
+    sugg.classList.add('show');
+  }).catch(function(){ sugg.classList.remove('show'); sugg.innerHTML=''; });
 }
 function _addrClearSearch(){
   var inp=document.getElementById('addrSearch'), sugg=document.getElementById('addrSugg');
@@ -2728,28 +2739,30 @@ function _addrClearSearch(){
   sugg.classList.remove('show'); sugg.innerHTML=''; inp.focus();
 }
 function _addrSuggBlur(){ clearTimeout(_addrSuggBlurTimer); _addrSuggBlurTimer=setTimeout(function(){ document.getElementById('addrSugg').classList.remove('show'); }, 150); }
-function _addrPickSugg(placeId){
+function _addrPickSugg(i){
   var sugg=document.getElementById('addrSugg'); sugg.classList.remove('show'); sugg.innerHTML='';
-  if(!_addrPlacesSvc) return;
-  _addrPlacesSvc.getDetails({placeId:placeId, fields:['geometry','address_components','name','formatted_address']}, function(p, status){
-    if(status!==google.maps.places.PlacesServiceStatus.OK || !p || !p.geometry || !p.geometry.location) return;
-    var loc=p.geometry.location;
+  var pred=_addrPreds[i]; if(!pred || !pred.toPlace) return;
+  var place=pred.toPlace();
+  place.fetchFields({fields:['location','formattedAddress','addressComponents','displayName']}).then(function(){
+    var loc=place.location; if(!loc) return;
     if(_addrMap){ _addrMap.panTo(loc); _addrMap.setZoom(17); }   // idle 会顺手记坐标
     else { _addrLocateCoords={lat:loc.lat(), lng:loc.lng()}; }
-    _fillAddrFromComponents(p.address_components||[]);
-    var street = p.name || (p.formatted_address ? p.formatted_address.split(',')[0] : '');
+    _fillAddrFromComponents(place.addressComponents||[]);
+    var street = place.displayName || (place.formattedAddress ? place.formattedAddress.split(',')[0] : '');
     if(street) document.getElementById('afAddress').value=street;
     var inp=document.getElementById('addrSearch');
-    inp.value = p.formatted_address || street;              // Done 态：回显完整地址
+    inp.value = place.formattedAddress || street;           // Done 态：回显完整地址
     document.getElementById('addrSearchBox').classList.add('has-text');
     document.getElementById('addrLocStat').textContent='已选定 ✓ 可拖动地图微调门牌';
+    try{ _addrSessTok=new google.maps.places.AutocompleteSessionToken(); }catch(e){}   // 选定后 token 作废，下轮新建
     _addrCheckValid();
-  });
+  }).catch(function(){});
 }
 
+/* 同时兼容新版 Place（longText/shortText）和 Geocoder 返回的旧版组件（long_name/short_name） */
 function _acComp(comps, type){
-  var m=comps.find(function(c){ return c.types.indexOf(type)>=0; });
-  return m ? (m.long_name||m.short_name||'') : '';
+  var m=(comps||[]).find(function(c){ return (c.types||[]).indexOf(type)>=0; });
+  return m ? (m.long_name||m.longText||m.short_name||m.shortText||'') : '';
 }
 function _fillAddrFromComponents(comps){
   var pc=_acComp(comps,'postal_code');
