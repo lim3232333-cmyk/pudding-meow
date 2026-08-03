@@ -618,8 +618,11 @@
   /* Figma 227:126：两张卡不是等宽——每周任务 136、每日签到 209，间距 16。
      加起来 361 = 390 减掉两边 16 的留白，所以用 flex 比例还原，窄屏也不会溢出 */
   .mem-mini-row{ display:flex; gap:16px; margin-top:12px; align-items:stretch; }
+  /* 高度不写死：Figma 227:128/227:129 两张卡都是 self-stretch（内容撑开、互相拉到同高），
+     之前定高 115px 比实际内容（标题+分割线+文字+7个签到图标+按钮）需要的空间小，
+     签到按钮是 flex:1 会被挤扁——这就是内容显得很挤的原因。 */
   .mem-mini-card{ background:#FFFFEA; border:1px solid #F5E9D4; border-radius:12px; padding:8px; min-width:0;
-    height:115px; box-sizing:border-box; display:flex; flex-direction:column; gap:12px; }
+    box-sizing:border-box; display:flex; flex-direction:column; gap:12px; }
   /* 按稿子的比例分，不写死像素：136 : 209（间距 16 先扣掉再分）。
      这样 390 的容器、更窄的手机、甚至以后容器改成 393，两张卡的比例都跟稿子一致。
      不能用 flex:136 1 0 / flex:209 1 0——flex-grow 分的是「剩余空间」不是总宽，
@@ -669,7 +672,7 @@
   .ci-modal li b{ font-weight:700; }
   .ci-close{ position:absolute; right:-12px; top:-12px; width:24px; height:24px; padding:0; border:none; background:transparent; cursor:pointer; line-height:0; }
   .ci-close svg{ width:24px; height:24px; display:block; }
-  .mem-mini-checkin-btn{ width:100%; flex:1 0 0; min-height:0; background:var(--red); color:var(--cream2); border:none; border-radius:999px; font-weight:500; font-size:12px; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }
+  .mem-mini-checkin-btn{ width:100%; height:28px; flex-shrink:0; background:var(--red); color:var(--cream2); border:none; border-radius:999px; font-weight:500; font-size:12px; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }   /* Figma h-28，别再用 flex:1 挤扁 */
   .mem-mini-checkin-btn:disabled{ opacity:.5; cursor:default; }
 
   /* ---- 积分商城 / 幸运抽奖 图标格 ---- */
@@ -770,16 +773,17 @@
   #memHome.mem-lvl-0 .mem-xp-next{ color:#4A4848; }
   #memHome.mem-lvl-0 .mem-stats-row{ --mstFg:#4A4848; --mstIcBg:#726F6F; --mstIcFg:#FFFFFF; --mstLine:#726F6F; }
 
-  /* Lv.1 新生小猫（橙 · 橙-奶油-橙） */
-  #memHome.mem-lvl-1 .mem-hero,
+  /* Lv.1 新生小猫（橙）：hero 横幅是独立的对角线渐变（Figma 926:1445，-58°、等级色→#FFFFEA），
+     跟下面会员卡那条垂直多段渐变是两回事，不能共用一条规则——这是之前颜色不对的原因。 */
+  #memHome.mem-lvl-1 .mem-hero{ background:linear-gradient(-58deg,#CD680B 0%,#FFFFEA 100%); }
   #memHome.mem-lvl-1 .mem-card2{ background:linear-gradient(180deg,#CD680B 0%,#FFFFD5 50%,#CD680B 100%); }
   #memHome.mem-lvl-1 .mem-hero-word{ color:var(--red); }
   #memHome.mem-lvl-1 .mem-level-pill{ background:#CD6B0D; color:#fff; }
   #memHome.mem-lvl-1 .mem-xpbar i{ background:#CD680B; }
   #memHome.mem-lvl-1 .mem-stats-row{ --mstFg:#FFFFFF; --mstIcBg:#FFDE5B; --mstIcFg:#8D0505; --mstLine:#FFFFFF; }
 
-  /* Lv.2 幼猫（灰↔浅蓝 条纹） */
-  #memHome.mem-lvl-2 .mem-hero,
+  /* Lv.2 幼猫（浅蓝）：hero 对角线渐变 -58°、#E2FAFF→#FFFFEA */
+  #memHome.mem-lvl-2 .mem-hero{ background:linear-gradient(-58deg,#E2FAFF 0%,#FFFFEA 100%); }
   #memHome.mem-lvl-2 .mem-card2{ background:linear-gradient(180deg,#BFBFBF 0%,#E2FAFF 33%,#BFBFBF 66%,#E2FAFF 100%); }
   #memHome.mem-lvl-2 .mem-hero-word{ color:var(--red); }
   #memHome.mem-lvl-2 .mem-level-pill{ background:#D9D9D9; color:#202055; }
@@ -787,18 +791,18 @@
   #memHome.mem-lvl-2 .mem-stats-row{ --mstFg:#202055; --mstIcBg:#FFFFEA; --mstIcFg:#202055; --mstLine:#202055; }
   #memHome.mem-lvl-2 .mem-name, #memHome.mem-lvl-2 .mem-xp-label, #memHome.mem-lvl-2 .mem-xp-count, #memHome.mem-lvl-2 .mem-xp-next{ color:#202055; }
 
-  /* Lv.3 青年猫（金黄 · 金-奶油-金） */
-  #memHome.mem-lvl-3 .mem-hero,
+  /* Lv.3 青年猫（金黄）：hero 对角线渐变 -58°、#FFDE5B→#FFFFEA */
+  #memHome.mem-lvl-3 .mem-hero{ background:linear-gradient(-58deg,#FFDE5B 0%,#FFFFEA 100%); }
   #memHome.mem-lvl-3 .mem-card2{ background:linear-gradient(180deg,#E1B401 0%,#FEFFD0 33%,#E1B401 66%,#FFFFD5 100%); }
   #memHome.mem-lvl-3 .mem-hero-word{ color:var(--red); }
   #memHome.mem-lvl-3 .mem-level-pill{ background:#FFED63; color:var(--red); }
   #memHome.mem-lvl-3 .mem-xpbar i{ background:#D9A400; }
   #memHome.mem-lvl-3 .mem-stats-row{ --mstFg:#8D0505; --mstIcBg:#8D0505; --mstIcFg:#FFFFEA; --mstLine:#8D0505; }
 
-  /* Lv.Max 布丁猫（暗红-黑-暗红） */
-  #memHome.mem-lvl-4 .mem-hero,
+  /* Lv.Max 布丁猫（暗红）：hero 对角线渐变 -58°、#240505→#8D0505 */
+  #memHome.mem-lvl-4 .mem-hero{ background:linear-gradient(-58deg,#240505 0%,#8D0505 100%); }
   #memHome.mem-lvl-4 .mem-card2{ background:linear-gradient(180deg,#8D0505 0%,#000000 50%,#8D0505 100%); }
-  #memHome.mem-lvl-4 .mem-hero-word{ color:var(--cream2); }
+  #memHome.mem-lvl-4 .mem-hero-word{ color:#FFFFEA; }
   #memHome.mem-lvl-4 .mem-level-pill{ background:#8D0505; color:var(--cream2); }
   #memHome.mem-lvl-4 .mem-xpbar i{ background:#8D0505; }
   #memHome.mem-lvl-4 .mem-stats-row{ --mstFg:#FFFFEA; --mstIcBg:#FFFFEA; --mstIcFg:#000000; --mstLine:#FFFFEA; }
@@ -4208,9 +4212,11 @@ function refreshMemberProfile(){
 /* ===== 首页引导注册条（Figma 872:1775）两态：游客(Frame375) ↔ 会员(Frame374) ===== */
 var _myCouponCount = 0, _homeCouponsTried = false;
 /* 三个图标用仓库里的原图（Meow Wallet=icon-recharge.svg 带 P 的钱包 / Meow Coin=Paw Coin.svg / 优惠卷=voucher.svg） */
-var _HC_ICO_WALLET='<img class="hc-stat-ico" src="icon-recharge.svg" alt="">';
-var _HC_ICO_PAW='<img class="hc-stat-ico" src="Paw%20Coin.svg" alt="">';
-var _HC_ICO_VOUCHER='<img class="hc-stat-ico" src="voucher.svg" alt="">';
+/* Figma 872:1773 这三个图标是统一的「深红圆底 + 奶黄图案」，跟仓库那几张原图标（券卡/充值页用）
+   配色刚好相反（黄底红图），是给别的场景用的，不能直接搬来这里，所以手绘还原这一处的精确配色。 */
+var _HC_ICO_WALLET='<svg class="hc-stat-ico" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="15" cy="15" r="15" fill="#8D0505"/><rect x="7.5" y="10.5" width="15" height="10.5" rx="2" stroke="#FFDE5B" stroke-width="1.6"/><path d="M7.5 13.5h15" stroke="#FFDE5B" stroke-width="1.6"/><text x="15" y="19.3" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-weight="700" font-size="7" fill="#FFDE5B">P</text></svg>';
+var _HC_ICO_PAW='<svg class="hc-stat-ico" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="20" fill="#8D0505"/><path d="M30.9453 26.2004C30.4297 24.7297 29.2279 23.9844 28.0678 23.2637C27.0582 22.6361 26.1049 22.0432 25.4814 20.9785C23.7629 18.0295 22.8189 16.25 20.0035 16.25C17.1881 16.25 16.2412 18.0301 14.5186 20.9779C13.8945 22.0449 12.9365 22.6391 11.9258 23.2678C10.7656 23.9891 9.56621 24.7326 9.04883 26.2004C8.84752 26.7297 8.74619 27.2917 8.75 27.858C8.75 30.2451 10.6514 32.1875 12.7578 32.1875C14.8643 32.1875 17.6393 31.1252 20.0094 31.1252C22.3795 31.1252 25.1158 32.1875 27.2486 32.1875C29.3814 32.1875 31.25 30.2451 31.25 27.858C31.2517 27.2914 31.1484 26.7294 30.9453 26.2004Z" fill="#FFDE5B"/><path d="M9.21875 21.875C11.0309 21.875 12.5 19.9862 12.5 17.6562C12.5 15.3263 11.0309 13.4375 9.21875 13.4375C7.40657 13.4375 5.9375 15.3263 5.9375 17.6562C5.9375 19.9862 7.40657 21.875 9.21875 21.875Z" fill="#FFDE5B"/><path d="M15.7812 16.25C17.5934 16.25 19.0625 14.3612 19.0625 12.0312C19.0625 9.7013 17.5934 7.8125 15.7812 7.8125C13.9691 7.8125 12.5 9.7013 12.5 12.0312C12.5 14.3612 13.9691 16.25 15.7812 16.25Z" fill="#FFDE5B"/><path d="M24.2188 16.25C26.0309 16.25 27.5 14.3612 27.5 12.0312C27.5 9.7013 26.0309 7.8125 24.2188 7.8125C22.4066 7.8125 20.9375 9.7013 20.9375 12.0312C20.9375 14.3612 22.4066 16.25 24.2188 16.25Z" fill="#FFDE5B"/><path d="M30.7812 21.875C32.5934 21.875 34.0625 19.9862 34.0625 17.6562C34.0625 15.3263 32.5934 13.4375 30.7812 13.4375C28.9691 13.4375 27.5 15.3263 27.5 17.6562C27.5 19.9862 28.9691 21.875 30.7812 21.875Z" fill="#FFDE5B"/></svg>';
+var _HC_ICO_VOUCHER='<svg class="hc-stat-ico" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="15" cy="15" r="15" fill="#8D0505"/><path d="M9 11.5h12c.55 0 1 .45 1 1v1.3a1.7 1.7 0 0 0 0 3.4v1.3c0 .55-.45 1-1 1H9c-.55 0-1-.45-1-1v-1.3a1.7 1.7 0 0 0 0-3.4v-1.3c0-.55.45-1 1-1Z" fill="#FFDE5B"/><circle cx="11.3" cy="15" r="1" fill="#8D0505"/><circle cx="18.7" cy="15" r="1" fill="#8D0505"/></svg>';
 function _hcStat(ico,num,lbl){ return '<div class="hc-stat">'+ico+'<div class="hc-stat-txt"><div class="hc-stat-num">'+num+'</div><div class="hc-stat-lbl">'+lbl+'</div></div></div>'; }
 function _renderHomeMemberBar(){
   var bar=document.getElementById('hcMemberBar'); if(!bar) return;
