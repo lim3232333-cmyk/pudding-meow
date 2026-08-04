@@ -2519,7 +2519,7 @@ function _addrFullText(a){
 }
 /* 弹窗只有一个主按钮，随状态切换：没有已存地址 → 「+ 新收货地址」（Figma 453:237）；
    有地址 → 列表 + 方形加号 + 「前往点单」（Figma 454:243）。 */
-var _DV_PENCIL='<svg viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>';
+var _DV_PENCIL='<img src="icon-edit.svg" alt="" width="18" height="18" style="display:block">';   // 仓库上传的正版编辑图标（Figma 946:1203 icon-edit）
 function _renderAddrList(){
   var wrap=document.getElementById('dvAddrList');
   var pill=document.getElementById('dvAddPill');
