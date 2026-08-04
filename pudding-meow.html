@@ -3259,16 +3259,27 @@ function toggleCart(){
 let selectedPay ='tng';
 function _pmGotoPay(url){ location.href = url; }   // 跳去外部收银页；单独包一层方便测试拦截
 
-/* ===== 在线支付（HitPay）弃单处理 =====
-   在线支付是「先落单(pending)、再整页跳收银页」——客人若在收银页 back/退出、没付款成功
-   就回到小程序，这张单会永远挂在 POS 待付款队列（付款中）。做法：跳收银页前把订单 id
-   （连同购物车副本）记进 sessionStorage；客人没带成功参数回到页面（pageshow）时，
-   先把他送回「已选好商品的结算页」（购物车不清，整页重载丢了内存就从副本恢复），
-   再核对那张单——仍是 pending 就作废(void)、实时从待付款清掉；已翻成 preparing/paid
-   说明其实付成功了，一律不动（作废带 status=pending 守卫，双保险绝不覆盖已付的单）。
-   作废后重新付款会走 confirmOrder 新建单，拿到新单号，不复用旧单号。 */
+/* ===== 在线支付（HitPay）回程处理 =====
+   在线支付是「先落单(pending)、再整页跳收银页」。客人从收银页回到小程序有两条路：
+   ① HitPay 付款流程走完/取消后跳回我们的 redirect_url（带 ?pm_hitpay= 参数）；
+   ② 直接按浏览器 back（bfcache 恢复，不带参数，靠 sessionStorage marker 认出来）。
+   ★关键：光看「参数在不在」判断不了付没付——HitPay 取消/back 也可能跳回带参数的
+   redirect_url。真正权威的是那张单的状态：只有 hitpay-webhook 收到 completed 才会把它
+   从 pending 翻成 preparing。所以回程一律以「订单状态」为准：
+     · 已 preparing/paid… → 确实付成功了 → 弹订单确认、跳订单页；
+     · 仍 pending → 没付成功 → 作废(void)、从待付款清掉，并把客人送回选好商品的结算页。
+   HitPay 若在 URL 上带了 status，只当作「等 webhook 的耐心」提示：status=completed 时多等
+   几秒让 webhook 翻状态，其余情况只做一次短暂复查（防 webhook 慢半拍误杀刚付成功的单）。
+   作废后重新付款走 confirmOrder 新建单，拿到新单号，不复用旧单号。 */
 var _HP_AWAIT='pm_hitpay_await', _HP_CART='pm_hitpay_cart';
-function _pmMarkHitpayAwait(id){ try{ sessionStorage.setItem(_HP_AWAIT, id); sessionStorage.setItem(_HP_CART, JSON.stringify(cart)); }catch(e){} }
+// 跳收银页前存一份结算页快照——不只购物车，还有模式/地址/选的付款方式，
+// 这样 HitPay 页里那个 back 触发整页重载、内存全清后，也能把结算页原样拼回来。
+function _pmMarkHitpayAwait(id){ try{
+  sessionStorage.setItem(_HP_AWAIT, id);
+  sessionStorage.setItem(_HP_CART, JSON.stringify({
+    cart: cart, mode: currentMode, deliveryInfo: _deliveryInfo||null, dineInfo: _dineInfo||null, selectedPay: selectedPay
+  }));
+}catch(e){} }
 function _pmClearHitpayAwait(){ try{ sessionStorage.removeItem(_HP_AWAIT); }catch(e){} }
 function _pmClearHitpayCart(){ try{ sessionStorage.removeItem(_HP_CART); }catch(e){} }
 function _pmVoidAbandonedOrder(id){
@@ -3283,35 +3294,63 @@ function _pmVoidAbandonedOrder(id){
 }
 function _pmReopenCheckoutAfterAbandon(){
   try{
-    if(!Object.keys(cart).length){   // bfcache 恢复时内存 cart 还在；整页重载丢了就从副本恢复
-      var saved=null; try{ saved=JSON.parse(sessionStorage.getItem(_HP_CART)||'null'); }catch(e){}
-      if(saved && typeof saved==='object' && Object.keys(saved).length){ cart=saved; }
+    // 两种回程：①浏览器 back=bfcache 恢复，内存里 cart/模式/地址都还在，直接重开结算页；
+    // ②HitPay 页里那个 back=整页重载，内存全清了（currentMode 会重置成默认 dinein、
+    //   _deliveryInfo 丢失），得从快照把「结算页需要的上下文」整套恢复，否则 openCheckout
+    //   会因为「堂食又没桌号」跑偏、进不了结算页。
+    if(!Object.keys(cart).length){
+      var snap=null; try{ snap=JSON.parse(sessionStorage.getItem(_HP_CART)||'null'); }catch(e){}
+      if(snap && !snap.cart && typeof snap==='object' && Object.keys(snap).length) snap={cart:snap};   // 兼容旧格式（只存了 cart）
+      if(snap && snap.cart && typeof snap.cart==='object'){
+        cart = snap.cart;
+        if(snap.mode){ currentMode = snap.mode; _modeChosen = true; }   // 模式恢复，openCheckout 才不会当成堂食拦下
+        if(snap.deliveryInfo) _deliveryInfo = snap.deliveryInfo;         // 外卖：地址+运费，渲染配送块+算进总额
+        if(snap.dineInfo) _dineInfo = snap.dineInfo;
+        if(snap.selectedPay) selectedPay = snap.selectedPay;            // 付款方式行的选中态
+      }
     }
     if(Object.keys(cart).length){
-      try{ renderItems(); }catch(e){}
       try{ updateCartBadge(); }catch(e){}
-      openCheckout();   // 重新渲染并显示结算页，客人可直接重选付款方式
+      openCheckout();   // renderCheckout 只靠 cart + _deliveryInfo，不依赖菜单是否加载完，重载也能拼回结算页
     }
   }catch(e){}
 }
-function _pmResolveHitpayAwait(){
-  var id; try{ id=sessionStorage.getItem(_HP_AWAIT); }catch(e){ id=null; }
+function _pmShowHitpaySuccess(){
+  try{ switchTab('orders'); }catch(e){}
+  try{ document.getElementById('successHitpay').classList.add('show'); }catch(e){}
+}
+var _PAID_STATES={preparing:1, paid:1, ready:1, done:1};
+/* 以订单状态为准判定回程结果；completedHint=true（HitPay 说付成功了）时多轮复查等 webhook */
+function _pmSettleHitpayReturn(id, completedHint, tries){
+  if(!db){   // 离线没法核对：有成功提示就当成功，否则退回结算页（不误报已付）
+    if(completedHint){ _pmShowHitpaySuccess(); } else { _pmVoidAbandonedOrder(id); _pmReopenCheckoutAfterAbandon(); }
+    _pmClearHitpayCart(); return;
+  }
+  db.from('orders').select('status').eq('id',id).maybeSingle().then(function(res){
+    if(res && res.error){ _pmClearHitpayCart(); return; }   // 查不了就别乱动，下次可见再来
+    var st = res && res.data && res.data.status;
+    if(st && _PAID_STATES[st]){ _pmShowHitpaySuccess(); _pmClearHitpayCart(); return; }   // webhook 已确认付款
+    // 仍 pending（或单已不在）：给 webhook 一点时间再定夺——completed 提示多等几轮，其余只等一轮
+    var maxTries = completedHint ? 6 : 1;
+    if((st==='pending' || st==null) && tries < maxTries){
+      setTimeout(function(){ _pmSettleHitpayReturn(id, completedHint, tries+1); }, 1600);
+      return;
+    }
+    // 到点了还是 pending → 判定没付成功：作废、退回结算页
+    _pmVoidAbandonedOrder(id);
+    _pmReopenCheckoutAfterAbandon();
+    _pmClearHitpayCart();
+  }).catch(function(){ _pmClearHitpayCart(); });
+}
+function _pmResolveHitpayReturn(){
+  var pid=null, hint='';
+  try{ var q=new URLSearchParams(location.search); pid=q.get('pm_hitpay'); hint=(q.get('status')||'').toLowerCase(); }catch(e){}
+  var marker=null; try{ marker=sessionStorage.getItem(_HP_AWAIT); }catch(e){}
+  var id = pid || marker;   // 参数（HitPay 跳回）或 marker（浏览器 back）任一识别出这张待处理单
   if(!id) return;
-  var hasSuccess=false; try{ hasSuccess=!!new URLSearchParams(location.search).get('pm_hitpay'); }catch(e){}
-  if(hasSuccess) return;   // 成功回跳带 pm_hitpay 参数，交给成功分支处理（那边会清 marker）
-  _pmClearHitpayAwait();   // 认定客人 back/退出回来了，先清 marker 防重复触发
-  _pmReopenCheckoutAfterAbandon();   // 立刻把客人送回选好商品的结算页
-  if(!db){ _pmVoidAbandonedOrder(id); _pmClearHitpayCart(); return; }
-  // 延后一点再判定作废，给 webhook 时间：客人若其实付成功了，这会儿状态已是 preparing，就不动它
-  setTimeout(function(){
-    db.from('orders').select('status').eq('id',id).maybeSingle().then(function(res){
-      if(res && res.error){ _pmClearHitpayCart(); return; }
-      var st = res && res.data && res.data.status;
-      if(st && st!=='pending'){ _pmClearHitpayCart(); return; }   // 已 preparing/paid=其实付成功了→不动
-      _pmVoidAbandonedOrder(id);   // 仍 pending（或单已不存在）→ 作废、从待付款清掉
-      _pmClearHitpayCart();
-    }).catch(function(){ _pmClearHitpayCart(); });
-  }, 1500);
+  if(pid){ try{ history.replaceState(null, '', location.pathname); }catch(e){} }   // 把 ?pm_hitpay= 从地址栏抹掉
+  _pmClearHitpayAwait();   // 先清 marker 防重复触发
+  _pmSettleHitpayReturn(id, hint==='completed', 0);
 }
 
 /* ---------- 确认订单整页（Figma 434:195）：购物车「确认下单」→ 本页，「立即支付」→ confirmOrder ---------- */
@@ -3583,8 +3622,12 @@ function _doConfirmOrder(discount, couponId, presetId){
       // 客人付款成功后 HitPay 会回调 hitpay-webhook，把订单 pending → preparing
       if(!db){ alert('在线支付需要联网，请检查网络后重试，或改用其他方式下单。'); return; }
       var redirectUrl = location.origin + location.pathname + '?pm_hitpay=' + encodeURIComponent(order.id);
+      // 客人在结算页已经选好方式（Touch n Go / Online Banking / 信用卡），把它传给 HitPay，
+      // 收银页就直接进那个方式、跳过「再选一次付款方式」那步。HitPay 的实际 method 码在 Edge Function 里映射。
+      var hpMethod = ({hp_tng:'tng', hp_fpx:'fpx', hp_card:'card'})[selectedPay] || '';
       db.functions.invoke('hitpay-checkout', {body:{
         orderId: order.id, amount: order.total, currency:'MYR', redirectUrl: redirectUrl,
+        method: hpMethod,
         customerName: (_deliveryInfo && _deliveryInfo.recipientName) || undefined,
         customerPhone: (_deliveryInfo && _deliveryInfo.phone) || undefined,
       }}).then(function(r){
@@ -5267,21 +5310,12 @@ try{ subscribeLoyaltyConfig(); }catch(e){}
 /* ===== HitPay 支付返回：从 URL 上的 pm_hitpay 参数识别客人刚从收银页跳回来。
    实际付款状态由 hitpay-webhook 异步更新 DB，这里已有的 subscribeOrders()
    实时订阅会自动把 pending → preparing 的变化推下来，无需在这里手动查状态。 ===== */
-(function(){
-  var pid;
-  try{ pid = new URLSearchParams(location.search).get('pm_hitpay'); }catch(e){ pid = null; }
-  if(!pid) return;
-  try{ _pmClearHitpayAwait(); _pmClearHitpayCart(); }catch(e){}   // 成功回跳，别让随后的 back 误作废这张已付单
-  try{ history.replaceState(null, '', location.pathname); }catch(e){}
-  try{ switchTab('orders'); }catch(e){}
-  document.getElementById('successHitpay').classList.add('show');
-})();
-
-/* 从收银页 back/退出回到小程序：pageshow 覆盖 bfcache 恢复与整页重载两种返回，
-   由 marker 判定是不是「跳过收银页又回来了」。不监听 visibilitychange——只是切标签
-   （回来看一眼又切回去付款）不该算放弃。 */
-window.addEventListener('pageshow', function(){ try{ _pmResolveHitpayAwait(); }catch(e){} });
-try{ _pmResolveHitpayAwait(); }catch(e){}
+/* 从收银页回到小程序，统一由 _pmResolveHitpayReturn 以订单状态定夺是「付成功了」还是
+   「没付/取消」——覆盖 ①HitPay 跳回 redirect_url（带 ?pm_hitpay=）②浏览器 back（bfcache，
+   靠 marker）。pageshow 覆盖 bfcache 恢复与整页重载两种返回；不监听 visibilitychange——
+   只是切标签（回来看一眼又切回去付款）不该算离开收银页。 */
+window.addEventListener('pageshow', function(){ try{ _pmResolveHitpayReturn(); }catch(e){} });
+try{ _pmResolveHitpayReturn(); }catch(e){}
 </script>
 </body>
 </html>

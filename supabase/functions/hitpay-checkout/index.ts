@@ -57,15 +57,34 @@ Deno.serve(async (req: Request) => {
     form.set("send_email", "false");
     form.set("allow_repeated_payments", "false");
 
-    const res = await fetch(HOST + "/v1/payment-requests", {
-      method: "POST",
-      headers: {
-        "X-BUSINESS-API-KEY": API_KEY,
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Accept": "application/json",
-      },
-      body: form.toString(),
-    });
+    // 客人在小程序里已经选好付款方式，只把这一个方式放进 payment_methods，HitPay 收银页就
+    // 直接进它、跳过「选付款方式」那步。前端传的是中性码(tng/fpx/card)，HitPay 的实际叫法都收在这——
+    // 若你的 HitPay 后台某个方式的码不一样，改这张表即可（不用动前端）。
+    const HP_METHOD_MAP: Record<string, string[]> = {
+      tng: ["tng_ewallet"], // Touch 'n Go eWallet
+      fpx: ["fpx"],         // Online Banking (FPX)
+      card: ["card"],       // 信用卡 / 借记卡
+    };
+    const methods = HP_METHOD_MAP[String(input.method || "").toLowerCase()] || [];
+
+    const postPaymentRequest = (withMethods: boolean) => {
+      const f = new URLSearchParams(form.toString());
+      if (withMethods) for (const m of methods) f.append("payment_methods[]", m);
+      return fetch(HOST + "/v1/payment-requests", {
+        method: "POST",
+        headers: {
+          "X-BUSINESS-API-KEY": API_KEY,
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Accept": "application/json",
+        },
+        body: f.toString(),
+      });
+    };
+
+    // 先按指定方式建单；若被 HitPay 拒了（账号没开该方式/码对不上等），退回不限定方式再建一次——
+    // 宁可回到完整收银页让客人自己选，也绝不让他付不了款。
+    let res = await postPaymentRequest(methods.length > 0);
+    if (!res.ok && methods.length > 0) res = await postPaymentRequest(false);
     const text = await res.text();
     let out: any;
     try { out = JSON.parse(text); } catch { out = { raw: text }; }
