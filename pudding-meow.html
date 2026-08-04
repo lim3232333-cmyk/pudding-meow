@@ -1108,22 +1108,24 @@
 
   /* ===== 外卖收货地址弹窗（Figma 453:237 空状态 / 454:243 有地址）=====
      配送费不在这个弹窗显示——地址选好后报价在后台算，之后显示在购物车。 */
-  .dv-modal{ height:auto; min-height:0; padding:16px 32px; align-items:center; gap:16px; }
-  .dv-close{ position:absolute; right:-15px; top:-15px; width:30px; height:30px; cursor:pointer; z-index:5; }
-  .dv-close svg{ display:block; }
-  .dv-title{ font-size:16px; font-weight:700; color:var(--red); text-align:center; }
-  .dv-addr-list{ width:100%; display:flex; flex-direction:column; gap:8px; }
+  .dv-modal{ width:358px; height:auto; min-height:0; padding:16px; align-items:stretch; gap:0; }
+  .dv-close{ position:absolute; right:16px; top:13px; width:25px; height:25px; cursor:pointer; z-index:5; }
+  .dv-close svg{ display:block; width:25px; height:25px; }
+  .dv-title{ font-size:16px; font-weight:700; color:var(--red); text-align:center; margin-bottom:16px; }
+  .dv-addr-list{ width:100%; display:flex; flex-direction:column; }
   .dv-addr-list:empty{ display:none; }
   .dv-addr-row{ display:flex; gap:16px; align-items:center; cursor:pointer; width:100%; }
   .dv-addr-radio{ width:15px; height:15px; border-radius:50%; border:1.5px solid var(--red); background:transparent; flex-shrink:0; box-sizing:border-box; }
-  .dv-addr-row.sel .dv-addr-radio{ background:var(--yellow); box-shadow:inset 0 0 0 2px #FFFFD5; }
+  .dv-addr-row.sel .dv-addr-radio{ background:#FFDE5B; border-color:#FFDE5B; }
   .dv-addr-info{ flex:1; min-width:0; }
-  .dv-addr-label{ font-size:14px; font-weight:500; color:#4A4848; }
-  .dv-addr-text{ font-size:12px; font-weight:400; color:#726F6F; margin-top:4px; }
-  .dv-addr-div{ width:100%; height:0; border-top:1px solid #D9D9D9; }
-  .dv-add-plus{ border:none; background:none; padding:0; width:24px; height:24px; cursor:pointer; display:block; flex-shrink:0; }
-  .dv-add-plus svg{ display:block; }
-  .dv-main-btn{ width:100%; height:40px; border:none; border-radius:12px; padding:4px; background:var(--red); color:#FFFFD5; font-size:16px; font-weight:700; font-family:"Noto Sans SC",sans-serif; cursor:pointer; box-sizing:border-box; }
+  .dv-addr-label{ font-size:15px; font-weight:600; color:#4A4848; line-height:17px; }
+  .dv-addr-text{ font-size:13px; font-weight:400; color:#4A4848; margin-top:4px; line-height:15px; }
+  .dv-addr-contact{ font-size:12px; font-weight:400; color:#9A9A9A; margin-top:4px; line-height:14px; }
+  .dv-addr-edit{ width:18px; height:18px; flex-shrink:0; cursor:pointer; align-self:center; }
+  .dv-addr-edit svg{ display:block; width:18px; height:18px; }
+  .dv-addr-div{ width:100%; height:0; border-top:1px solid #D9D9D9; margin:12px 0; }
+  .dv-add-pill{ align-self:flex-start; display:inline-flex; align-items:center; height:27px; padding:0 16px; margin-top:12px; border:1px solid #B0AFAF; border-radius:999px; background:transparent; color:#4A4848; font-size:12px; font-weight:500; font-family:"Noto Sans SC",sans-serif; cursor:pointer; box-sizing:border-box; white-space:nowrap; }
+  .dv-main-btn{ width:100%; height:40px; margin-top:16px; border:none; border-radius:8px; padding:4px; background:var(--red); color:#FFFFD5; font-size:16px; font-weight:700; font-family:"Noto Sans SC",sans-serif; cursor:pointer; box-sizing:border-box; }
   .dv-main-btn.disabled,.dv-main-btn:disabled{ background:#D9D9D9; color:#9A9A9A; cursor:not-allowed; }
   .dv-err{ display:none; width:100%; font-size:11px; color:var(--red); line-height:15px; text-align:center; word-break:break-word; }
   .dv-err.show{ display:block; }
@@ -1976,8 +1978,8 @@
     <div class="dv-close" onclick="closeDelivery()"><svg viewBox="0 0 24 24" width="30" height="30"><circle cx="12" cy="12" r="10" fill="#4A4848"/><path d="M15 9l-6 6M9 9l6 6" stroke="#FFFFD5" stroke-width="2" stroke-linecap="round"/></svg></div>
     <div class="dv-title">收货地址</div>
     <div id="dvAddrList" class="dv-addr-list"></div>
+    <button class="dv-add-pill" id="dvAddPill" onclick="openAddrForm()" style="display:none">+ 新增地址</button>
     <div class="dv-err" id="dvErr"></div>
-    <button class="dv-add-plus" id="dvAddPlus" onclick="openAddrForm()" style="display:none" aria-label="新收货地址"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M12 8v8"/></svg></button>
     <button class="dv-main-btn" id="dvMainBtn" onclick="_dvMainAction()">+ 新收货地址</button>
   </div>
 
@@ -1986,7 +1988,7 @@
   <div class="addr-form-screen" id="addrFormScreen">
     <div class="addr-form-head">
       <div class="addr-back" onclick="closeAddrForm()">‹</div>
-      <div class="addr-form-title">新收货地址</div>
+      <div class="addr-form-title" id="addrFormTitle">新收货地址</div>
       <svg class="addr-prof" onclick="_addrHeaderProfile()" width="20" height="22" viewBox="0 0 20 22" fill="none" stroke="#8D0505" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" role="button" aria-label="会员"><circle cx="10" cy="6" r="4"/><path d="M2.5 20a7.5 7.5 0 0 1 15 0"/></svg>
     </div>
     <div class="addr-map" id="addrMap">
@@ -2517,26 +2519,40 @@ function _addrFullText(a){
 }
 /* 弹窗只有一个主按钮，随状态切换：没有已存地址 → 「+ 新收货地址」（Figma 453:237）；
    有地址 → 列表 + 方形加号 + 「前往点单」（Figma 454:243）。 */
+var _DV_PENCIL='<svg viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>';
 function _renderAddrList(){
   var wrap=document.getElementById('dvAddrList');
-  var plus=document.getElementById('dvAddPlus');
+  var pill=document.getElementById('dvAddPill');
   var btn=document.getElementById('dvMainBtn');
   if(!_addrList.length){
-    wrap.innerHTML=''; plus.style.display='none';
+    wrap.innerHTML=''; pill.style.display='none';
     btn.textContent='+ 新收货地址'; btn.disabled=false; btn.classList.remove('disabled');
     return;
   }
   wrap.innerHTML=_addrList.map(function(a){
     var sel=_dvActiveAddr && String(a.id)===String(_dvActiveAddr.id);
-    return '<div class="dv-addr-row'+(sel?' sel':'')+'" onclick="_selectAddr('+(a.id!=null?"'"+a.id+"'":'null')+')">'
+    var idArg=(a.id!=null?"'"+a.id+"'":'null');
+    // 第三行：收件人｜电话（Figma 946:1206）
+    var contact=[a.recipient_name, a.phone].filter(Boolean).join('｜');
+    return '<div class="dv-addr-row'+(sel?' sel':'')+'" onclick="_selectAddr('+idArg+')">'
       +'<div class="dv-addr-radio"></div>'
-      +'<div class="dv-addr-info"><div class="dv-addr-label">'+_addrEsc(a.label||'收货地址')+'</div><div class="dv-addr-text">'+_addrEsc(_addrFullText(a))+'</div></div>'
+      +'<div class="dv-addr-info">'
+        +'<div class="dv-addr-label">'+_addrEsc(a.label||'收货地址')+'</div>'
+        +'<div class="dv-addr-text">'+_addrEsc(_addrFullText(a))+'</div>'
+        +(contact?'<div class="dv-addr-contact">'+_addrEsc(contact)+'</div>':'')
+      +'</div>'
+      +'<div class="dv-addr-edit" onclick="event.stopPropagation();_editAddr('+idArg+')" role="button" aria-label="编辑地址">'+_DV_PENCIL+'</div>'
       +'</div><div class="dv-addr-div"></div>';
   }).join('');
-  plus.style.display='block';
+  pill.style.display='inline-flex';
   btn.textContent='前往点单';
   var ready=!!(_dvActiveAddr && _dvCoords);
   btn.disabled=!ready; btn.classList.toggle('disabled', !ready);
+}
+/* 地址行右侧铅笔：把该地址填进新增页做「编辑」（rpc_save_address 传 p_id 就是更新） */
+function _editAddr(id){
+  var a = id!=null ? _addrList.find(function(x){return String(x.id)===String(id);}) : _addrList[0];
+  if(a) openAddrForm(a);
 }
 function _dvMainAction(){
   if(!_addrList.length) openAddrForm();
@@ -2608,9 +2624,24 @@ function confirmDelivery(){
 }
 
 /* ---------- 新收货地址整页表单 ---------- */
-function openAddrForm(){
+var _editAddrId=null;   // 非空=正在编辑这条地址（saveAddrForm 传 p_id 给 rpc_save_address 做更新）
+function openAddrForm(editAddr){
   _addrLocateCoords=null;
+  _editAddrId = (editAddr && editAddr.id!=null) ? editAddr.id : null;
   ['afLabel','afUnit','afAddress','afPostcode','afCity','afRecipient','afPhone','afRemarks'].forEach(function(id){ document.getElementById(id).value=''; });
+  if(editAddr){
+    // 编辑：把该地址回填进表单；坐标也带上，没改地图也能保存
+    document.getElementById('afLabel').value=editAddr.label||'';
+    document.getElementById('afUnit').value=editAddr.unit_no||'';
+    document.getElementById('afAddress').value=editAddr.address||'';
+    document.getElementById('afPostcode').value=editAddr.postcode||'';
+    document.getElementById('afCity').value=editAddr.city||'';
+    document.getElementById('afRecipient').value=editAddr.recipient_name||'';
+    document.getElementById('afPhone').value=editAddr.phone||'';
+    document.getElementById('afRemarks').value=editAddr.remarks||'';
+    if(editAddr.lat!=null && editAddr.lng!=null) _addrLocateCoords={lat:Number(editAddr.lat), lng:Number(editAddr.lng)};
+  }
+  var _tt=document.getElementById('addrFormTitle'); if(_tt) _tt.textContent = editAddr ? '编辑地址' : '新收货地址';
   document.getElementById('addrSearch').value='';
   // pin 用仓库里的 logo.svg（HTML 里已静态设 src），不再用首页 PNG 覆盖
   // 游客（未登录）：精简表单 + 「确认」；会员：完整表单 + 「保存」到地址簿
@@ -2826,6 +2857,7 @@ function saveAddrForm(){
   if(!isGuest){
     var btn=document.getElementById('addrSaveBtn'); btn.disabled=true;
     db.rpc('rpc_save_address', {p_member_id:_memberId, p_session_token:_memberToken,
+      p_id:_editAddrId||null,   // 有值=更新这条（编辑笔进来的）；null=新增
       p_unit_no:unit, p_address:address, p_postcode:postcode, p_city:city, p_recipient_name:recipient, p_phone:phone,
       p_label:label||null, p_remarks:remarks||null, p_lat:lat, p_lng:lng, p_is_default:false
     }).then(function(res){
