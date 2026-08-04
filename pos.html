@@ -2521,7 +2521,28 @@ function _renderReceipt(o, mem){
 }
 
 /* ── PENDING ── */
+/* 在线支付弃单兜底清扫：HitPay 单是先落 pending 再跳收银页。客人若直接关掉标签、再没
+   回来，小程序端的 back 作废逻辑就跑不到，这张 pending 会一直挂在待付款（付款中）。
+   这里兜底——挂满 15 分钟还没付成功的在线单一律作废。update 带 status=pending 守卫：
+   付款成功(webhook 已翻成 preparing)的单不在其列，绝不会被误清。只改本地状态，不在这里
+   触发重绘，交给调用方（updPend/showPending 的过滤自然会排除掉，定时器则显式刷新）。 */
+var HITPAY_STALE_MS=15*60*1000;
+function _sweepStaleOnlinePend(){
+  var now=Date.now(), changed=0;
+  _orders.forEach(function(o){
+    if(o.status!=='pending' || o.payMethod!=='hitpay' || o.taMode==='reservation') return;
+    var t=new Date(o.createdAt).getTime();
+    if(!isFinite(t) || now-t < HITPAY_STALE_MS) return;
+    o.status='void'; changed++;
+    if(db){ db.from('orders').update({status:'void'}).eq('id',o.id).eq('status','pending')
+      .then(function(res){ if(res&&res.error) console.error('sweep void', res.error); })
+      .catch(function(e){ console.error('sweep void', e); }); }
+  });
+  if(changed){ try{ sj('pm_orders',_orders); }catch(e){} try{ pmBroadcastOrders(); }catch(e){} }
+  return changed;
+}
 function updPend(){
+  _sweepStaleOnlinePend();
   var p=_orders.filter(function(o){return o.status==='pending' && o.taMode!=='reservation';}).length;
   document.getElementById('pendNum').textContent=p;
 }
@@ -2534,6 +2555,7 @@ function _refreshPendIfOpen(){
   if(document.getElementById('pendBg').classList.contains('show')) showPending();
 }
 function showPending(){
+  _sweepStaleOnlinePend();
   var pend=_orders.filter(function(o){return o.status==='pending' && o.taMode!=='reservation';});
   var el=document.getElementById('pendList');
   if(!pend.length){el.innerHTML='<div class="pend-empty">暂无待付款订单</div>';}
@@ -5212,6 +5234,9 @@ loadChannels();
 loadShopSettings().then(function(){ try{ if(document.getElementById('asi-dashboard').classList.contains('a')) renderDash(); }catch(e){} });
 loadOrdersFromCloud(false);
 subscribeOrders();
+/* 每分钟兜底扫一遍：清掉挂满 15 分钟的在线支付弃单（客人关标签没回来的那种），
+   即便这会儿没有任何订单事件进来也能自动清空待付款。 */
+setInterval(function(){ try{ if(_sweepStaleOnlinePend()){ updPend(); _refreshPendIfOpen(); } }catch(e){} }, 60000);
 subscribeMenu();
 subscribeMenuCats();
 subscribeSpecDefs();
