@@ -3272,7 +3272,14 @@ function _pmGotoPay(url){ location.href = url; }   // 跳去外部收银页；�
    几秒让 webhook 翻状态，其余情况只做一次短暂复查（防 webhook 慢半拍误杀刚付成功的单）。
    作废后重新付款走 confirmOrder 新建单，拿到新单号，不复用旧单号。 */
 var _HP_AWAIT='pm_hitpay_await', _HP_CART='pm_hitpay_cart';
-function _pmMarkHitpayAwait(id){ try{ sessionStorage.setItem(_HP_AWAIT, id); sessionStorage.setItem(_HP_CART, JSON.stringify(cart)); }catch(e){} }
+// 跳收银页前存一份结算页快照——不只购物车，还有模式/地址/选的付款方式，
+// 这样 HitPay 页里那个 back 触发整页重载、内存全清后，也能把结算页原样拼回来。
+function _pmMarkHitpayAwait(id){ try{
+  sessionStorage.setItem(_HP_AWAIT, id);
+  sessionStorage.setItem(_HP_CART, JSON.stringify({
+    cart: cart, mode: currentMode, deliveryInfo: _deliveryInfo||null, dineInfo: _dineInfo||null, selectedPay: selectedPay
+  }));
+}catch(e){} }
 function _pmClearHitpayAwait(){ try{ sessionStorage.removeItem(_HP_AWAIT); }catch(e){} }
 function _pmClearHitpayCart(){ try{ sessionStorage.removeItem(_HP_CART); }catch(e){} }
 function _pmVoidAbandonedOrder(id){
@@ -3287,14 +3294,24 @@ function _pmVoidAbandonedOrder(id){
 }
 function _pmReopenCheckoutAfterAbandon(){
   try{
-    if(!Object.keys(cart).length){   // bfcache 恢复时内存 cart 还在；整页重载丢了就从副本恢复
-      var saved=null; try{ saved=JSON.parse(sessionStorage.getItem(_HP_CART)||'null'); }catch(e){}
-      if(saved && typeof saved==='object' && Object.keys(saved).length){ cart=saved; }
+    // 两种回程：①浏览器 back=bfcache 恢复，内存里 cart/模式/地址都还在，直接重开结算页；
+    // ②HitPay 页里那个 back=整页重载，内存全清了（currentMode 会重置成默认 dinein、
+    //   _deliveryInfo 丢失），得从快照把「结算页需要的上下文」整套恢复，否则 openCheckout
+    //   会因为「堂食又没桌号」跑偏、进不了结算页。
+    if(!Object.keys(cart).length){
+      var snap=null; try{ snap=JSON.parse(sessionStorage.getItem(_HP_CART)||'null'); }catch(e){}
+      if(snap && !snap.cart && typeof snap==='object' && Object.keys(snap).length) snap={cart:snap};   // 兼容旧格式（只存了 cart）
+      if(snap && snap.cart && typeof snap.cart==='object'){
+        cart = snap.cart;
+        if(snap.mode){ currentMode = snap.mode; _modeChosen = true; }   // 模式恢复，openCheckout 才不会当成堂食拦下
+        if(snap.deliveryInfo) _deliveryInfo = snap.deliveryInfo;         // 外卖：地址+运费，渲染配送块+算进总额
+        if(snap.dineInfo) _dineInfo = snap.dineInfo;
+        if(snap.selectedPay) selectedPay = snap.selectedPay;            // 付款方式行的选中态
+      }
     }
     if(Object.keys(cart).length){
-      try{ renderItems(); }catch(e){}
       try{ updateCartBadge(); }catch(e){}
-      openCheckout();   // 重新渲染并显示结算页，客人可直接重选付款方式
+      openCheckout();   // renderCheckout 只靠 cart + _deliveryInfo，不依赖菜单是否加载完，重载也能拼回结算页
     }
   }catch(e){}
 }
