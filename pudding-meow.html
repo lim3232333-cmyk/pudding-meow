@@ -137,7 +137,12 @@
   .hc-card:active{ transform:scale(.97); }
   .hc-card.active{ border-color:var(--yellow); }
   .hc-card-txt{ display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
-  .hc-card-ico{ position:absolute; left:12px; top:50%; transform:translateY(-50%); width:68px; height:68px; object-fit:contain; pointer-events:none; }
+  .hc-card-ico{ position:absolute; top:50%; transform:translateY(-50%); object-fit:contain; pointer-events:none; }
+  /* 4 个图标按 Figma 675:690 各自的尺寸（正好=各 mode-*.svg 的固有宽高），逐个定尺寸+左边距，不再统一大小 */
+  .hc-dinein   .hc-card-ico{ left:22px; width:60px; height:66px; }
+  .hc-pickup   .hc-card-ico{ left:30px; width:47px; height:78px; }
+  .hc-reserve  .hc-card-ico{ left:9px;  width:64px; height:55px; }
+  .hc-delivery .hc-card-ico{ left:12px; width:82px; height:82px; }
 
   .hc-label-cn{ font-weight:500; font-size:20px; line-height:24px; color:var(--red); white-space:nowrap; }
   .hc-label-en{ font-weight:500; font-size:12px; line-height:14px; color:var(--red); white-space:nowrap; }
