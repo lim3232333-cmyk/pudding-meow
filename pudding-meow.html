@@ -1041,7 +1041,7 @@
   .rsv-head{ position:relative; height:24px; display:flex; align-items:center; justify-content:center; }
   .rsv-head .rsv-title{ font-weight:700; font-size:16px; color:var(--red); }
   .rsv-back{ position:absolute; left:0; top:0; width:24px; height:24px; cursor:pointer; color:var(--red); }
-  .rsv-close{ position:absolute; right:-15px; top:-15px; width:30px; height:30px; cursor:pointer; z-index:5; }
+  .rsv-close{ position:absolute; right:12px; top:12px; width:30px; height:30px; cursor:pointer; z-index:5; }
   .rsv-close svg{ display:block; }
   .rsv-field{ display:flex; flex-direction:column; gap:8px; }
   .rsv-flabel{ font-weight:500; font-size:14px; color:var(--muted); }
@@ -1099,6 +1099,12 @@
   .rsv-slot-status.pending{ background:#F5E9D4; color:var(--red); }
   .rsv-slot-status.done{ background:var(--red); color:var(--cream2); }
   .rsv-newbtn{ height:40px; background:var(--red); color:var(--cream2); border:none; border-radius:12px; font-weight:700; font-size:16px; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }
+  /* 入口选择卡（Figma 975:1007）：查询预约 / 新预约 两张卡 */
+  .rsv-select{ display:flex; gap:16px; }
+  .rsv-select-card{ flex:1; min-width:0; height:91px; background:#FFFFEA; border-radius:12px; box-shadow:0 0 6px rgba(0,0,0,.15); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; cursor:pointer; }
+  .rsv-select-card svg{ width:24px; height:24px; color:var(--red); }
+  .rsv-select-card span{ font-weight:700; font-size:16px; color:var(--red); }
+  .rsv-select-card:active{ background:#FFFDE0; }
   .dine-step{ width:40px; height:40px; border:none; border-radius:8px; background:var(--red); color:#FFFFD5; font-size:22px; font-weight:600; line-height:1; cursor:pointer; font-family:"Noto Sans SC",sans-serif; flex:none; }
   .dine-actions{ display:flex; gap:12px; margin-top:auto; }   /* 固定高度下按钮压到底部 */
   .dine-cancel,.dine-ok{ flex:1; height:40px; border-radius:999px; font-size:16px; font-weight:500; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
@@ -1903,17 +1909,32 @@
 
   <!-- ============ 预约·查询弹窗（Figma 546:920 Search reservation + 565:376 slot）============ -->
   <div class="dine-overlay" id="rsvOverlay" onclick="closeReserve()"></div>
+  <div class="rsv-modal" id="rsvSelectModal">
+    <div class="rsv-close" onclick="closeReserve()"><svg viewBox="0 0 24 24" width="30" height="30"><circle cx="12" cy="12" r="10" fill="#4A4848"/><path d="M15 9l-6 6M9 9l6 6" stroke="#FFFFD5" stroke-width="2" stroke-linecap="round"/></svg></div>
+    <div class="rsv-head"><span class="rsv-title">预约</span></div>
+    <div class="rsv-select">
+      <div class="rsv-select-card" onclick="rsvGoSearch()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        <span>查询预约</span>
+      </div>
+      <div class="rsv-select-card" onclick="rsvGoNew()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M12 8v8M8 12h8"/></svg>
+        <span>新预约</span>
+      </div>
+    </div>
+  </div>
+
   <div class="rsv-modal" id="rsvSearchModal">
     <div class="rsv-close" onclick="closeReserve()"><svg viewBox="0 0 24 24" width="30" height="30"><circle cx="12" cy="12" r="10" fill="#4A4848"/><path d="M15 9l-6 6M9 9l6 6" stroke="#FFFFD5" stroke-width="2" stroke-linecap="round"/></svg></div>
     <div class="rsv-head">
+      <svg class="rsv-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" onclick="rsvBackToSelect()"><path d="M15 5l-7 7 7 7"/></svg>
       <span class="rsv-title">预约</span>
     </div>
     <form class="rsv-search" onsubmit="rsvDoSearch();return false;" action="javascript:void 0">
-      <input id="rsvSearchInput" type="tel" inputmode="tel" enterkeyhint="search" placeholder="输入手机号码查询预约" oninput="rsvSearchInput()">
+      <input id="rsvSearchInput" type="tel" inputmode="tel" enterkeyhint="search" placeholder="请输入手机号码" oninput="rsvSearchInput()">
       <svg class="rsv-search-clear" id="rsvSearchClear" viewBox="0 0 24 24" onclick="rsvSearchClear()"><circle cx="12" cy="12" r="10" fill="#8D0505"/><path d="M15 9l-6 6M9 9l6 6" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
       <svg class="rsv-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer" onclick="rsvDoSearch()"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
     </form>
-    <button class="rsv-newbtn" onclick="rsvOpenNew()">前往预约</button>
   </div>
 
   <!-- ============ 预约·详情弹窗（Figma 546:921 Reservation：详情 slot + 前往预约）============ -->
@@ -1924,14 +1945,13 @@
       <span class="rsv-title">预约</span>
     </div>
     <div class="rsv-slots" id="rsvSlots"></div>
-    <button class="rsv-newbtn" onclick="rsvOpenNew()">前往预约</button>
   </div>
 
   <!-- ============ 预约·新建弹窗（Figma 546:922 New reservation + 711:789 日历）============ -->
   <div class="rsv-modal" id="rsvModal">
     <div class="rsv-close" onclick="closeReserve()"><svg viewBox="0 0 24 24" width="30" height="30"><circle cx="12" cy="12" r="10" fill="#4A4848"/><path d="M15 9l-6 6M9 9l6 6" stroke="#FFFFD5" stroke-width="2" stroke-linecap="round"/></svg></div>
     <div class="rsv-head">
-      <svg class="rsv-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" onclick="rsvBackToDetail()"><path d="M15 5l-7 7 7 7"/></svg>
+      <svg class="rsv-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" onclick="rsvBackToSelect()"><path d="M15 5l-7 7 7 7"/></svg>
       <span class="rsv-title">预约</span>
     </div>
 
@@ -2252,16 +2272,26 @@ var _rsvDate=null, _rsvTime=null, _rsvPax=2, _rsvCalYM=null;   // _rsvDate: 'YYY
    ② Reservation：输入手机号→搜索→显示预约详情 slot（546:921），返回=回搜索框
    ③ New reservation：详情态点「前往预约」→新建表单（546:922），返回=回详情态 */
 function _rsvHideAll(){
-  ['rsvSearchModal','rsvDetailModal','rsvModal'].forEach(function(id){ document.getElementById(id).classList.remove('show'); });
+  ['rsvSelectModal','rsvSearchModal','rsvDetailModal','rsvModal'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.remove('show'); });
 }
-/* ① 搜索态 */
+/* ⓪ 入口：选择卡（Figma 975:1007）——查询预约 / 新预约 */
 function openReserve(){
+  _rsvHideAll();
+  document.getElementById('rsvOverlay').classList.add('show');
+  document.getElementById('rsvSelectModal').classList.add('show');
+}
+/* 入口 → ① 搜索态 */
+function rsvGoSearch(){
   var inp=document.getElementById('rsvSearchInput');
   inp.value='';
   document.getElementById('rsvSearchClear').classList.remove('show');
   _rsvHideAll();
-  document.getElementById('rsvOverlay').classList.add('show');
   document.getElementById('rsvSearchModal').classList.add('show');
+}
+/* 搜索态返回 → 入口选择卡 */
+function rsvBackToSelect(){
+  _rsvHideAll();
+  document.getElementById('rsvSelectModal').classList.add('show');
 }
 function rsvSearchInput(){
   document.getElementById('rsvSearchClear').classList.toggle('show', !!document.getElementById('rsvSearchInput').value);
@@ -2291,17 +2321,21 @@ function rsvRenderSlots(){
   box.innerHTML=list.map(function(o){
     var r=o.deliveryInfo.reservation;
     var st=(o.status==='done')?'<span class="rsv-slot-status done">已确认</span>':'<span class="rsv-slot-status pending">待确认</span>';
+    // 结果卡（Figma 546:921）：姓名+电话（红）/ 日期 / 时间 / 人数（各一行）
     return '<div class="rsv-slot">'+st
-      +'<div class="rsv-slot-head"><span>'+_esc(r.name||'')+'</span><span>'+_esc(r.phone||'')+'</span></div>'
+      +'<div class="rsv-slot-head"><span>'+_esc(r.name||'')+'</span><span class="ph">'+_esc(r.phone||'')+'</span></div>'
       +'<div class="rsv-slot-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M9 16l2 2 4-4"/></svg><span>'+_esc(r.date||'')+'</span></div>'
-      +'<div class="rsv-slot-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>'+_esc(r.time||'')+' · '+(r.pax||1)+'人</span></div>'
+      +'<div class="rsv-slot-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>'+_esc(r.time||'')+'</span></div>'
+      +'<div class="rsv-slot-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/></svg><span>'+(r.pax||1)+' pax</span></div>'
       +'</div>';
   }).join('');
 }
 function _esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-/* ③ 详情态「前往预约」→ 新建表单（Figma 546:922）*/
+/* 入口「新预约」→ 新建表单（Figma 546:922） */
+function rsvGoNew(){ rsvOpenNew(); }
 function rsvOpenNew(){
   _rsvDate=null; _rsvTime=null; _rsvPax=2;
+  var _cb=document.getElementById('rsvConfirm'); if(_cb) _cb.disabled=false;   // 重置防重复期间被禁用的确认按钮
   document.getElementById('rsvDateVal').textContent='请选择日期';
   document.getElementById('rsvTimeVal').textContent='请选择时间';
   document.getElementById('rsvPaxVal').textContent=_rsvPax;
@@ -2365,6 +2399,14 @@ function rsvPickTime(t){
   rsvRenderTimeOptions();
 }
 function rsvPaxChange(delta){ _rsvPax=Math.max(1,Math.min(50,_rsvPax+delta)); document.getElementById('rsvPaxVal').textContent=_rsvPax; }
+/* 同一手机号在同一天已有未取消的预约就算重复（date=预约日期）。本地 _orders 里查一遍。 */
+function _rsvHasDupLocal(pnorm, date){
+  return (_orders||[]).some(function(o){
+    return o.taMode==='reservation' && o.status!=='void' && o.deliveryInfo && o.deliveryInfo.reservation
+      && String(o.deliveryInfo.reservation.date||'')===date
+      && String(o.deliveryInfo.reservation.phone||'').replace(/\D/g,'')===pnorm;
+  });
+}
 function confirmReserve(){
   var name=(document.getElementById('rsvName').value||'').trim();
   var phone=(document.getElementById('rsvPhone').value||'').trim();
@@ -2373,6 +2415,30 @@ function confirmReserve(){
   if(!name){ alert('请填写姓名'); return; }
   if(!phone){ alert('请填写手机号码'); return; }
   var dateStr=_rsvDate;   // 已是 'YYYY-MM-DD'
+  var btn=document.getElementById('rsvConfirm');
+  var pnorm=phone.replace(/\D/g,'');
+  var _dupMsg='该手机号在 '+dateStr+' 已有预约，同一天不能重复预约。\n如需更改，请联系店长。';
+  // 防重复①：本地先查一遍（连点/同机重复提交，第一时间拦住）
+  if(_rsvHasDupLocal(pnorm, dateStr)){ alert(_dupMsg); return; }
+  // 防重复②：禁用按钮 + 云端权威查一遍（别的设备/未同步到本机的也能查到），确认没有才建单
+  if(btn) btn.disabled=true;
+  var _reset=function(){ if(btn) btn.disabled=false; };
+  var _build=function(){ _rsvBuildAndSubmit(name, phone, dateStr); };
+  if(db){
+    db.from('orders').select('id,status,delivery_info').eq('ta_mode','reservation').eq('delivery_info->reservation->>date', dateStr)
+      .then(function(res){
+        var rows=(res&&res.data)||[];
+        var dup=rows.some(function(r){ return r.status!=='void' && r.delivery_info && r.delivery_info.reservation
+          && String(r.delivery_info.reservation.phone||'').replace(/\D/g,'')===pnorm; });
+        if(dup){ _reset(); alert(_dupMsg); return; }
+        _build();
+      })
+      .catch(function(){ _build(); });   // 查重请求本身失败：本地已查过，照常提交，别把顾客卡死
+  } else {
+    _build();
+  }
+}
+function _rsvBuildAndSubmit(name, phone, dateStr){
   // 预约 = 一条 orders 行（ta_mode=reservation），进 POS 供店员查看/安排
   var order={
     id:'o'+Date.now(),
