@@ -3605,8 +3605,12 @@ function _doConfirmOrder(discount, couponId, presetId){
       // 客人付款成功后 HitPay 会回调 hitpay-webhook，把订单 pending → preparing
       if(!db){ alert('在线支付需要联网，请检查网络后重试，或改用其他方式下单。'); return; }
       var redirectUrl = location.origin + location.pathname + '?pm_hitpay=' + encodeURIComponent(order.id);
+      // 客人在结算页已经选好方式（Touch n Go / Online Banking / 信用卡），把它传给 HitPay，
+      // 收银页就直接进那个方式、跳过「再选一次付款方式」那步。HitPay 的实际 method 码在 Edge Function 里映射。
+      var hpMethod = ({hp_tng:'tng', hp_fpx:'fpx', hp_card:'card'})[selectedPay] || '';
       db.functions.invoke('hitpay-checkout', {body:{
         orderId: order.id, amount: order.total, currency:'MYR', redirectUrl: redirectUrl,
+        method: hpMethod,
         customerName: (_deliveryInfo && _deliveryInfo.recipientName) || undefined,
         customerPhone: (_deliveryInfo && _deliveryInfo.phone) || undefined,
       }}).then(function(r){
