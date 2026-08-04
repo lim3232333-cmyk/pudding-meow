@@ -23,6 +23,10 @@ const cors = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// 记住每个中性码(tng/fpx/card)上次被 HitPay 接受的实际方式码，避免每单都从头逐个试。
+// 模块级、随实例存活；实例回收就重新试出来，correctness 不依赖它。
+const _resolvedMethod: Record<string, string> = {};
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   const json = (obj: unknown, status = 200) =>
@@ -58,18 +62,24 @@ Deno.serve(async (req: Request) => {
     form.set("allow_repeated_payments", "false");
 
     // 客人在小程序里已经选好付款方式，只把这一个方式放进 payment_methods，HitPay 收银页就
-    // 直接进它、跳过「选付款方式」那步。前端传的是中性码(tng/fpx/card)，HitPay 的实际叫法都收在这——
-    // 若你的 HitPay 后台某个方式的码不一样，改这张表即可（不用动前端）。
+    // 直接穿过去到那个方式、跳过「选付款方式」那步（实测 card/fpx 单方式时 HitPay 会自动直达）。
+    // 前端传的是中性码(tng/fpx/card)；HitPay 各家账号里 Touch'n Go 的实际码不一定叫什么，
+    // 所以这里放一串候选码逐个试，HitPay 接受(2xx)哪个就用哪个——被拒的候选不会创建任何请求。
     const HP_METHOD_MAP: Record<string, string[]> = {
-      tng: ["tng_ewallet"], // Touch 'n Go eWallet
-      fpx: ["fpx"],         // Online Banking (FPX)
-      card: ["card"],       // 信用卡 / 借记卡
+      tng: ["tng", "touchngo", "touch_n_go", "tng_ewallet", "duitnow_tng", "tngo"], // Touch 'n Go eWallet 的可能码
+      fpx: ["fpx"],   // Online Banking (FPX)
+      card: ["card"], // 信用卡 / 借记卡
     };
-    const methods = HP_METHOD_MAP[String(input.method || "").toLowerCase()] || [];
+    const key = String(input.method || "").toLowerCase();
+    const candidates = HP_METHOD_MAP[key] || [];
+    // 优先用上次验证过可用的码，其余候选跟在后面
+    const ordered = _resolvedMethod[key]
+      ? [_resolvedMethod[key], ...candidates.filter((c) => c !== _resolvedMethod[key])]
+      : candidates;
 
-    const postPaymentRequest = (withMethods: boolean) => {
+    const postPaymentRequest = (method: string | null) => {
       const f = new URLSearchParams(form.toString());
-      if (withMethods) for (const m of methods) f.append("payment_methods[]", m);
+      if (method) f.append("payment_methods[]", method);
       return fetch(HOST + "/v1/payment-requests", {
         method: "POST",
         headers: {
@@ -81,10 +91,14 @@ Deno.serve(async (req: Request) => {
       });
     };
 
-    // 先按指定方式建单；若被 HitPay 拒了（账号没开该方式/码对不上等），退回不限定方式再建一次——
+    // 依次试候选码，第一个被 HitPay 接受的就用它并记住；全都不行就退回不限定方式（完整收银页）——
     // 宁可回到完整收银页让客人自己选，也绝不让他付不了款。
-    let res = await postPaymentRequest(methods.length > 0);
-    if (!res.ok && methods.length > 0) res = await postPaymentRequest(false);
+    let res: Response | null = null;
+    for (const m of ordered) {
+      const r = await postPaymentRequest(m);
+      if (r.ok) { res = r; _resolvedMethod[key] = m; break; }
+    }
+    if (!res) res = await postPaymentRequest(null);
     const text = await res.text();
     let out: any;
     try { out = JSON.parse(text); } catch { out = { raw: text }; }
