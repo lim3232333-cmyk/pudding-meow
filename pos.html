@@ -183,25 +183,13 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 /* 有会员时：上面两个框收成设计里的细边小药丸，给会员卡让出高度（Figma 964:301 Filled）*/
 .cart-top.filled .cart-top-row{flex:0 0 auto;height:40px;}
 .cart-top.filled .cart-top-box{border:1px solid rgba(114,111,111,.5);border-radius:8px;font-size:18px;}
-/* 桌号·人数数字盘（点左上 Table 框弹出）*/
-.tp-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:60;}
-.tp-card{width:420px;background:#FFFDD6;border-radius:20px;padding:22px;box-shadow:0 12px 40px rgba(0,0,0,.3);font-family:"Noto Sans SC",sans-serif;}
-.tp-head{font-size:22px;font-weight:700;color:#8D0505;text-align:center;margin-bottom:16px;}
-.tp-head span{display:block;font-size:13px;font-weight:400;color:#4A4848;margin-top:2px;}
-.tp-fields{display:flex;gap:14px;margin-bottom:16px;}
-.tp-field{flex:1;border:3px solid #F5E9D4;border-radius:14px;padding:8px 10px;text-align:center;cursor:pointer;background:#fff;}
-.tp-field.active{border-color:#8D0505;background:#FFFDF0;}
-.tp-flabel{font-size:13px;color:#4A4848;font-weight:700;margin-bottom:2px;}
-.tp-fval{font-size:30px;font-weight:700;color:#000;min-height:37px;line-height:37px;}
-.tp-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
-.tp-pad button{height:56px;font-size:24px;font-weight:700;border:none;border-radius:12px;background:#FFDE5B;color:#000;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
-.tp-pad button:active{opacity:.8;}
-.tp-pad button.tp-fn{background:#F5E9D4;color:#8D0505;font-size:20px;}
-.tp-actions{display:flex;gap:10px;margin-top:16px;}
-.tp-actions button{flex:1;height:52px;border:none;border-radius:12px;font-size:20px;font-weight:700;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
-.tp-clear{background:#F5E9D4;color:#8D0505;}
-.tp-cancel{background:#D9D9D9;color:#4A4848;}
-.tp-ok{background:#1D7715;color:#fff;}
+/* 桌号·人数数字盘：复用 Price Panel 的视觉（.price-panel/.pnb），只把上面一栏换成 桌号+人数 */
+.tp-fields-row{display:flex;gap:24px;}
+.tp-field{flex:1;display:flex;flex-direction:column;gap:10px;cursor:pointer;min-width:0;}
+.tp-field .price-lbl{text-align:center;}
+.tp-field .price-disp{height:90px;border:3px solid transparent;transition:border-color .12s;}
+.tp-field.active .price-disp{border-color:#1D7715;}
+.tp-fval{font-weight:700;font-size:48px;color:#000;line-height:1;overflow:hidden;}
 .cf-disc{width:100%;box-sizing:border-box;padding:0 18px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#8D0505;font-weight:700;margin-bottom:3px;}
 .cf-disc-x{margin-left:8px;border:none;background:#F5E9D4;color:#8D0505;border-radius:6px;padding:1px 6px;font-size:11px;cursor:pointer;}
 .tu-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
@@ -875,25 +863,25 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
 </div>
 </div>
 
-  <!-- 桌号 + 人数 数字盘（点左上 Table 框弹出；Figma 964:301）-->
-  <div class="tp-bg" id="tablePad" style="display:none" onclick="if(event.target===this)tpClose()">
-    <div class="tp-card">
-      <div class="tp-head">选择桌号 · 人数<span>Table / Pax</span></div>
-      <div class="tp-fields">
+  <!-- 桌号 + 人数 数字盘（点左上 Table 框弹出；复用 Price Panel 视觉，Figma 964:301）-->
+  <div class="modal-bg" id="tablePad" onclick="if(event.target===this)tpClose()">
+    <div class="price-panel">
+      <div class="tp-fields-row">
         <div class="tp-field" id="tpFldTable" onclick="tpFocus('table')">
-          <div class="tp-flabel">桌号 Table</div>
-          <div class="tp-fval" id="tpTableV">—</div>
+          <div class="price-lbl">桌号 Table</div>
+          <div class="price-disp"><div class="tp-fval" id="tpTableV">0</div></div>
 </div>
         <div class="tp-field" id="tpFldPax" onclick="tpFocus('pax')">
-          <div class="tp-flabel">人数 Pax</div>
-          <div class="tp-fval" id="tpPaxV">—</div>
+          <div class="price-lbl">人数 Pax</div>
+          <div class="price-disp"><div class="tp-fval" id="tpPaxV">0</div></div>
 </div>
 </div>
-      <div class="tp-pad" id="tpPad"></div>
-      <div class="tp-actions">
-        <button class="tp-clear" onclick="tpClearAll()">清除</button>
-        <button class="tp-cancel" onclick="tpClose()">取消</button>
-        <button class="tp-ok" onclick="tpConfirm()">确定</button>
+      <div class="price-bottom-row">
+        <div class="price-numpad" id="tpNumpad"></div>
+        <div class="price-btn-col">
+          <button class="price-cancel-btn" onclick="tpClose()">Cancel</button>
+          <button class="price-done-btn" onclick="tpConfirm()">Done</button>
+</div>
 </div>
 </div>
 </div>
@@ -2831,13 +2819,18 @@ function _posNeedMember(){
    下单、打印、载入待付款单都还是读 ctTable.value，不动其它逻辑。 */
 var _posTable='', _posPax='', _tpField='table', _tpTable='', _tpPax='';
 function tpBuildPad(){
-  var pad=document.getElementById('tpPad'); if(!pad) return;
-  var keys=['1','2','3','4','5','6','7','8','9','','0','back'];
+  var pad=document.getElementById('tpNumpad'); if(!pad || pad._built) return;
+  var keys=['1','2','3','4','5','6','7','8','9','⌫','0',''];
   pad.innerHTML=keys.map(function(k){
-    if(k==='') return '<button class="tp-fn" style="visibility:hidden"></button>';
-    if(k==='back') return '<button class="tp-fn" onclick="tpKey(\'back\')">⌫</button>';
-    return '<button onclick="tpKey(\''+k+'\')">'+k+'</button>';
+    if(k==='') return '<button class="pnb" style="visibility:hidden"></button>';
+    var cls=k==='⌫'?'pnb pnb-del':'pnb';
+    return '<button class="'+cls+'" data-key="'+k+'">'+(k==='⌫'?'✕':k)+'</button>';
   }).join('');
+  pad.addEventListener('pointerdown',function(e){
+    var btn=e.target.closest('.pnb'); if(!btn||!btn.dataset.key) return;
+    e.preventDefault(); tpKey(btn.dataset.key);
+  });
+  pad._built=true;
 }
 function tpFocus(which){
   _tpField=which;
@@ -2845,26 +2838,25 @@ function tpFocus(which){
   document.getElementById('tpFldPax').classList.toggle('active', which==='pax');
 }
 function _tpSync(){
-  document.getElementById('tpTableV').textContent=_tpTable||'—';
-  document.getElementById('tpPaxV').textContent=_tpPax||'—';
+  document.getElementById('tpTableV').textContent=_tpTable||'0';
+  document.getElementById('tpPaxV').textContent=_tpPax||'0';
 }
 function tpKey(k){
   var cur=(_tpField==='table')?_tpTable:_tpPax;
-  if(k==='back'){ cur=cur.slice(0,-1); }
+  if(k==='⌫'){ cur=cur.slice(0,-1); }
   else { if(cur.length>=3) return; cur=(cur==='0'?'':cur)+k; }
   if(_tpField==='table') _tpTable=cur; else _tpPax=cur;
   _tpSync();
-  // 桌号填完自动跳到人数，少点一下
-  if(_tpField==='table' && k!=='back' && _tpTable.length>=2) tpFocus('pax');
+  // 桌号填够两位自动跳到人数，少点一下
+  if(_tpField==='table' && k!=='⌫' && _tpTable.length>=2) tpFocus('pax');
 }
-function tpClearAll(){ _tpTable=''; _tpPax=''; tpFocus('table'); _tpSync(); }
 function posOpenTablePad(){
   if(typeof _reviewGuard==='function' && _reviewGuard()) return;   // 核对待付款单时不改桌号
   _tpTable=_posTable||''; _tpPax=_posPax||'';
   tpBuildPad(); _tpSync(); tpFocus('table');
-  document.getElementById('tablePad').style.display='flex';
+  document.getElementById('tablePad').classList.add('show');
 }
-function tpClose(){ document.getElementById('tablePad').style.display='none'; }
+function tpClose(){ document.getElementById('tablePad').classList.remove('show'); }
 function tpConfirm(){
   if(!_tpTable){ showN('请输入桌号'); tpFocus('table'); return; }
   _posTable=_tpTable; _posPax=_tpPax;
