@@ -131,7 +131,7 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 /* Top section — Frame24, h:123 */
 .cart-top{position:absolute;left:0;top:0;width:413px;height:123px;padding:10px 14px;display:flex;flex-direction:column;gap:6px;border-bottom:1px solid #F5E9D4;overflow:hidden;}
 .cart-top-row{display:flex;gap:16px;align-items:flex-start;flex-shrink:0;}
-.cart-top-box{flex:1;height:55px;background:transparent;border:3px solid #F5E9D4;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#000;box-sizing:border-box;}
+.cart-top-box{flex:1;min-width:0;height:55px;background:transparent;border:3px solid #F5E9D4;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#000;box-sizing:border-box;}
 .cart-top-box::placeholder{color:#000;opacity:1;font-weight:700;}
 /* Column headers — Frame14, y:123, h:44 */
 .cart-cols{position:absolute;left:0;top:123px;width:413px;height:44px;border-bottom:2px solid #F5E9D4;display:flex;align-items:center;}
@@ -156,8 +156,8 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 .cf-total-rm{width:auto;padding-right:18px;text-align:right;white-space:nowrap;font-weight:700;font-size:32px;color:#8D0505;}
 .cf-count{width:125px;text-align:right;padding-right:18px;font-weight:400;font-size:20px;color:#000;}
 
-/* T/A CONTROL PANEL — x:413, y:91, w:134, h:578, border 4px, padding 20px 10px, gap 20px */
-.ta{position:absolute;left:413px;top:91px;width:134px;height:578px;background:#FFFFD5;border:4px solid #F5E9D4;display:flex;flex-direction:column;align-items:center;padding:20px 10px;gap:20px;}
+/* T/A CONTROL PANEL — x:413, y:91, w:166, h:578, border 4px, padding 16px, gap 20px (Figma 99:282) */
+.ta{position:absolute;left:413px;top:91px;width:166px;height:578px;background:#FFFFD5;border:4px solid #F5E9D4;display:flex;flex-direction:column;align-items:center;padding:16px;gap:20px;box-sizing:border-box;}
 /* take away button — w:120, h:34, space-between */
 .ta-toggle-row{width:120px;height:34px;display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:5px;flex-shrink:0;}
 /* T\A label — 40×29, 24px bold */
@@ -201,33 +201,33 @@ body.ds-on{user-select:none;-webkit-user-select:none;}
 [data-sortable] [data-sid].ds-drag{cursor:grabbing;}
 .ds-hint{font-size:12px;color:#4A4848;margin:0 0 10px;}
 .ds-hint::before{content:'⠿ ';font-size:13px;color:#8D0505;}
-.ta-mbtns{width:114px;display:flex;flex-direction:column;gap:10px;margin-top:14px;flex-shrink:0;}
-.ta-mbtn{position:relative;width:114px;height:49px;background:#8D0505;color:#FFFFD5;border:none;border-radius:1000px;font-weight:700;font-size:20px;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
+.ta-mbtns{width:134px;display:flex;flex-direction:column;gap:10px;margin-top:14px;flex-shrink:0;}
+.ta-mbtn{position:relative;width:134px;height:49px;background:#8D0505;color:#FFFFD5;border:none;border-radius:1000px;font-weight:700;font-size:20px;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
 .ta-mbtn:active{opacity:.85;}
 .ta-badge{position:absolute;top:-6px;right:-2px;min-width:22px;height:22px;padding:0 5px;box-sizing:border-box;background:#B6F3FF;color:#202055;border-radius:999px;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;}
-/* Frame23 — w:114, h:125, column, gap:6 */
-.ta-controls{width:114px;height:125px;display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0;}
-/* plus pill — 114×39, red bg #8D0505, white + */
-.ta-plus{width:114px;height:39px;background:#8D0505;border-radius:1000px;border:none;cursor:pointer;position:relative;flex-shrink:0;}
+/* Frame23 — w:134, h:125, column, gap:6 */
+.ta-controls{width:134px;height:125px;display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0;}
+/* plus pill — 134×39, red bg #8D0505, white + */
+.ta-plus{width:134px;height:39px;background:#8D0505;border-radius:1000px;border:none;cursor:pointer;position:relative;flex-shrink:0;}
 .ta-plus::before{content:'+';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-weight:700;font-size:24px;line-height:29px;color:#FFFFD5;}
 .ta-plus:active{opacity:.85;}
 /* number — 29px height, 24px bold black */
 .ta-num{width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:24px;line-height:29px;color:#000;flex-shrink:0;cursor:pointer;border-radius:10px;transition:.12s;border:none;background:transparent;font-family:"Noto Sans SC",sans-serif;}
 .ta-num:active{background:#F5E9D4;transform:scale(.92);}
-/* minus pill — 114×45, yellow bg #FFDE5B (rect at top:13.33% so h:39 visually), black − */
-.ta-minus{width:114px;height:45px;background:transparent;border:none;cursor:pointer;position:relative;flex-shrink:0;}
+/* minus pill — 134×45, yellow bg #FFDE5B (rect at top:13.33% so h:39 visually), black − */
+.ta-minus{width:134px;height:45px;background:transparent;border:none;cursor:pointer;position:relative;flex-shrink:0;}
 .ta-minus::after{content:'';position:absolute;left:0;right:0;top:13.33%;bottom:0;background:#FFDE5B;border-radius:1000px;}
 .ta-minus::before{content:'−';position:absolute;left:50%;top:32%;transform:translate(-50%,-50%);font-weight:700;font-size:24px;line-height:29px;color:#000;z-index:1;}
 .ta-minus:active{opacity:.85;}
 
 
-/* MENU AREA — x:547, y:91, w:819, h:578 */
-.menu{position:absolute;left:547px;top:91px;width:819px;height:578px;background:#FFFFD5;overflow:hidden;}
+/* MENU AREA — x:579, y:91, w:787, h:578 (Figma item panel 990:1631) */
+.menu{position:absolute;left:579px;top:91px;width:787px;height:578px;background:#FFFFD5;overflow:hidden;}
 /* Category cards — 3 cols within menu area（Figma：卡片 251×171，间距 16，外边距 16）
    分类现在是数据库里的行、数量不定，所以改成自动排版：3 列排满换行、超过一屏往下滚，
    ≤7 个分类时跟原来那套绝对定位的位置逐像素一致 */
-.cat-grid{position:absolute;left:0;top:0;width:819px;height:578px;padding:16px;box-sizing:border-box;
-  display:grid;grid-template-columns:repeat(3,251px);grid-auto-rows:171px;gap:16px;align-content:start;overflow-y:auto;}
+.cat-grid{position:absolute;left:0;top:0;width:787px;height:578px;padding:16px;box-sizing:border-box;
+  display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:171px;gap:16px;align-content:start;overflow-y:auto;}
 .cat-card{background:#FFDE5B;border-radius:18px;display:flex;align-items:center;justify-content:center;text-align:center;padding:0 10px;font-weight:700;font-size:26px;line-height:1.15;color:#000;cursor:pointer;}
 .cat-card:active{opacity:.8;transform:scale(.98);}
 /* 子分类筛选条（进入某个分类后才有；没建子分类的分类不显示这一条）*/
@@ -236,26 +236,26 @@ body.ds-on{user-select:none;-webkit-user-select:none;}
 .sub-chip{flex-shrink:0;border:2px solid #FFDE5B;background:#fff;color:#8D0505;border-radius:999px;padding:6px 16px;font-size:16px;font-weight:700;cursor:pointer;white-space:nowrap;}
 .sub-chip.a{background:#FFDE5B;}
 /* Item grid view (replaces cat cards when clicked) */
-.item-view{position:absolute;left:0;top:0;width:819px;height:578px;background:#FFFFD5;display:none;flex-direction:column;overflow:hidden;}
+.item-view{position:absolute;left:0;top:0;width:787px;height:578px;background:#FFFFD5;display:none;flex-direction:column;overflow:hidden;}
 .item-view.show{display:flex;}
 /* 面包屑头：Figma 24px/700 #8D0505，2px #F5E9D4 分隔线，长了自动换行（最多两行） */
 .item-view-head{min-height:64px;flex-shrink:0;display:flex;align-items:center;padding:8px 16px;border-bottom:2px solid #F5E9D4;background:#FFFFD5;}
 .item-cat-name{font-size:24px;line-height:29px;font-weight:700;color:#8D0505;}
 .item-grid-wrap{flex:1;overflow-y:auto;}
-/* Item cards — 184×129px, 4 per row */
-.item-grid{display:grid;grid-template-columns:repeat(4,184px);gap:16px;padding:16px;}
+/* Item cards — 4 per row, stretch to fill (Figma 990:1431 uses 1fr columns) */
+.item-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:16px;}
 .item-view-foot{flex-shrink:0;display:flex;justify-content:flex-end;gap:32px;padding:12px 22px;}
 /* Back / OK 按钮：Figma 150×60，字号 36px，#1D7715 */
 .item-back-btn,.item-ok-btn{width:150px;height:60px;padding:0;background:#1D7715;border:none;border-radius:16px;font-size:36px;line-height:43px;font-weight:700;color:#FFFFD5;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
 .item-back-btn:active,.item-ok-btn:active{opacity:.85;}
-.item-card{width:184px;height:129px;background:#FFDE5B;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;padding:10px;text-align:center;gap:8px;}
+.item-card{width:auto;height:129px;background:#FFDE5B;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;padding:10px;text-align:center;gap:8px;}
 .item-card:active{opacity:.8;transform:scale(.97);}
 .ic-name{font-weight:700;font-size:16px;color:#000;line-height:1.3;}
 /* 规格选择：卡片 182.5×136.5、22px 文字、4 列 15px 间距、整排居中（Figma 394-318）；选中态蓝底、售罄态灰底划线 */
 .item-cat-name .bc-sep{color:rgba(141,5,5,.4);margin:0 8px;font-weight:700;}
 .item-cat-name .bc-cur{color:#000;}
-.spec-opts{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,182.5px);gap:15px;justify-content:center;}
-.spec-card{width:182.5px;height:136.5px;border-radius:16px;}
+.spec-opts{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,1fr);gap:15px;justify-content:center;}
+.spec-card{width:auto;height:136.5px;border-radius:16px;}
 .spec-card .ic-name{font-size:22px;line-height:26px;}
 /* 选填组的「不需要」跳过卡：浅色描边区分 */
 .spec-card.spec-skip{background:#FFF;border:2px dashed #B08A3E;}
