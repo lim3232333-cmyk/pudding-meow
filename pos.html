@@ -130,8 +130,9 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 .cart{position:absolute;left:0;top:91px;width:413px;height:676px;background:#FFFFD5;border-right:1px solid #F5E9D4;}
 /* Top section — Frame24, h:123 */
 .cart-top{position:absolute;left:0;top:0;width:413px;height:123px;padding:10px 14px;display:flex;flex-direction:column;gap:6px;border-bottom:1px solid #F5E9D4;overflow:hidden;}
-.cart-top-row{display:flex;gap:10px;align-items:flex-start;flex-shrink:0;}
-.cart-top-box{flex:1;height:55px;background:#D9D9D9;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#666;}
+.cart-top-row{display:flex;gap:16px;align-items:flex-start;flex-shrink:0;}
+.cart-top-box{flex:1;height:55px;background:transparent;border:3px solid #F5E9D4;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#000;box-sizing:border-box;}
+.cart-top-box::placeholder{color:#000;opacity:1;font-weight:700;}
 /* Column headers — Frame14, y:123, h:44 */
 .cart-cols{position:absolute;left:0;top:123px;width:413px;height:44px;border-bottom:2px solid #F5E9D4;display:flex;align-items:center;}
 .col-qty{position:absolute;left:10px;top:10px;font-weight:500;font-size:16px;color:#000;}
@@ -797,8 +798,8 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
   <div class="cart">
     <div class="cart-top">
       <div class="cart-top-row">
-        <input class="cart-top-box" id="ctTable" placeholder="桌号 Table" style="border:none;text-align:center;">
-        <input class="cart-top-box" id="ctCustomer" placeholder="会员电话 Phone" style="border:none;text-align:center;"
+        <input class="cart-top-box" id="ctTable" placeholder="Table" style="text-align:center;">
+        <input class="cart-top-box" id="ctCustomer" placeholder="Member" style="text-align:center;"
                onkeydown="if(event.key==='Enter')posFindMember()" onblur="posFindMember()">
 </div>
       <!-- 输入电话后带出会员资料（Figma 97:14）；没找到/未输入时整块不占位 -->
