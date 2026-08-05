@@ -171,13 +171,37 @@ button{font-family:"Noto Sans SC",sans-serif;cursor:pointer;}
 /* on state (take-away): dot moves right */
 .ta-switch.on::after{left:auto;right:5.06%;}
 .ta-mode{display:none;}
-/* ── 收银台会员条（Figma 97:14）+ 控制栏 Voucher/Top up（99:282）── */
-.cart-mem{flex:0 1 auto;min-height:0;max-height:56px;padding:5px 9px;background:#FAECB5;border-radius:10px;font-size:13px;line-height:1.4;color:#202055;overflow:auto;}
+/* ── 收银台会员卡（Figma 964:301 Filled 右框）：底色 #FAECB5，左姓名+余额 / 右 Coins+XP ── */
+.cart-mem{flex:0 1 auto;min-height:0;max-height:56px;padding:6px 12px;background:#FAECB5;border-radius:10px;line-height:1.3;color:#000;overflow:auto;display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .cart-mem:empty{display:none;}
-.cart-mem .nm{font-weight:700;color:#202055;}
-.cart-mem .lv{font-weight:700;}
-.cart-mem .r{float:right;text-align:right;font-weight:700;}
+.cart-mem .cm-l{min-width:0;}
+.cart-mem .cm-nm{font-weight:700;font-size:16px;color:#000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cart-mem .cm-lv{font-weight:700;}
+.cart-mem .cm-bal{font-size:12px;color:#4A4848;}
+.cart-mem .cm-r{flex-shrink:0;text-align:right;font-size:14px;color:#4A4848;font-weight:500;line-height:1.25;}
 .cart-mem .warn{color:#8D0505;font-weight:700;display:block;font-size:11px;line-height:1.35;word-break:break-word;}
+/* 有会员时：上面两个框收成设计里的细边小药丸，给会员卡让出高度（Figma 964:301 Filled）*/
+.cart-top.filled .cart-top-row{flex:0 0 auto;height:40px;}
+.cart-top.filled .cart-top-box{border:1px solid rgba(114,111,111,.5);border-radius:8px;font-size:18px;}
+/* 桌号·人数数字盘（点左上 Table 框弹出）*/
+.tp-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:60;}
+.tp-card{width:420px;background:#FFFDD6;border-radius:20px;padding:22px;box-shadow:0 12px 40px rgba(0,0,0,.3);font-family:"Noto Sans SC",sans-serif;}
+.tp-head{font-size:22px;font-weight:700;color:#8D0505;text-align:center;margin-bottom:16px;}
+.tp-head span{display:block;font-size:13px;font-weight:400;color:#4A4848;margin-top:2px;}
+.tp-fields{display:flex;gap:14px;margin-bottom:16px;}
+.tp-field{flex:1;border:3px solid #F5E9D4;border-radius:14px;padding:8px 10px;text-align:center;cursor:pointer;background:#fff;}
+.tp-field.active{border-color:#8D0505;background:#FFFDF0;}
+.tp-flabel{font-size:13px;color:#4A4848;font-weight:700;margin-bottom:2px;}
+.tp-fval{font-size:30px;font-weight:700;color:#000;min-height:37px;line-height:37px;}
+.tp-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.tp-pad button{height:56px;font-size:24px;font-weight:700;border:none;border-radius:12px;background:#FFDE5B;color:#000;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
+.tp-pad button:active{opacity:.8;}
+.tp-pad button.tp-fn{background:#F5E9D4;color:#8D0505;font-size:20px;}
+.tp-actions{display:flex;gap:10px;margin-top:16px;}
+.tp-actions button{flex:1;height:52px;border:none;border-radius:12px;font-size:20px;font-weight:700;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
+.tp-clear{background:#F5E9D4;color:#8D0505;}
+.tp-cancel{background:#D9D9D9;color:#4A4848;}
+.tp-ok{background:#1D7715;color:#fff;}
 .cf-disc{width:100%;box-sizing:border-box;padding:0 18px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#8D0505;font-weight:700;margin-bottom:3px;}
 .cf-disc-x{margin-left:8px;border:none;background:#F5E9D4;color:#8D0505;border-radius:6px;padding:1px 6px;font-size:11px;cursor:pointer;}
 .tu-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
@@ -803,8 +827,8 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
   <div class="cart">
     <div class="cart-top">
       <div class="cart-top-row">
-        <input class="cart-top-box" id="ctTable" placeholder="Table" style="text-align:center;">
-        <input class="cart-top-box" id="ctCustomer" placeholder="Member" style="text-align:center;"
+        <input class="cart-top-box" id="ctTable" placeholder="Table" style="text-align:center;" readonly onclick="posOpenTablePad()">
+        <input class="cart-top-box" id="ctCustomer" placeholder="Member" style="text-align:center;" inputmode="numeric"
                onkeydown="if(event.key==='Enter')posFindMember()" onblur="posFindMember()">
 </div>
       <!-- 输入电话后带出会员资料（Figma 97:14）；没找到/未输入时整块不占位 -->
@@ -848,6 +872,29 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
     <div class="ta-mbtns">
       <button class="ta-mbtn" onclick="posOpenVoucher()">Voucher<span class="ta-badge" id="ctVoucherBadge" style="display:none">0</span></button>
       <button class="ta-mbtn" onclick="posOpenTopup()">Top up</button>
+</div>
+</div>
+
+  <!-- 桌号 + 人数 数字盘（点左上 Table 框弹出；Figma 964:301）-->
+  <div class="tp-bg" id="tablePad" style="display:none" onclick="if(event.target===this)tpClose()">
+    <div class="tp-card">
+      <div class="tp-head">选择桌号 · 人数<span>Table / Pax</span></div>
+      <div class="tp-fields">
+        <div class="tp-field" id="tpFldTable" onclick="tpFocus('table')">
+          <div class="tp-flabel">桌号 Table</div>
+          <div class="tp-fval" id="tpTableV">—</div>
+</div>
+        <div class="tp-field" id="tpFldPax" onclick="tpFocus('pax')">
+          <div class="tp-flabel">人数 Pax</div>
+          <div class="tp-fval" id="tpPaxV">—</div>
+</div>
+</div>
+      <div class="tp-pad" id="tpPad"></div>
+      <div class="tp-actions">
+        <button class="tp-clear" onclick="tpClearAll()">清除</button>
+        <button class="tp-cancel" onclick="tpClose()">取消</button>
+        <button class="tp-ok" onclick="tpConfirm()">确定</button>
+</div>
 </div>
 </div>
 
@@ -2331,7 +2378,7 @@ function askPrint(yes){
     // 清空购物车
     cart=[];selIdx=-1;
     _posMember=null; _posCoupon=null; try{ _renderPosMember(); }catch(e){}
-    document.getElementById('ctTable').value='';
+    _posClearTable();
     document.getElementById('ctCustomer').value='';
     renderCart();updPend();
     showN('付款完成！#'+o.orderNum);
@@ -2628,7 +2675,7 @@ function payPend(id){
   selIdx=-1;
   renderCart();
   var lbl=_orderTypeLabel(o);
-  var paxM=String(o.tableName||'').match(/(\d+)\s*人/);
+  var paxM=String(o.tableName||'').match(/(\d+)\s*(?:人|pax)/i);
   var tblEl=document.getElementById('ctTable');
   tblEl.value=lbl+(paxM?(' · '+paxM[1]+'人'):'');
   tblEl.readOnly=true;
@@ -2660,8 +2707,8 @@ function _exitPendReview(){
   cart=[]; selIdx=-1;
   _posMember=null; _posCoupon=null;
   try{ _renderPosMember(); }catch(e){}
-  var t=document.getElementById('ctTable'), c=document.getElementById('ctCustomer');
-  if(t){ t.value=''; t.readOnly=false; }
+  _posClearTable();   // ctTable 一直是 readonly（点击弹数字盘），只清值不解锁
+  var c=document.getElementById('ctCustomer');
   if(c){ c.value=''; c.readOnly=false; }
   renderCart();
 }
@@ -2753,18 +2800,22 @@ function posFindMember(){
 function _renderPosMember(msg){
   var bar=document.getElementById('ctMemberBar');
   var badge=document.getElementById('ctVoucherBadge');
+  var top=document.querySelector('.cart-top');
   if(!bar) return;
   if(!_posMember){
     bar.innerHTML=msg?('<span class="warn" onclick="posShowErr()">'+esc(msg)
       +(_posLastErr?'<u style="display:block;margin-top:2px">▸ 点这里看完整报错</u>':'')+'</span>'):'';
     if(badge) badge.style.display='none';
+    if(top) top.classList.remove('filled');
     return;
   }
   var m=_posMember;
-  bar.innerHTML='<span class="r">'+(m.coins||0)+' Coins<br>'+(m.xp||0)+' XP</span>'
-    +'<span class="nm">'+esc(m.nickname||m.phone)+'</span>'
-    +(m.level_name?(' <span class="lv" style="color:'+esc(m.level_color||'#8D0505')+'">（'+esc(m.level_name)+'）</span>'):'')
-    +'<br><span style="font-size:12px;color:#4A4848">余额 RM '+Number(m.wallet_balance||0).toFixed(2)+'</span>';
+  // 会员卡（Figma 964:301 Filled 右框）：左 姓名+余额，右 Coins/XP
+  bar.innerHTML='<div class="cm-l"><div class="cm-nm">'+esc(m.nickname||m.phone)
+    +(m.level_name?(' <span class="cm-lv" style="color:'+esc(m.level_color||'#8D0505')+'">（'+esc(m.level_name)+'）</span>'):'')
+    +'</div><div class="cm-bal">Balance：RM '+Number(m.wallet_balance||0).toFixed(2)+'</div></div>'
+    +'<div class="cm-r">'+(m.coins||0)+' Coins<br>'+(m.xp||0)+' XP</div>';
+  if(top) top.classList.add('filled');
   if(badge){
     var n=m.unused_coupons||0;
     badge.textContent=n; badge.style.display=n>0?'flex':'none';
@@ -2773,6 +2824,57 @@ function _renderPosMember(msg){
 function _posNeedMember(){
   if(!_posMember){ showN('请先在「会员电话」输入顾客手机号'); return false; }
   return true;
+}
+
+/* ── 桌号 + 人数 数字盘（点左上 Table 框弹出；Figma 964:301）──
+   桌号/人数存在 _posTable/_posPax，同时写进 ctTable.value（"Table 2｜2Pax"），
+   下单、打印、载入待付款单都还是读 ctTable.value，不动其它逻辑。 */
+var _posTable='', _posPax='', _tpField='table', _tpTable='', _tpPax='';
+function tpBuildPad(){
+  var pad=document.getElementById('tpPad'); if(!pad) return;
+  var keys=['1','2','3','4','5','6','7','8','9','','0','back'];
+  pad.innerHTML=keys.map(function(k){
+    if(k==='') return '<button class="tp-fn" style="visibility:hidden"></button>';
+    if(k==='back') return '<button class="tp-fn" onclick="tpKey(\'back\')">⌫</button>';
+    return '<button onclick="tpKey(\''+k+'\')">'+k+'</button>';
+  }).join('');
+}
+function tpFocus(which){
+  _tpField=which;
+  document.getElementById('tpFldTable').classList.toggle('active', which==='table');
+  document.getElementById('tpFldPax').classList.toggle('active', which==='pax');
+}
+function _tpSync(){
+  document.getElementById('tpTableV').textContent=_tpTable||'—';
+  document.getElementById('tpPaxV').textContent=_tpPax||'—';
+}
+function tpKey(k){
+  var cur=(_tpField==='table')?_tpTable:_tpPax;
+  if(k==='back'){ cur=cur.slice(0,-1); }
+  else { if(cur.length>=3) return; cur=(cur==='0'?'':cur)+k; }
+  if(_tpField==='table') _tpTable=cur; else _tpPax=cur;
+  _tpSync();
+  // 桌号填完自动跳到人数，少点一下
+  if(_tpField==='table' && k!=='back' && _tpTable.length>=2) tpFocus('pax');
+}
+function tpClearAll(){ _tpTable=''; _tpPax=''; tpFocus('table'); _tpSync(); }
+function posOpenTablePad(){
+  if(typeof _reviewGuard==='function' && _reviewGuard()) return;   // 核对待付款单时不改桌号
+  _tpTable=_posTable||''; _tpPax=_posPax||'';
+  tpBuildPad(); _tpSync(); tpFocus('table');
+  document.getElementById('tablePad').style.display='flex';
+}
+function tpClose(){ document.getElementById('tablePad').style.display='none'; }
+function tpConfirm(){
+  if(!_tpTable){ showN('请输入桌号'); tpFocus('table'); return; }
+  _posTable=_tpTable; _posPax=_tpPax;
+  document.getElementById('ctTable').value='Table '+_posTable+(_posPax?('｜'+_posPax+'Pax'):'');
+  tpClose();
+}
+/* 清空桌号（新开单 / 核对结束时调用）*/
+function _posClearTable(){
+  _posTable=''; _posPax='';
+  var t=document.getElementById('ctTable'); if(t) t.value='';
 }
 
 /* ── Voucher：看该会员没用的券，可当场核销 ── */
