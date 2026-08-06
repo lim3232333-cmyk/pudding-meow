@@ -5041,7 +5041,7 @@ function _pmImg(c){
 function _pmStub(c){
   if(c.type==='dessert'){
     return c.menu_item_image
-      ? '<div class="pm-my-stub dessert" style="background-image:url(\''+_esc(c.menu_item_image)+'\')"></div>'
+      ? '<div class="pm-my-stub dessert" style="background-image:url(\''+_esc(c.menu_item_image)+'\');background-size:cover;background-position:center;background-repeat:no-repeat"></div>'
       : '<div class="pm-my-stub dessert">'+_dessertArt()+'</div>';
   }
   return '<div class="pm-my-stub cash"><span class="pm-my-stub-sym">'+(c.type==='percent_off'?'%':'$')+'</span></div>';
