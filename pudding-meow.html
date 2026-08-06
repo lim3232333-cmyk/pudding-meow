@@ -5027,9 +5027,11 @@ function _pmValTxt(c){
 }
 /* 券的使用条件一行：单品券写清楚打哪件商品、只打一份 */
 function _couponCondTxt(c){
-  if(c.type==='dessert') return _esc(c.menu_item_name||'指定商品');
-  if(c.menu_item_id) return '仅 '+_esc(c.menu_item_name||'指定商品')+'（一份）';
-  return Number(c.min_spend)>0 ? ('满 RM'+Number(c.min_spend).toFixed(2)+'可用') : '无门槛';
+  var min=Number(c.min_spend)>0 ? ('满 RM'+Number(c.min_spend).toFixed(2)+'可用') : '';
+  // 甜品券：商品名 +（有门槛时）满减小字，之前漏了门槛
+  if(c.type==='dessert'){ var nm=_esc(c.menu_item_name||'指定商品'); return min?(nm+' · '+min):nm; }
+  if(c.menu_item_id){ var s='仅 '+_esc(c.menu_item_name||'指定商品')+'（一份）'; return min?(s+' · '+min):s; }
+  return min || '无门槛';
 }
 function _pmImg(c){
   if(c.menu_item_image) return '<div class="pm-item-img" style="background-image:url(\''+_esc(c.menu_item_image)+'\');background-size:cover;background-position:center"></div>';
