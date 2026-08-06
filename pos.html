@@ -1139,9 +1139,12 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
 </div>
       <label class="mi-lbl">产品描述*</label>
       <textarea class="mi-desc" id="miDesc" placeholder="产品简介"></textarea>
+      <!-- 隐藏菜单：勾上＝只在 POS 卖，顾客小程序完全看不到（把渠道锁成内部专用码）-->
+      <label class="mi-lbl">隐藏菜单</label>
+      <label class="ch-chk" id="miPosOnlyChk" style="display:inline-flex"><input type="checkbox" id="miPosOnly" onchange="_miPosOnlyToggle()"> 🔒 仅POS · 小程序看不到</label>
       <!-- 销售渠道：不适合打包/外送的品项在这里取消勾选，顾客小程序切到那个模式就看不到 -->
       <label class="mi-lbl">销售渠道</label>
-      <div class="ch-hint">一个都不勾 = 全渠道开放</div>
+      <div class="ch-hint" id="miChanHint">一个都不勾 = 全渠道开放</div>
       <div class="ch-box" id="miChannels"></div>
       <div id="miSpecGroups"></div>
       <div class="mi-add-wrap"><button type="button" class="mi-add-round" onclick="miAddSpecGroup()">＋</button></div>
@@ -1724,8 +1727,20 @@ function _chCollect(boxId){
   if(!picked.length || picked.length===(_salesChannels||[]).length) return null;
   return picked;
 }
+/* 隐藏菜单：把渠道锁成这个内部专用码。它不是任何顾客点餐模式(dinein/pickup/delivery)，
+   小程序 _openInMode 匹配不到就永远不显示；POS 收银本来就无视渠道，照常能点能收银。 */
+var POS_ONLY_CHAN='__pos_only__';
+function _isPosOnly(channels){ return !!(channels && channels.indexOf(POS_ONLY_CHAN)>=0); }
+/* 勾了「仅POS」就把销售渠道那块灰掉——这时渠道由隐藏开关统一接管，不用再单独勾 */
+function _miPosOnlyToggle(){
+  var on=document.getElementById('miPosOnly').checked;
+  var box=document.getElementById('miChannels'), hint=document.getElementById('miChanHint');
+  if(box){ box.style.opacity=on?'.35':''; box.style.pointerEvents=on?'none':''; }
+  if(hint){ hint.textContent=on?'已隐藏：只在 POS 卖，小程序看不到':'一个都不勾 = 全渠道开放'; }
+}
 /* 列表上展示某行的开放渠道 */
 function _chTagsHtml(channels){
+  if(_isPosOnly(channels)) return '<span class="mi-pill" style="background:#8D0505;color:#FFFFD5">🔒 隐藏·仅POS</span>';
   if(!channels || !channels.length) return '<span class="mi-pill">全渠道</span>';
   return channels.map(function(code){
     var c=(_salesChannels||[]).find(function(x){return x.code===code;});
@@ -5098,6 +5113,7 @@ function menuAdd(cat, subcat){
   document.getElementById('miDesc').value='';
   _miFillCats(cat, subcat||'');
   _chFill('miChannels', null);
+  document.getElementById('miPosOnly').checked=false; _miPosOnlyToggle();
   document.getElementById('miSpecGroups').innerHTML='';
   document.getElementById('miBg').classList.add('show');
 }
@@ -5113,7 +5129,10 @@ function menuEdit(id){
   document.getElementById('miPrice').value=r.price!=null?r.price:'';
   document.getElementById('miDesc').value=r.descr||'';
   _miFillCats(r.cat, r.subcat||'');
-  _chFill('miChannels', r.channels);
+  var posOnly=_isPosOnly(r.channels);
+  document.getElementById('miPosOnly').checked=posOnly;
+  _chFill('miChannels', posOnly?null:r.channels);
+  _miPosOnlyToggle();
   document.getElementById('miSpecGroups').innerHTML='';
   (r.specs||[]).forEach(function(g){ miAddSpecGroup(g.defId, g.prices); });
   document.getElementById('miBg').classList.add('show');
@@ -5133,7 +5152,7 @@ function saveMI(){
   var doSave=function(){
     var payload={name:name,en:en,price:price,descr:desc,specs:specGroups,image_url:_miImageUrl||null,
       cat:cat, subcat:document.getElementById('miSubcat').value||null,
-      channels:_chCollect('miChannels'),
+      channels:(document.getElementById('miPosOnly').checked?[POS_ONLY_CHAN]:_chCollect('miChannels')),
       flavors:(specGroups.length&&specGroups[0].options.length)?specGroups[0].options:['Original']};
     if(_miEditId){
       db.from('menu_items').update(payload).eq('id',_miEditId)
