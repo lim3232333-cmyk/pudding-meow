@@ -3050,11 +3050,22 @@ function buildMenuFromRows(rows, mode){
    否则看旧的 flavors——只有多于一个口味才当作一组显示。没配规格、或只有单一/默认
    'Original'（后台没加规格时会写入的兜底值）时返回空，不显示任何规格 pill、直接加入。 */
 function _itemSpecs(it){
-  // 规格组也能限定渠道（如「加冰淇淋」只开放堂食），不开放的组当前模式下整组不显示
-  if(it && it.specs && it.specs.length) return it.specs.filter(function(g){
-    var def = g && g.defId ? _specDefsById[g.defId] : null;
-    return !def || _openInMode(def.channels);
-  });
+  // 规格组也能限定渠道（如「加冰淇淋」只开放堂食），不开放的组当前模式下整组不显示；
+  // 再往下：规格库里标了「仅POS」的单个选项也从小程序里过滤掉（POS 照常能选）。
+  // 选项被全部隐藏的组，整组不显示。
+  if(it && it.specs && it.specs.length){
+    var out=[];
+    it.specs.forEach(function(g){
+      var def = g && g.defId ? _specDefsById[g.defId] : null;
+      if(def && !_openInMode(def.channels)) return;              // 整组渠道不开放
+      var posSet = (def && def.pos_only_options) ? def.pos_only_options : [];
+      var opts = (g.options||[]).filter(function(o){ return posSet.indexOf(o)<0; });
+      if(!opts.length) return;                                    // 选项被隐藏光了 → 整组不显示
+      // 返回新对象，别动商品存的快照；只把 options 换成过滤后的（prices 按值取，多余的键无害）
+      out.push(opts.length===(g.options||[]).length ? g : Object.assign({}, g, {options:opts}));
+    });
+    return out;
+  }
   var flavors = (it && it.flavors && it.flavors.length) ? it.flavors : [];
   if(flavors.length > 1) return [{ defId:null, name:'', options:flavors }];
   return [];

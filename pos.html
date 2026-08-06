@@ -718,6 +718,7 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
 .sd-opt-row .mfi{margin-bottom:0;flex:1;}
 .sd-opt-toggle{flex-shrink:0;border:1px solid #8D0505;background:#fff;color:#8D0505;border-radius:6px;padding:0 10px;height:32px;font-size:11px;font-weight:700;cursor:pointer;font-family:"Noto Sans SC",sans-serif;white-space:nowrap;}
 .sd-opt-toggle.is-soldout{background:#8D0505;color:#fff;}
+.sd-opt-toggle.is-posonly{background:#202055;color:#FFDE5B;border-color:#202055;}
 .mi-spec-hint{font-size:11px;color:#4A4848;margin-top:-8px;margin-bottom:14px;}
 /* 菜单管理页签（商品 / 规格库） */
 .ma-tabs{display:flex;gap:8px;margin-bottom:14px;}
@@ -1182,10 +1183,12 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
         <label class="sd-req-opt"><input type="radio" name="sdRequired" value="1" checked> 必填 <span style="color:#8D0505">*</span></label>
         <label class="sd-req-opt"><input type="radio" name="sdRequired" value="0"> 选填 <span style="color:#4A4848">(optional)</span></label>
       </div>
+      <label class="mfl">隐藏规格</label>
+      <label class="ch-chk" id="sdPosOnlyChk" style="display:inline-flex"><input type="checkbox" id="sdPosOnly" onchange="_sdPosOnlyToggle()"> 🔒 整组仅POS · 小程序看不到</label>
       <label class="mfl">销售渠道</label>
-      <div class="ch-hint">这组规格开放给哪些点餐方式。一个都不勾 = 全渠道开放</div>
+      <div class="ch-hint" id="sdChanHint">这组规格开放给哪些点餐方式。一个都不勾 = 全渠道开放</div>
       <div class="ch-box" id="sdChannels"></div>
-      <label class="mfl">选项</label>
+      <label class="mfl">选项 <span style="font-weight:400;color:#4A4848;font-size:12px">（🔒 = 该选项仅POS，小程序看不到）</span></label>
       <div id="sdOptRows"></div>
       <div class="mi-add-wrap"><button type="button" class="mi-add-round" onclick="sdAddOptRow()">＋</button></div>
       <button class="mfs" onclick="saveSD()">保存 Save</button>
@@ -1737,6 +1740,13 @@ function _miPosOnlyToggle(){
   var box=document.getElementById('miChannels'), hint=document.getElementById('miChanHint');
   if(box){ box.style.opacity=on?'.35':''; box.style.pointerEvents=on?'none':''; }
   if(hint){ hint.textContent=on?'已隐藏：只在 POS 卖，小程序看不到':'一个都不勾 = 全渠道开放'; }
+}
+/* 规格组的「整组仅POS」开关：跟商品那个一样把渠道锁成内部码 */
+function _sdPosOnlyToggle(){
+  var on=document.getElementById('sdPosOnly').checked;
+  var box=document.getElementById('sdChannels'), hint=document.getElementById('sdChanHint');
+  if(box){ box.style.opacity=on?'.35':''; box.style.pointerEvents=on?'none':''; }
+  if(hint){ hint.textContent=on?'已隐藏：整组只在 POS 卖，小程序看不到':'这组规格开放给哪些点餐方式。一个都不勾 = 全渠道开放'; }
 }
 /* 列表上展示某行的开放渠道 */
 function _chTagsHtml(channels){
@@ -4766,15 +4776,16 @@ function chDel(id){
 }
 
 var _sdEditId=null;
-function _sdOptRowHtml(value, soldOut, price){
-  soldOut=!!soldOut;
-  return'<div class="sd-opt-row" data-soldout="'+(soldOut?'1':'0')+'"><input class="mfi sd-opt-name" value="'+esc(value||'')+'" placeholder="选项，如 M / L / XL">'
+function _sdOptRowHtml(value, soldOut, price, posOnly){
+  soldOut=!!soldOut; posOnly=!!posOnly;
+  return'<div class="sd-opt-row" data-soldout="'+(soldOut?'1':'0')+'" data-posonly="'+(posOnly?'1':'0')+'"><input class="mfi sd-opt-name" value="'+esc(value||'')+'" placeholder="选项，如 M / L / XL">'
     +'<input class="mfi sd-opt-price" type="number" step="0.1" value="'+(price!=null?esc(price):'')+'" placeholder="加价 RM" title="默认加价，商品可以逐个覆盖">'
+    +'<button type="button" class="sd-opt-toggle'+(posOnly?' is-posonly':'')+'" onclick="_sdToggleOptPos(this)" title="勾了这个选项只在 POS 卖，小程序看不到">'+(posOnly?'🔒仅POS':'🔒')+'</button>'
     +'<button type="button" class="sd-opt-toggle'+(soldOut?' is-soldout':'')+'" onclick="_sdToggleOptRow(this)">'+(soldOut?'已下架':'下架')+'</button>'
     +'<button type="button" class="mi-spec-rm" onclick="this.parentElement.remove()">✕</button></div>';
 }
-function sdAddOptRow(value, soldOut, price){
-  document.getElementById('sdOptRows').insertAdjacentHTML('beforeend',_sdOptRowHtml(value, soldOut, price));
+function sdAddOptRow(value, soldOut, price, posOnly){
+  document.getElementById('sdOptRows').insertAdjacentHTML('beforeend',_sdOptRowHtml(value, soldOut, price, posOnly));
 }
 function _sdToggleOptRow(btn){
   var row=btn.closest('.sd-opt-row');
@@ -4783,18 +4794,26 @@ function _sdToggleOptRow(btn){
   btn.textContent=soldOut?'已下架':'下架';
   btn.classList.toggle('is-soldout', soldOut);
 }
+function _sdToggleOptPos(btn){
+  var row=btn.closest('.sd-opt-row');
+  var on=row.getAttribute('data-posonly')!=='1';
+  row.setAttribute('data-posonly', on?'1':'0');
+  btn.textContent=on?'🔒仅POS':'🔒';
+  btn.classList.toggle('is-posonly', on);
+}
 function _sdCollectOptions(){
-  var rows=document.querySelectorAll('#sdOptRows .sd-opt-row'), options=[], soldOut=[], prices={};
+  var rows=document.querySelectorAll('#sdOptRows .sd-opt-row'), options=[], soldOut=[], prices={}, posOnly=[];
   for(var i=0;i<rows.length;i++){
     var v=rows[i].querySelector('.sd-opt-name').value.trim();
     if(!v) continue;
     options.push(v);
     if(rows[i].getAttribute('data-soldout')==='1') soldOut.push(v);
+    if(rows[i].getAttribute('data-posonly')==='1') posOnly.push(v);
     // 加价留空 = 不加价；填 0 跟留空一样，都不用存
     var p=rows[i].querySelector('.sd-opt-price').value.trim();
     if(p!=='' && Number(p)) prices[v]=Number(p);
   }
-  return {options:options, soldOut:soldOut, prices:Object.keys(prices).length?prices:null};
+  return {options:options, soldOut:soldOut, prices:Object.keys(prices).length?prices:null, posOnly:posOnly};
 }
 function sdAdd(){
   if(!db){showN('未连接云端');return;}
@@ -4803,6 +4822,7 @@ function sdAdd(){
   document.getElementById('sdName').value='';
   document.querySelector('input[name="sdRequired"][value="1"]').checked=true;
   _chFill('sdChannels', null);
+  document.getElementById('sdPosOnly').checked=false; _sdPosOnlyToggle();
   document.getElementById('sdOptRows').innerHTML='';
   document.getElementById('sdBg').classList.add('show');
 }
@@ -4813,12 +4833,16 @@ function sdEdit(id){
   document.getElementById('sdTitle').textContent='编辑规格';
   document.getElementById('sdName').value=r.name||'';
   document.querySelector('input[name="sdRequired"][value="'+(r.required===false?'0':'1')+'"]').checked=true;
-  _chFill('sdChannels', r.channels);
+  var sdPosOnly=_isPosOnly(r.channels);
+  document.getElementById('sdPosOnly').checked=sdPosOnly;
+  _chFill('sdChannels', sdPosOnly?null:r.channels);
+  _sdPosOnlyToggle();
   document.getElementById('sdOptRows').innerHTML='';
-  var soldSet={};
+  var soldSet={}, posSet={};
   (r.sold_out_options||[]).forEach(function(v){ soldSet[v]=true; });
+  (r.pos_only_options||[]).forEach(function(v){ posSet[v]=true; });
   var op=r.option_prices||{};
-  (r.options||[]).forEach(function(o){ sdAddOptRow(o, !!soldSet[o], op[o]!=null?op[o]:null); });
+  (r.options||[]).forEach(function(o){ sdAddOptRow(o, !!soldSet[o], op[o]!=null?op[o]:null, !!posSet[o]); });
   document.getElementById('sdBg').classList.add('show');
 }
 function closeSD(){document.getElementById('sdBg').classList.remove('show');}
@@ -4859,7 +4883,8 @@ function saveSD(){
   if(!collected.options.length){showN('请至少填写一个选项');return;}
   var reqEl=document.querySelector('input[name="sdRequired"]:checked');
   var payload={name:name,options:collected.options,sold_out_options:collected.soldOut,required:!reqEl||reqEl.value==='1',
-    channels:_chCollect('sdChannels'), option_prices:collected.prices};
+    channels:(document.getElementById('sdPosOnly').checked?[POS_ONLY_CHAN]:_chCollect('sdChannels')),
+    option_prices:collected.prices, pos_only_options:collected.posOnly};
   if(_sdEditId){
     var oldDef=(_specDefs||[]).find(function(x){return String(x.id)===String(_sdEditId);});
     var oldOptions=oldDef?(oldDef.options||[]).slice():[];
