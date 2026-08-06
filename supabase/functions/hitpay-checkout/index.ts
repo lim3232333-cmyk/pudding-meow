@@ -57,6 +57,18 @@ Deno.serve(async (req: Request) => {
     form.set("purpose", "布丁喵订单 #" + orderId);
     if (input.customerName) form.set("name", String(input.customerName).slice(0, 100));
     if (input.customerPhone) form.set("phone", String(input.customerPhone).slice(0, 30));
+
+    // HitPay 的收银页把 email 设成必填（官方确认无法在后台关掉），客人只留手机号、没有邮箱，
+    // 会被这个空的必填框卡住。所以这里一定给它带一个 email：有真实邮箱就用真实的，
+    // 否则用手机号合成一个（send_email=false，HitPay 不会真的往这个地址发信，纯粹为了过必填校验）。
+    const GUEST_DOMAIN = Deno.env.get("HITPAY_GUEST_EMAIL_DOMAIN") || "guest.puddingmeow.my";
+    const rawEmail = String(input.customerEmail || "").trim();
+    const phoneDigits = String(input.customerPhone || "").replace(/\D/g, "");
+    const email = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(rawEmail)
+      ? rawEmail
+      : (phoneDigits ? `${phoneDigits}@${GUEST_DOMAIN}` : `guest@${GUEST_DOMAIN}`);
+    form.set("email", email);
+
     form.set("send_sms", "false");
     form.set("send_email", "false");
     form.set("allow_repeated_payments", "false");
