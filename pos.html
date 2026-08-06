@@ -258,7 +258,13 @@ body.ds-on{user-select:none;-webkit-user-select:none;}
 .item-cat-name{font-size:24px;line-height:29px;font-weight:700;color:#8D0505;}
 .item-grid-wrap{flex:1;overflow-y:auto;}
 /* Item cards — 4 per row, stretch to fill (Figma 990:1431 uses 1fr columns) */
-.item-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:16px;}
+/* 有子分类时不再用顶部筛选 chip，改成小程序那样按子分类分段：整块纵向排，每段一个 4 列子网格 */
+.item-grid{display:flex;flex-direction:column;gap:16px;padding:16px;}
+.item-grid-sec{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+/* 子分类标题条（Figma 21:4 同款：天蓝底 + 红竖标 + 红字，中英同行）*/
+.item-sub-title{display:flex;align-items:center;gap:10px;height:40px;padding:0 14px;background:#B6F3FF;border-radius:8px;box-sizing:border-box;}
+.item-sub-title::before{content:'';flex-shrink:0;width:4px;height:24px;background:#8D0505;border-radius:2px;}
+.item-sub-title span{font-weight:700;font-size:20px;color:#8D0505;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .item-view-foot{flex-shrink:0;display:flex;justify-content:flex-end;gap:32px;padding:12px 22px;}
 /* Back / OK 按钮：Figma 990:1631 —— 150×58，36px。OK 绿底白字，Back 灰底深灰字 */
 .item-back-btn,.item-ok-btn{width:150px;height:60px;padding:0;border:none;border-radius:16px;font-size:36px;line-height:43px;font-weight:700;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
@@ -1939,21 +1945,26 @@ function showItems(cat){
 }
 /* 子分类筛选：点一下只看这个子分类。传给 addItem 的下标必须是品项在 MENU[cat].items
    里的原始位置，所以这里只过滤显示、不重排数组。 */
-function subPick(code){ _curSub=code||null; renderItemList(); }
 function renderItemList(){
   var cat=_curCat, mc=MENU[cat]||{items:[],en:catNameEn(cat)};
   var subs=catSubs(cat,true);
-  var subName=_curSub?catNameEn(_curSub):'';
-  document.getElementById('itemCatName').innerHTML='<span class="bc-cur">'+esc(mc.en)+'</span>'
-    +(subName?'<span class="bc-cur"> · '+esc(subName)+'</span>':'');
-  document.getElementById('itemSubBar').innerHTML=subs.length
-    ? '<button class="sub-chip'+(_curSub?'':' a')+'" onclick="subPick(\'\')">全部</button>'
-      +subs.map(function(s){ return'<button class="sub-chip'+(_curSub===s.code?' a':'')+'" onclick="subPick(\''+esc(s.code)+'\')">'+esc(s.name)+'</button>'; }).join('')
-    : '';
+  document.getElementById('itemCatName').innerHTML='<span class="bc-cur">'+esc(mc.en)+'</span>';
+  document.getElementById('itemSubBar').innerHTML='';   // 不再用子分类筛选按钮
+  var items=mc.items||[];
+  var codes={}; subs.forEach(function(s){ codes[s.code]=1; });
+  // 未分子分类的（或子分类被停用/删掉的）排最前、无标题；其余按子分类分段
+  var bucket={}, loose=[];
+  items.forEach(function(item,i){
+    if(item.subcat && codes[item.subcat]) (bucket[item.subcat]=bucket[item.subcat]||[]).push(i);
+    else loose.push(i);
+  });
+  var card=function(i){ return '<div class="item-card" onclick="addItem(\''+cat+'\','+i+')"><div class="ic-name">'+esc(items[i].name)+'</div></div>'; };
+  var sec=function(idxs){ return '<div class="item-grid-sec">'+idxs.map(card).join('')+'</div>'; };
   var html='';
-  (mc.items||[]).forEach(function(item,i){
-    if(_curSub && (item.subcat||'')!==_curSub) return;
-    html+='<div class="item-card" onclick="addItem(\''+cat+'\','+i+')"><div class="ic-name">'+esc(item.name)+'</div></div>';
+  if(loose.length) html+=sec(loose);
+  subs.forEach(function(s){
+    var idxs=bucket[s.code]; if(!idxs||!idxs.length) return;
+    html+='<div class="item-sub-title"><span>'+esc(s.name)+(s.name_en&&s.name_en!==s.name?(' '+esc(String(s.name_en).toUpperCase())):'')+'</span></div>'+sec(idxs);
   });
   document.getElementById('itemGrid').innerHTML=html||'<div style="padding:30px;color:#4A4848">（这个分类下暂无品项）</div>';
 }
