@@ -1410,10 +1410,11 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       </div>
       <div id="cpnValueWrap">
         <label class="mfl" id="cpnValueLbl">优惠数值 *</label><input class="mfi" id="cpnValue" type="number" step="0.1" placeholder="0">
-        <label class="mfl">最低消费门槛</label>
-        <div class="mfh">留空/0 = 无门槛。门槛看的是整单小计，跟适用范围无关</div>
-        <input class="mfi" id="cpnMinSpend" type="number" step="0.1" placeholder="0">
       </div>
+      <!-- 最低消费门槛：所有类型都能设（含甜品券），门槛按整单小计判，不随类型隐藏 -->
+      <label class="mfl">最低消费门槛</label>
+      <div class="mfh">留空/0 = 无门槛。门槛看整单小计，跟适用范围/类型无关（甜品券也能设「满 RMxx 才能换」）</div>
+      <input class="mfi" id="cpnMinSpend" type="number" step="0.1" placeholder="0">
       <label class="mfl">有效期 *</label>
       <select class="mfi" id="cpnExpMode" onchange="cpnSyncExp()">
         <option value="days">期限内（发放后 N 天）</option>
@@ -4292,11 +4293,15 @@ function renderLoyaltyCouponsBody(){
   if(!_loyaltyMemberCoupons.length){ html+='<tr><td colspan="6" style="text-align:center;padding:30px;color:#4A4848">暂无已发放的优惠券</td></tr>'; }
   else{
     var stLbl={unused:'<span style="color:#1D7715">未使用</span>',used:'<span style="color:#4A4848">已使用</span>',expired:'<span style="color:#8D0505">已过期</span>'};
+    var redeemBtn=function(id){return '<button onclick="cpnRedeem(\''+id+'\')" style="border:none;background:#FFDE5B;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">核销</button>';};
+    var revokeBtn=function(id){return '<button onclick="cpnRevoke(\''+id+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">撤销</button>';};
     _loyaltyMemberCoupons.forEach(function(mc){
+      // 未使用：可核销 / 可撤销；已过期：可撤销清理；已使用：真实消费记录，不给删
+      var ops=mc.status==='unused'?(redeemBtn(mc.id)+revokeBtn(mc.id)):(mc.status==='expired'?revokeBtn(mc.id):'—');
       html+='<tr><td><b>'+esc(mc.member_nickname||'—')+'</b></td><td>'+esc(mc.member_phone)+'</td><td>'+esc(mc.coupon_name)+'</td>'
         +'<td>'+(stLbl[mc.status]||mc.status)+'</td>'
         +'<td style="font-size:12px;color:#4A4848">'+new Date(mc.issued_at).toLocaleDateString()+'</td>'
-        +'<td>'+(mc.status==='unused'?('<button onclick="cpnRedeem(\''+mc.id+'\')" style="border:none;background:#FFDE5B;color:#8D0505;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">核销</button>'):'—')+'</td></tr>';
+        +'<td style="white-space:nowrap">'+ops+'</td></tr>';
     });
   }
   html+='</tbody></table></div>';
@@ -4382,7 +4387,7 @@ function saveCpn(){
   var payload={
     name:name, type:type,
     value:isDessert?0:value,
-    min_spend:isDessert?0:(parseFloat(document.getElementById('cpnMinSpend').value)||0),
+    min_spend:(parseFloat(document.getElementById('cpnMinSpend').value)||0),
     valid_days:forever?null:validDays,   // null = 永久有效
     enabled:document.getElementById('cpnEnabled').checked,
     coin_price:coinRaw===''?null:(parseInt(coinRaw,10)||0),
@@ -4429,6 +4434,14 @@ function cpnRedeem(memberCouponId){
   db.rpc('rpc_pos_use_coupon',{p_member_coupon_id:memberCouponId,p_order_id:null}).then(function(res){
     if(res.error){showN(''+res.error.message);return;}
     showN('已核销');loadLoyaltyCoupons();
+  }).catch(function(e){showN('网络错误');});
+}
+/* 撤销/删除已发放的券（会员就没有这张券了）。只对未使用/已过期开放；已使用的服务端会拦。 */
+function cpnRevoke(memberCouponId){
+  if(!confirm('确定撤销这张已发放的优惠券吗？撤销后该会员就没有这张券了，不可恢复。'))return;
+  db.rpc('rpc_admin_revoke_member_coupon',{p_member_coupon_id:memberCouponId}).then(function(res){
+    if(res.error){showN(_rpcErr?_rpcErr(res.error):(''+res.error.message));return;}
+    showN('已撤销');loadLoyaltyCoupons();
   }).catch(function(e){showN('网络错误');});
 }
 
