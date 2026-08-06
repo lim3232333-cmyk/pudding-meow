@@ -5028,8 +5028,8 @@ function _pmValTxt(c){
 /* 券的使用条件一行：单品券写清楚打哪件商品、只打一份 */
 function _couponCondTxt(c){
   var min=Number(c.min_spend)>0 ? ('满 RM'+Number(c.min_spend).toFixed(2)+'可用') : '';
-  // 甜品券：商品名 +（有门槛时）满减小字，之前漏了门槛
-  if(c.type==='dessert'){ var nm=_esc(c.menu_item_name||'指定商品'); return min?(nm+' · '+min):nm; }
+  // 甜品券：券名在标题已显示，灰字只留门槛
+  if(c.type==='dessert') return min || '无门槛';
   if(c.menu_item_id){ var s='仅 '+_esc(c.menu_item_name||'指定商品')+'（一份）'; return min?(s+' · '+min):s; }
   return min || '无门槛';
 }

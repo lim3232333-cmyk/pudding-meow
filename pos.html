@@ -4275,7 +4275,7 @@ function renderLoyaltyCouponsBody(){
     _loyaltyCoupons.forEach(function(c){
       html+='<tr'+(c.enabled?'':' style="opacity:.5"')+'><td><b>'+esc(c.name)+'</b></td>'
         +'<td>'+(_CPN_TYPE_CN[c.type]||esc(c.type||''))+'</td><td>'+_cpnValTxt(c)+'</td>'
-        +'<td>'+(c.type==='dessert'?'—':(c.min_spend>0?('满 RM'+c.min_spend):'无门槛'))+'</td>'
+        +'<td>'+(c.min_spend>0?('满 RM'+c.min_spend):'无门槛')+'</td>'
         +'<td>'+(Number(c.valid_days)>0?(c.valid_days+' 天'):'<b>永久</b>')+'</td>'
         +'<td style="font-size:12px">'+_cpnIssueTxt(c)+'</td>'
         +'<td>'+(c.coin_price?('<b>'+c.coin_price+' Coin</b>'):'<span style="color:#4A4848">未上架</span>')+'</td>'
