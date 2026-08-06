@@ -2611,18 +2611,21 @@ function _renderReceipt(o, mem){
    触发重绘，交给调用方（updPend/showPending 的过滤自然会排除掉，定时器则显式刷新）。 */
 var HITPAY_STALE_MS=15*60*1000;
 function _sweepStaleOnlinePend(){
-  var now=Date.now(), changed=0;
+  // 弃单直接删除（不留「已作废」）：「已作废」只该来自店员手动 Void。
+  // delete 带 status=pending 守卫：付款成功(webhook 已翻 preparing)的单绝不会被误删。
+  var now=Date.now(), del=[];
   _orders.forEach(function(o){
     if(o.status!=='pending' || o.payMethod!=='hitpay' || o.taMode==='reservation') return;
     var t=new Date(o.createdAt).getTime();
     if(!isFinite(t) || now-t < HITPAY_STALE_MS) return;
-    o.status='void'; changed++;
-    if(db){ db.from('orders').update({status:'void'}).eq('id',o.id).eq('status','pending')
-      .then(function(res){ if(res&&res.error) console.error('sweep void', res.error); })
-      .catch(function(e){ console.error('sweep void', e); }); }
+    del.push(o.id);
+    if(db){ db.from('orders').delete().eq('id',o.id).eq('status','pending')
+      .then(function(res){ if(res&&res.error) console.error('sweep del', res.error); })
+      .catch(function(e){ console.error('sweep del', e); }); }
   });
-  if(changed){ try{ sj('pm_orders',_orders); }catch(e){} try{ pmBroadcastOrders(); }catch(e){} }
-  return changed;
+  if(del.length){ _orders=_orders.filter(function(o){return del.indexOf(o.id)<0;});
+    try{ sj('pm_orders',_orders); }catch(e){} try{ pmBroadcastOrders(); }catch(e){} }
+  return del.length;
 }
 function updPend(){
   _sweepStaleOnlinePend();
