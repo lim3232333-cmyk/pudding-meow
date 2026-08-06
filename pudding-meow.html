@@ -3397,14 +3397,15 @@ function _pmMarkHitpayAwait(id){ try{
 function _pmClearHitpayAwait(){ try{ sessionStorage.removeItem(_HP_AWAIT); }catch(e){} }
 function _pmClearHitpayCart(){ try{ sessionStorage.removeItem(_HP_CART); }catch(e){} }
 function _pmVoidAbandonedOrder(id){
-  // 本地移除 + 云端作废；.eq('status','pending') 守卫：webhook 若已把它翻成 preparing，这条 update 自动空转
+  // 弃单直接删除，不留「已作废」记录（「已作废」只该来自店员手动 Void）。
+  // 本地移除 + 云端删除；.eq('status','pending') 守卫：webhook 若已把它翻成 preparing（=真付了），这条 delete 自动空转，绝不会误删已付单。
   _orders = _orders.filter(function(x){ return x.id!==id; });
   try{ var ex=JSON.parse(localStorage.getItem('pm_orders')||'[]').filter(function(x){return x.id!==id;}); localStorage.setItem('pm_orders',JSON.stringify(ex)); }catch(e){}
   try{ pmBroadcastOrders(); }catch(e){}      // 同源 POS 实时刷新待付款
   try{ renderOrdersList(); }catch(e){}
-  if(db){ db.from('orders').update({status:'void'}).eq('id',id).eq('status','pending')
-    .then(function(res){ if(res&&res.error) console.error('void abandoned hitpay', res.error); })   // 跨设备 POS 靠 orders realtime 清掉
-    .catch(function(e){ console.error('void abandoned hitpay', e); }); }
+  if(db){ db.from('orders').delete().eq('id',id).eq('status','pending')
+    .then(function(res){ if(res&&res.error) console.error('delete abandoned hitpay', res.error); })   // 跨设备 POS 靠 orders realtime 清掉
+    .catch(function(e){ console.error('delete abandoned hitpay', e); }); }
 }
 function _pmReopenCheckoutAfterAbandon(){
   try{
@@ -3754,10 +3755,11 @@ function _doConfirmOrder(discount, couponId, presetId){
       db.rpc('rpc_pay_with_wallet', {p_member_id:_memberId, p_session_token:_memberToken, p_order_id:order.id, p_amount:order.total}).then(function(r){
         if(r && r.error){
           console.error('rpc_pay_with_wallet', r.error);
-          // 扣款失败（余额不足/竞态）：撤掉这单（本地移除 + 云端标 void）
+          // 扣款失败（余额不足/竞态）：撤掉这单（本地移除 + 云端直接删除，不留「已作废」）。
+          // rpc 是原子的，失败即没扣钱、这单从没付成，删掉最干净。
           _orders = _orders.filter(function(x){ return x.id!==order.id; });
           try{ var ex2=JSON.parse(localStorage.getItem('pm_orders')||'[]').filter(function(x){return x.id!==order.id;}); localStorage.setItem('pm_orders',JSON.stringify(ex2)); }catch(e){}
-          try{ if(db) db.from('orders').update({status:'void'}).eq('id',order.id); }catch(e){}
+          try{ if(db) db.from('orders').delete().eq('id',order.id); }catch(e){}
           try{ pmBroadcastOrders(); }catch(e){}
           alert('余额支付失败：'+(r.error.message||'请重试或改用其他付款方式'));
           return;
