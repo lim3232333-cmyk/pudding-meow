@@ -1255,6 +1255,7 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       <div class="mfh" id="mcCodeHint">英文小写代号，保存后不能改</div>
       <input class="mfi" id="mcCode" placeholder="如：dk_milktea">
       <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="mcEnabled" checked style="width:auto;margin:0;"> 启用</label>
+      <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="mcPosOnly" style="width:auto;margin:0;"> 🔒 仅POS · 小程序看不到（含其下所有商品）</label>
       <button class="mfs" onclick="saveMC()">保存 Save</button>
 </div>
 </div>
@@ -4542,7 +4543,8 @@ function itemsAdminHtml(){
     html+='<div class="tx-card" style="margin-bottom:16px" data-sid="'+esc(cat.id)+'" data-so="'+(cat.sort_order||0)+'">'
       +'<div class="tx-ch" style="align-items:center">'
       +'<h3>'+esc(cat.name)+' <span style="color:#4A4848;font-size:13px;font-weight:400">'+esc(cat.name_en||'')+' · '+esc(c)+'</span>'
-      +(cat.enabled===false?' <span style="color:#8D0505;font-size:13px">（已停用）</span>':'')+'</h3>'
+      +(cat.enabled===false?' <span style="color:#8D0505;font-size:13px">（已停用）</span>':'')
+      +(cat.pos_only?' <span style="color:#202055;font-size:13px">🔒仅POS</span>':'')+'</h3>'
       +'<div class="mg-acts">'
       +'<button class="mg-btn add" onclick="mcAdd(\''+esc(c)+'\')">＋ 子分类</button>'
       +'<button class="mg-btn add" onclick="menuAdd(\''+esc(c)+'\',\'\')">＋ 商品</button>'
@@ -4555,7 +4557,8 @@ function itemsAdminHtml(){
     subs.forEach(function(s){
       html+='<div class="mg-sub" data-sid="'+esc(s.id)+'" data-so="'+(s.sort_order||0)+'">'
         +'<div class="mg-subhd"><b>'+esc(s.name)+' <span style="font-weight:400;color:#4A4848;font-size:12px">'+esc(s.name_en||'')+' · '+esc(s.code)+'</span>'
-        +(s.enabled===false?' <span style="color:#8D0505;font-size:12px">（已停用）</span>':'')+'</b>'
+        +(s.enabled===false?' <span style="color:#8D0505;font-size:12px">（已停用）</span>':'')
+        +(s.pos_only?' <span style="color:#202055;font-size:12px">🔒仅POS</span>':'')+'</b>'
         +'<div class="mg-acts">'
         +'<button class="mg-btn add" onclick="menuAdd(\''+esc(c)+'\',\''+esc(s.code)+'\')">＋ 商品</button>'
         +'<button class="mg-btn edit" onclick="mcEdit(\''+esc(s.id)+'\')">改</button>'
@@ -4639,6 +4642,7 @@ function mcAdd(parentCode){
   document.getElementById('mcCode').disabled=false;
   document.getElementById('mcCodeHint').textContent='英文小写代号，如 dk_milktea。保存后不能改';
   document.getElementById('mcEnabled').checked=true;
+  document.getElementById('mcPosOnly').checked=false;
   document.getElementById('mcBg').classList.add('show');
 }
 function mcEdit(id){
@@ -4653,6 +4657,7 @@ function mcEdit(id){
   document.getElementById('mcCode').disabled=true;   // 商品行存的是代号，改了就对不上
   document.getElementById('mcCodeHint').textContent='代号已被商品引用，不能改';
   document.getElementById('mcEnabled').checked=r.enabled!==false;
+  document.getElementById('mcPosOnly').checked=!!r.pos_only;
   document.getElementById('mcBg').classList.add('show');
 }
 function closeMC(){document.getElementById('mcBg').classList.remove('show');}
@@ -4661,7 +4666,8 @@ function saveMC(){
   var name=document.getElementById('mcName').value.trim();
   if(!name){showN('请填写分类名称');return;}
   var payload={name:name, name_en:document.getElementById('mcNameEn').value.trim()||null,
-    enabled:document.getElementById('mcEnabled').checked};
+    enabled:document.getElementById('mcEnabled').checked,
+    pos_only:document.getElementById('mcPosOnly').checked};
   if(_mcEditId){
     db.from('menu_categories').update(payload).eq('id',_mcEditId)
       .then(function(res){_mcAfterWrite(res,'已保存');}).catch(function(e){showN('网络错误');});
