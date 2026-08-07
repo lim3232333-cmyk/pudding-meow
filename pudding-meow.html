@@ -4434,16 +4434,11 @@ function _memThemeLevel(lvl){
 /* 卡上显示的等级序号 Lv.N：按排名 +1（青铜=Lv.1、白银=Lv.2…钻石=Lv.5），不封顶。
    跟 _memThemeLevel（卡片配色，只有灰/橙/蓝/黄/暗红 4 种非灰色，所以封顶 4）分开——
    等级多于 4 级时颜色会复用暗红，但序号照样往上加。 */
-function _memLevelRank(lvl){
-  if(!lvl || lvl.id == null) return 1;
-  var idx = _memberLevels.findIndex(function(l){ return l.id === lvl.id; });
-  return (idx < 0 ? 0 : idx) + 1;
-}
-/* 卡上等级序号文案：最高等级用「Lv.Max」暗红封顶，其余按序号 Lv.1 / Lv.2 …
-   （青铜 Lv.1 → 白银 Lv.2 → 黄金 Lv.3 → 铂金 Lv.4 → 钻石 Lv.Max） */
+/* 卡上等级序号文案：跟卡片配色一致——暗红（第 4 档）即封顶显示「Lv.Max」，其余按档位。
+   青铜 Lv.1 / 白银 Lv.2 / 黄金 Lv.3 / 铂金·钻石 都是暗红 → Lv.Max。 */
 function _memLevelLabel(lvl){
-  var rank = _memLevelRank(lvl);
-  return (_memberLevels.length && rank >= _memberLevels.length) ? 'Lv.Max' : ('Lv.'+rank);
+  var t = _memThemeLevel(lvl);
+  return t >= 4 ? 'Lv.Max' : ('Lv.'+t);
 }
 
 /* 会员卡左侧按等级换的 Lottie 动画（循环播放）。0猫咪蛋/1新生小猫/2幼猫/3青年猫/4布丁猫(Max)。
