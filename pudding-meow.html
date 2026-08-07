@@ -4439,6 +4439,12 @@ function _memLevelRank(lvl){
   var idx = _memberLevels.findIndex(function(l){ return l.id === lvl.id; });
   return (idx < 0 ? 0 : idx) + 1;
 }
+/* 卡上等级序号文案：最高等级用「Lv.Max」暗红封顶，其余按序号 Lv.1 / Lv.2 …
+   （青铜 Lv.1 → 白银 Lv.2 → 黄金 Lv.3 → 铂金 Lv.4 → 钻石 Lv.Max） */
+function _memLevelLabel(lvl){
+  var rank = _memLevelRank(lvl);
+  return (_memberLevels.length && rank >= _memberLevels.length) ? 'Lv.Max' : ('Lv.'+rank);
+}
 
 /* 会员卡左侧按等级换的 Lottie 动画（循环播放）。0猫咪蛋/1新生小猫/2幼猫/3青年猫/4布丁猫(Max)。
    lottie 没加载出来（本地文件缺失/被挡）就留空，不影响卡片其余部分。 */
@@ -4571,7 +4577,7 @@ function renderProfileScreen(){
     homeEl.className = 'mem-lvl-' + themeLv;
     _renderMemCat(themeLv);
     document.getElementById('memName').textContent = _memberProfile.nickname ||'喵星人';
-    document.getElementById('memLevelNum').textContent = 'Lv.'+_memLevelRank(lvl);
+    document.getElementById('memLevelNum').textContent = _memLevelLabel(lvl);
     document.getElementById('memLevelName').textContent = lvl.name_cn||'';
     // 窄格三等分，余额带小数会撑破比例：这里只显示整块钱（_fmtWalletShort），精确余额看充值页 / 结算页
     var _wb=Number(_memberProfile.wallet_balance)||0;
@@ -4585,7 +4591,7 @@ function renderProfileScreen(){
       var prog = span>0 ? Math.min(100, Math.max(0,(xp-(lvl.xp_required||0))/span*100)) : 100;
       bar.style.width = prog+'%';
       document.getElementById('memXpNow').textContent = xp+'/'+nextLvl.xp_required+' XP';
-      nextLbl.textContent ='再获得'+Math.max(0,nextLvl.xp_required-xp)+' XP即可升级到Lv.'+_memLevelRank(nextLvl)+' '+nextLvl.name_cn;
+      nextLbl.textContent ='再获得'+Math.max(0,nextLvl.xp_required-xp)+' XP即可升级到'+_memLevelLabel(nextLvl)+' '+nextLvl.name_cn;
     } else {
       bar.style.width='100%';
       document.getElementById('memXpNow').textContent = xp+' XP';
