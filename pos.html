@@ -1180,6 +1180,7 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
     <div class="mm-hd"><h3 id="sdTitle">新增规格</h3><button class="mm-cl" onclick="closeSD()">✕</button></div>
     <div class="mm-body">
       <label class="mfl">规格名称 *</label><input class="mfi" id="sdName" placeholder="如：尺寸 / 温度 / 口味">
+      <label class="mfl">English</label><input class="mfi" id="sdNameEn" placeholder="如：Size / Temperature / Flavor（POS 面包屑用英文，留空则用中文名）">
       <label class="mfl">必填 / 选填</label>
       <div class="sd-req-row">
         <label class="sd-req-opt"><input type="radio" name="sdRequired" value="1" checked> 必填 <span style="color:#8D0505">*</span></label>
@@ -2038,7 +2039,13 @@ function _updateSpecBreadcrumb(){
   var parts=[MENU[c.cat].en];
   if(it.subcat){ var sn=catNameEn(it.subcat); if(sn) parts.push(sn); }   // 商品所在子分类也进面包屑
   parts.push(it.name);
-  for(var s=0;s<=c.step;s++){ var g=c.groups[s]; var nm=g.name; if(!nm){ var v=(g.options||[])[c.sel[s]]; nm=v||''; } if(nm) parts.push(nm); }
+  for(var s=0;s<=c.step;s++){
+    var g=c.groups[s], nm=g.name;
+    // 规格组名优先用英文（规格库 name_en），POS 面包屑保持全英文
+    if(nm){ var d=g.defId?_specDefById(g.defId):null; if(d&&d.name_en) nm=d.name_en; }
+    else { var v=(g.options||[])[c.sel[s]]; nm=v||''; }
+    if(nm) parts.push(nm);
+  }
   document.getElementById('itemCatName').innerHTML=_crumbHtml(parts);
 }
 function pickSpecOpt(oi){ var c=_specCtx; var g=c.groups[c.step]; if(oi!==SKIP_SEL && _posOptSold(g.defId,g.options[oi]))return; c.sel[c.step]=oi; _renderSpecPicker(); }
@@ -4861,6 +4868,7 @@ function sdAdd(){
   _sdEditId=null;
   document.getElementById('sdTitle').textContent='新增规格';
   document.getElementById('sdName').value='';
+  document.getElementById('sdNameEn').value='';
   document.querySelector('input[name="sdRequired"][value="1"]').checked=true;
   _chFill('sdChannels', null);
   document.getElementById('sdPosOnly').checked=false; _sdPosOnlyToggle();
@@ -4873,6 +4881,7 @@ function sdEdit(id){
   _sdEditId=id;
   document.getElementById('sdTitle').textContent='编辑规格';
   document.getElementById('sdName').value=r.name||'';
+  document.getElementById('sdNameEn').value=r.name_en||'';
   document.querySelector('input[name="sdRequired"][value="'+(r.required===false?'0':'1')+'"]').checked=true;
   var sdPosOnly=_isPosOnly(r.channels);
   document.getElementById('sdPosOnly').checked=sdPosOnly;
@@ -4923,7 +4932,8 @@ function saveSD(){
   var collected=_sdCollectOptions();
   if(!collected.options.length){showN('请至少填写一个选项');return;}
   var reqEl=document.querySelector('input[name="sdRequired"]:checked');
-  var payload={name:name,options:collected.options,sold_out_options:collected.soldOut,required:!reqEl||reqEl.value==='1',
+  var payload={name:name,name_en:document.getElementById('sdNameEn').value.trim()||null,
+    options:collected.options,sold_out_options:collected.soldOut,required:!reqEl||reqEl.value==='1',
     channels:(document.getElementById('sdPosOnly').checked?[POS_ONLY_CHAN]:_chCollect('sdChannels')),
     option_prices:collected.prices, pos_only_options:collected.posOnly};
   if(_sdEditId){
