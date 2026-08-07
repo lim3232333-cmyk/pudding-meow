@@ -84,7 +84,33 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, skipped: true }); // 未完成/取消/失败的回调，不用处理
     }
 
-    // 只更新还是 pending 的订单，避免 HitPay 重试回调重复结算会员奖励
+    // 先读这张单，判断是「钱包充值」还是普通餐单——两者到账方式不同
+    const getRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/orders?id=eq.${encodeURIComponent(referenceNumber)}&select=id,ta_mode,member_id,total,status`,
+      { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } },
+    );
+    const found = await getRes.json().catch(() => []);
+    const order = Array.isArray(found) && found[0];
+    if (!order || order.status !== "pending") {
+      return json({ ok: true, skipped: true }); // 单不在 / 已处理过（防 HitPay 重试重复结算）
+    }
+
+    if (order.ta_mode === "recharge") {
+      // 钱包充值：走 rpc_complete_recharge，服务端给钱包加钱 + 送 coin，订单翻 done，
+      // 且只在还 pending 时生效（幂等），HitPay 重试回调不会重复到账。
+      const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/rpc_complete_recharge`, {
+        method: "POST",
+        headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ p_order_id: order.id }),
+      });
+      if (!rpcRes.ok) {
+        console.error("hitpay-webhook: rpc_complete_recharge failed", await rpcRes.text());
+        return json({ ok: false, error: "充值到账失败" });
+      }
+      return json({ ok: true, recharge: true });
+    }
+
+    // 普通餐单：pending → preparing（带 status=pending 守卫防重复），再结算会员 XP/Coin
     const patchRes = await fetch(
       `${SUPABASE_URL}/rest/v1/orders?id=eq.${encodeURIComponent(referenceNumber)}&status=eq.pending`,
       {
@@ -103,9 +129,8 @@ Deno.serve(async (req: Request) => {
       console.error("hitpay-webhook: order update failed", rows);
       return json({ ok: false, error: "订单更新失败" });
     }
-
-    const order = Array.isArray(rows) && rows[0];
-    if (order && order.member_id) {
+    const updated = Array.isArray(rows) && rows[0];
+    if (updated && updated.member_id) {
       const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/rpc_on_order_completed`, {
         method: "POST",
         headers: {
@@ -113,7 +138,7 @@ Deno.serve(async (req: Request) => {
           Authorization: `Bearer ${SERVICE_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ p_member_id: order.member_id, p_order_id: order.id, p_amount: order.total }),
+        body: JSON.stringify({ p_member_id: updated.member_id, p_order_id: updated.id, p_amount: updated.total }),
       });
       if (!rpcRes.ok) console.error("hitpay-webhook: rpc_on_order_completed failed", await rpcRes.text());
     }

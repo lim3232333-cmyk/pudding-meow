@@ -1579,8 +1579,9 @@
       <div class="rc-pkg-grid" id="rcPkgGrid"></div>
       <div class="rc-pay-methods">
         <div class="rc-pay-row" onclick="selectRcPay('counter')"><span class="rc-pay-dot selected" id="rcPayDotCounter"></span><span class="rc-pay-label">柜台支付 (Cash/DuitNow)</span></div>
+        <div class="rc-pay-row" onclick="selectRcPay('online')"><span class="rc-pay-dot" id="rcPayDotOnline"></span><span class="rc-pay-label">在线支付 (Touch n Go / Online Banking / 信用卡)</span></div>
 </div>
-      <div class="rc-pay-note">充值只在柜台付款：提交后请到柜台以现金 / DuitNow 支付，店员确认收款后余额到账。</div>
+      <div class="rc-pay-note" id="rcPayNote">充值只在柜台付款：提交后请到柜台以现金 / DuitNow 支付，店员确认收款后余额到账。</div>
       <button class="rc-cta" onclick="doRecharge()">充值</button>
       <div class="rc-tx-title">交易明细</div>
       <div class="rc-tx-card" id="rcTxList"></div>
@@ -3469,27 +3470,37 @@ function _pmShowHitpaySuccess(){
   try{ document.getElementById('successHitpay').classList.add('show'); }catch(e){}
 }
 var _PAID_STATES={preparing:1, paid:1, ready:1, done:1};
+/* 充值在线支付：跟餐单共用 HitPay 回程逻辑，但成功/放弃的收尾不同（回充值页、不开餐单结算页）*/
+function _pmIsRechargeReturn(){ try{ return sessionStorage.getItem('pm_hp_recharge')==='1'; }catch(e){ return false; } }
+function _pmClearRecharge(){ try{ sessionStorage.removeItem('pm_hp_recharge'); }catch(e){} }
+function _pmRechargeSuccess(){
+  try{ refreshMemberProfile(); }catch(e){}      // 余额已到账，刷新会员卡
+  try{ if(typeof openRecharge==='function') openRecharge(); }catch(e){}   // 回充值页看到新余额+明细
+  try{ alert('充值成功！余额已到账。'); }catch(e){}
+}
 /* 以订单状态为准判定回程结果；completedHint=true（HitPay 说付成功了）时多轮复查等 webhook */
 function _pmSettleHitpayReturn(id, completedHint, tries){
-  if(!db){   // 离线没法核对：有成功提示就当成功，否则退回结算页（不误报已付）
-    if(completedHint){ _pmShowHitpaySuccess(); } else { _pmVoidAbandonedOrder(id); _pmReopenCheckoutAfterAbandon(); }
-    _pmClearHitpayCart(); return;
+  var isRc=_pmIsRechargeReturn();
+  var onPaid=function(){ isRc?_pmRechargeSuccess():_pmShowHitpaySuccess(); };
+  var onAbandon=function(){ _pmVoidAbandonedOrder(id); if(isRc){ try{ if(typeof openRecharge==='function') openRecharge(); }catch(e){} } else { _pmReopenCheckoutAfterAbandon(); } };
+  if(!db){   // 离线没法核对：有成功提示就当成功，否则删单退回（不误报已付）
+    if(completedHint){ onPaid(); } else { onAbandon(); }
+    _pmClearHitpayCart(); _pmClearRecharge(); return;
   }
   db.from('orders').select('status').eq('id',id).maybeSingle().then(function(res){
-    if(res && res.error){ _pmClearHitpayCart(); return; }   // 查不了就别乱动，下次可见再来
+    if(res && res.error){ _pmClearHitpayCart(); _pmClearRecharge(); return; }   // 查不了就别乱动，下次可见再来
     var st = res && res.data && res.data.status;
-    if(st && _PAID_STATES[st]){ _pmShowHitpaySuccess(); _pmClearHitpayCart(); return; }   // webhook 已确认付款
+    if(st && _PAID_STATES[st]){ onPaid(); _pmClearHitpayCart(); _pmClearRecharge(); return; }   // webhook 已确认付款（充值到 done、餐单到 preparing）
     // 仍 pending（或单已不在）：给 webhook 一点时间再定夺——completed 提示多等几轮，其余只等一轮
     var maxTries = completedHint ? 6 : 1;
     if((st==='pending' || st==null) && tries < maxTries){
       setTimeout(function(){ _pmSettleHitpayReturn(id, completedHint, tries+1); }, 1600);
       return;
     }
-    // 到点了还是 pending → 判定没付成功：作废、退回结算页
-    _pmVoidAbandonedOrder(id);
-    _pmReopenCheckoutAfterAbandon();
-    _pmClearHitpayCart();
-  }).catch(function(){ _pmClearHitpayCart(); });
+    // 到点了还是 pending → 判定没付成功：删单 + 收尾
+    onAbandon();
+    _pmClearHitpayCart(); _pmClearRecharge();
+  }).catch(function(){ _pmClearHitpayCart(); _pmClearRecharge(); });
 }
 function _pmResolveHitpayReturn(){
   var pid=null, hint='';
@@ -4935,9 +4946,16 @@ var _rcSelected = 0;
 var _rcAlreadyRecharged = false; // 已经充值过一次了：首充双倍徽章就不该再显示
 var _rcPayMethod ='counter';   // 充值只开放柜台支付
 function renderRcPayMethods(){
-  var c=document.getElementById('rcPayDotCounter'); if(c) c.classList.add('selected');
+  var online=_rcPayMethod==='online';
+  var c=document.getElementById('rcPayDotCounter'), o=document.getElementById('rcPayDotOnline');
+  if(c) c.classList.toggle('selected', !online);
+  if(o) o.classList.toggle('selected', online);
+  var note=document.getElementById('rcPayNote');
+  if(note) note.textContent = online
+    ? '在线支付：提交后跳转到支付页面，选好方式付款成功后余额自动到账。'
+    : '柜台付款：提交后请到柜台以现金 / DuitNow 支付，店员确认收款后余额到账。';
 }
-function selectRcPay(method){ _rcPayMethod='counter'; renderRcPayMethods(); }
+function selectRcPay(method){ _rcPayMethod = (method==='online') ? 'online' : 'counter'; renderRcPayMethods(); }
 /* 卡片（Figma 236:159 四态）：Paw Coin + 送的 Coin 数、下面 RM 价、
    右上角可选标签、左下角一个小图标——有赠品时点它弹出 more gift 浮层（Figma 824:792）。 */
 function _rcPkgHtml(p, idx){
@@ -5020,15 +5038,17 @@ function closeRecharge(){
 function doRecharge(){
   if(!_memberId || !_memberToken){ alert('请先登录会员'); return; }
   var p = RECHARGE_PACKAGES[_rcSelected];
-  // 充值 = 一条 orders 行（ta_mode=recharge），进 POS 待付款；店员柜台收款后
-  // 点「已付款」→ rpc_complete_recharge 给钱包加钱(=price) + 送 coin(=credit)
+  var online = _rcPayMethod==='online';
+  if(online && !db){ alert('在线支付需要联网，请检查网络后重试，或改用柜台支付。'); return; }
+  // 充值 = 一条 orders 行（ta_mode=recharge），进 POS 待付款。
+  // 柜台：店员点「已付款」→ rpc_complete_recharge 到账；在线：付款后 HitPay 回调 webhook → rpc_complete_recharge 到账。
   var order = {
     id:'o'+Date.now(),
     orderNum:'',
     createdAt:new Date().toISOString(),
     items:[{name:'钱包充值', en:'Wallet Top-up', price:p.price, qty:1, specs:[], image:''}],
     total:p.price,
-    payMethod:'counter',
+    payMethod: online?'hitpay':'counter',
     status:'pending',
     needs_print:true,
     source:'app',
@@ -5045,9 +5065,36 @@ function doRecharge(){
     _orders.unshift(order);
     try{ var ex=JSON.parse(localStorage.getItem('pm_orders')||'[]'); ex.unshift(order); localStorage.setItem('pm_orders',JSON.stringify(ex)); }catch(e){}
     try{ pmBroadcastOrders(); }catch(e){}
-    if(db){ db.from('orders').insert(orderToRow(order)).then(function(res){ if(res && res.error){ console.error('recharge insert', res.error); setCloudStatus('offline'); } else { setCloudStatus('online'); } }).catch(function(e){ console.error('recharge insert', e); setCloudStatus('offline'); }); }
-    alert('充值申请已提交！\n请到柜台以现金 / DuitNow 支付 RM'+p.price.toFixed(2)+'。\n店员确认收款后，您的 Meow Wallet 到账 RM'+p.price.toFixed(2)+'，并获得 '+(p.coins||0)+' Meow Coin'+(function(){ var g=_rcRewardLines(p); return g.length?('、'+g.join('、')):''; })()+'。');
-    closeRecharge();
+    var afterInsert=function(){
+      if(!online){
+        alert('充值申请已提交！\n请到柜台以现金 / DuitNow 支付 RM'+p.price.toFixed(2)+'。\n店员确认收款后，您的 Meow Wallet 到账 RM'+p.price.toFixed(2)+'，并获得 '+(p.coins||0)+' Meow Coin'+(function(){ var g=_rcRewardLines(p); return g.length?('、'+g.join('、')):''; })()+'。');
+        closeRecharge();
+        return;
+      }
+      // 在线：跳 HitPay 收银页（不指定方式 → 出全部支付选项）。付款成功 webhook 自动到账；
+      // 中途退出/超时未付：跟点单一样直接删除这张 pending 单（返回处理 + POS 15 分钟清扫）。
+      var redirectUrl = location.origin + location.pathname + '?pm_hitpay=' + encodeURIComponent(order.id);
+      try{ sessionStorage.setItem(_HP_AWAIT, order.id); sessionStorage.setItem('pm_hp_recharge','1'); }catch(e){}
+      db.functions.invoke('hitpay-checkout', {body:{
+        orderId: order.id, amount: order.total, currency:'MYR', redirectUrl: redirectUrl,
+        customerName: (_memberProfile && _memberProfile.nickname) || undefined,
+        customerPhone: (_memberProfile && _memberProfile.phone) || undefined
+      }}).then(function(r){
+        var data = r && r.data;
+        if(data && data.ok && data.url){ _pmGotoPay(data.url); }
+        else {
+          // 创建失败：撤掉这张 pending 充值单（本地移除 + 云端删），别留在待付款里
+          _orders = _orders.filter(function(x){ return x.id!==order.id; });
+          try{ var ex3=JSON.parse(localStorage.getItem('pm_orders')||'[]').filter(function(x){return x.id!==order.id;}); localStorage.setItem('pm_orders',JSON.stringify(ex3)); }catch(e){}
+          try{ if(db) db.from('orders').delete().eq('id',order.id); }catch(e){}
+          try{ sessionStorage.removeItem('pm_hp_recharge'); sessionStorage.removeItem(_HP_AWAIT); }catch(e){}
+          try{ pmBroadcastOrders(); }catch(e){}
+          alert('在线支付创建失败：'+((data&&data.error)||'请稍后重试，或改用柜台支付'));
+        }
+      }).catch(function(e){ console.error('recharge hitpay-checkout', e); alert('在线支付创建失败，请稍后重试'); });
+    };
+    if(db){ db.from('orders').insert(orderToRow(order)).then(function(res){ if(res && res.error){ console.error('recharge insert', res.error); setCloudStatus('offline'); } else { setCloudStatus('online'); } afterInsert(); }).catch(function(e){ console.error('recharge insert', e); setCloudStatus('offline'); afterInsert(); }); }
+    else { afterInsert(); }
   });
 }
 function loadWalletLedger(){
