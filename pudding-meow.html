@@ -526,6 +526,7 @@
   .sheet-spec-group + .sheet-spec-group{ margin-top:20px; }
   .sheet-spec-label{ font-size:12px; font-weight:500; line-height:14px; color:var(--red); margin-bottom:8px; }
   .sheet-spec-label .spec-opt{ font-weight:500; }
+  .sheet-spec-label .spec-en{ font-weight:400; color:var(--muted); }
   .sheet-pill-row{ display:flex; flex-wrap:wrap; gap:10px; }
   /* Figma 201:98（Frame 94）：Default 米底/红框红字，Hover #F5E9D4 底/红框红字，Pressed 红底/米字。
      三态都留 1px 边框（Pressed 的边框与底同色）——否则选中时少 2px 会让整行 pill 抖一下。
@@ -3000,8 +3001,10 @@ function _catFallback(){
 }
 var _menuCats = _catFallback();
 function _catSort(a,b){ return (a.sort_order||0)-(b.sort_order||0); }
-function catTops(){ return (_menuCats||[]).filter(function(c){ return !c.parent_code && c.enabled!==false; }).sort(_catSort); }
-function catSubs(parentCode){ return (_menuCats||[]).filter(function(c){ return c.parent_code===parentCode && c.enabled!==false; }).sort(_catSort); }
+function catTops(){ return (_menuCats||[]).filter(function(c){ return !c.parent_code && c.enabled!==false && !c.pos_only; }).sort(_catSort); }
+function catSubs(parentCode){ return (_menuCats||[]).filter(function(c){ return c.parent_code===parentCode && c.enabled!==false && !c.pos_only; }).sort(_catSort); }
+/* 分类「仅POS」：整个母/子分类对小程序隐藏（POS 照常）。买菜单时连它下面的商品一起过滤掉，不让子分类的商品掉回散装显示 */
+function _catPosOnly(code){ var c=(_menuCats||[]).filter(function(x){return x.code===code;})[0]; return !!(c && c.pos_only); }
 function catRow(code){ return (_menuCats||[]).filter(function(c){ return c.code===code; })[0] || null; }
 function catName(code){ var r=catRow(code); return r?r.name:(CAT_META[code]?CAT_META[code].cn:code); }
 function catNameEn(code){ var r=catRow(code); return r?(r.name_en||r.name):(CAT_META[code]?CAT_META[code].en:code); }
@@ -3032,6 +3035,8 @@ function buildMenuFromRows(rows, mode){
   (rows||[]).slice().sort(function(a,b){ return (a.sort_order||0)-(b.sort_order||0); }).forEach(function(r){
     if(r.sold_out) return;
     if(!_openInMode(r.channels, mode)) return;
+    if(_catPosOnly(r.cat)) return;                    // 母分类仅POS → 整类商品不进小程序
+    if(r.subcat && _catPosOnly(r.subcat)) return;     // 子分类仅POS → 其商品也一起藏，不掉回散装
     var c = r.cat; if(!m[c]) m[c] = {code:c, cn:catName(c), en:catNameEn(c), items:[], subcats:[]};
     m[c].items.push({ id:r.id, name:r.name, en:r.en||'', price:Number(r.price)||0, desc:r.descr||'',
       subcat:r.subcat||'',
@@ -3896,8 +3901,10 @@ function _sheetGroupRequired(g){
   return false;
 }
 function _sheetSpecGroupHtml(group, gi){
+  const _def = group.defId ? _specDefsById[group.defId] : null;   // 规格组双语：中文名 + 英文名（规格库 name_en）
+  const _en = (_def && _def.name_en && _def.name_en!==group.name) ? ` <span class="spec-en">${_def.name_en}</span>` : '';
   const tag = group.name ? (_sheetGroupRequired(group) ? ' <span class="spec-req">*</span>' :' <span class="spec-opt">(optional)</span>') :'';
-  const label = group.name ? `<div class="sheet-spec-label">${group.name}${tag}</div>` :'';
+  const label = group.name ? `<div class="sheet-spec-label">${group.name}${_en}${tag}</div>` :'';
   const selIdx = sheetSpecSel[gi];
   const pills = (group.options||[]).map((o,oi)=>{
     const soldOut = _isOptionSoldOut(group.defId, o);
