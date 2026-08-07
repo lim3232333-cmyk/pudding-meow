@@ -578,21 +578,29 @@
 
   /* ---- 会员信息黄卡 ---- */
   .mem-card2{ background:var(--yellow); border-radius:16px; padding:12px; }
-  .mem-card2-inner{ position:relative; background:var(--cream2); border-radius:16px; height:113px; box-sizing:border-box; }
+  /* Figma 599:1998 auto layout：横排 gap12、居中、左右内边距12；红胶囊仍绝对定位在右上角 */
+  .mem-card2-inner{ position:relative; display:flex; align-items:center; gap:12px; padding:0 12px; background:var(--cream2); border-radius:16px; box-sizing:border-box; }
+  /* 内容列（1016:1070）：flex-1、纵排 gap12、上下内边距8、左对齐 */
+  .mem-card2-content{ flex:1 0 0; min-width:0; align-self:stretch; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; gap:12px; padding:8px 0; box-sizing:border-box; }
+  /* 名字+等级组（1016:1045）：纵排 gap8 左对齐 */
+  .mem-card2-idgroup{ display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
+  /* 成长值组（1016:1063）：纵排 gap4、占满宽 */
+  .mem-card2-growth{ display:flex; flex-direction:column; align-items:flex-start; gap:4px; width:100%; }
+  .mem-xp-row{ display:flex; align-items:center; justify-content:space-between; width:100%; }
 
   /* ---- 会员卡左侧：按等级换的 Lottie 动画（循环）----
      Lv.0~Lv.4 各一个动画（Lv0/Lv1/Lv2/Lv3/LvMax.json），由 _renderMemCat() 按等级切换。
      lottie.min.js 本地自带（跟 supabase.min.js 一样不依赖外网 CDN）；万一没加载出来就留空，不影响卡片。 */
-  .mem-cat{ position:absolute; left:6px; top:10px; width:93px; height:93px; display:flex; align-items:center; justify-content:center; }
+  .mem-cat{ flex-shrink:0; width:96px; height:96px; display:flex; align-items:center; justify-content:center; }
   .mem-cat-lottie{ width:90px; height:90px; }
   .mem-cat-lottie svg{ display:block; }
-  .mem-name{ position:absolute; left:109px; top:11px; font-weight:500; font-size:16px; color:var(--red); }
-  .mem-level-pill{ position:absolute; left:107px; top:34px; height:18px; box-sizing:border-box; display:inline-flex; align-items:center; gap:10px; padding:0 10px; border-radius:999px; background:var(--yellow); color:var(--red); font-size:12px; }
-  .mem-xp-label{ position:absolute; left:109px; top:66px; font-size:12px; color:var(--red); }
-  .mem-xp-count{ position:absolute; left:276px; top:70px; font-size:8px; color:var(--red); }
-  .mem-xpbar{ position:absolute; left:109px; top:84px; width:212px; height:10px; border-radius:999px; background:#F5E9D4; overflow:hidden; }
+  .mem-name{ font-weight:500; font-size:16px; color:var(--red); }
+  .mem-level-pill{ box-sizing:border-box; display:inline-flex; align-items:center; gap:10px; padding:2px 10px; border-radius:999px; background:var(--yellow); color:var(--red); font-size:12px; }
+  .mem-xp-label{ font-size:12px; color:var(--red); }
+  .mem-xp-count{ font-size:8px; color:var(--red); }
+  .mem-xpbar{ width:100%; height:10px; border-radius:999px; background:#F5E9D4; overflow:hidden; }
   .mem-xpbar i{ display:block; height:100%; background:var(--red); border-radius:999px; transition:width .5s ease; }
-  .mem-xp-next{ position:absolute; left:109px; top:98px; width:129px; font-size:8px; color:var(--red); opacity:.85; text-align:center; }
+  .mem-xp-next{ width:100%; font-size:8px; color:var(--red); opacity:.85; text-align:center; }
   /* 三个资料：图标 30px + 右边 值/标签两行，中间 1px 竖线。
      文字色、图标底色、图标图形色、竖线色都走 --mst* 变量，各等级在下面各给一套。 */
   .mem-stats-row{ display:flex; align-items:center; justify-content:center; gap:8px; margin-top:8px;
@@ -604,7 +612,7 @@
   .mem-stat span{ font-size:10px; font-weight:400; line-height:normal; white-space:nowrap; color:var(--mstFg); }
   .mem-stat-div{ width:1px; height:30px; flex-shrink:0; background:var(--mstLine); }
   /* 游客卡（未登录）：卡上「立即注册」按钮 + 隐藏会员专属版块（Figma 612:1810） */
-  .mem-register-btn{ position:absolute; right:6px; top:4px; display:none; background:var(--red); color:#fff; border:none; border-radius:999px; padding:6px 12px; font-size:12px; font-weight:700; cursor:pointer; font-family:"Noto Sans SC",sans-serif; z-index:3; }
+  .mem-register-btn{ position:absolute; right:0; top:0; display:none; background:var(--red); color:#fff; border:none; border-radius:12px; padding:4px 12px; font-size:12px; font-weight:700; cursor:pointer; font-family:"Noto Sans SC",sans-serif; z-index:3; }
   #memHome.is-guest .mem-register-btn{ display:block; }
   #memHome.is-guest .mem-mini-row,
   #memHome.is-guest .mem-icon-grid,
@@ -1486,12 +1494,20 @@
             <div class="mem-cat" id="memCat">
               <div class="mem-cat-lottie" id="memCatLottie"></div>
             </div>
-            <div class="mem-name" id="memName">—</div>
-            <span class="mem-level-pill" id="memLevelPill"><span id="memLevelNum"></span><span id="memLevelName"></span></span>
-            <div class="mem-xp-label">成长值</div>
-            <div class="mem-xp-count" id="memXpNow">0/0 XP</div>
-            <div class="mem-xpbar"><i id="memXpBar" style="width:0%"></i></div>
-            <div class="mem-xp-next" id="memXpNext"></div>
+            <div class="mem-card2-content">
+              <div class="mem-card2-idgroup">
+                <div class="mem-name" id="memName">—</div>
+                <span class="mem-level-pill" id="memLevelPill"><span id="memLevelNum"></span><span id="memLevelName"></span></span>
+              </div>
+              <div class="mem-card2-growth">
+                <div class="mem-xp-row">
+                  <div class="mem-xp-label">成长值</div>
+                  <div class="mem-xp-count" id="memXpNow">0/0 XP</div>
+                </div>
+                <div class="mem-xpbar"><i id="memXpBar" style="width:0%"></i></div>
+                <div class="mem-xp-next" id="memXpNext"></div>
+              </div>
+            </div>
             <button class="mem-register-btn" onclick="showRegisterForm()">立即注册</button>
 </div>
           <!-- 三个资料（Figma 599:1999 / 609:574 / 609:622 / 609:646 / 609:694，各等级一套配色）
