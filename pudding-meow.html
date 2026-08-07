@@ -742,6 +742,12 @@
   .iv-ach-box>b{ font-weight:500; font-size:16px; color:var(--muted); }
   .iv-ach-box p{ margin:0; font-weight:500; font-size:16px; color:var(--muted); line-height:1.35; }
   .iv-ach-box p em{ font-style:normal; font-weight:700; font-size:24px; color:var(--red); }
+  /* 好友欢迎弹窗（Figma 852:992）：复用 .iv-card，居中 + 加入按钮 */
+  .rw-bg{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:340; display:none; align-items:center; justify-content:center; padding:0 16px; }
+  .rw-bg.show{ display:flex; }
+  .rw-card{ width:100%; max-width:358px; }
+  .rw-join{ height:46px; border:none; border-radius:999px; background:var(--red); color:var(--yellow); font-weight:700; font-size:16px; cursor:pointer; font-family:inherit; }
+  .rw-skip{ height:32px; border:none; background:transparent; color:#726F6F; font-size:13px; cursor:pointer; font-family:inherit; margin-top:-8px; }
   /* 邀请奖励弹窗（Figma 646:870）：黄底、右上角关闭键探出卡片外 */
   .iv-pop-bg{ position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:330; display:none; }
   .iv-pop-bg.show{ display:flex; align-items:center; justify-content:center; padding:0 16px; }
@@ -1648,6 +1654,29 @@
   </div>
 
   <!-- ============ 邀请中心（Figma 645:796）+ 邀请奖励弹窗（646:870）============ -->
+  <!-- 好友点分享链接(?ref=)进来时的欢迎卡（Figma 852:992）：复用邀请码卡样式 -->
+  <div class="rw-bg" id="refWelcomeBg" onclick="if(event.target===this)rwClose()">
+    <div class="iv-card rw-card">
+      <div class="iv-code-head"><b>邀请码</b></div>
+      <div class="iv-code-box">
+        <span id="rwCode">——</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      </div>
+      <div class="iv-inviter">
+        <div class="iv-inviter-l">
+          <img src="Group%2029.svg" alt="">
+          <div class="iv-inviter-tx"><b id="rwNick">——</b><span>邀请你加入布丁喵会员</span></div>
+        </div>
+        <div class="iv-qr">
+          <div class="iv-qr-box"></div>
+          <span>长按识别二维码</span>
+        </div>
+      </div>
+      <button class="rw-join" onclick="rwJoin()">立即加入布丁喵会员</button>
+      <button class="rw-skip" onclick="rwClose()">先逛逛</button>
+    </div>
+  </div>
+
   <div class="iv-screen" id="ivScreen">
     <div class="iv-header">
       <div class="iv-back" onclick="closeInvite()"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></div>
@@ -4770,13 +4799,34 @@ function renderInviteRules(){
 function openInviteRules(){ document.getElementById('ivPopBg').classList.add('show'); loadReferralSettings(); }
 function closeInviteRules(){ document.getElementById('ivPopBg').classList.remove('show'); }
 
-/* 好友点邀请链接进来：把 ?ref= 里的码填进注册表单，省得他手抄 */
+/* 好友点邀请链接进来：把 ?ref= 里的码填进注册表单，并弹一张欢迎卡（Figma 852:992）*/
+var _rwCode = null;
+function _showRefWelcome(code){
+  document.getElementById('rwCode').textContent = code;
+  document.getElementById('rwNick').textContent = '好友';   // 昵称拉到前的兜底
+  document.getElementById('refWelcomeBg').classList.add('show');
+  // 按邀请码查邀请人昵称（好友还没登录，走 security definer RPC）
+  if(db){
+    db.rpc('rpc_referral_inviter', {p_code:code}).then(function(res){
+      if(res && !res.error && res.data){ document.getElementById('rwNick').textContent = res.data; }
+    }).catch(function(){});
+  }
+}
+function rwClose(){ document.getElementById('refWelcomeBg').classList.remove('show'); }
+function rwJoin(){
+  rwClose();
+  try{ switchTab('profile'); }catch(e){}            // 去「我的」页注册（邀请码已预填）
+  try{ var el=document.getElementById('memRegReferral'); if(el){ el.scrollIntoView({block:'center'}); } }catch(e){}
+}
 (function(){
   try{
     var m = /[?&]ref=([^&]+)/.exec(location.search);
     if(!m) return;
+    _rwCode = decodeURIComponent(m[1]).toUpperCase();
     var el = document.getElementById('memRegReferral');
-    if(el) el.value = decodeURIComponent(m[1]).toUpperCase();
+    if(el) el.value = _rwCode;
+    // 已是会员就不弹（自己有账号了）；游客才弹欢迎卡
+    if(!_memberId) setTimeout(function(){ if(!_memberId) _showRefWelcome(_rwCode); }, 500);
   }catch(e){}
 })();
 
