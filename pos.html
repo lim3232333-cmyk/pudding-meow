@@ -349,6 +349,7 @@ body.ds-on{user-select:none;-webkit-user-select:none;}
 /* 「付款中」占固定宽度，没有这行字的行 Payment 按钮也能对齐同一条竖线 */
 .pend-status{width:88px;flex-shrink:0;text-align:right;font-size:24px;font-weight:500;color:#1D7715;white-space:nowrap;}
 .pend-pay{flex-shrink:0;padding:10px;background:#8D0505;border:none;border-radius:12px;color:#fff;font-size:24px;font-weight:500;line-height:1;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
+.pend-cancel{flex-shrink:0;padding:10px 14px;background:#fff;border:2px solid #8D0505;border-radius:12px;color:#8D0505;font-size:20px;font-weight:500;line-height:1;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
 .pend-pay:active{transform:translateY(1px);}
 .pend-sep{height:1px;background:#8D0505;opacity:.25;flex-shrink:0;}
 .pend-empty{text-align:center;padding:40px;font-size:18px;color:#4A4848;}
@@ -2680,9 +2681,12 @@ function showPending(){
     // 充值单：单号位写「#充值」，名字位取会员昵称（tableName 形如 "💰充值·小明"）
     var num = isRecharge ? '#充值' : '#'+o.orderNum;
     var name = _pendCode(o);
-    var right = isOnlinePay
-      ? '<span class="pend-status">付款中</span>'
-      : '<button class="pend-pay" onclick="payPend(\''+o.id+'\')">Payment</button>';
+    var right;
+    if(isOnlinePay){ right='<span class="pend-status">付款中</span>'; }   // 在线单自动到账，不给按钮
+    else if(isRecharge){  // 柜台充值：收款 or 手动取消
+      right='<button class="pend-pay" onclick="payPend(\''+o.id+'\')">Payment</button>'
+           +'<button class="pend-cancel" onclick="cancelRecharge(\''+o.id+'\')">取消</button>';
+    } else { right='<button class="pend-pay" onclick="payPend(\''+o.id+'\')">Payment</button>'; }
     return (i?'<div class="pend-sep"></div>':'')
       +'<div class="pend-row">'
       +'<div class="pend-row-l"><span class="pend-ord">'+esc(num)+'</span><span class="pend-table">'+esc(name)+'</span>'
@@ -2693,6 +2697,22 @@ function showPending(){
   document.getElementById('pendBg').classList.add('show');
 }
 function closePending(){document.getElementById('pendBg').classList.remove('show');}
+/* 柜台充值手动取消：直接删掉这张 pending 充值单（本地 + 云端，带 status=pending 守卫，
+   万一已收款/到账就不会被误删），从待付款移除。 */
+function cancelRecharge(id){
+  var o=_orders.find(function(x){return x.id===id;});
+  if(!o) return;
+  if(!confirm('确定取消这笔柜台充值吗？取消后从待付款移除。'))return;
+  _orders=_orders.filter(function(x){return x.id!==id;});
+  try{ sj('pm_orders',_orders); }catch(e){}
+  try{ pmBroadcastOrders(); }catch(e){}
+  if(db){ db.from('orders').delete().eq('id',id).eq('status','pending')
+    .then(function(res){ if(res&&res.error) console.error('cancelRecharge', res.error); })
+    .catch(function(e){ console.error('cancelRecharge', e); }); }
+  updPend();
+  if(document.getElementById('pendBg').classList.contains('show')) showPending();
+  showN('已取消充值 #'+(o.orderNum||''));
+}
 /* 待付款队列点 Payment：把这一单的商品 + 会员资料 + 桌号人数载入购物栏，
    方便店员先核对一遍（揪出重复单）；核对完点收银台的 Payment 才真正收款。
    _payPendId 非空时，confirmPayment() 走 _confirmPendPay 结算已存在的订单，
