@@ -2686,7 +2686,10 @@ function showPending(){
     else if(isRecharge){  // 柜台充值：收款 or 手动取消
       right='<button class="pend-pay" onclick="payPend(\''+o.id+'\')">Payment</button>'
            +'<button class="pend-cancel" onclick="cancelRecharge(\''+o.id+'\')">取消</button>';
-    } else { right='<button class="pend-pay" onclick="payPend(\''+o.id+'\')">Payment</button>'; }
+    } else {  // 柜台付款餐单：收款 or 手动取消（客人下单没来付，店员可撤）
+      right='<button class="pend-pay" onclick="payPend(\''+o.id+'\')">Payment</button>'
+           +'<button class="pend-cancel" onclick="cancelPend(\''+o.id+'\')">取消</button>';
+    }
     return (i?'<div class="pend-sep"></div>':'')
       +'<div class="pend-row">'
       +'<div class="pend-row-l"><span class="pend-ord">'+esc(num)+'</span><span class="pend-table">'+esc(name)+'</span>'
@@ -2697,22 +2700,26 @@ function showPending(){
   document.getElementById('pendBg').classList.add('show');
 }
 function closePending(){document.getElementById('pendBg').classList.remove('show');}
-/* 柜台充值手动取消：直接删掉这张 pending 充值单（本地 + 云端，带 status=pending 守卫，
-   万一已收款/到账就不会被误删），从待付款移除。 */
-function cancelRecharge(id){
+/* 手动取消一张待付款单：直接删掉（本地 + 云端，带 status=pending 守卫，万一已收款/到账
+   就不会被误删），从待付款移除。删除而非作废，交易明细不会多出「已作废」（作废只保留给店员
+   主动 Void）。柜台充值和柜台付款餐单共用这套逻辑，只有确认/提示文案不同。 */
+function _cancelPend(id, kind){
   var o=_orders.find(function(x){return x.id===id;});
   if(!o) return;
-  if(!confirm('确定取消这笔柜台充值吗？取消后从待付款移除。'))return;
+  var isRc = kind==='recharge';
+  if(!confirm('确定取消这笔'+(isRc?'柜台充值':'柜台付款订单')+'吗？取消后从待付款移除。'))return;
   _orders=_orders.filter(function(x){return x.id!==id;});
   try{ sj('pm_orders',_orders); }catch(e){}
   try{ pmBroadcastOrders(); }catch(e){}
   if(db){ db.from('orders').delete().eq('id',id).eq('status','pending')
-    .then(function(res){ if(res&&res.error) console.error('cancelRecharge', res.error); })
-    .catch(function(e){ console.error('cancelRecharge', e); }); }
+    .then(function(res){ if(res&&res.error) console.error('_cancelPend', res.error); })
+    .catch(function(e){ console.error('_cancelPend', e); }); }
   updPend();
   if(document.getElementById('pendBg').classList.contains('show')) showPending();
-  showN('已取消充值 #'+(o.orderNum||''));
+  showN((isRc?'已取消充值 #':'已取消订单 #')+(o.orderNum||''));
 }
+function cancelRecharge(id){ _cancelPend(id,'recharge'); }
+function cancelPend(id){ _cancelPend(id,'order'); }
 /* 待付款队列点 Payment：把这一单的商品 + 会员资料 + 桌号人数载入购物栏，
    方便店员先核对一遍（揪出重复单）；核对完点收银台的 Payment 才真正收款。
    _payPendId 非空时，confirmPayment() 走 _confirmPendPay 结算已存在的订单，
