@@ -258,13 +258,9 @@ body.ds-on{user-select:none;-webkit-user-select:none;}
 .item-cat-name{font-size:24px;line-height:29px;font-weight:700;color:#8D0505;}
 .item-grid-wrap{flex:1;overflow-y:auto;}
 /* Item cards — 4 per row, stretch to fill (Figma 990:1431 uses 1fr columns) */
-/* 有子分类时不再用顶部筛选 chip，改成小程序那样按子分类分段：整块纵向排，每段一个 4 列子网格 */
-.item-grid{display:flex;flex-direction:column;gap:16px;padding:16px;}
-.item-grid-sec{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
-/* 子分类标题条（Figma 21:4 同款：天蓝底 + 红竖标 + 红字，中英同行）*/
-.item-sub-title{display:flex;align-items:center;gap:10px;height:40px;padding:0 14px;background:#B6F3FF;border-radius:8px;box-sizing:border-box;}
-.item-sub-title::before{content:'';flex-shrink:0;width:4px;height:24px;background:#8D0505;border-radius:2px;}
-.item-sub-title span{font-weight:700;font-size:20px;color:#8D0505;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.item-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:16px;}
+/* 子分类卡：点了往下钻一层（面包屑接一段），跟商品卡区分靠末尾的 › */
+.item-card.cat-drill .ic-name::after{content:' ›';color:#8D0505;font-weight:700;}
 .item-view-foot{flex-shrink:0;display:flex;justify-content:flex-end;gap:32px;padding:12px 22px;}
 /* Back / OK 按钮：Figma 990:1631 —— 150×58，36px。OK 绿底白字，Back 灰底深灰字 */
 .item-back-btn,.item-ok-btn{width:150px;height:60px;padding:0;border:none;border-radius:16px;font-size:36px;line-height:43px;font-weight:700;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
@@ -1946,31 +1942,43 @@ function showItems(cat){
 }
 /* 子分类筛选：点一下只看这个子分类。传给 addItem 的下标必须是品项在 MENU[cat].items
    里的原始位置，所以这里只过滤显示、不重排数组。 */
+/* 面包屑：一串「分类 \ 子分类 \ 商品 \ 规格…」，前面已选的红字、最后一段（当前层）黑字，
+   跟 Figma 990:1631 一样。分类/规格页共用。 */
+function _crumbHtml(parts){
+  return (parts||[]).filter(Boolean).map(function(p,idx,arr){
+    return (idx===arr.length-1)?'<span class="bc-cur">'+esc(p)+'</span>':esc(p);
+  }).join('<span class="bc-sep">\\</span>');
+}
+function subPick(code){ _curSub=code||null; renderItemList(); }
+/* 逐级下钻：点分类→(有子分类就先出子分类卡)→点子分类→出商品；面包屑一路累积。 */
 function renderItemList(){
   var cat=_curCat, mc=MENU[cat]||{items:[],en:catNameEn(cat)};
   var subs=catSubs(cat,true);
-  document.getElementById('itemCatName').innerHTML='<span class="bc-cur">'+esc(mc.en)+'</span>';
-  document.getElementById('itemSubBar').innerHTML='';   // 不再用子分类筛选按钮
   var items=mc.items||[];
+  document.getElementById('itemSubBar').innerHTML='';
+  document.getElementById('itemOkBtn').style.display='none';   // 列表/子分类页没有 OK
   var codes={}; subs.forEach(function(s){ codes[s.code]=1; });
-  // 未分子分类的（或子分类被停用/删掉的）排最前、无标题；其余按子分类分段
-  var bucket={}, loose=[];
-  items.forEach(function(item,i){
-    if(item.subcat && codes[item.subcat]) (bucket[item.subcat]=bucket[item.subcat]||[]).push(i);
-    else loose.push(i);
-  });
-  var card=function(i){ return '<div class="item-card" onclick="addItem(\''+cat+'\','+i+')"><div class="ic-name">'+esc(items[i].name)+'</div></div>'; };
-  var sec=function(idxs){ return '<div class="item-grid-sec">'+idxs.map(card).join('')+'</div>'; };
-  var html='';
-  if(loose.length) html+=sec(loose);
-  subs.forEach(function(s){
-    var idxs=bucket[s.code]; if(!idxs||!idxs.length) return;
-    html+='<div class="item-sub-title"><span>'+esc(s.name)+(s.name_en&&s.name_en!==s.name?(' '+esc(String(s.name_en).toUpperCase())):'')+'</span></div>'+sec(idxs);
-  });
+  var itemCard=function(i){ return '<div class="item-card" onclick="addItem(\''+cat+'\','+i+')"><div class="ic-name">'+esc(items[i].name)+'</div></div>'; };
+  var html='', crumb;
+  if(subs.length && !_curSub){
+    // 子分类选择层：面包屑=分类（当前）。散装商品可直接点；子分类卡点了往下钻
+    crumb=[mc.en];
+    items.forEach(function(it,i){ if(!it.subcat || !codes[it.subcat]) html+=itemCard(i); });   // 未分子分类的散装商品
+    html+=subs.map(function(s){ return '<div class="item-card cat-drill" onclick="subPick(\''+esc(s.code)+'\')"><div class="ic-name">'+esc(s.name)+'</div></div>'; }).join('');
+  } else if(_curSub){
+    // 某个子分类内：面包屑=分类 \ 子分类
+    crumb=[mc.en, catNameEn(_curSub)];
+    items.forEach(function(it,i){ if((it.subcat||'')===_curSub) html+=itemCard(i); });
+  } else {
+    // 无子分类：直接列商品，面包屑=分类
+    crumb=[mc.en];
+    items.forEach(function(it,i){ html+=itemCard(i); });
+  }
+  document.getElementById('itemCatName').innerHTML=_crumbHtml(crumb);
   document.getElementById('itemGrid').innerHTML=html||'<div style="padding:30px;color:#4A4848">（这个分类下暂无品项）</div>';
 }
 function hideitems(){document.getElementById('itemView').classList.remove('show');_specCtx=null;}
-function itemBack(){ if(_specCtx){ specBack(); } else { hideitems(); } }
+function itemBack(){ if(_specCtx){ specBack(); return; } if(_curSub){ _curSub=null; renderItemList(); return; } hideitems(); }
 function viewOk(){ if(_specCtx){ specNext(); } }
 function addItem(cat,i){
   var it=MENU[cat].items[i];
@@ -2027,15 +2035,15 @@ function _renderSpecPicker(){
 }
 function _updateSpecBreadcrumb(){
   var c=_specCtx; var it=MENU[c.cat].items[c.idx];
-  var parts=[esc(MENU[c.cat].en), esc(it.name)];
-  for(var s=0;s<=c.step;s++){ var g=c.groups[s]; var nm=g.name; if(!nm){ var v=(g.options||[])[c.sel[s]]; nm=v||''; } if(nm) parts.push(esc(nm)); }
-  document.getElementById('itemCatName').innerHTML=parts.map(function(p,idx){
-    return (idx===parts.length-1?'<span class="bc-cur">'+p+'</span>':p);
-  }).join('<span class="bc-sep">\\</span>');
+  var parts=[MENU[c.cat].en];
+  if(it.subcat){ var sn=catNameEn(it.subcat); if(sn) parts.push(sn); }   // 商品所在子分类也进面包屑
+  parts.push(it.name);
+  for(var s=0;s<=c.step;s++){ var g=c.groups[s]; var nm=g.name; if(!nm){ var v=(g.options||[])[c.sel[s]]; nm=v||''; } if(nm) parts.push(nm); }
+  document.getElementById('itemCatName').innerHTML=_crumbHtml(parts);
 }
 function pickSpecOpt(oi){ var c=_specCtx; var g=c.groups[c.step]; if(oi!==SKIP_SEL && _posOptSold(g.defId,g.options[oi]))return; c.sel[c.step]=oi; _renderSpecPicker(); }
 function specNext(){ var c=_specCtx; if(!c)return; if(c.step<c.groups.length-1){ c.step++; _renderSpecPicker(); } else confirmSpecAdd(); }
-function specBack(){ var c=_specCtx; if(c && c.step>0){ c.step--; _renderSpecPicker(); } else { showItems(_curCat); } }
+function specBack(){ var c=_specCtx; if(c && c.step>0){ c.step--; _renderSpecPicker(); } else { _specCtx=null; renderItemList(); } }
 function confirmSpecAdd(){
   var c=_specCtx; var it=MENU[c.cat].items[c.idx];
   var chosen=[];
