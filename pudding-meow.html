@@ -526,6 +526,7 @@
   .sheet-spec-group + .sheet-spec-group{ margin-top:20px; }
   .sheet-spec-label{ font-size:12px; font-weight:500; line-height:14px; color:var(--red); margin-bottom:8px; }
   .sheet-spec-label .spec-opt{ font-weight:500; }
+  .sheet-spec-label .spec-en{ font-weight:400; color:var(--muted); }
   .sheet-pill-row{ display:flex; flex-wrap:wrap; gap:10px; }
   /* Figma 201:98（Frame 94）：Default 米底/红框红字，Hover #F5E9D4 底/红框红字，Pressed 红底/米字。
      三态都留 1px 边框（Pressed 的边框与底同色）——否则选中时少 2px 会让整行 pill 抖一下。
@@ -3900,8 +3901,10 @@ function _sheetGroupRequired(g){
   return false;
 }
 function _sheetSpecGroupHtml(group, gi){
+  const _def = group.defId ? _specDefsById[group.defId] : null;   // 规格组双语：中文名 + 英文名（规格库 name_en）
+  const _en = (_def && _def.name_en && _def.name_en!==group.name) ? ` <span class="spec-en">${_def.name_en}</span>` : '';
   const tag = group.name ? (_sheetGroupRequired(group) ? ' <span class="spec-req">*</span>' :' <span class="spec-opt">(optional)</span>') :'';
-  const label = group.name ? `<div class="sheet-spec-label">${group.name}${tag}</div>` :'';
+  const label = group.name ? `<div class="sheet-spec-label">${group.name}${_en}${tag}</div>` :'';
   const selIdx = sheetSpecSel[gi];
   const pills = (group.options||[]).map((o,oi)=>{
     const soldOut = _isOptionSoldOut(group.defId, o);
