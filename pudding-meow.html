@@ -2081,6 +2081,31 @@
     <button class="rsv-confirm" id="pkConfirm" onclick="confirmPickup()">前往下单</button>
   </div>
 
+  <!-- ============ 外卖日期/时间弹窗（Figma 1041:1233）：3天日期(今天+后两天) + 时段 + 选择收货地址 ============ -->
+  <div class="dine-overlay" id="dvWhenOverlay" onclick="closeDvWhen()"></div>
+  <div class="rsv-modal" id="dvWhenModal">
+    <div class="rsv-close" onclick="closeDvWhen()"><svg viewBox="0 0 24 24" width="30" height="30"><circle cx="12" cy="12" r="10" fill="#4A4848"/><path d="M15 9l-6 6M9 9l6 6" stroke="#FFFFD5" stroke-width="2" stroke-linecap="round"/></svg></div>
+    <div class="rsv-head"><span class="rsv-title">外卖</span></div>
+
+    <div class="rsv-field">
+      <div class="rsv-flabel">1. 选择日期</div>
+      <details class="rsv-dd" id="dvDateDD">
+        <summary><span id="dvDateVal">今天</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4"/></svg></summary>
+        <div class="rsv-dd-panel" id="dvDatePanel"></div>
+      </details>
+    </div>
+
+    <div class="rsv-field">
+      <div class="rsv-flabel">2. 选择时间</div>
+      <details class="rsv-dd" id="dvTimeDD">
+        <summary><span id="dvTimeVal">尽快</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></summary>
+        <div class="rsv-dd-panel" id="dvTimePanel"></div>
+      </details>
+    </div>
+
+    <button class="rsv-confirm" onclick="dvWhenConfirm()">选择收货地址</button>
+  </div>
+
   <!-- ============ 外卖：收货地址（地址簿）弹窗，Figma 453:237 空状态 / 454:243 有地址 ============ -->
   <div class="dine-overlay" id="dvOverlay" onclick="closeDelivery()"></div>
   <div class="dine-modal dv-modal" id="dvModal">
@@ -2291,7 +2316,7 @@ var _modeChosen = false;
 function promptModeIfNeeded(){
   if(_modeChosen) return;
   if(currentMode==='dinein'){ openDine(); return; }        // 堂食：要桌号+人数
-  if(currentMode==='delivery'){ openDelivery(); return; }  // 外卖：要地址+运费
+  if(currentMode==='delivery'){ openDvWhen(); return; }    // 外卖：先选日期/时间，再选地址
   if(currentMode==='pickup'){ openPickup(); return; }      // 自取：要日期/时间/电话
   _modeChosen = true;
 }
@@ -2301,7 +2326,7 @@ function selectMode(el){
   currentMode = el.dataset.mode;
   refilterMenuForMode();
   if(currentMode==='dinein'){ openDine(); return; }       // 堂食先选座号+人数
-  if(currentMode==='delivery'){ openDelivery(); return; } // 外卖先填地址+算运费
+  if(currentMode==='delivery'){ openDvWhen(); return; }   // 外卖先选日期/时间，再选地址
   if(currentMode==='pickup'){ openPickup(); return; }     // 自取先选日期/时间/电话
   _modeChosen = true;
   setTimeout(()=>{
@@ -2313,7 +2338,7 @@ function selectMode(el){
 /* ---------- 堂食选座（点堂食 → 居中弹窗选座号+人数，下拉框选择）---------- */
 const DINE_TABLES=['Table 1','Table 2','Table 3','Table 4','Table 5'];   // 以后加桌子改这里即可（下拉自动可滚）
 const DINE_PAX_MAX=20;
-let dineTable='T1', dinePax=1, _dineInfo=null, _deliveryInfo=null, _pickupInfo=null;
+let dineTable='T1', dinePax=1, _dineInfo=null, _deliveryInfo=null, _pickupInfo=null, _dvDate=null, _dvTime='尽快';
 function openDine(){
   dineTable=DINE_TABLES[0]; dinePax=1;
   document.getElementById('dineTablePanel').innerHTML=DINE_TABLES.map(function(t){
@@ -2578,6 +2603,51 @@ function confirmPickup(){
   if(Object.keys(cart).length){ openCheckout(); }
   else setTimeout(()=>{ switchTab('menu'); syncMenuMode(); }, 60);
 }
+
+/* ===== 外卖日期/时间弹窗（Figma 1041:1233）：日期只开 3 天（今天+后两天，不用日历），
+   时间是时段：尽快 / 4:00 pm - 4:30 pm … 10:30 pm - 11:00 pm。「选择收货地址」→ 进地址簿。 */
+var _DV_TIME_SLOTS=(function(){
+  var out=[]; function fmt(m){ var h=Math.floor(m/60), mm=m%60, ap=h>=12?'pm':'am', hh=h%12||12; return hh+':'+('0'+mm).slice(-2)+' '+ap; }
+  for(var t=16*60; t<23*60; t+=30){ out.push(fmt(t)+' - '+fmt(t+30)); }   // 4:00 pm - 4:30 pm … 10:30 pm - 11:00 pm
+  return out;
+})();
+function _dvDayList(){ var out=[], n=new Date(); for(var i=0;i<3;i++){ out.push(new Date(n.getFullYear(),n.getMonth(),n.getDate()+i)); } return out; }
+function _dvDayLabel(d,i){ return i===0 ? '今天' : ['周日','周一','周二','周三','周四','周五','周六'][d.getDay()]; }
+function openDvWhen(){
+  var days=_dvDayList();
+  _dvDate=_pkIso(days[0]);                                   // 默认今天
+  document.getElementById('dvDateVal').textContent='今天';
+  _dvTime='尽快'; document.getElementById('dvTimeVal').textContent='尽快';
+  document.getElementById('dvDateDD').open=false;
+  document.getElementById('dvTimeDD').open=false;
+  dvRenderDates(); dvRenderTimes();
+  document.getElementById('dvWhenOverlay').classList.add('show');
+  document.getElementById('dvWhenModal').classList.add('show');
+}
+function closeDvWhen(){
+  document.getElementById('dvWhenOverlay').classList.remove('show');
+  document.getElementById('dvWhenModal').classList.remove('show');
+}
+function dvRenderDates(){
+  document.getElementById('dvDatePanel').innerHTML=_dvDayList().map(function(d,i){
+    var iso=_pkIso(d), label=_dvDayLabel(d,i);
+    return '<div class="rsv-dd-opt'+(iso===_dvDate?' sel':'')+'" onclick="dvPickDate(\''+iso+'\',\''+label+'\')">'+label+'</div>';
+  }).join('');
+}
+function dvPickDate(iso,label){ _dvDate=iso; document.getElementById('dvDateVal').textContent=label; document.getElementById('dvDateDD').open=false; dvRenderDates(); }
+function dvRenderTimes(){
+  var opts=['尽快'].concat(_DV_TIME_SLOTS);
+  document.getElementById('dvTimePanel').innerHTML=opts.map(function(t){
+    return '<div class="rsv-dd-opt'+(t===_dvTime?' sel':'')+'" onclick="dvPickTime(\''+t+'\')">'+t+'</div>';
+  }).join('');
+}
+function dvPickTime(t){ _dvTime=t; document.getElementById('dvTimeVal').textContent=t; document.getElementById('dvTimeDD').open=false; dvRenderTimes(); }
+function dvWhenConfirm(){
+  currentMode='delivery'; _modeChosen=true;
+  refilterMenuForMode();
+  closeDvWhen();
+  openDelivery();   // 选择收货地址：游客→空地址状态（还没保存地址那版）；会员→地址簿
+}
 /* 同一手机号在同一天已有未取消的预约就算重复（date=预约日期）。本地 _orders 里查一遍。 */
 function _rsvHasDupLocal(pnorm, date){
   return (_orders||[]).some(function(o){
@@ -2658,7 +2728,7 @@ function syncMenuMode(){
 }
 function setMenuMode(el){
   if(el.dataset.mode==='dinein'){ openDine(); return; }       // 切到堂食也要选座号+人数
-  if(el.dataset.mode==='delivery'){ openDelivery(); return; } // 切到外卖也要填地址+算运费
+  if(el.dataset.mode==='delivery'){ openDvWhen(); return; }   // 切到外卖也要先选日期/时间，再选地址
   if(el.dataset.mode==='pickup'){ openPickup(); return; }     // 切到自取也要选日期/时间/电话
   document.querySelectorAll('#seg button').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
@@ -3575,7 +3645,7 @@ var _HP_AWAIT='pm_hitpay_await', _HP_CART='pm_hitpay_cart';
 function _pmMarkHitpayAwait(id){ try{
   sessionStorage.setItem(_HP_AWAIT, id);
   sessionStorage.setItem(_HP_CART, JSON.stringify({
-    cart: cart, mode: currentMode, deliveryInfo: _deliveryInfo||null, dineInfo: _dineInfo||null, pickupInfo: _pickupInfo||null, selectedPay: selectedPay
+    cart: cart, mode: currentMode, deliveryInfo: _deliveryInfo||null, dineInfo: _dineInfo||null, pickupInfo: _pickupInfo||null, dvDate: _dvDate||null, dvTime: _dvTime||null, selectedPay: selectedPay
   }));
 }catch(e){} }
 function _pmClearHitpayAwait(){ try{ sessionStorage.removeItem(_HP_AWAIT); }catch(e){} }
@@ -3606,6 +3676,8 @@ function _pmReopenCheckoutAfterAbandon(){
         if(snap.deliveryInfo) _deliveryInfo = snap.deliveryInfo;         // 外卖：地址+运费，渲染配送块+算进总额
         if(snap.dineInfo) _dineInfo = snap.dineInfo;
         if(snap.pickupInfo) _pickupInfo = snap.pickupInfo;              // 自取：日期/时间/电话
+        if(snap.dvDate) _dvDate = snap.dvDate;                          // 外卖：配送日期
+        if(snap.dvTime) _dvTime = snap.dvTime;                          // 外卖：配送时间
         if(snap.selectedPay) selectedPay = snap.selectedPay;            // 付款方式行的选中态
       }
     }
@@ -3681,6 +3753,14 @@ function openCheckout(){
     document.getElementById('cartOverlay').classList.remove('show');
     updateCartBadge();
     openPickup();
+    return;
+  }
+  // 外卖还没选地址（也就还没走日期/时间那步）→ 先顶出外卖日期/时间弹窗，走完再回结算
+  if(currentMode==='delivery' && !_deliveryInfo){
+    document.getElementById('cartSheet').classList.remove('show');
+    document.getElementById('cartOverlay').classList.remove('show');
+    updateCartBadge();
+    openDvWhen();
     return;
   }
   document.getElementById('cartSheet').classList.remove('show');
@@ -3920,7 +4000,8 @@ function _doConfirmOrder(discount, couponId, presetId){
     deliveryInfo: (currentMode==='delivery' && _deliveryInfo) ? {
       address:_deliveryInfo.address||'', lat:_deliveryInfo.lat, lng:_deliveryInfo.lng,
       recipientName:_deliveryInfo.recipientName||'', phone:_deliveryInfo.phone||'',
-      remarks:_deliveryInfo.remarks||'', fee:deliveryFee||0, quotationId:_deliveryInfo.quotationId||''
+      remarks:_deliveryInfo.remarks||'', fee:deliveryFee||0, quotationId:_deliveryInfo.quotationId||'',
+      date:_dvDate||'', time:_dvTime||'尽快'
     } : (currentMode==='pickup' && _pickupInfo) ? {
       pickup:{ date:_pickupInfo.date||'', time:_pickupInfo.time||'尽快', phone:_pickupInfo.phone||'' }
     } : undefined,
