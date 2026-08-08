@@ -54,6 +54,8 @@
   <div class="wrap">
     <div class="card">
       <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">正在检查通知状态…</span></div>
+      <input id="phone" type="tel" inputmode="tel" placeholder="你的手机号（如 0123456789）"
+        style="width:100%;margin-top:12px;padding:12px;border:2px solid var(--red);border-radius:12px;font-size:16px;font-family:inherit;color:var(--red);background:#fff;">
       <button class="btn" id="enableBtn" onclick="enablePush()">开启手机通知</button>
       <button class="btn sec" id="testBtn" onclick="testBeep()" style="display:none">测试提示音</button>
       <div class="hint" id="hint"></div>
@@ -73,6 +75,7 @@ var VAPID_PUBLIC_KEY='BAElDUeOia7zHnIsDjiXcLE1pCUPhl8yUWH7l4xHS7FHbwUUBr06aJhE5Q
 var db = (window.supabase && SUPABASE_URL.indexOf('http')===0) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
 function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(function(){t.classList.remove('show');},2200); }
+function normPhone(s){ var d=String(s||'').replace(/\D/g,''); d=d.replace(/^60/,'').replace(/^0/,''); return d; }
 function urlB64ToUint8(base64){
   var pad='='.repeat((4-base64.length%4)%4);
   var b=(base64+pad).replace(/-/g,'+').replace(/_/g,'/');
@@ -107,20 +110,27 @@ async function refreshStatus(){
     var reg=await navigator.serviceWorker.getRegistration();
     var sub=reg && await reg.pushManager.getSubscription();
     if(Notification.permission==='granted' && sub){
-      setStatus('on','手机通知已开启 ✓');
+      var ph=''; try{ ph=localStorage.getItem('pm_notify_phone')||''; }catch(e){}
+      setStatus('on','手机通知已开启 ✓'+(ph?('（'+ph+'）'):''));
       document.getElementById('enableBtn').textContent='关闭手机通知';
       document.getElementById('enableBtn').onclick=disablePush;
-      document.getElementById('hint').textContent='锁屏也能收到自取/外卖新订单。想彻底停用，点上面按钮或在系统设置里关掉本应用通知。';
+      document.getElementById('phone').style.display='none';
+      document.getElementById('hint').textContent='锁屏也能收到自取/外卖新订单。只有店主设定的手机号会真正收到推送。想停用点上面按钮或在系统设置里关掉本应用通知。';
     }else{
       setStatus('off','手机通知未开启');
       document.getElementById('enableBtn').textContent='开启手机通知';
       document.getElementById('enableBtn').onclick=enablePush;
-      document.getElementById('hint').textContent='开启后即使没开着这个页面、手机锁屏，也能收到新订单提醒。iPhone 需先「添加到主屏幕」再开启。';
+      document.getElementById('phone').style.display='block';
+      try{ var pv=localStorage.getItem('pm_notify_phone'); if(pv&&!document.getElementById('phone').value) document.getElementById('phone').value=pv; }catch(e){}
+      document.getElementById('hint').textContent='开启后即使没开着这个页面、手机锁屏，也能收到新订单提醒。只有店主设定的手机号会真正收到推送。iPhone 需先「添加到主屏幕」再开启。';
     }
   }catch(e){ setStatus('off','状态检查失败'); }
 }
 async function enablePush(){
   if(!db){ toast('未连接云端'); return; }
+  var phoneRaw=(document.getElementById('phone').value||'').trim();
+  if(normPhone(phoneRaw).length<7){ toast('请先填写你的手机号'); document.getElementById('phone').focus(); return; }
+  try{ localStorage.setItem('pm_notify_phone', phoneRaw); }catch(e){}
   try{
     var reg=await navigator.serviceWorker.register('./sw.js');
     await navigator.serviceWorker.ready;
@@ -132,7 +142,7 @@ async function enablePush(){
     }
     var j=sub.toJSON();
     var res=await db.from('push_subscriptions').upsert({
-      endpoint:j.endpoint, p256dh:j.keys.p256dh, auth:j.keys.auth, ua:navigator.userAgent
+      endpoint:j.endpoint, p256dh:j.keys.p256dh, auth:j.keys.auth, phone:normPhone(phoneRaw), ua:navigator.userAgent
     }, { onConflict:'endpoint' });
     if(res.error){ toast('保存订阅失败'); console.error(res.error); return; }
     toast('已开启！以后新订单会推到这台手机');

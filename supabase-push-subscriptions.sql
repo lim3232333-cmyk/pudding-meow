@@ -12,9 +12,12 @@ create table if not exists public.push_subscriptions (
   endpoint   text unique not null,          -- 浏览器推送服务的地址（每台设备一个）
   p256dh     text not null,                 -- 订阅公钥（加密推送内容用）
   auth       text not null,                 -- 订阅认证密钥
+  phone      text,                          -- 开启通知时填的手机号（用来做「只推给这两个号」白名单）
   ua         text,                          -- 记一下是哪台设备（可选，方便管理）
   created_at timestamptz not null default now()
 );
+-- 老表补列（已建过表再跑也不会报错）
+alter table public.push_subscriptions add column if not exists phone text;
 
 alter table public.push_subscriptions enable row level security;
 
@@ -28,4 +31,7 @@ create policy push_sub_anon_delete on public.push_subscriptions for delete to an
 -- 注意：没有给 anon 的 select 策略——发推送在 Edge Function 里用 service_role（绕过 RLS）读。
 
 -- 完成。接着部署 hitpay-webhook（已加发推送逻辑），并在 Edge Functions → Secrets 里设
---   VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT（见下方说明）。
+--   VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT。
+-- 只想给指定手机号收通知：再设一个 PUSH_ALLOW_PHONES，填允许的号码（逗号分隔），例如
+--   PUSH_ALLOW_PHONES = 0123456789,0129876543
+-- 设了之后就只推给这些号；留空/不设 = 推给所有开了提醒的设备。号码 0/+60/60 前缀都行，自动归一化比对。

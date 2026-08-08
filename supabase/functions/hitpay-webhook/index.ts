@@ -66,6 +66,16 @@ async function sendOrderPush(SUPABASE_URL: string, SERVICE_KEY: string, order: R
     const isPickup = tn.includes("自取");
     if (!isDelivery && !isPickup) return;
 
+    // 手机号白名单：设了 PUSH_ALLOW_PHONES 就只推给这些号；留空 = 推给所有订阅。
+    // 号码去掉非数字、再去掉 60 / 前导 0 前缀后比对（0123.. / +60123.. / 60123.. 视作同一个）。
+    const normPhone = (s: unknown) => {
+      let d = String(s ?? "").replace(/\D/g, "");
+      d = d.replace(/^60/, "").replace(/^0/, "");
+      return d;
+    };
+    const allow = (Deno.env.get("PUSH_ALLOW_PHONES") || "")
+      .split(/[,;\s]+/).map(normPhone).filter(Boolean);
+
     webpush.setVapidDetails(SUBJ, PUB, PRIV);
     const num = String(order.order_num ?? "").padStart(2, "0");
     const code = (isDelivery ? "DL" : "TA") + num;
@@ -78,11 +88,13 @@ async function sendOrderPush(SUPABASE_URL: string, SERVICE_KEY: string, order: R
     });
 
     const subsRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/push_subscriptions?select=endpoint,p256dh,auth`,
+      `${SUPABASE_URL}/rest/v1/push_subscriptions?select=endpoint,p256dh,auth,phone`,
       { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } },
     );
-    const subs = await subsRes.json().catch(() => []);
+    let subs = await subsRes.json().catch(() => []);
     if (!Array.isArray(subs) || !subs.length) return;
+    if (allow.length) subs = subs.filter((s: { phone?: string }) => allow.includes(normPhone(s.phone)));
+    if (!subs.length) return;
 
     await Promise.all(subs.map(async (s: { endpoint: string; p256dh: string; auth: string }) => {
       try {
