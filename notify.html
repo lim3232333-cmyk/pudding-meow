@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>布丁喵 · 订单提醒</title>
+<link rel="manifest" href="./notify.webmanifest">
+<meta name="theme-color" content="#8D0505">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="订单提醒">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{ --cream:#FFFDD6; --blue:#B6F3FF; --red:#8D0505; --yellow:#FFDE5B; --cream2:#FFFFD5; --muted:#4A4848; }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body{ margin:0; font-family:"Noto Sans SC","PingFang SC",sans-serif; background:var(--cream); color:var(--red);
+    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+  .top{ background:var(--red); color:var(--cream2); padding:16px; display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:2; }
+  .top img{ width:40px; height:40px; border-radius:10px; }
+  .top h1{ font-size:18px; margin:0; font-weight:700; }
+  .top .sub{ font-size:12px; opacity:.85; margin-top:2px; }
+  .wrap{ padding:16px; max-width:520px; margin:0 auto; }
+  .card{ background:var(--cream2); border-radius:14px; padding:16px; margin-bottom:14px; box-shadow:0 2px 8px rgba(141,5,5,.08); }
+  .status{ display:flex; align-items:center; gap:10px; font-size:15px; font-weight:500; }
+  .dot{ width:10px; height:10px; border-radius:50%; background:#bbb; flex-shrink:0; }
+  .dot.on{ background:#1BA94C; } .dot.off{ background:#C62828; }
+  .btn{ display:block; width:100%; margin-top:14px; padding:14px; border:none; border-radius:12px; background:var(--red);
+    color:var(--cream2); font-size:17px; font-weight:700; font-family:inherit; cursor:pointer; }
+  .btn.sec{ background:#fff; color:var(--red); border:2px solid var(--red); }
+  .btn:disabled{ opacity:.5; }
+  .hint{ font-size:12px; color:var(--muted); line-height:1.6; margin-top:10px; }
+  .sec-title{ font-size:14px; font-weight:700; margin:6px 4px 10px; }
+  .order{ background:var(--cream2); border-radius:14px; padding:14px; margin-bottom:10px; border-left:5px solid var(--red); }
+  .order.dlv{ border-left-color:#1565C0; }
+  .order .r1{ display:flex; justify-content:space-between; align-items:baseline; }
+  .order .code{ font-size:18px; font-weight:700; }
+  .order .tag{ font-size:12px; font-weight:700; color:#fff; background:var(--red); border-radius:999px; padding:2px 10px; }
+  .order .tag.dlv{ background:#1565C0; }
+  .order .amt{ font-size:15px; font-weight:700; }
+  .order .items{ font-size:13px; color:var(--muted); margin-top:6px; line-height:1.5; }
+  .order .time{ font-size:11px; color:var(--muted); margin-top:6px; }
+  .empty{ text-align:center; color:var(--muted); padding:30px 0; font-size:14px; }
+  .toast{ position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--red); color:#fff;
+    padding:10px 18px; border-radius:999px; font-size:14px; opacity:0; transition:opacity .3s; z-index:9; pointer-events:none; }
+  .toast.show{ opacity:1; }
+</style>
+</head>
+<body>
+  <div class="top">
+    <img src="./icon-192.png" alt="">
+    <div><h1>布丁喵 · 订单提醒</h1><div class="sub">自取 / 外卖 新订单</div></div>
+  </div>
+  <div class="wrap">
+    <div class="card">
+      <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">正在检查通知状态…</span></div>
+      <button class="btn" id="enableBtn" onclick="enablePush()">开启手机通知</button>
+      <button class="btn sec" id="testBtn" onclick="testBeep()" style="display:none">测试提示音</button>
+      <div class="hint" id="hint"></div>
+    </div>
+    <div class="sec-title">最近的自取 / 外卖订单</div>
+    <div id="list"><div class="empty">加载中…</div></div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+<script>
+/* ===== 配置：跟 pudding-meow.html / pos.html 一致 ===== */
+var SUPABASE_URL='https://vmdjsvapikfgcbthnapw.supabase.co';
+var SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZtZGpzdmFwaWtmZ2NidGhuYXB3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MjczODYsImV4cCI6MjA5ODMwMzM4Nn0.gHeQR9HKfphTsJjVRamidKS2qtUqBeqvEZo8Pb1zF28';
+/* VAPID 公钥（跟 Edge Function 的 VAPID_PUBLIC_KEY 必须一致；公钥可公开，不是密钥） */
+var VAPID_PUBLIC_KEY='BAElDUeOia7zHnIsDjiXcLE1pCUPhl8yUWH7l4xHS7FHbwUUBr06aJhE5Q8o2T3MHvRhSIYcLt_ywF2nd7NxXIQ';
+
+var db = (window.supabase && SUPABASE_URL.indexOf('http')===0) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(function(){t.classList.remove('show');},2200); }
+function urlB64ToUint8(base64){
+  var pad='='.repeat((4-base64.length%4)%4);
+  var b=(base64+pad).replace(/-/g,'+').replace(/_/g,'/');
+  var raw=atob(b), arr=new Uint8Array(raw.length);
+  for(var i=0;i<raw.length;i++) arr[i]=raw.charCodeAt(i);
+  return arr;
+}
+
+/* ---- 提示音（页面开着时）---- */
+var _ac=null;
+function _initAudio(){ try{ if(!_ac){ var AC=window.AudioContext||window.webkitAudioContext; if(AC) _ac=new AC(); } if(_ac&&_ac.state==='suspended') _ac.resume(); }catch(e){} }
+['click','touchstart'].forEach(function(ev){ window.addEventListener(ev,_initAudio,{passive:true}); });
+function _beep(f,s,d){ try{ var o=_ac.createOscillator(),g=_ac.createGain(); o.type='sine'; o.frequency.value=f; o.connect(g); g.connect(_ac.destination);
+  var t=_ac.currentTime+s; g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.4,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+d); o.start(t); o.stop(t+d+0.03);}catch(e){} }
+function ding(){ _initAudio(); if(!_ac) return; _beep(880,0,0.18); _beep(660,0.22,0.18); _beep(990,0.46,0.28); }
+function testBeep(){ ding(); toast('这就是新订单提示音'); }
+
+/* ---- 通知开关 ---- */
+function setStatus(state, txt){
+  var dot=document.getElementById('dot'); dot.className='dot '+(state||'');
+  document.getElementById('statusTxt').textContent=txt;
+}
+async function refreshStatus(){
+  if(!('serviceWorker' in navigator) || !('PushManager' in window)){
+    setStatus('off','此浏览器不支持推送通知');
+    document.getElementById('enableBtn').disabled=true;
+    document.getElementById('hint').textContent='iPhone 请先用 Safari 打开，点「分享 → 添加到主屏幕」，从主屏幕图标打开后再开启通知（需 iOS 16.4 以上）。';
+    return;
+  }
+  document.getElementById('testBtn').style.display='block';
+  try{
+    var reg=await navigator.serviceWorker.getRegistration();
+    var sub=reg && await reg.pushManager.getSubscription();
+    if(Notification.permission==='granted' && sub){
+      setStatus('on','手机通知已开启 ✓');
+      document.getElementById('enableBtn').textContent='关闭手机通知';
+      document.getElementById('enableBtn').onclick=disablePush;
+      document.getElementById('hint').textContent='锁屏也能收到自取/外卖新订单。想彻底停用，点上面按钮或在系统设置里关掉本应用通知。';
+    }else{
+      setStatus('off','手机通知未开启');
+      document.getElementById('enableBtn').textContent='开启手机通知';
+      document.getElementById('enableBtn').onclick=enablePush;
+      document.getElementById('hint').textContent='开启后即使没开着这个页面、手机锁屏，也能收到新订单提醒。iPhone 需先「添加到主屏幕」再开启。';
+    }
+  }catch(e){ setStatus('off','状态检查失败'); }
+}
+async function enablePush(){
+  if(!db){ toast('未连接云端'); return; }
+  try{
+    var reg=await navigator.serviceWorker.register('./sw.js');
+    await navigator.serviceWorker.ready;
+    var perm=await Notification.requestPermission();
+    if(perm!=='granted'){ toast('未授予通知权限'); return; }
+    var sub=await reg.pushManager.getSubscription();
+    if(!sub){
+      sub=await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:urlB64ToUint8(VAPID_PUBLIC_KEY) });
+    }
+    var j=sub.toJSON();
+    var res=await db.from('push_subscriptions').upsert({
+      endpoint:j.endpoint, p256dh:j.keys.p256dh, auth:j.keys.auth, ua:navigator.userAgent
+    }, { onConflict:'endpoint' });
+    if(res.error){ toast('保存订阅失败'); console.error(res.error); return; }
+    toast('已开启！以后新订单会推到这台手机');
+    ding();
+    refreshStatus();
+  }catch(e){ console.error(e); toast('开启失败：'+(e&&e.message||e)); }
+}
+async function disablePush(){
+  try{
+    var reg=await navigator.serviceWorker.getRegistration();
+    var sub=reg && await reg.pushManager.getSubscription();
+    if(sub){ var ep=sub.endpoint; await sub.unsubscribe(); if(db) await db.from('push_subscriptions').delete().eq('endpoint',ep); }
+    toast('已关闭手机通知');
+    refreshStatus();
+  }catch(e){ toast('关闭失败'); }
+}
+
+/* ---- 订单类型 & 列表（页面开着时实时刷新 + 提示音）---- */
+function mode(o){ var tn=o.table_name||''; if(tn.indexOf('外卖')>=0) return'delivery'; if(tn.indexOf('自取')>=0) return'takeaway'; return'other'; }
+function codeOf(o){ var m=mode(o); var num=String(o.order_num||'').padStart(2,'0'); return (m==='delivery'?'DL':'TA')+num; }
+function fmtTime(s){ try{ var d=new Date(s); return d.toLocaleTimeString('zh',{hour:'2-digit',minute:'2-digit'}); }catch(e){ return''; } }
+function itemsText(o){ try{ var it=o.items||[]; return it.map(function(x){ return (x.name_cn||x.name||'')+' ×'+(x.qty||1); }).join('、'); }catch(e){ return''; } }
+
+var _seen={};
+function renderList(rows, ringNew){
+  var el=document.getElementById('list');
+  var list=(rows||[]).filter(function(o){ var m=mode(o); return (m==='takeaway'||m==='delivery') && ['preparing','paid','ready'].indexOf(o.status)>=0; });
+  if(!list.length){ el.innerHTML='<div class="empty">暂无自取/外卖订单</div>'; }
+  else{
+    el.innerHTML=list.map(function(o){ var dlv=mode(o)==='delivery';
+      return '<div class="order'+(dlv?' dlv':'')+'">'
+        +'<div class="r1"><span class="code">'+codeOf(o)+' <span class="tag'+(dlv?' dlv':'')+'">'+(dlv?'外卖':'自取')+'</span></span>'
+        +'<span class="amt">RM '+Number(o.total||0).toFixed(2)+'</span></div>'
+        +'<div class="items">'+itemsText(o)+'</div>'
+        +'<div class="time">'+fmtTime(o.created_at)+'</div></div>';
+    }).join('');
+  }
+  if(ringNew){ var fresh=list.some(function(o){ if(_seen[o.id]) return false; _seen[o.id]=1; return true; }); if(fresh) ding(); }
+  else{ list.forEach(function(o){ _seen[o.id]=1; }); }
+}
+async function loadOrders(ring){
+  if(!db){ document.getElementById('list').innerHTML='<div class="empty">未连接云端</div>'; return; }
+  var since=new Date(Date.now()-18*3600*1000).toISOString();
+  var res=await db.from('orders').select('*').gte('created_at',since).order('created_at',{ascending:false}).limit(40);
+  if(res.error){ console.error(res.error); return; }
+  renderList(res.data||[], ring);
+}
+function subscribe(){
+  if(!db) return;
+  db.channel('orders-notify').on('postgres_changes',{event:'*',schema:'public',table:'orders'},function(){ loadOrders(true); }).subscribe();
+}
+
+/* 启动 */
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js').catch(function(){}); }
+refreshStatus();
+loadOrders(false);
+subscribe();
+document.addEventListener('visibilitychange',function(){ if(!document.hidden) loadOrders(false); });
+</script>
+</body>
+</html>

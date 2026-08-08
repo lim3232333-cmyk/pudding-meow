@@ -4,6 +4,7 @@
 //  会 POST 到这个地址）。验证签名通过、状态是 completed 后，把对应订单从
 //  pending 改成 preparing（跟 POS markPaid() 对 app 订单的效果一致），
 //  并给会员结算 XP/Coin（跟 confirmOrder() 里 TNG 预付款分支同逻辑）。
+//  另外：自取/外卖订单付款到账时，给所有开了 notify.html「订单提醒」的手机发 Web Push。
 //
 //  HitPay 那边要把这个函数的 URL 填进「Webhook」——不过 hitpay-checkout 已经
 //  在创建 payment request 时把 webhook 参数自动带上了，通常不需要手动填。
@@ -11,9 +12,14 @@
 //  需要设的密钥（Supabase 后台 → Edge Functions → Secrets）：
 //    HITPAY_SALT                HitPay 后台 API Keys 页面里那个用来验证
 //                                webhook 签名的 salt（不是 API Key 本身）
+//    VAPID_PUBLIC_KEY           手机推送公钥（跟 notify.html 里的那串一致）
+//    VAPID_PRIVATE_KEY          手机推送私钥（只放这里，别提交进代码库）
+//    VAPID_SUBJECT              可选，mailto:你的邮箱（默认一个占位邮箱）
 //    SUPABASE_SERVICE_ROLE_KEY  Supabase 自动注入，不用手动设置
 //    SUPABASE_URL               Supabase 自动注入，不用手动设置
 // ============================================================================
+
+import webpush from "npm:web-push@3.6.7";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -45,6 +51,61 @@ function timingSafeEqual(a: string, b: string): boolean {
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
+}
+
+// 自取/外卖订单付款到账时，给所有开了「订单提醒」的手机发 Web Push。
+// 只推自取/外卖（堂食客人就在店里，不打扰）。失效订阅（404/410）顺手删掉。
+async function sendOrderPush(SUPABASE_URL: string, SERVICE_KEY: string, order: Record<string, unknown>) {
+  try {
+    const PUB = Deno.env.get("VAPID_PUBLIC_KEY");
+    const PRIV = Deno.env.get("VAPID_PRIVATE_KEY");
+    const SUBJ = Deno.env.get("VAPID_SUBJECT") || "mailto:shop@puddingmeow.example";
+    if (!PUB || !PRIV) { console.warn("hitpay-webhook: VAPID keys 未设置，跳过推送"); return; }
+    const tn = String(order.table_name || "");
+    const isDelivery = tn.includes("外卖");
+    const isPickup = tn.includes("自取");
+    if (!isDelivery && !isPickup) return;
+
+    webpush.setVapidDetails(SUBJ, PUB, PRIV);
+    const num = String(order.order_num ?? "").padStart(2, "0");
+    const code = (isDelivery ? "DL" : "TA") + num;
+    const kind = isDelivery ? "外卖" : "自取";
+    const payload = JSON.stringify({
+      title: `🔔 新${kind}订单 ${code}`,
+      body: `RM ${Number(order.total || 0).toFixed(2)} · 已付款，请备餐`,
+      url: "./notify.html",
+      tag: "order-" + String(order.id),
+    });
+
+    const subsRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/push_subscriptions?select=endpoint,p256dh,auth`,
+      { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } },
+    );
+    const subs = await subsRes.json().catch(() => []);
+    if (!Array.isArray(subs) || !subs.length) return;
+
+    await Promise.all(subs.map(async (s: { endpoint: string; p256dh: string; auth: string }) => {
+      try {
+        await webpush.sendNotification(
+          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+          payload,
+        );
+      } catch (err) {
+        const sc = (err as { statusCode?: number; status?: number })?.statusCode
+          ?? (err as { status?: number })?.status;
+        if (sc === 404 || sc === 410) {
+          await fetch(
+            `${SUPABASE_URL}/rest/v1/push_subscriptions?endpoint=eq.${encodeURIComponent(s.endpoint)}`,
+            { method: "DELETE", headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } },
+          ).catch(() => {});
+        } else {
+          console.error("push send error", sc, (err as { body?: unknown })?.body);
+        }
+      }
+    }));
+  } catch (e) {
+    console.error("sendOrderPush error", e);
+  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -86,7 +147,7 @@ Deno.serve(async (req: Request) => {
 
     // 先读这张单，判断是「钱包充值」还是普通餐单——两者到账方式不同
     const getRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/orders?id=eq.${encodeURIComponent(referenceNumber)}&select=id,ta_mode,member_id,total,status`,
+      `${SUPABASE_URL}/rest/v1/orders?id=eq.${encodeURIComponent(referenceNumber)}&select=id,ta_mode,member_id,total,status,table_name,order_num`,
       { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } },
     );
     const found = await getRes.json().catch(() => []);
@@ -142,6 +203,9 @@ Deno.serve(async (req: Request) => {
       });
       if (!rpcRes.ok) console.error("hitpay-webhook: rpc_on_order_completed failed", await rpcRes.text());
     }
+
+    // 自取/外卖：付款到账 → 推送到店员手机（尽力而为，失败不影响订单已翻 preparing）
+    if (updated) await sendOrderPush(SUPABASE_URL, SERVICE_KEY, updated as Record<string, unknown>);
 
     return json({ ok: true });
   } catch (e) {
