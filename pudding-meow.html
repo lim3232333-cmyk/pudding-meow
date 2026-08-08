@@ -1940,13 +1940,15 @@
   <!-- ============ 堂食选座弹窗（Figma 1029:1363）：选桌号 + 选人数 + 前往下单 ============ -->
   <div class="dine-overlay" id="dineOverlay" onclick="closeDine()"></div>
   <div class="rsv-modal" id="dineModal">
-    <div class="rsv-close" onclick="closeDine()"><svg viewBox="0 0 24 24" width="30" height="30"><circle cx="12" cy="12" r="10" fill="#4A4848"/><path d="M15 9l-6 6M9 9l6 6" stroke="#FFFFD5" stroke-width="2" stroke-linecap="round"/></svg></div>
-    <div class="rsv-head"><span class="rsv-title">堂食</span></div>
+    <div class="rsv-head">
+      <svg class="rsv-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" onclick="closeDine()"><path d="M15 5l-7 7 7 7"/></svg>
+      <span class="rsv-title">堂食</span>
+    </div>
 
     <div class="rsv-field">
       <div class="rsv-flabel">1. 选择桌号</div>
       <details class="rsv-dd" id="dineTableDD">
-        <summary><span id="dineTableVal">Table 1</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5z" fill="currentColor"/></svg></summary>
+        <summary><span id="dineTableVal">Table 1</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16l-8 10z" fill="currentColor"/></svg></summary>
         <div class="rsv-dd-panel" id="dineTablePanel"></div>
       </details>
     </div>
