@@ -1940,10 +1940,8 @@
   <!-- ============ 堂食选座弹窗（Figma 1029:1363）：选桌号 + 选人数 + 前往下单 ============ -->
   <div class="dine-overlay" id="dineOverlay" onclick="closeDine()"></div>
   <div class="rsv-modal" id="dineModal">
-    <div class="rsv-head">
-      <svg class="rsv-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" onclick="closeDine()"><path d="M15 5l-7 7 7 7"/></svg>
-      <span class="rsv-title">堂食</span>
-    </div>
+    <div class="rsv-close" onclick="closeDine()"><svg viewBox="0 0 24 24" width="30" height="30"><circle cx="12" cy="12" r="10" fill="#4A4848"/><path d="M15 9l-6 6M9 9l6 6" stroke="#FFFFD5" stroke-width="2" stroke-linecap="round"/></svg></div>
+    <div class="rsv-head"><span class="rsv-title">堂食</span></div>
 
     <div class="rsv-field">
       <div class="rsv-flabel">1. 选择桌号</div>
@@ -2294,7 +2292,8 @@ function promptModeIfNeeded(){
   if(_modeChosen) return;
   if(currentMode==='dinein'){ openDine(); return; }        // 堂食：要桌号+人数
   if(currentMode==='delivery'){ openDelivery(); return; }  // 外卖：要地址+运费
-  _modeChosen = true;                                      // 自取不需要额外信息
+  if(currentMode==='pickup'){ openPickup(); return; }      // 自取：要日期/时间/电话
+  _modeChosen = true;
 }
 function selectMode(el){
   document.querySelectorAll('.hc-card').forEach(c=>c.classList.remove('active'));
@@ -2303,7 +2302,8 @@ function selectMode(el){
   refilterMenuForMode();
   if(currentMode==='dinein'){ openDine(); return; }       // 堂食先选座号+人数
   if(currentMode==='delivery'){ openDelivery(); return; } // 外卖先填地址+算运费
-  _modeChosen = true;                                     // 自取：没有别的要填，选了就算定了
+  if(currentMode==='pickup'){ openPickup(); return; }     // 自取先选日期/时间/电话
+  _modeChosen = true;
   setTimeout(()=>{
     switchTab('menu');
     syncMenuMode();
@@ -2571,9 +2571,12 @@ function confirmPickup(){
   if(phone.replace(/\D/g,'').length<7){ alert('请填写手机号码'); document.getElementById('pkPhone').focus(); return; }
   _pickupInfo={ date:_pkDate, time:_pkTime, phone:phone };
   currentMode='pickup'; _modeChosen=true;
+  refilterMenuForMode();
   try{ updateMenuTableInfo(); }catch(e){}
   closePickup();
-  openCheckout();
+  // 购物车里有东西（多半是从结算页顶出来补自取信息）→ 直接回结算；否则去点单
+  if(Object.keys(cart).length){ openCheckout(); }
+  else setTimeout(()=>{ switchTab('menu'); syncMenuMode(); }, 60);
 }
 /* 同一手机号在同一天已有未取消的预约就算重复（date=预约日期）。本地 _orders 里查一遍。 */
 function _rsvHasDupLocal(pnorm, date){
@@ -2656,6 +2659,7 @@ function syncMenuMode(){
 function setMenuMode(el){
   if(el.dataset.mode==='dinein'){ openDine(); return; }       // 切到堂食也要选座号+人数
   if(el.dataset.mode==='delivery'){ openDelivery(); return; } // 切到外卖也要填地址+算运费
+  if(el.dataset.mode==='pickup'){ openPickup(); return; }     // 切到自取也要选日期/时间/电话
   document.querySelectorAll('#seg button').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
   currentMode = el.dataset.mode;
