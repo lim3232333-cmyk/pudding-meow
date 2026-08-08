@@ -2035,6 +2035,39 @@
     <button class="rsv-confirm" id="rsvConfirm" onclick="confirmReserve()">确认预约</button>
   </div>
 
+  <!-- ============ 自取弹窗（Figma 1029:1316）：选日期(默认当天) + 选时间(尽快/滚动选时间) + 手机号 ============ -->
+  <div class="dine-overlay" id="pkOverlay" onclick="closePickup()"></div>
+  <div class="rsv-modal" id="pkModal">
+    <div class="rsv-close" onclick="closePickup()"><svg viewBox="0 0 24 24" width="30" height="30"><circle cx="12" cy="12" r="10" fill="#4A4848"/><path d="M15 9l-6 6M9 9l6 6" stroke="#FFFFD5" stroke-width="2" stroke-linecap="round"/></svg></div>
+    <div class="rsv-head"><span class="rsv-title">自取</span></div>
+
+    <div class="rsv-field">
+      <div class="rsv-flabel">1. 选择日期</div>
+      <details class="rsv-dd" id="pkDateDD">
+        <summary><span id="pkDateVal">请选择日期</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4"/></svg></summary>
+        <div class="rsv-dd-panel rsv-cal-panel" id="pkDatePanel">
+          <div class="rsv-cal-nav"><button type="button" onclick="pkCalMove(-1)">‹</button><b id="pkCalTitle"></b><button type="button" onclick="pkCalMove(1)">›</button></div>
+          <div class="rsv-cal-grid" id="pkCalGrid"></div>
+        </div>
+      </details>
+    </div>
+
+    <div class="rsv-field">
+      <div class="rsv-flabel">2. 选择时间</div>
+      <details class="rsv-dd" id="pkTimeDD">
+        <summary><span id="pkTimeVal">尽快</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></summary>
+        <div class="rsv-dd-panel" id="pkTimePanel"></div>
+      </details>
+    </div>
+
+    <div class="rsv-field">
+      <div class="rsv-flabel">3. 输入手机号码</div>
+      <div class="rsv-tf"><label>手机号码</label><input id="pkPhone" type="tel" inputmode="tel" placeholder="手机号码"></div>
+    </div>
+
+    <button class="rsv-confirm" id="pkConfirm" onclick="confirmPickup()">前往下单</button>
+  </div>
+
   <!-- ============ 外卖：收货地址（地址簿）弹窗，Figma 453:237 空状态 / 454:243 有地址 ============ -->
   <div class="dine-overlay" id="dvOverlay" onclick="closeDelivery()"></div>
   <div class="dine-modal dv-modal" id="dvModal">
@@ -2265,7 +2298,7 @@ function selectMode(el){
 /* ---------- 堂食选座（点堂食 → 居中弹窗选座号+人数，下拉框选择）---------- */
 const DINE_TABLES=['Table 1','Table 2','Table 3','Table 4','Table 5'];   // 以后加桌子改这里即可（下拉自动可滚）
 const DINE_PAX_MAX=20;
-let dineTable='T1', dinePax=1, _dineInfo=null, _deliveryInfo=null;
+let dineTable='T1', dinePax=1, _dineInfo=null, _deliveryInfo=null, _pickupInfo=null;
 function openDine(){
   dineTable=DINE_TABLES[0]; dinePax=1;
   document.getElementById('dineTablePanel').innerHTML=DINE_TABLES.map(function(t){
@@ -2442,6 +2475,96 @@ function rsvPickTime(t){
   rsvRenderTimeOptions();
 }
 function rsvPaxChange(delta){ _rsvPax=Math.max(1,Math.min(50,_rsvPax+delta)); document.getElementById('rsvPaxVal').textContent=_rsvPax; }
+
+/* ===== 自取弹窗（Figma 1029:1316）：日期下拉（默认当天）+ 时间下拉（尽快 / 滚动选时间）+ 手机号 =====
+   复用预约那套 .rsv-* 样式和日历渲染。「前往下单」= 结算前的一步，收集自取日期/时间/电话后进结算页。 */
+var _pkDate=null, _pkTime='尽快', _pkCalYM=null;
+function _pkIso(dt){ return dt.getFullYear()+'-'+('0'+(dt.getMonth()+1)).slice(-2)+'-'+('0'+dt.getDate()).slice(-2); }
+function openPickup(){
+  var now=new Date();
+  _pkCalYM={y:now.getFullYear(), m:now.getMonth()};
+  _pkDate=_pkIso(now);                                   // 默认选当天
+  document.getElementById('pkDateVal').textContent=_pkDate+' '+_RSV_WD[now.getDay()];
+  _pkTime='尽快';
+  document.getElementById('pkTimeVal').textContent='尽快';
+  document.getElementById('pkDateDD').open=false;
+  document.getElementById('pkTimeDD').open=false;
+  var ph=document.getElementById('pkPhone');
+  if(_memberProfile && _memberProfile.phone && !ph.value) ph.value=_memberProfile.phone;   // 预填会员电话
+  pkRenderCal(); pkRenderTimeMenu();
+  document.getElementById('pkOverlay').classList.add('show');
+  document.getElementById('pkModal').classList.add('show');
+}
+function closePickup(){
+  document.getElementById('pkOverlay').classList.remove('show');
+  document.getElementById('pkModal').classList.remove('show');
+}
+function pkCalMove(delta){ var m=_pkCalYM.m+delta, y=_pkCalYM.y; if(m<0){m=11;y--;} if(m>11){m=0;y++;} _pkCalYM={y:y,m:m}; pkRenderCal(); }
+function pkRenderCal(){
+  var y=_pkCalYM.y, m=_pkCalYM.m;
+  document.getElementById('pkCalTitle').textContent=y+'年'+(m+1)+'月';
+  var first=new Date(y,m,1), startDow=(first.getDay()+6)%7;
+  var days=new Date(y,m+1,0).getDate();
+  var today=new Date(); today.setHours(0,0,0,0);
+  var wd=['一','二','三','四','五','六','日'];
+  var html=wd.map(function(d){return '<div class="wd">'+d+'</div>';}).join('');
+  for(var i=0;i<startDow;i++){ html+='<div class="rsv-cal-day muted"></div>'; }
+  for(var d=1;d<=days;d++){
+    var iso=y+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+d).slice(-2);
+    var past=new Date(y,m,d)<today;
+    var sel=(iso===_pkDate);
+    html+='<div class="rsv-cal-day'+(past?' muted':'')+(sel?' sel':'')+'"'+(past?'':' onclick="pkPickDate('+y+','+m+','+d+')"')+'>'+d+'</div>';
+  }
+  document.getElementById('pkCalGrid').innerHTML=html;
+}
+function pkPickDate(y,m,d){
+  _pkDate=y+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+d).slice(-2);
+  document.getElementById('pkDateVal').textContent=_pkDate+' '+_RSV_WD[new Date(y,m,d).getDay()];
+  document.getElementById('pkDateDD').open=false;
+  pkRenderCal();
+  // 换了日期，「尽快」保持；若正展开滚动时段列表，重算（今天要滤掉已过时段）
+  if(document.getElementById('pkTimeDD').open) pkRenderTimeMenu();
+}
+/* 时间下拉：两个选项——尽快 / 滚动选时间；点「滚动选时间」展开可滚动的时段列表 */
+function pkRenderTimeMenu(){
+  document.getElementById('pkTimePanel').innerHTML =
+    '<div class="rsv-dd-opt'+(_pkTime==='尽快'?' sel':'')+'" onclick="pkPickAsap()">尽快</div>'
+   +'<div class="rsv-dd-opt" onclick="pkShowTimeScroll()">滚动选时间 ▾</div>';
+}
+function pkPickAsap(){
+  _pkTime='尽快'; document.getElementById('pkTimeVal').textContent='尽快';
+  document.getElementById('pkTimeDD').open=false; pkRenderTimeMenu();
+}
+function _pkParseMin(t){ var m=/(\d+):(\d+)\s*(am|pm)/i.exec(t); if(!m) return 0; var h=(+m[1])%12; if(/pm/i.test(m[3])) h+=12; return h*60+(+m[2]); }
+/* 可选时段沿用营业时段 RSV_TIMES；选的是今天就滤掉已过去的 */
+function pkTimeSlots(){
+  if(_pkDate!==_pkIso(new Date())) return RSV_TIMES.slice();
+  var now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
+  return RSV_TIMES.filter(function(t){ return _pkParseMin(t)>nowMin; });
+}
+function pkShowTimeScroll(){
+  var times=pkTimeSlots();
+  var body = times.length
+    ? times.map(function(t){ return '<div class="rsv-dd-opt'+(_pkTime===t?' sel':'')+'" onclick="pkPickTime(\''+t+'\')">'+t+'</div>'; }).join('')
+    : '<div class="rsv-dd-opt" style="color:#999">今日营业时段已过，请选「尽快」或改日期</div>';
+  var pane=document.getElementById('pkTimePanel');
+  pane.innerHTML='<div class="rsv-dd-opt" style="font-size:12px;color:var(--red)" onclick="pkRenderTimeMenu()">‹ 尽快 / 滚动选时间</div>'+body;
+  var s=pane.querySelector('.rsv-dd-opt.sel'); if(s) pane.scrollTop=Math.max(0,s.offsetTop-60);
+}
+function pkPickTime(t){
+  _pkTime=t; document.getElementById('pkTimeVal').textContent=t;
+  document.getElementById('pkTimeDD').open=false; pkRenderTimeMenu();
+}
+function confirmPickup(){
+  var phone=(document.getElementById('pkPhone').value||'').trim();
+  if(!_pkDate){ alert('请选择自取日期'); return; }
+  if(phone.replace(/\D/g,'').length<7){ alert('请填写手机号码'); document.getElementById('pkPhone').focus(); return; }
+  _pickupInfo={ date:_pkDate, time:_pkTime, phone:phone };
+  currentMode='pickup'; _modeChosen=true;
+  try{ updateMenuTableInfo(); }catch(e){}
+  closePickup();
+  openCheckout();
+}
 /* 同一手机号在同一天已有未取消的预约就算重复（date=预约日期）。本地 _orders 里查一遍。 */
 function _rsvHasDupLocal(pnorm, date){
   return (_orders||[]).some(function(o){
@@ -2538,7 +2661,7 @@ function updateMenuTableInfo(){
     /* DINE_TABLES 里存的就是 'Table 1' 这种完整文本，别再加一次 'Table ' 前缀（会变成 Table Table 1） */
     t.textContent = _dineInfo ? (_dineInfo.table+' ｜'+_dineInfo.pax+' Pax') : '堂食 · 请选择桌号';
   } else if(currentMode==='pickup'){
-    t.textContent = '自取 · 到店领取';
+    t.textContent = _pickupInfo ? ('自取 · '+(_pickupInfo.time==='尽快'?'尽快':((_pickupInfo.date||'').slice(5)+' '+_pickupInfo.time))) : '自取 · 到店领取';
   } else if(currentMode==='delivery'){
     t.textContent = _deliveryInfo ? (_deliveryInfo.address||'外卖 · 送餐上门') : '外卖 · 送餐上门';
   } else {
@@ -3438,7 +3561,7 @@ var _HP_AWAIT='pm_hitpay_await', _HP_CART='pm_hitpay_cart';
 function _pmMarkHitpayAwait(id){ try{
   sessionStorage.setItem(_HP_AWAIT, id);
   sessionStorage.setItem(_HP_CART, JSON.stringify({
-    cart: cart, mode: currentMode, deliveryInfo: _deliveryInfo||null, dineInfo: _dineInfo||null, selectedPay: selectedPay
+    cart: cart, mode: currentMode, deliveryInfo: _deliveryInfo||null, dineInfo: _dineInfo||null, pickupInfo: _pickupInfo||null, selectedPay: selectedPay
   }));
 }catch(e){} }
 function _pmClearHitpayAwait(){ try{ sessionStorage.removeItem(_HP_AWAIT); }catch(e){} }
@@ -3468,6 +3591,7 @@ function _pmReopenCheckoutAfterAbandon(){
         if(snap.mode){ currentMode = snap.mode; _modeChosen = true; }   // 模式恢复，openCheckout 才不会当成堂食拦下
         if(snap.deliveryInfo) _deliveryInfo = snap.deliveryInfo;         // 外卖：地址+运费，渲染配送块+算进总额
         if(snap.dineInfo) _dineInfo = snap.dineInfo;
+        if(snap.pickupInfo) _pickupInfo = snap.pickupInfo;              // 自取：日期/时间/电话
         if(snap.selectedPay) selectedPay = snap.selectedPay;            // 付款方式行的选中态
       }
     }
@@ -3535,6 +3659,14 @@ function openCheckout(){
     document.getElementById('cartOverlay').classList.remove('show');
     updateCartBadge();
     openDine();
+    return;
+  }
+  // 自取还没填日期/时间/电话，先把自取弹窗顶出来（前往下单会再回到结算）
+  if(currentMode==='pickup' && !_pickupInfo){
+    document.getElementById('cartSheet').classList.remove('show');
+    document.getElementById('cartOverlay').classList.remove('show');
+    updateCartBadge();
+    openPickup();
     return;
   }
   document.getElementById('cartSheet').classList.remove('show');
@@ -3756,7 +3888,9 @@ function _doConfirmOrder(discount, couponId, presetId){
       ? '线上·堂食·'+_dineInfo.table+'·'+_dineInfo.pax+'人'
       : (currentMode==='delivery' && _deliveryInfo)
         ? '线上·外卖·'+(_deliveryInfo.address||'GPS定位')
-        : '线上·'+modeLabel,
+        : (currentMode==='pickup' && _pickupInfo)
+          ? '线上·自取·'+(_pickupInfo.time==='尽快'?'尽快':((_pickupInfo.date||'')+' '+_pickupInfo.time))
+          : '线上·'+modeLabel,
     taMode: currentMode==='delivery' ?'takeaway' :'dinein',
     memberId: _memberId || null,
     deviceId: _deviceId,
@@ -3773,6 +3907,8 @@ function _doConfirmOrder(discount, couponId, presetId){
       address:_deliveryInfo.address||'', lat:_deliveryInfo.lat, lng:_deliveryInfo.lng,
       recipientName:_deliveryInfo.recipientName||'', phone:_deliveryInfo.phone||'',
       remarks:_deliveryInfo.remarks||'', fee:deliveryFee||0, quotationId:_deliveryInfo.quotationId||''
+    } : (currentMode==='pickup' && _pickupInfo) ? {
+      pickup:{ date:_pickupInfo.date||'', time:_pickupInfo.time||'尽快', phone:_pickupInfo.phone||'' }
     } : undefined,
   };
 
