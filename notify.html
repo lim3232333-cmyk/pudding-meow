@@ -44,6 +44,15 @@
   .toast{ position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--red); color:#fff;
     padding:10px 18px; border-radius:999px; font-size:14px; opacity:0; transition:opacity .3s; z-index:9; pointer-events:none; }
   .toast.show{ opacity:1; }
+  /* 店员 PIN 门禁：不让顾客看到订单 */
+  .lock{ position:fixed; inset:0; background:var(--red); display:none; align-items:center; justify-content:center; z-index:20; padding:24px; }
+  .lockbox{ background:var(--cream2); border-radius:18px; padding:28px 22px; width:100%; max-width:320px; text-align:center; }
+  .lockbox img{ width:64px; height:64px; border-radius:14px; }
+  .lockbox .lt{ font-size:20px; font-weight:700; margin-top:12px; }
+  .lockbox .lsub{ font-size:12px; color:var(--muted); margin-top:4px; }
+  .lockbox input{ width:100%; margin-top:16px; padding:14px; border:2px solid var(--red); border-radius:12px; font-size:22px; text-align:center; letter-spacing:6px; font-family:inherit; color:var(--red); background:#fff; }
+  .lerr{ color:#C62828; font-size:13px; min-height:18px; margin-top:8px; }
+  .linkbtn{ background:none; border:none; color:var(--muted); font-size:12px; text-decoration:underline; cursor:pointer; font-family:inherit; margin-top:12px; }
 </style>
 </head>
 <body>
@@ -51,6 +60,7 @@
     <img src="./icon-192.png" alt="">
     <div><h1>布丁喵 · 订单提醒</h1><div class="sub">自取 / 外卖 新订单</div></div>
   </div>
+  <div id="app" style="display:none">
   <div class="wrap">
     <div class="card">
       <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">正在检查通知状态…</span></div>
@@ -59,9 +69,21 @@
       <button class="btn" id="enableBtn" onclick="enablePush()">开启手机通知</button>
       <button class="btn sec" id="testBtn" onclick="testBeep()" style="display:none">测试提示音</button>
       <div class="hint" id="hint"></div>
+      <button class="linkbtn" onclick="changePin()">改店员 PIN</button>
     </div>
     <div class="sec-title">最近的自取 / 外卖订单</div>
     <div id="list"><div class="empty">加载中…</div></div>
+  </div>
+  </div>
+  <div id="lock" class="lock">
+    <div class="lockbox">
+      <img src="./icon-192.png" alt="">
+      <div class="lt">店员登录</div>
+      <div class="lsub">仅限店员 · 输入 PIN 进入</div>
+      <input id="pinInput" type="password" inputmode="numeric" maxlength="12" placeholder="PIN" onkeydown="if(event.key==='Enter')submitPin()">
+      <div id="pinErr" class="lerr"></div>
+      <button class="btn" onclick="submitPin()">进入</button>
+    </div>
   </div>
   <div class="toast" id="toast"></div>
 
@@ -195,12 +217,35 @@ function subscribe(){
   db.channel('orders-notify').on('postgres_changes',{event:'*',schema:'public',table:'orders'},function(){ loadOrders(true); }).subscribe();
 }
 
-/* 启动 */
-if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js').catch(function(){}); }
-refreshStatus();
-loadOrders(false);
-subscribe();
-document.addEventListener('visibilitychange',function(){ if(!document.hidden) loadOrders(false); });
+/* ===== 店员 PIN 门禁：不让顾客看到订单（跟 POS 一样用 pm_pin，默认 0000）===== */
+function _pin(){ try{ return localStorage.getItem('pm_pin')||'0000'; }catch(e){ return '0000'; } }
+function submitPin(){
+  var v=(document.getElementById('pinInput').value||'').trim();
+  if(v===_pin()){ try{ localStorage.setItem('pm_notify_unlocked','1'); }catch(e){} document.getElementById('lock').style.display='none'; initApp(); }
+  else{ document.getElementById('pinErr').textContent='PIN 不对'; document.getElementById('pinInput').value=''; }
+}
+function changePin(){
+  var np=prompt('设置新的店员 PIN（至少 4 位）：'); if(np==null) return;
+  np=String(np).trim(); if(np.length<4){ toast('PIN 至少 4 位'); return; }
+  try{ localStorage.setItem('pm_pin', np); }catch(e){}
+  toast('店员 PIN 已更新');
+}
+var _inited=false;
+function initApp(){
+  if(_inited) return; _inited=true;
+  document.getElementById('app').style.display='block';
+  if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js').catch(function(){}); }
+  refreshStatus();
+  loadOrders(false);
+  subscribe();
+  document.addEventListener('visibilitychange',function(){ if(!document.hidden) loadOrders(false); });
+}
+/* 启动：解锁过就直接进；没解锁过弹 PIN（订单在解锁后才拉取/显示） */
+(function(){
+  var ok=false; try{ ok=localStorage.getItem('pm_notify_unlocked')==='1'; }catch(e){}
+  if(ok){ document.getElementById('lock').style.display='none'; initApp(); }
+  else{ document.getElementById('lock').style.display='flex'; setTimeout(function(){ try{ document.getElementById('pinInput').focus(); }catch(e){} }, 200); }
+})();
 </script>
 </body>
 </html>
