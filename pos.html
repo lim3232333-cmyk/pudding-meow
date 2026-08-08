@@ -5413,17 +5413,30 @@ window.addEventListener('storage',function(e){if(e.key==='pm_orders')pmRefreshOr
 var _audioCtx=null;
 function _initAudio(){ try{ if(!_audioCtx){ var AC=window.AudioContext||window.webkitAudioContext; if(AC) _audioCtx=new AC(); } if(_audioCtx&&_audioCtx.state==='suspended') _audioCtx.resume(); }catch(e){} }
 ['click','touchstart','keydown'].forEach(function(ev){ try{ window.addEventListener(ev,_initAudio,{passive:true}); }catch(e){} });
-function _beep(freq,start,dur){ try{
-  var o=_audioCtx.createOscillator(), g=_audioCtx.createGain();
-  o.type='square'; o.frequency.value=freq; o.connect(g); g.connect(_audioCtx.destination);
-  var t=_audioCtx.currentTime+start;
-  g.gain.setValueAtTime(0.0001,t);
-  g.gain.exponentialRampToValueAtTime(0.9,t+0.02);
-  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-  o.start(t); o.stop(t+dur+0.03);
+/* 合成「喵～」：锯齿声源做基频滑音（me↑ ow↓）+ 颤音，带通滤波模拟元音色彩 */
+function _meow(startSec){ try{
+  var t0=_audioCtx.currentTime+(startSec||0), dur=0.55;
+  var osc=_audioCtx.createOscillator(); osc.type='sawtooth';
+  osc.frequency.setValueAtTime(520,t0);
+  osc.frequency.linearRampToValueAtTime(880,t0+0.14);
+  osc.frequency.linearRampToValueAtTime(760,t0+0.30);
+  osc.frequency.linearRampToValueAtTime(430,t0+dur);
+  var lfo=_audioCtx.createOscillator(); lfo.type='sine'; lfo.frequency.value=18;
+  var lg=_audioCtx.createGain(); lg.gain.value=28; lfo.connect(lg); lg.connect(osc.frequency);
+  var bp=_audioCtx.createBiquadFilter(); bp.type='bandpass'; bp.Q.value=5;
+  bp.frequency.setValueAtTime(1100,t0);
+  bp.frequency.linearRampToValueAtTime(1600,t0+0.14);
+  bp.frequency.linearRampToValueAtTime(650,t0+dur);
+  var g=_audioCtx.createGain();
+  g.gain.setValueAtTime(0.0001,t0);
+  g.gain.exponentialRampToValueAtTime(2.4,t0+0.04);   // 补偿带通滤波的衰减，响度拉到跟原来相当
+  g.gain.setValueAtTime(2.2,t0+0.30);
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur+0.05);
+  osc.connect(bp); bp.connect(g); g.connect(_audioCtx.destination);
+  osc.start(t0); osc.stop(t0+dur+0.1); lfo.start(t0); lfo.stop(t0+dur+0.1);
 }catch(e){} }
-// 响两遍、方波、音量拉到接近最大——比原来明显响很多，店员没盯着也能注意到
-function _notifyNewOrder(){ _initAudio(); if(!_audioCtx) return; for(var k=0;k<2;k++){ var b=k*0.85; _beep(880,b,0.18); _beep(660,b+0.22,0.18); _beep(990,b+0.46,0.30); } }
+// 新单提示：连响两声「喵喵」
+function _notifyNewOrder(){ _initAudio(); if(!_audioCtx) return; _meow(0); _meow(0.72); }
 
 /* ── 线上预付单自动出单 ──
    预付单（TNG 堂食 / HitPay 自取·外卖）在顾客手机上付款、状态翻 preparing，从不经过 POS
