@@ -110,29 +110,12 @@ function urlB64ToUint8(base64){
 var _ac=null;
 function _initAudio(){ try{ if(!_ac){ var AC=window.AudioContext||window.webkitAudioContext; if(AC) _ac=new AC(); } if(_ac&&_ac.state==='suspended') _ac.resume(); }catch(e){} }
 ['click','touchstart'].forEach(function(ev){ window.addEventListener(ev,_initAudio,{passive:true}); });
-/* 合成「喵～」：锯齿声源做基频滑音（me↑ ow↓）+ 颤音，带通滤波模拟元音色彩 */
-function _meow(startSec){ try{
-  var t0=_ac.currentTime+(startSec||0), dur=0.55;
-  var osc=_ac.createOscillator(); osc.type='sawtooth';
-  osc.frequency.setValueAtTime(520,t0);
-  osc.frequency.linearRampToValueAtTime(880,t0+0.14);
-  osc.frequency.linearRampToValueAtTime(760,t0+0.30);
-  osc.frequency.linearRampToValueAtTime(430,t0+dur);
-  var lfo=_ac.createOscillator(); lfo.type='sine'; lfo.frequency.value=18;
-  var lg=_ac.createGain(); lg.gain.value=28; lfo.connect(lg); lg.connect(osc.frequency);
-  var bp=_ac.createBiquadFilter(); bp.type='bandpass'; bp.Q.value=5;
-  bp.frequency.setValueAtTime(1100,t0);
-  bp.frequency.linearRampToValueAtTime(1600,t0+0.14);
-  bp.frequency.linearRampToValueAtTime(650,t0+dur);
-  var g=_ac.createGain();
-  g.gain.setValueAtTime(0.0001,t0);
-  g.gain.exponentialRampToValueAtTime(2.4,t0+0.04);   // 补偿带通滤波的衰减，响度拉到跟原来相当
-  g.gain.setValueAtTime(2.2,t0+0.30);
-  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur+0.05);
-  osc.connect(bp); bp.connect(g); g.connect(_ac.destination);
-  osc.start(t0); osc.stop(t0+dur+0.1); lfo.start(t0); lfo.stop(t0+dur+0.1);
-}catch(e){} }
-function ding(){ _initAudio(); if(!_ac) return; _meow(0); _meow(0.72); }   // 连响两声「喵喵」
+/* 第一版「叮咚叮」提示音（正弦三音），音量保持大（gain 0.9） */
+function _beep(f,s,d){ try{ var o=_ac.createOscillator(),g=_ac.createGain(); o.type='sine'; o.frequency.value=f; o.connect(g); g.connect(_ac.destination);
+  var t=_ac.currentTime+s; g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.9,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+d); o.start(t); o.stop(t+d+0.03);}catch(e){} }
+function _chime(o){ o=o||0; _beep(880,o,0.18); _beep(660,o+0.22,0.18); _beep(990,o+0.46,0.28); }
+/* 响两遍，中间隔约 1.6 秒，第一声没听到还有第二声 */
+function ding(){ _initAudio(); if(!_ac) return; _chime(0); _chime(1.6); }
 function testBeep(){ ding(); toast('这就是新订单提示音'); }
 
 /* ---- 通知开关 ---- */
