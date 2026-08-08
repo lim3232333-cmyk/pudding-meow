@@ -110,9 +110,9 @@ function urlB64ToUint8(base64){
 var _ac=null;
 function _initAudio(){ try{ if(!_ac){ var AC=window.AudioContext||window.webkitAudioContext; if(AC) _ac=new AC(); } if(_ac&&_ac.state==='suspended') _ac.resume(); }catch(e){} }
 ['click','touchstart'].forEach(function(ev){ window.addEventListener(ev,_initAudio,{passive:true}); });
-function _beep(f,s,d){ try{ var o=_ac.createOscillator(),g=_ac.createGain(); o.type='sine'; o.frequency.value=f; o.connect(g); g.connect(_ac.destination);
-  var t=_ac.currentTime+s; g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.4,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+d); o.start(t); o.stop(t+d+0.03);}catch(e){} }
-function ding(){ _initAudio(); if(!_ac) return; _beep(880,0,0.18); _beep(660,0.22,0.18); _beep(990,0.46,0.28); }
+function _beep(f,s,d){ try{ var o=_ac.createOscillator(),g=_ac.createGain(); o.type='square'; o.frequency.value=f; o.connect(g); g.connect(_ac.destination);
+  var t=_ac.currentTime+s; g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.9,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+d); o.start(t); o.stop(t+d+0.03);}catch(e){} }
+function ding(){ _initAudio(); if(!_ac) return; for(var k=0;k<2;k++){ var b=k*0.85; _beep(880,b,0.18); _beep(660,b+0.22,0.18); _beep(990,b+0.46,0.30); } }
 function testBeep(){ ding(); toast('这就是新订单提示音'); }
 
 /* ---- 通知开关 ---- */
