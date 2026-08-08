@@ -5413,30 +5413,19 @@ window.addEventListener('storage',function(e){if(e.key==='pm_orders')pmRefreshOr
 var _audioCtx=null;
 function _initAudio(){ try{ if(!_audioCtx){ var AC=window.AudioContext||window.webkitAudioContext; if(AC) _audioCtx=new AC(); } if(_audioCtx&&_audioCtx.state==='suspended') _audioCtx.resume(); }catch(e){} }
 ['click','touchstart','keydown'].forEach(function(ev){ try{ window.addEventListener(ev,_initAudio,{passive:true}); }catch(e){} });
-/* 合成「喵～」：锯齿声源做基频滑音（me↑ ow↓）+ 颤音，带通滤波模拟元音色彩 */
-function _meow(startSec){ try{
-  var t0=_audioCtx.currentTime+(startSec||0), dur=0.55;
-  var osc=_audioCtx.createOscillator(); osc.type='sawtooth';
-  osc.frequency.setValueAtTime(520,t0);
-  osc.frequency.linearRampToValueAtTime(880,t0+0.14);
-  osc.frequency.linearRampToValueAtTime(760,t0+0.30);
-  osc.frequency.linearRampToValueAtTime(430,t0+dur);
-  var lfo=_audioCtx.createOscillator(); lfo.type='sine'; lfo.frequency.value=18;
-  var lg=_audioCtx.createGain(); lg.gain.value=28; lfo.connect(lg); lg.connect(osc.frequency);
-  var bp=_audioCtx.createBiquadFilter(); bp.type='bandpass'; bp.Q.value=5;
-  bp.frequency.setValueAtTime(1100,t0);
-  bp.frequency.linearRampToValueAtTime(1600,t0+0.14);
-  bp.frequency.linearRampToValueAtTime(650,t0+dur);
-  var g=_audioCtx.createGain();
-  g.gain.setValueAtTime(0.0001,t0);
-  g.gain.exponentialRampToValueAtTime(2.4,t0+0.04);   // 补偿带通滤波的衰减，响度拉到跟原来相当
-  g.gain.setValueAtTime(2.2,t0+0.30);
-  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur+0.05);
-  osc.connect(bp); bp.connect(g); g.connect(_audioCtx.destination);
-  osc.start(t0); osc.stop(t0+dur+0.1); lfo.start(t0); lfo.stop(t0+dur+0.1);
+/* 第一版「叮咚叮」提示音（正弦三音），音量保持大（gain 0.9） */
+function _beep(freq,start,dur){ try{
+  var o=_audioCtx.createOscillator(), g=_audioCtx.createGain();
+  o.type='sine'; o.frequency.value=freq; o.connect(g); g.connect(_audioCtx.destination);
+  var t=_audioCtx.currentTime+start;
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(0.9,t+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.start(t); o.stop(t+dur+0.03);
 }catch(e){} }
-// 新单提示：连响两声「喵喵」
-function _notifyNewOrder(){ _initAudio(); if(!_audioCtx) return; _meow(0); _meow(0.72); }
+function _chime(o){ o=o||0; _beep(880,o,0.18); _beep(660,o+0.22,0.18); _beep(990,o+0.46,0.28); }
+// 新单提示：叮咚叮，隔约 1.6 秒再响一次，防第一声没听到
+function _notifyNewOrder(){ _initAudio(); if(!_audioCtx) return; _chime(0); _chime(1.6); }
 
 /* ── 线上预付单自动出单 ──
    预付单（TNG 堂食 / HitPay 自取·外卖）在顾客手机上付款、状态翻 preparing，从不经过 POS
@@ -5449,23 +5438,40 @@ var _printedKitchen=(function(){try{return gj('pm_printed_kitchen',{});}catch(e)
    启动时就已 preparing 的历史单（prev 里已是 ready）不出。打印统一走 _queuePrint 串行队列。 */
 function _scanPrepaidPrint(arr, prev, announce){
   if(!announce) return 0;
-  var n=0, last=null, ring=0;
+  var n=0;
   arr.forEach(function(o){
     if(o.source!=='app') return;
     var nowReady=(o.status==='preparing'||o.status==='paid');
     var was=prev[o.id], wasReady=(was==='preparing'||was==='paid');
     if(nowReady && !wasReady && !_printedKitchen[o.id]){
-      _printedKitchen[o.id]=1;
-      try{ printKitchen(o); }catch(e){}
       var m=orderMode3(o);
-      if(m==='takeaway' || m==='delivery'){ try{ printRec(o); }catch(e){} ring++; }
-      n++; last=o;
+      _claimAndPrintKitchen(o, (m==='takeaway'||m==='delivery'));
+      n++;
     }
   });
-  if(n){ try{sj('pm_printed_kitchen',_printedKitchen);}catch(e){}
-    try{ showN('线上预付单 #'+last.orderNum+(n>1?(' 等'+n+' 单'):'')+' 已出单'); }catch(e){} }
-  if(ring){ try{ _notifyNewOrder(); }catch(e){} }
   return n;
+}
+/* 出单前先「认领」这张单——只有把 orders.kitchen_printed_at 从 NULL 改成时间戳成功的那台 POS
+   才打印。这样多台 POS / 多个标签页同时在线，制作单也只出一张（跨设备去重，比本地 _printedKitchen
+   更可靠——本地那份每个标签各存一份、互不同步，两个标签会各出一张，就是「重复出 2 次」的原因）。
+   列还没建（迁移没跑）或离线时，退回本地去重，至少不阻断出单。 */
+function _fireKitchen(o, isPD){
+  _printedKitchen[o.id]=1; try{ sj('pm_printed_kitchen',_printedKitchen); }catch(e){}
+  try{ printKitchen(o); }catch(e){}
+  if(isPD){ try{ printRec(o); }catch(e){} try{ _notifyNewOrder(); }catch(e){} }
+  try{ showN('线上预付单 #'+o.orderNum+' 已出单'); }catch(e){}
+}
+function _claimAndPrintKitchen(o, isPD){
+  if(_printedKitchen[o.id]) return;                 // 本机已打过，快速跳过
+  if(!db){ _fireKitchen(o, isPD); return; }         // 离线：只能靠本地去重
+  db.from('orders').update({kitchen_printed_at:new Date().toISOString()})
+    .eq('id',o.id).is('kitchen_printed_at',null).select('id')
+    .then(function(res){
+      if(res.error){ console.error('claim kitchen (退回本地去重)', res.error); if(!_printedKitchen[o.id]) _fireKitchen(o, isPD); return; }
+      if(res.data && res.data.length){ _fireKitchen(o, isPD); }   // 认领成功 = 本机负责出单
+      else { _printedKitchen[o.id]=1; try{ sj('pm_printed_kitchen',_printedKitchen); }catch(e){} }  // 别台已出，本机只记不打
+    })
+    .catch(function(e){ console.error('claim kitchen', e); if(!_printedKitchen[o.id]) _fireKitchen(o, isPD); });
 }
 /* ── 云端订单：跨设备读取 + Realtime（取代跨设备场景下的本地同步）── */
 var _pmKnownCloud={};
