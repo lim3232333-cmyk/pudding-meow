@@ -5407,24 +5407,50 @@ function pmRefreshOrders(announce){
 if(_pmBC)_pmBC.onmessage=function(ev){if(ev&&ev.data&&ev.data.t==='orders')pmRefreshOrders(true);};
 window.addEventListener('storage',function(e){if(e.key==='pm_orders')pmRefreshOrders(true);});
 
-/* ── 线上预付单（TNG）自动出制作单 ──
-   TNG 单在顾客手机上付款、状态直接是 preparing，从不经过 POS 收银流程，所以要在实时
-   订单进来时自动打印制作单。用 pm_printed_kitchen 持久化已打印的订单号，避免刷新/多次
-   实时事件重复出单；多单到达用队列顺序打印。 */
+/* ── 提醒铃声：自取/外卖 线上单进来时响一下（店员平时没盯着 POS）──
+   用 Web Audio 现场合成，不依赖外部音频文件；浏览器有自动播放限制，
+   所以首个用户手势（登录点按/按键）时解锁一次 AudioContext。 */
+var _audioCtx=null;
+function _initAudio(){ try{ if(!_audioCtx){ var AC=window.AudioContext||window.webkitAudioContext; if(AC) _audioCtx=new AC(); } if(_audioCtx&&_audioCtx.state==='suspended') _audioCtx.resume(); }catch(e){} }
+['click','touchstart','keydown'].forEach(function(ev){ try{ window.addEventListener(ev,_initAudio,{passive:true}); }catch(e){} });
+function _beep(freq,start,dur){ try{
+  var o=_audioCtx.createOscillator(), g=_audioCtx.createGain();
+  o.type='sine'; o.frequency.value=freq; o.connect(g); g.connect(_audioCtx.destination);
+  var t=_audioCtx.currentTime+start;
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(0.35,t+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.start(t); o.stop(t+dur+0.03);
+}catch(e){} }
+function _notifyNewOrder(){ _initAudio(); if(!_audioCtx) return; _beep(880,0,0.18); _beep(660,0.22,0.18); _beep(990,0.46,0.28); }
+
+/* ── 线上预付单自动出单 ──
+   预付单（TNG 堂食 / HitPay 自取·外卖）在顾客手机上付款、状态翻 preparing，从不经过 POS
+   收银流程，所以要在实时订单进来时自动打印。用 pm_printed_kitchen 持久化已打印的订单号，
+   避免刷新/多次实时事件重复出单；多单到达用队列顺序打印。
+   自取/外卖：顾客不在柜台，除了制作单，收据也自动出（不弹「打印收据？」），并响铃提醒。 */
 var _printedKitchen=(function(){try{return gj('pm_printed_kitchen',{});}catch(e){return {};}})();
-/* 扫描新到的、未打印的 app 预付单（preparing/paid），排队打印。announce 为 false（启动首拉）
-   时不打印历史单。返回打印张数。打印统一走 printKitchen→_queuePrint 串行队列。 */
+/* announce 为 false（启动首拉）时不出历史单。只在「刚变成已付款/制作中」这一刻出单：
+   新单直接是 preparing（TNG），或 pending→preparing（HitPay 付款回调翻状态）；
+   启动时就已 preparing 的历史单（prev 里已是 ready）不出。打印统一走 _queuePrint 串行队列。 */
 function _scanPrepaidPrint(arr, prev, announce){
   if(!announce) return 0;
-  var n=0, last=null;
+  var n=0, last=null, ring=0;
   arr.forEach(function(o){
-    if(o.id in prev) return;
-    if(o.source==='app' && (o.status==='preparing'||o.status==='paid') && !_printedKitchen[o.id]){
-      _printedKitchen[o.id]=1; try{ printKitchen(o); }catch(e){} n++; last=o;
+    if(o.source!=='app') return;
+    var nowReady=(o.status==='preparing'||o.status==='paid');
+    var was=prev[o.id], wasReady=(was==='preparing'||was==='paid');
+    if(nowReady && !wasReady && !_printedKitchen[o.id]){
+      _printedKitchen[o.id]=1;
+      try{ printKitchen(o); }catch(e){}
+      var m=orderMode3(o);
+      if(m==='takeaway' || m==='delivery'){ try{ printRec(o); }catch(e){} ring++; }
+      n++; last=o;
     }
   });
   if(n){ try{sj('pm_printed_kitchen',_printedKitchen);}catch(e){}
     try{ showN('线上预付单 #'+last.orderNum+(n>1?(' 等'+n+' 单'):'')+' 已出单'); }catch(e){} }
+  if(ring){ try{ _notifyNewOrder(); }catch(e){} }
   return n;
 }
 /* ── 云端订单：跨设备读取 + Realtime（取代跨设备场景下的本地同步）── */
