@@ -166,7 +166,7 @@ async function enablePush(){
     var res=await db.from('push_subscriptions').upsert({
       endpoint:j.endpoint, p256dh:j.keys.p256dh, auth:j.keys.auth, phone:normPhone(phoneRaw), ua:navigator.userAgent
     }, { onConflict:'endpoint' });
-    if(res.error){ toast('保存订阅失败'); console.error(res.error); return; }
+    if(res.error){ toast('保存订阅失败：'+(res.error.message||res.error.hint||res.error.code||'未知')); console.error('push_subscriptions upsert', res.error); return; }
     toast('已开启！以后新订单会推到这台手机');
     ding();
     refreshStatus();
