@@ -5438,23 +5438,40 @@ var _printedKitchen=(function(){try{return gj('pm_printed_kitchen',{});}catch(e)
    启动时就已 preparing 的历史单（prev 里已是 ready）不出。打印统一走 _queuePrint 串行队列。 */
 function _scanPrepaidPrint(arr, prev, announce){
   if(!announce) return 0;
-  var n=0, last=null, ring=0;
+  var n=0;
   arr.forEach(function(o){
     if(o.source!=='app') return;
     var nowReady=(o.status==='preparing'||o.status==='paid');
     var was=prev[o.id], wasReady=(was==='preparing'||was==='paid');
     if(nowReady && !wasReady && !_printedKitchen[o.id]){
-      _printedKitchen[o.id]=1;
-      try{ printKitchen(o); }catch(e){}
       var m=orderMode3(o);
-      if(m==='takeaway' || m==='delivery'){ try{ printRec(o); }catch(e){} ring++; }
-      n++; last=o;
+      _claimAndPrintKitchen(o, (m==='takeaway'||m==='delivery'));
+      n++;
     }
   });
-  if(n){ try{sj('pm_printed_kitchen',_printedKitchen);}catch(e){}
-    try{ showN('线上预付单 #'+last.orderNum+(n>1?(' 等'+n+' 单'):'')+' 已出单'); }catch(e){} }
-  if(ring){ try{ _notifyNewOrder(); }catch(e){} }
   return n;
+}
+/* 出单前先「认领」这张单——只有把 orders.kitchen_printed_at 从 NULL 改成时间戳成功的那台 POS
+   才打印。这样多台 POS / 多个标签页同时在线，制作单也只出一张（跨设备去重，比本地 _printedKitchen
+   更可靠——本地那份每个标签各存一份、互不同步，两个标签会各出一张，就是「重复出 2 次」的原因）。
+   列还没建（迁移没跑）或离线时，退回本地去重，至少不阻断出单。 */
+function _fireKitchen(o, isPD){
+  _printedKitchen[o.id]=1; try{ sj('pm_printed_kitchen',_printedKitchen); }catch(e){}
+  try{ printKitchen(o); }catch(e){}
+  if(isPD){ try{ printRec(o); }catch(e){} try{ _notifyNewOrder(); }catch(e){} }
+  try{ showN('线上预付单 #'+o.orderNum+' 已出单'); }catch(e){}
+}
+function _claimAndPrintKitchen(o, isPD){
+  if(_printedKitchen[o.id]) return;                 // 本机已打过，快速跳过
+  if(!db){ _fireKitchen(o, isPD); return; }         // 离线：只能靠本地去重
+  db.from('orders').update({kitchen_printed_at:new Date().toISOString()})
+    .eq('id',o.id).is('kitchen_printed_at',null).select('id')
+    .then(function(res){
+      if(res.error){ console.error('claim kitchen (退回本地去重)', res.error); if(!_printedKitchen[o.id]) _fireKitchen(o, isPD); return; }
+      if(res.data && res.data.length){ _fireKitchen(o, isPD); }   // 认领成功 = 本机负责出单
+      else { _printedKitchen[o.id]=1; try{ sj('pm_printed_kitchen',_printedKitchen); }catch(e){} }  // 别台已出，本机只记不打
+    })
+    .catch(function(e){ console.error('claim kitchen', e); if(!_printedKitchen[o.id]) _fireKitchen(o, isPD); });
 }
 /* ── 云端订单：跨设备读取 + Realtime（取代跨设备场景下的本地同步）── */
 var _pmKnownCloud={};
