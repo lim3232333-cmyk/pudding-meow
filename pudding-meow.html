@@ -4413,14 +4413,32 @@ function loadMemberLevels(){
   }).catch(function(e){});
 }
 function _memLevelById(id){ return _memberLevels.find(function(l){ return l.id===id; }) || {}; }
-function _memNextLevel(sortOrder){ return _memberLevels.find(function(l){ return l.sort_order === sortOrder+1; }); }
-/* 会员卡配色/等级序号按等级中文名映射到 Figma 层级（DB 的 sort_order 可能与 Figma 差一位）：
-   猫咪蛋=0灰 / 新生小猫=1橙 / 幼猫=2蓝 / 青年猫=3黄 / 布丁猫=4暗红 */
-var _MEM_THEME = { '猫咪蛋':0, '猫味蛋':0, '新生小猫':1, '幼猫':2, '青年猫':3, '布丁猫':4, '布丁喵':4 };
+/* 下一等级 = 在（按 sort_order 排好序的）等级列表里当前等级的下一名。
+   用「排名」而不是 sort_order+1，这样后台把 sort_order 改成 10/20/30 之类也照样能算进度。 */
+function _memNextLevel(lvl){
+  var idx = _memberLevels.findIndex(function(l){ return l.id === (lvl && lvl.id); });
+  if(idx < 0) return null;
+  return _memberLevels[idx+1] || null;
+}
+/* 会员卡配色（Figma 612:1820）：Lv.1橙 / Lv.2蓝 / Lv.3黄 / Lv.Max暗红。
+   灰色 Lv.0 只留给「游客」——真实会员永远不该是灰卡。
+   按等级在列表里的排名映射：最低的真实等级=Lv.1，依次往上，超过 4 级封顶 Lv.Max。
+   （之前按写死的中文名映射，店家把最低等级改名成「青铜」后名字查不到，就退回 sort_order=0
+    → 被当成 Lv.0 灰卡，看起来像游客——这就是「注册后却是游客」的原因。） */
 function _memThemeLevel(lvl){
-  var n = (lvl && (lvl.name_cn||'')).replace(/\s/g,'');
-  if(_MEM_THEME[n]!=null) return _MEM_THEME[n];
-  return Math.max(0, Math.min(4, (lvl && lvl.sort_order)||0));
+  if(!lvl || lvl.id == null) return 0;
+  var idx = _memberLevels.findIndex(function(l){ return l.id === lvl.id; });
+  if(idx < 0) idx = 0;
+  return Math.max(1, Math.min(4, idx + 1));
+}
+/* 卡上显示的等级序号 Lv.N：按排名 +1（青铜=Lv.1、白银=Lv.2…钻石=Lv.5），不封顶。
+   跟 _memThemeLevel（卡片配色，只有灰/橙/蓝/黄/暗红 4 种非灰色，所以封顶 4）分开——
+   等级多于 4 级时颜色会复用暗红，但序号照样往上加。 */
+/* 卡上等级序号文案：跟卡片配色一致——暗红（第 4 档）即封顶显示「Lv.Max」，其余按档位。
+   青铜 Lv.1 / 白银 Lv.2 / 黄金 Lv.3 / 铂金·钻石 都是暗红 → Lv.Max。 */
+function _memLevelLabel(lvl){
+  var t = _memThemeLevel(lvl);
+  return t >= 4 ? 'Lv.Max' : ('Lv.'+t);
 }
 
 /* 会员卡左侧按等级换的 Lottie 动画（循环播放）。0猫咪蛋/1新生小猫/2幼猫/3青年猫/4布丁猫(Max)。
@@ -4545,7 +4563,7 @@ function renderProfileScreen(){
       document.getElementById('memCouponCount').textContent = '0';
       document.getElementById('memXpBar').style.width = '0%';
       document.getElementById('memXpNow').textContent = '0 XP';
-      document.getElementById('memXpNext').textContent = '注册成为会员即可升级到Lv.1 新生小猫';
+      document.getElementById('memXpNext').textContent = '注册成为会员即可升级到Lv.1 ' + ((_memberLevels[0] && _memberLevels[0].name_cn) || '新生小猫');
       return;
     }
     var lvl = _memLevelById(_memberProfile.level_id);
@@ -4554,13 +4572,13 @@ function renderProfileScreen(){
     homeEl.className = 'mem-lvl-' + themeLv;
     _renderMemCat(themeLv);
     document.getElementById('memName').textContent = _memberProfile.nickname ||'喵星人';
-    document.getElementById('memLevelNum').textContent = (themeLv>=4 ? 'Lv.Max' : 'Lv.'+themeLv);
+    document.getElementById('memLevelNum').textContent = _memLevelLabel(lvl);
     document.getElementById('memLevelName').textContent = lvl.name_cn||'';
     // 窄格三等分，余额带小数会撑破比例：这里只显示整块钱（_fmtWalletShort），精确余额看充值页 / 结算页
     var _wb=Number(_memberProfile.wallet_balance)||0;
     document.getElementById('memWallet').textContent = _fmtWalletShort(_wb);
     document.getElementById('memCoins').textContent = _memberProfile.coins||0;
-    var nextLvl = _memNextLevel(lvl.sort_order||0);
+    var nextLvl = _memNextLevel(lvl);
     var xp = _memberProfile.xp||0;
     var bar = document.getElementById('memXpBar'), nextLbl = document.getElementById('memXpNext');
     if(nextLvl){
@@ -4568,7 +4586,7 @@ function renderProfileScreen(){
       var prog = span>0 ? Math.min(100, Math.max(0,(xp-(lvl.xp_required||0))/span*100)) : 100;
       bar.style.width = prog+'%';
       document.getElementById('memXpNow').textContent = xp+'/'+nextLvl.xp_required+' XP';
-      nextLbl.textContent ='再获得'+Math.max(0,nextLvl.xp_required-xp)+' XP即可升级到Lv.'+_memThemeLevel(nextLvl)+' '+nextLvl.name_cn;
+      nextLbl.textContent ='再获得'+Math.max(0,nextLvl.xp_required-xp)+' XP即可升级到'+_memLevelLabel(nextLvl)+' '+nextLvl.name_cn;
     } else {
       bar.style.width='100%';
       document.getElementById('memXpNow').textContent = xp+' XP';

@@ -73,6 +73,48 @@ var GOOGLE_MAPS_KEY = 'YOUR-GOOGLE-MAPS-API-KEY';   // ← 换成 AIzaSy... 那�
 
 ---
 
+## 第 5 步（选做）：手机接收新订单推送 🔔
+
+给店员手机装一个「订单提醒」App（PWA）：**自取 / 外卖**付款到账时，手机弹通知——**锁屏也能收**，平时不用盯着 POS。堂食客人就在店里，不推送。
+
+### 5.1 建订阅表（一次性）
+
+Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-push-subscriptions.sql`** 全部内容 → **Run**。（存每台手机的推送订阅 + 手机号白名单用。）
+
+### 5.2 设 Edge Function 密钥
+
+Supabase → **Edge Functions** → **Secrets**（或 Project Settings → Edge Functions），加这几个：
+
+| 名字 | 值 |
+|------|----|
+| `VAPID_PUBLIC_KEY` | `BAElDUeOia7zHnIsDjiXcLE1pCUPhl8yUWH7l4xHS7FHbwUUBr06aJhE5Q8o2T3MHvRhSIYcLt_ywF2nd7NxXIQ` |
+| `VAPID_PRIVATE_KEY` | 我在对话里发给你的那串（以 `f` 开头）——**只填进这里，别提交进代码库** |
+| `VAPID_SUBJECT` | `mailto:你的邮箱` |
+| `PUSH_ALLOW_PHONES` | 允许收通知的手机号，逗号分隔，如 `0123456789,0129876543` |
+
+> - `VAPID_PUBLIC_KEY` 是公钥，已经写进 `notify.html`，两边必须一致（换 key 就两边一起换）。
+> - `PUSH_ALLOW_PHONES` 设了就**只推给这些号**；留空/不设 = 推给所有开了提醒的设备。号码 `0` / `+60` / `60` 前缀都行，会自动归一化比对。
+
+### 5.3 部署 hitpay-webhook
+
+重新部署 **`hitpay-webhook`** Edge Function（这个版本加了发推送的逻辑）。用 Dashboard 的 Edge Functions 编辑器把 `supabase/functions/hitpay-webhook/index.ts` 的内容贴上去部署即可。
+
+### 5.4 手机装 App（每台要收通知的手机做一次）
+
+手机浏览器打开 **`https://你的域名/notify.html`**：
+
+1. **iPhone**：一定用 **Safari** 打开 → 分享 → **添加到主屏幕** → 从主屏幕的图标打开（需 iOS 16.4+，不加到主屏幕收不到推送）。
+   **安卓**：用 Chrome 打开 → 菜单「安装应用 / 添加到主屏幕」→ 从图标打开。
+2. 输**店员 PIN**（默认 `0000`）进入 → 建议点「**改店员 PIN**」改掉默认。
+3. 填**这台手机的手机号**（要在 5.2 白名单里）→ 点「**开启手机通知**」→ 允许通知。
+4. 点「测试提示音」确认响铃。之后自取/外卖一付款，手机就弹「🔔 新自取订单 TA05 · RM xx.xx」。
+
+> - 必须是 **HTTPS 网址**（正式域名）才能开推送，本地 `file://` 不行。
+> - `notify.html` 有 PIN 门禁，顾客打不开也看不到订单。
+> - 目前推送覆盖 **HitPay 付款**的自取/外卖（绝大多数）。若有人用**喵钱包余额**付自取单，那条路不经过 webhook，暂时不推——需要再补数据库触发器覆盖，告诉我即可。
+
+---
+
 ## 上线前自测清单（在真实浏览器里，2 台设备或 2 个不同浏览器）
 
 > 关键：要用**两台设备**或**两个不同浏览器**（例如手机 + 电脑），这样才证明是「云端跨设备」而不是本机。

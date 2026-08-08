@@ -1,0 +1,16 @@
+{
+  "name": "布丁喵 · 订单提醒",
+  "short_name": "订单提醒",
+  "description": "自取 / 外卖 新订单实时提醒",
+  "start_url": "./notify.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#8D0505",
+  "theme_color": "#8D0505",
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
