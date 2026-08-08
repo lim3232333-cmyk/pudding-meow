@@ -2522,12 +2522,15 @@ function _renderKitchen(o){
       +'<div class="kitem"><div class="kqty">'+it.qty+'x</div>'
       +'<div class="kbody"><div class="kname">'+esc(it.en||it.name)+'</div>'+specHtml(it)+'</div></div>';
   }).join('');
-  // 自取单：TA 号下面加一块「日期 / 时间 / 手机号」（Figma 1039:1185）。默认当天显示 Today。
-  var pk=(o.deliveryInfo && o.deliveryInfo.pickup) ? o.deliveryInfo.pickup : null;
-  var pkHtml = pk ? ('<div class="kpickup">'
-      + '<div>'+esc(_pkTicketDate(pk.date))+'</div>'
-      + (pk.time ? '<div>'+esc(pk.time)+'</div>' : '')
-      + (pk.phone ? '<div>'+esc(pk.phone)+'</div>' : '')
+  // 自取(1039:1185)/外卖(1039:1208) 单：号码下面加一块「日期 / 时间 / 电话」。默认当天显示 Today。
+  // 自取存 deliveryInfo.pickup；外卖直接存 deliveryInfo.date/time，电话取收件人 deliveryInfo.phone。
+  var _di=o.deliveryInfo||{};
+  var when = _di.pickup ? _di.pickup
+    : ((_di.date||_di.time) ? {date:_di.date, time:_di.time, phone:_di.phone} : null);
+  var pkHtml = when ? ('<div class="kpickup">'
+      + '<div>'+esc(_pkTicketDate(when.date))+'</div>'
+      + (when.time ? '<div>'+esc(when.time)+'</div>' : '')
+      + (when.phone ? '<div>'+esc(when.phone)+'</div>' : '')
       + '</div>') : '';
   document.getElementById('rcc').innerHTML='<div class="kc">'
     +'<div class="ktable">'+esc(_orderTypeLabel(o))+'</div>'
