@@ -2548,8 +2548,10 @@ function pkRenderCal(){
   for(var d=1;d<=days;d++){
     var iso=y+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+d).slice(-2);
     var past=new Date(y,m,d)<today;
+    var closed=_chDayClosed('pickup', iso);        // 销售渠道里「自取」这天休息 → 跟已过日期一样灰掉
+    var off=past||closed;
     var sel=(iso===_pkDate);
-    html+='<div class="rsv-cal-day'+(past?' muted':'')+(sel?' sel':'')+'"'+(past?'':' onclick="pkPickDate('+y+','+m+','+d+')"')+'>'+d+'</div>';
+    html+='<div class="rsv-cal-day'+(off?' muted':'')+(sel?' sel':'')+'"'+(off?'':' onclick="pkPickDate('+y+','+m+','+d+')"')+'>'+d+'</div>';
   }
   document.getElementById('pkCalGrid').innerHTML=html;
 }
@@ -2650,12 +2652,27 @@ function _timeSlotsFor(dateIso, code){
   }
   return slots;
 }
-function _dvDayList(){ var out=[], n=new Date(); for(var i=0;i<3;i++){ out.push(new Date(n.getFullYear(),n.getMonth(),n.getDate()+i)); } return out; }
-function _dvDayLabel(d,i){ return i===0 ? '今天' : ['周日','周一','周二','周三','周四','周五','周六'][d.getDay()]; }
+/* 可选日期跟销售渠道走：从今天起 14 天内，挑出「外卖」这天不休息的，最多 3 天。
+   某天在 POS 销售方式里设了休息，这里就不给它出现（不像以前 3 天写死）。 */
+function _dvDayList(){
+  var out=[], n=new Date(), base=new Date(n.getFullYear(),n.getMonth(),n.getDate());
+  for(var i=0;i<14 && out.length<3;i++){
+    var d=new Date(base.getFullYear(),base.getMonth(),base.getDate()+i);
+    if(_chDayClosed('delivery', _pkIso(d))) continue;       // 该渠道当天休息 → 跳过
+    out.push(d);
+  }
+  if(!out.length) out.push(base);                            // 兜底：真全关也留今天，时间面板会提示休息
+  return out;
+}
+function _dvDayLabel(d){
+  if(_pkIso(d)===_pkIso(new Date())) return '今天';
+  var wd=['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
+  return wd+' '+(d.getMonth()+1)+'/'+d.getDate();           // 日期不再连续，带上月日免得两个同名周几看不出
+}
 function openDvWhen(){
   var days=_dvDayList();
-  _dvDate=_pkIso(days[0]);                                   // 默认今天
-  document.getElementById('dvDateVal').textContent='今天';
+  _dvDate=_pkIso(days[0]);                                   // 默认第一个可选日（多半是今天）
+  document.getElementById('dvDateVal').textContent=_dvDayLabel(days[0]);
   _dvTime='尽快'; document.getElementById('dvTimeVal').textContent='尽快';
   document.getElementById('dvDateDD').open=false;
   document.getElementById('dvTimeDD').open=false;
@@ -2668,8 +2685,8 @@ function closeDvWhen(){
   document.getElementById('dvWhenModal').classList.remove('show');
 }
 function dvRenderDates(){
-  document.getElementById('dvDatePanel').innerHTML=_dvDayList().map(function(d,i){
-    var iso=_pkIso(d), label=_dvDayLabel(d,i);
+  document.getElementById('dvDatePanel').innerHTML=_dvDayList().map(function(d){
+    var iso=_pkIso(d), label=_dvDayLabel(d);
     return '<div class="rsv-dd-opt'+(iso===_dvDate?' sel':'')+'" onclick="dvPickDate(\''+iso+'\',\''+label+'\')">'+label+'</div>';
   }).join('');
 }
