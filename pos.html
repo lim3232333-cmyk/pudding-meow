@@ -1226,6 +1226,14 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
 </div>
 </div>
 
+<!-- 切换支付方式（交易明细里点某单 → 改支付）-->
+<div class="modal-bg" id="paySwBg" onclick="if(event.target===this)closePaySw()">
+  <div class="mm-box">
+    <div class="mm-hd"><h3>切换支付方式</h3><button class="mm-cl" onclick="closePaySw()">✕</button></div>
+    <div class="mm-body" id="paySwBody"></div>
+  </div>
+</div>
+
 <!-- SALES CHANNEL MODAL — 销售方式：新增/编辑 -->
 <div class="modal-bg" id="chBg" onclick="if(event.target===this)closeCH()">
   <div class="mm-box">
@@ -1998,17 +2006,26 @@ function addItem(cat,i){
   _cartAdd(it, auto);                             // 无规格→点选即加入
   hideitems();renderCart();showN('已加入：'+it.name);
 }
+// 规格文字（带「L +2.00」，收据/购物车对得上账）
+function _specTextOf(specs){ return (specs||[]).map(function(s){ var a=Number(s.add)||0; return s.value?(s.value+(a?(' '+_addTxt(a)):'')):''; }).filter(Boolean).join(' · '); }
 function _cartAdd(it, specs){
-  // 行价 = 商品基础价 + 选中选项的加价；规格文字也带上「L +2.00」，收据才对得上账
-  var specText=(specs||[]).map(function(s){
-    var a=Number(s.add)||0; return s.value ? (s.value+(a?(' '+_addTxt(a)):'')) : '';
-  }).filter(Boolean).join(' · ');
+  var specText=_specTextOf(specs);
   var price=(Number(it.price)||0)+_specsAdd(specs);
   for(var j=0;j<cart.length;j++){
     if(cart[j].name===it.name && (cart[j].specText||'')===specText){ cart[j].qty++; return; }
   }
   cart.push({id:it.id||null,name:it.name,name_cn:it.name_cn,price:price,basePrice:Number(it.price)||0,
     qty:1,specs:specs||[],specText:specText,flavor:specText});
+}
+/* 改一个购物车行的规格（保留数量）；若改后跟别的行撞了就合并 */
+function _cartReplace(i, it, specs){
+  if(!cart[i]) return;
+  var qty=cart[i].qty, specText=_specTextOf(specs), price=(Number(it.price)||0)+_specsAdd(specs);
+  for(var j=0;j<cart.length;j++){
+    if(j!==i && cart[j].name===it.name && (cart[j].specText||'')===specText){ cart[j].qty+=qty; cart.splice(i,1); selIdx=-1; return; }
+  }
+  cart[i]={id:it.id||null,name:it.name,name_cn:it.name_cn,price:price,basePrice:Number(it.price)||0,
+    qty:qty,specs:specs||[],specText:specText,flavor:specText};
 }
 /* ── 规格选择：每屏一组规格，面包屑逐段累积、底部 Back/OK 翻页，点选项高亮、
    最后一组 OK 加入购物车。选填组默认「不需要」、可跳过不选（Figma 389-219/394-290/394-318）── */
@@ -2066,6 +2083,11 @@ function confirmSpecAdd(){
     chosen.push({defId:g.defId||null,name:g.name,value:v,add:_optAdd(g,v)});
   });
   var label=chosen.map(function(s){return s.value;}).filter(Boolean).join(' · ');
+  if(c.editIdx!=null && c.editIdx>=0){                          // 改现有行：替换、保留数量
+    _cartReplace(c.editIdx, it, chosen);
+    hideitems();renderCart();showN('已修改：'+it.name+(label?'（'+label+'）':''));
+    return;
+  }
   _cartAdd(it, chosen);
   hideitems();renderCart();showN('已加入：'+it.name+(label?'（'+label+'）':''));
 }
@@ -2103,7 +2125,35 @@ function renderCart(){
   document.getElementById('payAmt').textContent=tot.toFixed(2);
   updateQtyDisplay();
 }
-function selCart(i){selIdx=(i===selIdx)?-1:i;renderCart();}
+function selCart(i){ selIdx=i; renderCart(); _editCartOpen(i); }   // 选中(供加减/删除) + 打开规格面包屑给店员改
+/* 在 MENU 里按 id（没有就按名字）找回这个购物车行对应的商品位置 */
+function _findMenuItem(line){
+  var cats=Object.keys(MENU||{});
+  for(var ci=0;ci<cats.length;ci++){ var items=(MENU[cats[ci]].items)||[];
+    for(var ii=0;ii<items.length;ii++){ var it=items[ii];
+      if((line.id!=null && it.id===line.id) || (line.id==null && it.name===line.name)) return {cat:cats[ci],idx:ii};
+    } }
+  return null;
+}
+/* 把购物车行里已选的规格，映射回规格页每组的下标（跳过的组=SKIP_SEL） */
+function _mapSelFromSpecs(groups, specs){
+  return groups.map(function(g){
+    var sp=(specs||[]).find(function(s){ return (g.defId!=null && s.defId===g.defId) || (g.defId==null && s.name===g.name); });
+    if(!sp) return _groupRequired(g)?0:SKIP_SEL;
+    var oi=(g.options||[]).indexOf(sp.value);
+    return oi>=0 ? oi : (_groupRequired(g)?0:SKIP_SEL);
+  });
+}
+/* 点购物车行 → 右边 item panel 重开这个商品的规格面包屑（back/OK），OK 后替换该行 */
+function _editCartOpen(i){
+  var line=cart[i]; if(!line) return;
+  var loc=_findMenuItem(line); if(!loc) return;                 // 找不到（临时 Open Item）→ 只选中
+  var it=MENU[loc.cat].items[loc.idx], groups=_posItemSpecs(it);
+  var hasChoice = groups.length>1 || groups.some(function(g){return (g.options||[]).length>1;});
+  if(!hasChoice) return;                                        // 没得改的商品→只选中
+  _specCtx={ cat:loc.cat, idx:loc.idx, groups:groups, step:0, sel:_mapSelFromSpecs(groups, line.specs), editIdx:i };
+  _renderSpecPicker();
+}
 
 /* ── ACTIONS ── */
 /* ── OPEN ITEM（Figma 953:1497）：新建一个不在菜单里的临时商品。
@@ -3450,6 +3500,7 @@ function renderDash(){
         +'</div>'
         +'<div style="display:flex;gap:10px;margin-top:12px">'
           +(selOrder.status==='void'?'':'<button class="void-btn void-btn-lg" onclick="voidOrder(\''+selOrder.id+'\')">Void</button>')
+          +(selOrder.status==='void'?'':'<button class="print-btn-lg" style="background:#B6F3FF;color:#8D0505;border:none;font-weight:700;cursor:pointer" onclick="changePay(\''+selOrder.id+'\')">改支付</button>')
           +'<button class="print-btn print-btn-lg" onclick="reprO(\''+selOrder.id+'\')">Print</button>'
         +'</div>'
         +'</div>'
@@ -3480,6 +3531,31 @@ function setRevMode(v){_revMode=v;renderDash();}
 function setTxModeFilter(v){_txModeFilter=v;renderDash();}
 function setTxPayFilter(v){_txPayFilter=v;renderDash();}
 function selectTx(id){_txSelId=id;renderDash();}
+/* 切换支付方式：交易明细里点某单 → 改支付。改本地 _orders + 云端 orders.pay_method，
+   重绘看板（表格/支付分布跟着变）。 */
+var _paySwId=null;
+var _PAY_SW_OPTS=[['cash','Cash'],['tng','DuitNow'],['hitpay','Online']];
+function _payLabel(pm){ return ({cash:'Cash',tng:'DuitNow',card:'Card',counter:'Counter',hitpay:'Online'})[pm]||pm||'—'; }
+function changePay(id){
+  var o=_findOrder(id); if(!o){ showN('找不到这笔订单'); return; } _paySwId=id;
+  document.getElementById('paySwBody').innerHTML=
+    '<div style="font-size:13px;color:#4A4848;margin-bottom:12px">订单 #'+esc(o.orderNum)+' 当前支付方式：<b style="color:#8D0505">'+esc(_payLabel(o.payMethod))+'</b></div>'
+    +_PAY_SW_OPTS.map(function(pm){ var cur=pm[0]===o.payMethod;
+      return '<button style="display:block;width:100%;margin:6px 0;padding:12px;border:2px solid #8D0505;border-radius:10px;background:'+(cur?'#eee':'#fff')+';color:#8D0505;font-weight:700;font-size:15px;cursor:'+(cur?'default':'pointer')+';font-family:inherit"'+(cur?' disabled':' onclick="applyPay(\''+pm[0]+'\')"')+'>'+pm[1]+(cur?'（当前）':'')+'</button>';
+    }).join('');
+  document.getElementById('paySwBg').classList.add('show');
+}
+function closePaySw(){ document.getElementById('paySwBg').classList.remove('show'); }
+function applyPay(pm){
+  var o=_findOrder(_paySwId); if(!o){ closePaySw(); return; }
+  o.payMethod=pm;
+  try{ sj('pm_orders',_orders); }catch(e){}
+  try{ pmBroadcastOrders(); }catch(e){}
+  if(db){ db.from('orders').update({pay_method:pm}).eq('id',o.id)
+    .then(function(res){ if(res&&res.error) showN('保存失败：'+(res.error.message||'')); })
+    .catch(function(){ showN('网络错误'); }); }
+  closePaySw(); renderDash(); showN('已改为 '+_payLabel(pm));
+}
 function voidOrder(id){
   if(!confirm('确定要作废这笔订单吗？作废后不计入营业额统计。'))return;
   var o=_findOrder(id);
