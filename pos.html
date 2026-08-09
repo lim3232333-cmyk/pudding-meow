@@ -631,7 +631,14 @@ tr:hover td{background:rgba(141,5,5,.02);}
 .b-void{background:#e2e2e2;color:#777;}
 .tx-split{display:flex;gap:16px;align-items:flex-start;}
 .tx-left{flex:2;min-width:0;}
-.tx-right{flex:1;min-width:260px;}
+.tx-right{flex:1;min-width:260px;display:flex;flex-direction:column;gap:16px;}
+.rc-scroll{max-height:220px;overflow-y:auto;}
+.rc-item{display:flex;justify-content:space-between;align-items:center;padding:9px 18px;border-bottom:1px solid #F5E9D4;}
+.rc-item:last-child{border-bottom:none;}
+.rc-l{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.rc-l b{font-size:13px;color:#8D0505;}
+.rc-l span{font-size:11px;color:#4A4848;}
+.rc-a{font-size:13px;font-weight:700;color:#8D0505;white-space:nowrap;margin-left:10px;}
 .tx-scroll{max-height:440px;overflow-y:auto;}
 .th-filter{border:none;background:transparent;font:inherit;font-size:11px;font-weight:700;color:#4A4848;cursor:pointer;margin-left:4px;}
 tr.tx-sel td{background:rgba(141,5,5,.06);}
@@ -3434,6 +3441,10 @@ function renderDash(){
   if(!_txSelId && filtered.length) _txSelId=filtered[0].id;
   var selOrder=filtered.find(function(o){return o.id===_txSelId;}) || filtered[0] || null;
 
+  // 当日充值单单列——它不算营业额（钱花出去时才算），但老板想看今天充了多少
+  var rcOrds=_dayOrders(dd).filter(function(o){try{return _orderDay(o)===dd && o.taMode==='recharge' && o.status==='done';}catch(e){return false;}});
+  var rcTot=rcOrds.reduce(function(s,o){return s+(o.total||0);},0);
+
   var el=document.getElementById('adminContent');
   // 记住交易列表滚动位置——点某单会整块重绘，不还原的话会跳回顶部
   var _txSc=el.querySelector('.tx-scroll'); var _txTop=_txSc?_txSc.scrollTop:0;
@@ -3499,7 +3510,8 @@ function renderDash(){
           +'<td>'+statusHtml+'</td></tr>';
       }).join(''):'<tr><td colspan="6" style="text-align:center;padding:30px;color:#4A4848">暂无交易记录</td></tr>')
       +'</tbody></table></div></div>'
-      +'<div class="tx-right tx-card"><div class="tx-ch"><h3>商品</h3></div>'
+      +'<div class="tx-right">'
+      +'<div class="tx-card"><div class="tx-ch"><h3>商品</h3></div>'
       +(selOrder ?'<div style="padding:14px 18px;display:flex;flex-direction:column;height:calc(100% - 20px)">'
         +'<div style="flex:1">'
         +'<div style="font-size:12px;color:#4A4848;margin-bottom:8px">订单 #'+selOrder.orderNum+'</div>'
@@ -3513,6 +3525,18 @@ function renderDash(){
         +'</div>'
         +'</div>'
         :'<div class="pd-empty">点击左侧订单查看商品明细</div>')
+      +'</div>'
+      +'<div class="tx-card"><div class="tx-ch"><h3>今日充值 Top-ups</h3>'
+        +'<span style="font-size:12px;color:#4A4848;align-self:center">'+rcOrds.length+' 笔 · RM '+rcTot.toFixed(1)+'</span></div>'
+      +'<div class="rc-scroll">'+(rcOrds.length?rcOrds.map(function(o){
+          var dt=new Date(o.createdAt);var p=function(n){return String(n).padStart(2,'0');};
+          var nm=(o.tableName||'').replace(/^💰充值·/,'')||'会员';
+          var rc=(o.deliveryInfo&&o.deliveryInfo.recharge)||{};var coins=rc.coins||0;
+          return '<div class="rc-item"><div class="rc-l"><b>'+esc(nm)+'</b>'
+            +'<span>'+p(dt.getHours())+':'+p(dt.getMinutes())+(coins?' · +'+coins+' Coin':'')+'</span></div>'
+            +'<div class="rc-a">RM '+(o.total||0).toFixed(2)+'</div></div>';
+        }).join(''):'<div class="pd-empty">今日暂无充值</div>')+'</div>'
+      +'</div>'
       +'</div>'
     +'</div>';
   var _txSc2=el.querySelector('.tx-scroll'); if(_txSc2) _txSc2.scrollTop=_txTop;
