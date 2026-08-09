@@ -2526,7 +2526,7 @@ function openPickup(){
   document.getElementById('pkTimeDD').open=false;
   var ph=document.getElementById('pkPhone');
   if(_memberProfile && _memberProfile.phone && !ph.value) ph.value=_memberProfile.phone;   // 预填会员电话
-  pkRenderCal(); pkRenderTimeMenu();
+  pkRenderCal(); pkRenderTimes();
   document.getElementById('pkOverlay').classList.add('show');
   document.getElementById('pkModal').classList.add('show');
 }
@@ -2557,38 +2557,22 @@ function pkPickDate(y,m,d){
   document.getElementById('pkDateVal').textContent=_pkDate+' '+_RSV_WD[new Date(y,m,d).getDay()];
   document.getElementById('pkDateDD').open=false;
   pkRenderCal();
-  // 换了日期，「尽快」保持；若正展开滚动时段列表，重算（今天要滤掉已过时段）
-  if(document.getElementById('pkTimeDD').open) pkRenderTimeMenu();
+  _pkSyncTime();   // 换日期：重算可选时段；已选时段在新日期下不可用就退回尽快
 }
-/* 时间下拉：两个选项——尽快 / 滚动选时间；点「滚动选时间」展开可滚动的时段列表 */
-function pkRenderTimeMenu(){
-  document.getElementById('pkTimePanel').innerHTML =
-    '<div class="rsv-dd-opt'+(_pkTime==='尽快'?' sel':'')+'" onclick="pkPickAsap()">尽快</div>'
-   +'<div class="rsv-dd-opt" onclick="pkShowTimeScroll()">滚动选时间 ▾</div>';
+/* 时间下拉：尽快（默认）+ 时段，跟外卖一样；选当天自动滤掉已过时段（_timeSlotsFor） */
+function pkRenderTimes(){
+  var opts=['尽快'].concat(_timeSlotsFor(_pkDate));
+  document.getElementById('pkTimePanel').innerHTML=opts.map(function(t){
+    return '<div class="rsv-dd-opt'+(t===_pkTime?' sel':'')+'" onclick="pkPickTime(\''+t+'\')">'+t+'</div>';
+  }).join('');
 }
-function pkPickAsap(){
-  _pkTime='尽快'; document.getElementById('pkTimeVal').textContent='尽快';
-  document.getElementById('pkTimeDD').open=false; pkRenderTimeMenu();
-}
-function _pkParseMin(t){ var m=/(\d+):(\d+)\s*(am|pm)/i.exec(t); if(!m) return 0; var h=(+m[1])%12; if(/pm/i.test(m[3])) h+=12; return h*60+(+m[2]); }
-/* 可选时段沿用营业时段 RSV_TIMES；选的是今天就滤掉已过去的 */
-function pkTimeSlots(){
-  if(_pkDate!==_pkIso(new Date())) return RSV_TIMES.slice();
-  var now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
-  return RSV_TIMES.filter(function(t){ return _pkParseMin(t)>nowMin; });
-}
-function pkShowTimeScroll(){
-  var times=pkTimeSlots();
-  var body = times.length
-    ? times.map(function(t){ return '<div class="rsv-dd-opt'+(_pkTime===t?' sel':'')+'" onclick="pkPickTime(\''+t+'\')">'+t+'</div>'; }).join('')
-    : '<div class="rsv-dd-opt" style="color:#999">今日营业时段已过，请选「尽快」或改日期</div>';
-  var pane=document.getElementById('pkTimePanel');
-  pane.innerHTML='<div class="rsv-dd-opt" style="font-size:12px;color:var(--red)" onclick="pkRenderTimeMenu()">‹ 尽快 / 滚动选时间</div>'+body;
-  var s=pane.querySelector('.rsv-dd-opt.sel'); if(s) pane.scrollTop=Math.max(0,s.offsetTop-60);
+function _pkSyncTime(){
+  if(_pkTime!=='尽快' && _timeSlotsFor(_pkDate).indexOf(_pkTime)<0){ _pkTime='尽快'; document.getElementById('pkTimeVal').textContent='尽快'; }
+  pkRenderTimes();
 }
 function pkPickTime(t){
   _pkTime=t; document.getElementById('pkTimeVal').textContent=t;
-  document.getElementById('pkTimeDD').open=false; pkRenderTimeMenu();
+  document.getElementById('pkTimeDD').open=false; pkRenderTimes();
 }
 function confirmPickup(){
   var phone=(document.getElementById('pkPhone').value||'').trim();
@@ -2611,6 +2595,13 @@ var _DV_TIME_SLOTS=(function(){
   for(var t=16*60; t<23*60; t+=30){ out.push(fmt(t)+' - '+fmt(t+30)); }   // 4:00 pm - 4:30 pm … 10:30 pm - 11:00 pm
   return out;
 })();
+/* 时段列表（外卖/自取共用）：选当天就滤掉「起始时间已过现在」的时段，超过的不显示 */
+function _slotStartMin(slot){ var m=/(\d+):(\d+)\s*(am|pm)/i.exec(slot); if(!m) return 0; var h=(+m[1])%12; if(/pm/i.test(m[3])) h+=12; return h*60+(+m[2]); }
+function _timeSlotsFor(dateIso){
+  if(dateIso !== _pkIso(new Date())) return _DV_TIME_SLOTS.slice();
+  var now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
+  return _DV_TIME_SLOTS.filter(function(s){ return _slotStartMin(s) > nowMin; });
+}
 function _dvDayList(){ var out=[], n=new Date(); for(var i=0;i<3;i++){ out.push(new Date(n.getFullYear(),n.getMonth(),n.getDate()+i)); } return out; }
 function _dvDayLabel(d,i){ return i===0 ? '今天' : ['周日','周一','周二','周三','周四','周五','周六'][d.getDay()]; }
 function openDvWhen(){
@@ -2634,12 +2625,16 @@ function dvRenderDates(){
     return '<div class="rsv-dd-opt'+(iso===_dvDate?' sel':'')+'" onclick="dvPickDate(\''+iso+'\',\''+label+'\')">'+label+'</div>';
   }).join('');
 }
-function dvPickDate(iso,label){ _dvDate=iso; document.getElementById('dvDateVal').textContent=label; document.getElementById('dvDateDD').open=false; dvRenderDates(); }
+function dvPickDate(iso,label){ _dvDate=iso; document.getElementById('dvDateVal').textContent=label; document.getElementById('dvDateDD').open=false; dvRenderDates(); _dvSyncTime(); }
 function dvRenderTimes(){
-  var opts=['尽快'].concat(_DV_TIME_SLOTS);
+  var opts=['尽快'].concat(_timeSlotsFor(_dvDate));
   document.getElementById('dvTimePanel').innerHTML=opts.map(function(t){
     return '<div class="rsv-dd-opt'+(t===_dvTime?' sel':'')+'" onclick="dvPickTime(\''+t+'\')">'+t+'</div>';
   }).join('');
+}
+function _dvSyncTime(){
+  if(_dvTime!=='尽快' && _timeSlotsFor(_dvDate).indexOf(_dvTime)<0){ _dvTime='尽快'; document.getElementById('dvTimeVal').textContent='尽快'; }
+  dvRenderTimes();
 }
 function dvPickTime(t){ _dvTime=t; document.getElementById('dvTimeVal').textContent=t; document.getElementById('dvTimeDD').open=false; dvRenderTimes(); }
 function dvWhenConfirm(){
