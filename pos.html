@@ -1226,6 +1226,14 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
 </div>
 </div>
 
+<!-- 切换支付方式（交易明细里点某单 → 改支付）-->
+<div class="modal-bg" id="paySwBg" onclick="if(event.target===this)closePaySw()">
+  <div class="mm-box">
+    <div class="mm-hd"><h3>切换支付方式</h3><button class="mm-cl" onclick="closePaySw()">✕</button></div>
+    <div class="mm-body" id="paySwBody"></div>
+  </div>
+</div>
+
 <!-- SALES CHANNEL MODAL — 销售方式：新增/编辑 -->
 <div class="modal-bg" id="chBg" onclick="if(event.target===this)closeCH()">
   <div class="mm-box">
@@ -3492,6 +3500,7 @@ function renderDash(){
         +'</div>'
         +'<div style="display:flex;gap:10px;margin-top:12px">'
           +(selOrder.status==='void'?'':'<button class="void-btn void-btn-lg" onclick="voidOrder(\''+selOrder.id+'\')">Void</button>')
+          +(selOrder.status==='void'?'':'<button class="print-btn-lg" style="background:#B6F3FF;color:#8D0505;border:none;font-weight:700;cursor:pointer" onclick="changePay(\''+selOrder.id+'\')">改支付</button>')
           +'<button class="print-btn print-btn-lg" onclick="reprO(\''+selOrder.id+'\')">Print</button>'
         +'</div>'
         +'</div>'
@@ -3522,6 +3531,31 @@ function setRevMode(v){_revMode=v;renderDash();}
 function setTxModeFilter(v){_txModeFilter=v;renderDash();}
 function setTxPayFilter(v){_txPayFilter=v;renderDash();}
 function selectTx(id){_txSelId=id;renderDash();}
+/* 切换支付方式：交易明细里点某单 → 改支付。改本地 _orders + 云端 orders.pay_method，
+   重绘看板（表格/支付分布跟着变）。 */
+var _paySwId=null;
+var _PAY_SW_OPTS=[['cash','Cash'],['tng','DuitNow'],['hitpay','Online']];
+function _payLabel(pm){ return ({cash:'Cash',tng:'DuitNow',card:'Card',counter:'Counter',hitpay:'Online'})[pm]||pm||'—'; }
+function changePay(id){
+  var o=_findOrder(id); if(!o){ showN('找不到这笔订单'); return; } _paySwId=id;
+  document.getElementById('paySwBody').innerHTML=
+    '<div style="font-size:13px;color:#4A4848;margin-bottom:12px">订单 #'+esc(o.orderNum)+' 当前支付方式：<b style="color:#8D0505">'+esc(_payLabel(o.payMethod))+'</b></div>'
+    +_PAY_SW_OPTS.map(function(pm){ var cur=pm[0]===o.payMethod;
+      return '<button style="display:block;width:100%;margin:6px 0;padding:12px;border:2px solid #8D0505;border-radius:10px;background:'+(cur?'#eee':'#fff')+';color:#8D0505;font-weight:700;font-size:15px;cursor:'+(cur?'default':'pointer')+';font-family:inherit"'+(cur?' disabled':' onclick="applyPay(\''+pm[0]+'\')"')+'>'+pm[1]+(cur?'（当前）':'')+'</button>';
+    }).join('');
+  document.getElementById('paySwBg').classList.add('show');
+}
+function closePaySw(){ document.getElementById('paySwBg').classList.remove('show'); }
+function applyPay(pm){
+  var o=_findOrder(_paySwId); if(!o){ closePaySw(); return; }
+  o.payMethod=pm;
+  try{ sj('pm_orders',_orders); }catch(e){}
+  try{ pmBroadcastOrders(); }catch(e){}
+  if(db){ db.from('orders').update({pay_method:pm}).eq('id',o.id)
+    .then(function(res){ if(res&&res.error) showN('保存失败：'+(res.error.message||'')); })
+    .catch(function(){ showN('网络错误'); }); }
+  closePaySw(); renderDash(); showN('已改为 '+_payLabel(pm));
+}
 function voidOrder(id){
   if(!confirm('确定要作废这笔订单吗？作废后不计入营业额统计。'))return;
   var o=_findOrder(id);
