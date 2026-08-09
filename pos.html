@@ -1236,7 +1236,10 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       <label class="mfl">代号 *</label>
       <div class="mfh" id="chCodeHint">英文小写代号，保存后不能改</div>
       <input class="mfi" id="chCode" placeholder="如：booking">
-      <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="chEnabled" checked style="width:auto;margin:0;"> 启用</label>
+      <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="chEnabled" checked style="width:auto;margin:0;"> 启用（总开关 / 想临时关就取消勾选）</label>
+      <label class="mfl" style="display:flex;align-items:center;gap:8px;margin-top:12px;"><input type="checkbox" id="chHoursEnabled" style="width:auto;margin:0;" onchange="_chHoursToggle()"> 按营业时间自动开关</label>
+      <div class="mfh">开了之后，只在下面设定的时段内接单；外卖/自取过了时间，顾客点进去只会看到营业时间、不给下单。</div>
+      <div id="chHoursBox" style="display:none"></div>
       <button class="mfs" onclick="saveCH()">保存 Save</button>
 </div>
 </div>
@@ -4774,6 +4777,43 @@ function mcDel(id){
 
 /* ── 销售方式（菜单管理页签之一）：维护渠道本身。商品/规格组的打钩跟着这张表走 ── */
 function _chAfterWrite(res,msg){ if(res&&res.error){showN(''+(res.error.message||'操作失败'));return;} showN(msg); loadChannels().then(function(){renderMenuAdmin();}); }
+/* ── 营业时间：每天分开设（0=周日…6=周六）+ 手动总开关（enabled）── */
+var _CH_DAYS=['周日','周一','周二','周三','周四','周五','周六'];
+function _hm(s){ var m=/(\d+):(\d+)/.exec(s||''); return m?(+m[1])*60+(+m[2]):0; }
+function _chOpenNow(ch, when){
+  if(!ch) return {open:true};
+  if(ch.enabled===false) return {open:false, why:'暂停'};
+  if(!ch.hours_enabled || !Array.isArray(ch.hours)) return {open:true};
+  var d=when||new Date(), day=ch.hours[d.getDay()];
+  if(!day || day.closed) return {open:false, why:'今日休息'};
+  var nm=d.getHours()*60+d.getMinutes();
+  return { open:(nm>=_hm(day.open) && nm<_hm(day.close)), why:'非营业时间' };
+}
+function _chRenderHours(hours){
+  document.getElementById('chHoursBox').innerHTML=_CH_DAYS.map(function(nm,i){
+    var d=(hours&&hours[i])||{closed:false,open:'16:00',close:'23:00'};
+    return '<div style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:13px">'
+      +'<span style="width:34px;flex:none">'+nm+'</span>'
+      +'<label style="display:flex;align-items:center;gap:4px;flex:none;color:#8D0505"><input type="checkbox" class="chDayClosed" data-i="'+i+'" '+(d.closed?'checked':'')+' onchange="_chDayToggle('+i+')" style="width:auto;margin:0"> 休息</label>'
+      +'<input type="time" class="chDayOpen" data-i="'+i+'" value="'+(d.open||'16:00')+'" style="flex:1;padding:4px"'+(d.closed?' disabled':'')+'>'
+      +'<span>—</span>'
+      +'<input type="time" class="chDayClose" data-i="'+i+'" value="'+(d.close||'23:00')+'" style="flex:1;padding:4px"'+(d.closed?' disabled':'')+'>'
+      +'</div>';
+  }).join('');
+}
+function _chDayToggle(i){
+  var closed=document.querySelector('.chDayClosed[data-i="'+i+'"]').checked;
+  document.querySelector('.chDayOpen[data-i="'+i+'"]').disabled=closed;
+  document.querySelector('.chDayClose[data-i="'+i+'"]').disabled=closed;
+}
+function _chHoursToggle(){ document.getElementById('chHoursBox').style.display=document.getElementById('chHoursEnabled').checked?'block':'none'; }
+function _chCollectHours(){
+  return _CH_DAYS.map(function(_,i){
+    return { closed:document.querySelector('.chDayClosed[data-i="'+i+'"]').checked,
+      open:document.querySelector('.chDayOpen[data-i="'+i+'"]').value||'16:00',
+      close:document.querySelector('.chDayClose[data-i="'+i+'"]').value||'23:00' };
+  });
+}
 function channelsAdminHtml(){
   var rows=(_salesChannels||[]).slice().sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
   var html='<div style="font-size:13px;color:#4A4848;margin-bottom:14px">维护点餐方式本身。商品管理和规格管理里的「销售渠道」打钩就是从这张表来的——在这里加一个渠道，那两处会同步多出一个选项。<br>'
@@ -4790,10 +4830,19 @@ function channelsAdminHtml(){
       // 统计一下有多少商品/规格组是专门指定了这个渠道的，改名/停用前心里有数
       var nItem=(_menuRows||[]).filter(function(x){return (x.channels||[]).indexOf(r.code)>=0;}).length;
       var nSpec=(_specDefs||[]).filter(function(x){return (x.channels||[]).indexOf(r.code)>=0;}).length;
+      // 营业状态：暂停(enabled=false) / 按时间的 营业中·已打烊·今日休息
+      var st=_chOpenNow(r);
+      var stChip = (r.enabled===false)
+        ? '<span style="background:#8D0505;color:#fff;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;margin-left:8px">已暂停</span>'
+        : (r.hours_enabled
+            ? (st.open ? '<span style="background:#1D7715;color:#fff;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;margin-left:8px">营业中</span>'
+                       : '<span style="background:#8D0505;color:#fff;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;margin-left:8px">'+esc(st.why||'已打烊')+'</span>')
+            : '');
       html+='<div class="ch-row" data-sid="'+esc(r.id)+'" data-so="'+(r.sort_order||0)+'"><div class="ch-nm">'+esc(r.name)+'</div>'
         +'<div class="ch-code">'+esc(r.code)+'</div>'
         +'<div style="flex:1;font-size:12px;color:#4A4848">'+esc(r.name_en||'')
         +'<span style="margin-left:10px">指定了这个渠道的：商品 '+nItem+' 个 · 规格组 '+nSpec+' 个</span></div>'
+        +stChip
         +'<span class="ch-tag'+(r.enabled===false?' off':'')+'">'+(r.builtin?'内置 · 对接小程序':(r.enabled===false?'已停用':'自建'))+'</span>'
         +'<div style="white-space:nowrap">'
         +'<button onclick="chEdit(\''+r.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;margin-left:8px;cursor:pointer;font-size:12px;font-weight:700">改</button>'
@@ -4815,6 +4864,8 @@ function chAdd(){
   document.getElementById('chCode').disabled=false;
   document.getElementById('chCodeHint').textContent='英文小写代号，保存后不能改。自建渠道小程序暂时用不到，先当后台标签';
   document.getElementById('chEnabled').checked=true;
+  document.getElementById('chHoursEnabled').checked=false;
+  _chRenderHours(null); _chHoursToggle();
   document.getElementById('chBg').classList.add('show');
 }
 function chEdit(id){
@@ -4830,6 +4881,8 @@ function chEdit(id){
     ? '内置渠道，代号跟小程序的下单入口绑死，不能改'
     : '代号已被商品/规格组引用，不能改';
   document.getElementById('chEnabled').checked=r.enabled!==false;
+  document.getElementById('chHoursEnabled').checked=!!r.hours_enabled;
+  _chRenderHours(Array.isArray(r.hours)?r.hours:null); _chHoursToggle();
   document.getElementById('chBg').classList.add('show');
 }
 function closeCH(){document.getElementById('chBg').classList.remove('show');}
@@ -4838,7 +4891,9 @@ function saveCH(){
   var name=document.getElementById('chName').value.trim();
   if(!name){showN('请填写渠道名称');return;}
   var payload={name:name, name_en:document.getElementById('chNameEn').value.trim()||null,
-    enabled:document.getElementById('chEnabled').checked};
+    enabled:document.getElementById('chEnabled').checked,
+    hours_enabled:document.getElementById('chHoursEnabled').checked,
+    hours:_chCollectHours()};
   if(_chEditId){
     db.from('sales_channels').update(payload).eq('id',_chEditId)
       .then(function(res){_chAfterWrite(res,'已保存');}).catch(function(e){showN('网络错误');});
