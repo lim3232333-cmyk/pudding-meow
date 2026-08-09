@@ -2321,6 +2321,7 @@ function promptModeIfNeeded(){
   _modeChosen = true;
 }
 function selectMode(el){
+  if(_channelBlocked(el.dataset.mode)) return;   // 打烊/暂停：弹营业时间，不进入下单
   document.querySelectorAll('.hc-card').forEach(c=>c.classList.remove('active'));
   el.classList.add('active');
   currentMode = el.dataset.mode;
@@ -2561,13 +2562,14 @@ function pkPickDate(y,m,d){
 }
 /* 时间下拉：尽快（默认）+ 时段，跟外卖一样；选当天自动滤掉已过时段（_timeSlotsFor） */
 function pkRenderTimes(){
-  var opts=['尽快'].concat(_timeSlotsFor(_pkDate));
+  if(_chDayClosed('pickup', _pkDate)){ document.getElementById('pkTimePanel').innerHTML='<div class="rsv-dd-opt" style="color:#999">该日休息，请改日期</div>'; return; }
+  var opts=['尽快'].concat(_timeSlotsFor(_pkDate,'pickup'));
   document.getElementById('pkTimePanel').innerHTML=opts.map(function(t){
     return '<div class="rsv-dd-opt'+(t===_pkTime?' sel':'')+'" onclick="pkPickTime(\''+t+'\')">'+t+'</div>';
   }).join('');
 }
 function _pkSyncTime(){
-  if(_pkTime!=='尽快' && _timeSlotsFor(_pkDate).indexOf(_pkTime)<0){ _pkTime='尽快'; document.getElementById('pkTimeVal').textContent='尽快'; }
+  if(_pkTime!=='尽快' && _timeSlotsFor(_pkDate,'pickup').indexOf(_pkTime)<0){ _pkTime='尽快'; document.getElementById('pkTimeVal').textContent='尽快'; }
   pkRenderTimes();
 }
 function pkPickTime(t){
@@ -2595,12 +2597,58 @@ var _DV_TIME_SLOTS=(function(){
   for(var t=16*60; t<23*60; t+=30){ out.push(fmt(t)+' - '+fmt(t+30)); }   // 4:00 pm - 4:30 pm … 10:30 pm - 11:00 pm
   return out;
 })();
-/* 时段列表（外卖/自取共用）：选当天就滤掉「起始时间已过现在」的时段，超过的不显示 */
 function _slotStartMin(slot){ var m=/(\d+):(\d+)\s*(am|pm)/i.exec(slot); if(!m) return 0; var h=(+m[1])%12; if(/pm/i.test(m[3])) h+=12; return h*60+(+m[2]); }
-function _timeSlotsFor(dateIso){
-  if(dateIso !== _pkIso(new Date())) return _DV_TIME_SLOTS.slice();
-  var now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
-  return _DV_TIME_SLOTS.filter(function(s){ return _slotStartMin(s) > nowMin; });
+
+/* ── 销售渠道营业时间：小程序读 sales_channels（enabled + 每天时段），外卖/自取据此开关 ── */
+var _appChannels=[];
+function loadAppChannels(){
+  if(!db) return Promise.resolve();
+  return db.from('sales_channels').select('code,enabled,hours_enabled,hours')
+    .then(function(res){ if(!res.error) _appChannels=res.data||[]; }).catch(function(){});
+}
+function _appChannel(code){ return (_appChannels||[]).find(function(c){return c.code===code;}); }
+function _chHm(s){ var m=/(\d+):(\d+)/.exec(s||''); return m?(+m[1])*60+(+m[2]):0; }
+function _dowOf(iso){ var p=String(iso||'').split('-'); return new Date(+p[0],+p[1]-1,+p[2]).getDay(); }
+function _chDayHours(code, dow){ var ch=_appChannel(code); return (ch && ch.hours_enabled && Array.isArray(ch.hours)) ? ch.hours[dow] : null; }
+function _chDayClosed(code, iso){ var d=_chDayHours(code, _dowOf(iso)); return !!(d && d.closed); }
+/* 现在（或指定时刻）这个渠道开不开门 */
+function _chOpenNow(code, when){
+  var ch=_appChannel(code); if(!ch) return {open:true};
+  if(ch.enabled===false) return {open:false, why:'暂停接单'};
+  if(!ch.hours_enabled || !Array.isArray(ch.hours)) return {open:true};
+  var d=when||new Date(), day=ch.hours[d.getDay()];
+  if(!day || day.closed) return {open:false, why:'今日休息'};
+  var nm=d.getHours()*60+d.getMinutes();
+  return { open:(nm>=_chHm(day.open) && nm<_chHm(day.close)), why:'不在营业时间' };
+}
+function _fmtHM(s){ var m=/(\d+):(\d+)/.exec(s||''); if(!m) return s||''; var h=+m[1], ap=h>=12?'pm':'am', hh=h%12||12; return hh+':'+m[2]+ap; }
+function _chHoursText(code){
+  var ch=_appChannel(code); if(!ch || !ch.hours_enabled || !Array.isArray(ch.hours)) return '';
+  var nm=['周日','周一','周二','周三','周四','周五','周六'];
+  return ch.hours.map(function(d,i){ return nm[i]+'：'+((!d||d.closed)?'休息':(_fmtHM(d.open)+' - '+_fmtHM(d.close))); }).join('\n');
+}
+/* 打烊/暂停就拦下：弹营业时间、不给进入下单。返回 true=被拦住了 */
+function _channelBlocked(code){
+  var st=_chOpenNow(code); if(st.open) return false;
+  var label={pickup:'自取', delivery:'外卖', dinein:'堂食'}[code]||code;
+  var msg = label + ' · ' + (st.why||'暂停接单');   // 暂停接单 / 今日休息 / 不在营业时间
+  var ht=_chHoursText(code); if(ht) msg += '\n\n营业时间：\n'+ht;
+  alert(msg); return true;
+}
+/* 时段列表（外卖/自取共用）：限制在当天营业时段内 + 选当天再滤掉已过的 */
+function _timeSlotsFor(dateIso, code){
+  var slots=_DV_TIME_SLOTS.slice();
+  var day=code ? _chDayHours(code, _dowOf(dateIso)) : null;
+  if(day){
+    if(day.closed) return [];                                    // 当天休息：没有时段
+    var o=_chHm(day.open), c=_chHm(day.close);
+    slots=slots.filter(function(s){ var st=_slotStartMin(s); return st>=o && st<c; });
+  }
+  if(dateIso === _pkIso(new Date())){                            // 今天：滤掉已过的
+    var now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
+    slots=slots.filter(function(s){ return _slotStartMin(s) > nowMin; });
+  }
+  return slots;
 }
 function _dvDayList(){ var out=[], n=new Date(); for(var i=0;i<3;i++){ out.push(new Date(n.getFullYear(),n.getMonth(),n.getDate()+i)); } return out; }
 function _dvDayLabel(d,i){ return i===0 ? '今天' : ['周日','周一','周二','周三','周四','周五','周六'][d.getDay()]; }
@@ -2627,13 +2675,14 @@ function dvRenderDates(){
 }
 function dvPickDate(iso,label){ _dvDate=iso; document.getElementById('dvDateVal').textContent=label; document.getElementById('dvDateDD').open=false; dvRenderDates(); _dvSyncTime(); }
 function dvRenderTimes(){
-  var opts=['尽快'].concat(_timeSlotsFor(_dvDate));
+  if(_chDayClosed('delivery', _dvDate)){ document.getElementById('dvTimePanel').innerHTML='<div class="rsv-dd-opt" style="color:#999">该日休息，请改日期</div>'; return; }
+  var opts=['尽快'].concat(_timeSlotsFor(_dvDate,'delivery'));
   document.getElementById('dvTimePanel').innerHTML=opts.map(function(t){
     return '<div class="rsv-dd-opt'+(t===_dvTime?' sel':'')+'" onclick="dvPickTime(\''+t+'\')">'+t+'</div>';
   }).join('');
 }
 function _dvSyncTime(){
-  if(_dvTime!=='尽快' && _timeSlotsFor(_dvDate).indexOf(_dvTime)<0){ _dvTime='尽快'; document.getElementById('dvTimeVal').textContent='尽快'; }
+  if(_dvTime!=='尽快' && _timeSlotsFor(_dvDate,'delivery').indexOf(_dvTime)<0){ _dvTime='尽快'; document.getElementById('dvTimeVal').textContent='尽快'; }
   dvRenderTimes();
 }
 function dvPickTime(t){ _dvTime=t; document.getElementById('dvTimeVal').textContent=t; document.getElementById('dvTimeDD').open=false; dvRenderTimes(); }
@@ -2722,6 +2771,7 @@ function syncMenuMode(){
   updateMenuTableInfo();
 }
 function setMenuMode(el){
+  if(_channelBlocked(el.dataset.mode)) return;                // 打烊/暂停：弹营业时间，不切过去
   if(el.dataset.mode==='dinein'){ openDine(); return; }       // 切到堂食也要选座号+人数
   if(el.dataset.mode==='delivery'){ openDvWhen(); return; }   // 切到外卖也要先选日期/时间，再选地址
   if(el.dataset.mode==='pickup'){ openPickup(); return; }     // 切到自取也要选日期/时间/电话
@@ -4299,6 +4349,8 @@ renderItems();
 renderCartPanel();
 loadMenu();   // 从云端拉菜单（拉到后自动重绘；未配置/离线则保持写死菜单）
 loadSpecDefs();   // 拉规格库，用于判断哪些规格选项当前售罄
+loadAppChannels();   // 拉销售渠道的营业时间/开关（外卖·自取据此拦截）
+try{ if(db) db.channel('app-channels').on('postgres_changes',{event:'*',schema:'public',table:'sales_channels'},function(){ loadAppChannels(); }).subscribe(); }catch(e){}
 
 /* =================== ORDERS =================== */
 
