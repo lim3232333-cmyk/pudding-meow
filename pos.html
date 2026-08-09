@@ -3432,6 +3432,8 @@ function renderDash(){
   var selOrder=filtered.find(function(o){return o.id===_txSelId;}) || filtered[0] || null;
 
   var el=document.getElementById('adminContent');
+  // 记住交易列表滚动位置——点某单会整块重绘，不还原的话会跳回顶部
+  var _txSc=el.querySelector('.tx-scroll'); var _txTop=_txSc?_txSc.scrollTop:0;
   el.innerHTML='<div class="page-title">Transaction</div>'
     +'<div class="date-row"><label class="dbox'+(dd===today?' a':'')+'">'
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
@@ -3507,6 +3509,7 @@ function renderDash(){
         :'<div class="pd-empty">点击左侧订单查看商品明细</div>')
       +'</div>'
     +'</div>';
+  var _txSc2=el.querySelector('.tx-scroll'); if(_txSc2) _txSc2.scrollTop=_txTop;
 }
 /* 选了哪天就看哪天。选到今天就清回 null，走实时那份数据。
    历史日期本地不一定有（_orders 只有最近 200 单），所以顺手去云端按日拉一次。 */
