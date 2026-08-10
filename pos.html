@@ -3553,7 +3553,7 @@ function setDDv(v){
    已经出过的日结数字不会被追溯改写。看板这边重新按新切点分组显示。 */
 function setBizCut(v){
   var h=parseInt(v,10); if(isNaN(h)) return;
-  _bizCut=h; _dayCache={}; _vDate=null; renderDash();
+  _bizCut=h; _dayCache={}; _monthCache={}; _vDate=null; renderDash();
   if(!db){ showN('未连接云端，切点没保存'); return; }
   db.from('shop_settings').update({day_cutoff_hour:h, updated_at:new Date().toISOString()}).eq('id',1)
     .then(function(res){ if(res.error){ showN('保存失败：'+_rpcErr(res.error)); return; }
@@ -4638,11 +4638,43 @@ function cpnRevoke(memberCouponId){
 }
 
 /* ── REPORTS ── */
+/* 整月订单单独按 business_date 从云端拉一次存这里。
+   以前报告直接用 _orders 算——但 _orders 只装「最近 200 单」，一个月超过 200 单
+   就有单没被算进去，所以每天营业额加起来跟月总额对不上。改成按营业月整月拉。 */
+var _monthCache={};      // 'YYYY-MM' -> orders[]
+var _monthLoading=null;
+async function loadReportsMonth(selM){
+  if(!db || _monthCache[selM]) return;
+  _monthLoading=selM; renderReports();
+  try{
+    var start=selM+'-01';
+    var ny=+selM.slice(0,4), nm=+selM.slice(5,7);        // 下个月 1 号，做右开区间
+    var end=(nm>=12?(ny+1):ny)+'-'+('0'+(nm>=12?1:nm+1)).slice(-2)+'-01';
+    var res=await db.from('orders').select('*').gte('business_date',start).lt('business_date',end)
+      .order('created_at',{ascending:false});
+    if(res.error) throw res.error;
+    // 跟本地那份同月的单按 id 并起来，不直接替换：离线没同步上去的单不能从账里抹掉
+    var byId={};
+    _orders.forEach(function(o){ try{ if(_orderDay(o).slice(0,7)===selM) byId[o.id]=o; }catch(e){} });
+    (res.data||[]).map(rowToOrder).forEach(function(o){ byId[o.id]=o; });
+    _monthCache[selM]=Object.keys(byId).map(function(k){return byId[k];});
+  }catch(e){
+    console.error('loadReportsMonth', e);
+    showN('读取 '+selM+' 报告失败：'+_rpcErr(e));
+  }
+  _monthLoading=null; renderReports();
+}
 function renderReports(){
   var selM=sg('pm_rm',_bizDay().slice(0,7));
   // 原来是 o.createdAt.slice(0,7)——那截的是 UTC 日期，马来西亚早上 8 点前的单
   // 会被算到前一天，8 月 1 日凌晨的单甚至会被算进 7 月。改成按营业日。
-  var mords=_orders.filter(function(o){return _orderDay(o).slice(0,7)===selM&&o.taMode!=='recharge';});  // 充值单不计营业额
+  // 数据来源：整月那份（_monthCache）为主，再并上本地 _orders 里同月的单（含刚下的、还没进缓存的）。
+  var mmap={};
+  (_monthCache[selM]||[]).forEach(function(o){ mmap[o.id]=o; });
+  _orders.forEach(function(o){ try{ if(_orderDay(o).slice(0,7)===selM) mmap[o.id]=o; }catch(e){} });
+  var src=Object.keys(mmap).map(function(k){return mmap[k];});
+  // 跟交易看板口径对齐：作废单、充值单、预约单都不算营业额
+  var mords=src.filter(function(o){return _orderDay(o).slice(0,7)===selM && o.status!=='void' && o.taMode!=='recharge' && o.taMode!=='reservation';});
   var tot=mords.reduce(function(s,o){return s+o.total;},0);
   var cash=mords.filter(function(o){return o.payMethod==='cash';}).reduce(function(s,o){return s+o.total;},0);
   var tng=mords.filter(function(o){return o.payMethod==='tng';}).reduce(function(s,o){return s+o.total;},0);
@@ -4652,7 +4684,8 @@ function renderReports(){
   var el=document.getElementById('adminContent');
   el.innerHTML='<div class="page-title">月度报告 Monthly Report</div>'
     +'<div style="display:flex;gap:12px;align-items:center;margin-bottom:18px">'
-    +'<input type="month" value="'+selM+'" onchange="setRM(this.value)"><span style="font-size:14px;color:#4A4848">选择月份</span></div>'
+    +'<input type="month" value="'+selM+'" onchange="setRM(this.value)"><span style="font-size:14px;color:#4A4848">选择月份</span>'
+    +(_monthLoading===selM?'<span style="font-size:13px;color:#8D0505">读取整月数据…</span>':(db&&!_monthCache[selM]?'<span style="font-size:13px;color:#4A4848">（本地数据，读取中…）</span>':''))+'</div>'
     +'<div class="kpi-row">'
     +'<div class="kpi"><div class="l">月总营业额</div><div class="v">RM '+tot.toFixed(0)+'</div></div>'
     +'<div class="kpi"><div class="l">交易笔数</div><div class="v">'+mords.length+'</div></div>'
@@ -4669,6 +4702,8 @@ function renderReports(){
     +'<div style="max-height:260px;overflow-y:auto">'
     +(Object.keys(days).sort().map(function(d){var pct=days[d]/maxD*100;return'<div class="bar-row"><div class="bar-lbl">'+d.slice(5)+'</div><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:#8D0505">'+days[d].toFixed(0)+'</div></div><div class="bar-val">RM '+days[d].toFixed(0)+'</div></div>';}).join('')||'<div style="text-align:center;padding:30px;color:#4A4848">暂无数据</div>')
     +'</div></div></div>';
+  // 没拉过这个月就去云端整月拉一次（防重入：正在拉这个月时不再触发）
+  if(db && !_monthCache[selM] && _monthLoading!==selM) loadReportsMonth(selM);
 }
 function setRM(v){ss('pm_rm',v);renderReports();}
 
