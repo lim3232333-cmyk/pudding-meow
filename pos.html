@@ -3470,12 +3470,12 @@ function renderDash(){
       +'<option value="dinein"'+(_revMode==='dinein'?' selected':'')+'>堂食</option>'
       +'<option value="takeaway"'+(_revMode==='takeaway'?' selected':'')+'>打包/自取</option>'
       +'<option value="delivery"'+(_revMode==='delivery'?' selected':'')+'>外卖</option>'
-    +'</select></div><div class="v">RM '+revShown.toFixed(1)+'</div></div>'
+    +'</select></div><div class="v">RM '+revShown.toFixed(2)+'</div></div>'
     +'<div class="kpi"><div class="l">交易笔数</div><div class="v">'+live.length+'</div></div>'
-    +'<div class="kpi"><div class="l">现金 Cash</div><div class="v">RM '+cash.toFixed(1)+'</div></div>'
-    +'<div class="kpi"><div class="l">DuitNow</div><div class="v">RM '+tng.toFixed(1)+'</div></div>'
-    +'<div class="kpi"><div class="l">Online</div><div class="v">RM '+onl.toFixed(1)+'</div></div>'
-    +'<div class="kpi"><div class="l">Meow Wallet</div><div class="v">RM '+wal.toFixed(1)+'</div></div>'
+    +'<div class="kpi"><div class="l">现金 Cash</div><div class="v">RM '+cash.toFixed(2)+'</div></div>'
+    +'<div class="kpi"><div class="l">DuitNow</div><div class="v">RM '+tng.toFixed(2)+'</div></div>'
+    +'<div class="kpi"><div class="l">Online</div><div class="v">RM '+onl.toFixed(2)+'</div></div>'
+    +'<div class="kpi"><div class="l">Meow Wallet</div><div class="v">RM '+wal.toFixed(2)+'</div></div>'
     +'</div>'
     +'<div class="tx-split">'
       +'<div class="tx-left tx-card"><div class="tx-ch"><h3>交易明细</h3></div>'
@@ -3527,7 +3527,7 @@ function renderDash(){
         :'<div class="pd-empty">点击左侧订单查看商品明细</div>')
       +'</div>'
       +'<div class="tx-card"><div class="tx-ch"><h3>今日充值 Top-ups</h3>'
-        +'<span style="font-size:12px;color:#4A4848;align-self:center">'+rcOrds.length+' 笔 · RM '+rcTot.toFixed(1)+'</span></div>'
+        +'<span style="font-size:12px;color:#4A4848;align-self:center">'+rcOrds.length+' 笔 · RM '+rcTot.toFixed(2)+'</span></div>'
       +'<div class="rc-scroll">'+(rcOrds.length?rcOrds.map(function(o){
           var dt=new Date(o.createdAt);var p=function(n){return String(n).padStart(2,'0');};
           var nm=(o.tableName||'').replace(/^💰充值·/,'')||'会员';
@@ -4687,20 +4687,20 @@ function renderReports(){
     +'<input type="month" value="'+selM+'" onchange="setRM(this.value)"><span style="font-size:14px;color:#4A4848">选择月份</span>'
     +(_monthLoading===selM?'<span style="font-size:13px;color:#8D0505">读取整月数据…</span>':(db&&!_monthCache[selM]?'<span style="font-size:13px;color:#4A4848">（本地数据，读取中…）</span>':''))+'</div>'
     +'<div class="kpi-row">'
-    +'<div class="kpi"><div class="l">月总营业额</div><div class="v">RM '+tot.toFixed(0)+'</div></div>'
+    +'<div class="kpi"><div class="l">月总营业额</div><div class="v">RM '+tot.toFixed(2)+'</div></div>'
     +'<div class="kpi"><div class="l">交易笔数</div><div class="v">'+mords.length+'</div></div>'
-    +'<div class="kpi"><div class="l">日均营业额</div><div class="v">RM '+(Object.keys(days).length?tot/Object.keys(days).length:0).toFixed(0)+'</div></div>'
-    +'<div class="kpi"><div class="l">最高单日</div><div class="v">RM '+maxD.toFixed(0)+'</div></div>'
+    +'<div class="kpi"><div class="l">日均营业额</div><div class="v">RM '+(Object.keys(days).length?tot/Object.keys(days).length:0).toFixed(2)+'</div></div>'
+    +'<div class="kpi"><div class="l">最高单日</div><div class="v">RM '+maxD.toFixed(2)+'</div></div>'
     +'</div>'
     +'<div class="rpt-grid">'
     +'<div class="rpt-card"><h3>支付方式分布 Payment Breakdown</h3>'
-    +'<div class="pie-row"><div class="pie-dot" style="background:#8D0505"></div><div class="pie-lbl">现金 Cash</div><div class="pie-right"><div class="pie-val">RM '+cash.toFixed(0)+'</div><div class="pie-pct">'+(tot?Math.round(cash/tot*100):0)+'%</div></div></div>'
-    +'<div class="pie-row"><div class="pie-dot" style="background:#202055"></div><div class="pie-lbl">DuitNow / TNG</div><div class="pie-right"><div class="pie-val">RM '+tng.toFixed(0)+'</div><div class="pie-pct">'+(tot?Math.round(tng/tot*100):0)+'%</div></div></div>'
-    +'<div class="pie-row"><div class="pie-dot" style="background:#555"></div><div class="pie-lbl">刷卡 Card</div><div class="pie-right"><div class="pie-val">RM '+card.toFixed(0)+'</div><div class="pie-pct">'+(tot?Math.round(card/tot*100):0)+'%</div></div></div>'
+    +'<div class="pie-row"><div class="pie-dot" style="background:#8D0505"></div><div class="pie-lbl">现金 Cash</div><div class="pie-right"><div class="pie-val">RM '+cash.toFixed(2)+'</div><div class="pie-pct">'+(tot?Math.round(cash/tot*100):0)+'%</div></div></div>'
+    +'<div class="pie-row"><div class="pie-dot" style="background:#202055"></div><div class="pie-lbl">DuitNow / TNG</div><div class="pie-right"><div class="pie-val">RM '+tng.toFixed(2)+'</div><div class="pie-pct">'+(tot?Math.round(tng/tot*100):0)+'%</div></div></div>'
+    +'<div class="pie-row"><div class="pie-dot" style="background:#555"></div><div class="pie-lbl">刷卡 Card</div><div class="pie-right"><div class="pie-val">RM '+card.toFixed(2)+'</div><div class="pie-pct">'+(tot?Math.round(card/tot*100):0)+'%</div></div></div>'
     +'</div>'
     +'<div class="rpt-card"><h3>每日营业额 Daily Revenue</h3>'
     +'<div style="max-height:260px;overflow-y:auto">'
-    +(Object.keys(days).sort().map(function(d){var pct=days[d]/maxD*100;return'<div class="bar-row"><div class="bar-lbl">'+d.slice(5)+'</div><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:#8D0505">'+days[d].toFixed(0)+'</div></div><div class="bar-val">RM '+days[d].toFixed(0)+'</div></div>';}).join('')||'<div style="text-align:center;padding:30px;color:#4A4848">暂无数据</div>')
+    +(Object.keys(days).sort().map(function(d){var pct=days[d]/maxD*100;return'<div class="bar-row"><div class="bar-lbl">'+d.slice(5)+'</div><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:#8D0505">'+days[d].toFixed(2)+'</div></div><div class="bar-val">RM '+days[d].toFixed(2)+'</div></div>';}).join('')||'<div style="text-align:center;padding:30px;color:#4A4848">暂无数据</div>')
     +'</div></div></div>';
   // 没拉过这个月就去云端整月拉一次（防重入：正在拉这个月时不再触发）
   if(db && !_monthCache[selM] && _monthLoading!==selM) loadReportsMonth(selM);
