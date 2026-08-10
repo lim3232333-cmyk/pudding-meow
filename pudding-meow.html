@@ -228,9 +228,10 @@
   .menu-search:not(.open) input{ display:none; }
   .search-empty{ padding:40px 16px; text-align:center; font-size:13px; color:var(--muted); }
   /* 长地址要能折行，所以是 min-height 不是写死 height；页头一变高，--menuHeaderH 由 _syncMenuHeaderH() 实测同步 */
-  .menu-tableinfo{ display:flex; gap:8px; align-items:center; width:251px; max-width:100%; min-height:19px; color:var(--cream2); }
+  /* 资料行占满整行（fill），不再卡在 251px；文字撑满剩余宽度、长了自动折行 */
+  .menu-tableinfo{ display:flex; gap:8px; align-items:center; width:100%; min-height:19px; color:var(--cream2); }
   .menu-tableinfo svg{ width:18px; height:18px; flex-shrink:0; }
-  .menu-tableinfo span{ font-weight:500; font-size:10px; line-height:normal; }
+  .menu-tableinfo span{ flex:1; min-width:0; font-weight:500; font-size:10px; line-height:normal; }
 
   .menu-body{ display:flex; align-items:stretch; background:var(--cream2); min-height:calc(100dvh - var(--menuHeaderH)); }
   /* 分类栏（Figma 550:305）：宽 108，每格 77 高，选中浅黄底+左侧红条，未选黄底，格间分隔线 */
@@ -251,7 +252,7 @@
   .item-list{ flex:1; min-width:0; padding:0 0 90px; display:flex; flex-direction:column; gap:16px; background:var(--cream2); }
   /* 子分类标题条（Figma 841:864）：浅蓝底高 32，左内边距 8 处一根 3×20 红竖线，后接「中文 ENGLISH」*/
   .sub-group{ display:flex; flex-direction:column; gap:16px; }
-  .sub-title{ height:32px; flex-shrink:0; background:var(--blue); display:flex; align-items:center; gap:8px; padding:0 8px; overflow:hidden; }
+  .sub-title{ height:32px; flex-shrink:0; background:rgba(182,243,255,.5); display:flex; align-items:center; gap:8px; padding:0 8px; overflow:hidden; }  /* 子分类蓝条 50% 透明度 */
   .sub-title::before{ content:''; flex-shrink:0; width:3px; height:20px; background:var(--red); }
   .sub-title span{ font-weight:700; font-size:14px; line-height:normal; color:var(--red); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   /* 商品块（Figma 841:867）：左右留白 8、行距 16 */
@@ -4750,14 +4751,22 @@ function _memNextLevel(lvl){
   if(idx < 0) return null;
   return _memberLevels[idx+1] || null;
 }
-/* 会员卡配色（Figma 612:1820）：Lv.1橙 / Lv.2蓝 / Lv.3黄 / Lv.Max暗红。
-   灰色 Lv.0 只留给「游客」——真实会员永远不该是灰卡。
-   按等级在列表里的排名映射：最低的真实等级=Lv.1，依次往上，超过 4 级封顶 Lv.Max。
-   （之前按写死的中文名映射，店家把最低等级改名成「青铜」后名字查不到，就退回 sort_order=0
-    → 被当成 Lv.0 灰卡，看起来像游客——这就是「注册后却是游客」的原因。） */
+/* 「游客」那一档只对应未注册的灰卡；后台若把它也建成一行（Lv.0 游客），
+   它不能参与真实等级的排名，否则 Bronze 会被挤到第 2 档（蓝）——这正是配色对不上的原因。 */
+function _isGuestLevel(l){
+  if(!l) return false;
+  var n = ((l.name_cn||'')+'|'+(l.name_en||'')).toLowerCase();
+  return n.indexOf('游客')>=0 || n.indexOf('访客')>=0 || n.indexOf('guest')>=0;
+}
+function _realLevels(){ return (_memberLevels||[]).filter(function(l){ return !_isGuestLevel(l); }); }
+/* 会员卡配色（Figma 612:1820）：Lv.1橙 / Lv.2蓝 / Lv.3金 / Lv.Max暗红。
+   灰色 Lv.0 只留给未登录游客——注册了就不该是灰卡。
+   排名只在「非游客」等级里算：第一个真实等级(Bronze)=1，依次 2/3/4，超过 4 级封顶 Lv.Max。
+   会员正好还挂在「游客」档（注册后没升级）也按第一个真实等级(橙)显示，不给灰卡。 */
 function _memThemeLevel(lvl){
   if(!lvl || lvl.id == null) return 0;
-  var idx = _memberLevels.findIndex(function(l){ return l.id === lvl.id; });
+  var reg = _realLevels();
+  var idx = reg.findIndex(function(l){ return l.id === lvl.id; });
   if(idx < 0) idx = 0;
   return Math.max(1, Math.min(4, idx + 1));
 }
@@ -4893,7 +4902,7 @@ function renderProfileScreen(){
       document.getElementById('memCouponCount').textContent = '0';
       document.getElementById('memXpBar').style.width = '0%';
       document.getElementById('memXpNow').textContent = '0 XP';
-      document.getElementById('memXpNext').textContent = '注册成为会员即可升级到Lv.1 ' + ((_memberLevels[0] && _memberLevels[0].name_cn) || '新生小猫');
+      document.getElementById('memXpNext').textContent = '注册成为会员即可升级到Lv.1 ' + ((_realLevels()[0] && _realLevels()[0].name_cn) || '新生小猫');
       return;
     }
     var lvl = _memLevelById(_memberProfile.level_id);
