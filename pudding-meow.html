@@ -228,9 +228,10 @@
   .menu-search:not(.open) input{ display:none; }
   .search-empty{ padding:40px 16px; text-align:center; font-size:13px; color:var(--muted); }
   /* 长地址要能折行，所以是 min-height 不是写死 height；页头一变高，--menuHeaderH 由 _syncMenuHeaderH() 实测同步 */
-  .menu-tableinfo{ display:flex; gap:8px; align-items:center; width:251px; max-width:100%; min-height:19px; color:var(--cream2); }
+  /* 资料行占满整行（fill），不再卡在 251px；文字撑满剩余宽度、长了自动折行 */
+  .menu-tableinfo{ display:flex; gap:8px; align-items:center; width:100%; min-height:19px; color:var(--cream2); }
   .menu-tableinfo svg{ width:18px; height:18px; flex-shrink:0; }
-  .menu-tableinfo span{ font-weight:500; font-size:10px; line-height:normal; }
+  .menu-tableinfo span{ flex:1; min-width:0; font-weight:500; font-size:10px; line-height:normal; }
 
   .menu-body{ display:flex; align-items:stretch; background:var(--cream2); min-height:calc(100dvh - var(--menuHeaderH)); }
   /* 分类栏（Figma 550:305）：宽 108，每格 77 高，选中浅黄底+左侧红条，未选黄底，格间分隔线 */
