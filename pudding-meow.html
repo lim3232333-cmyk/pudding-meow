@@ -860,8 +860,8 @@
   .mem-promo-text{ color:var(--cream2); font-size:14px; font-weight:700; margin-top:8px; }
 
   .mem-logout{ display:block; margin:24px auto 0; background:none; border:none; color:var(--muted); font-size:12px; text-decoration:underline; cursor:pointer; }
-  /* Face ID / 指纹：登录页按钮 + 会员页开关 */
-  .mem-bio-btn{ display:flex; align-items:center; justify-content:center; gap:8px; width:100%; margin-top:12px; padding:12px; border:2px solid var(--red); border-radius:12px; background:#fff; color:var(--red); font-weight:700; font-size:14px; cursor:pointer; font-family:'Noto Sans SC',sans-serif; }
+  /* Face ID / 指纹：登录页提示 + 会员页开关（登录按钮会先走生物识别，失败才用密码） */
+  .mem-bio-hint{ margin-top:10px; text-align:center; font-size:11px; color:var(--red); }
   .mem-bio-toggle{ display:block; margin:14px auto 0; background:none; border:none; color:var(--red); font-size:12px; font-weight:700; text-decoration:underline; cursor:pointer; }
 
   .mem-ref-card, .mem-coupon-card{ background:#fff; border-radius:16px; padding:18px; margin-top:16px; box-shadow:0 2px 10px rgba(141,5,5,.08); }
@@ -1495,10 +1495,7 @@
         <div class="mem-field"><label>PIN 密码</label><input type="password" id="memLoginPin" placeholder="4-6 位数字" inputmode="numeric"></div>
         <div class="mem-err" id="memLoginErr"></div>
         <button class="mem-submit" onclick="memberLogin()">登录</button>
-        <button class="mem-bio-btn" id="memBioLogin" style="display:none" onclick="bioLogin()">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12a10 10 0 0 1 4-8M22 12a10 10 0 0 0-4-8M8 22a9 9 0 0 1-1-4v-4a5 5 0 0 1 10 0v4M12 11v3M8.5 21.5A9 9 0 0 0 12 22M15.5 21.5A9 9 0 0 1 12 22"/></svg>
-          Face ID / 指纹登录
-        </button>
+        <div class="mem-bio-hint" id="memBioHint" style="display:none">已开启 Face ID / 指纹 · 按「登录」即可</div>
 </div>
       <div id="memRegisterForm" style="display:none">
         <div class="mem-field"><label>昵称</label><input type="text" id="memRegNickname" placeholder="给自己取个名字"></div>
@@ -4947,7 +4944,24 @@ function memberRegister(){
     return refreshMemberProfile().then(renderProfileScreen);
   }).catch(function(e){ errEl.textContent ='网络错误，请重试'; });
 }
+/* 按「登录」：本机开过快速登录、且没填 PIN → 先刷脸/指纹；识别失败/取消才回退到手机号+PIN */
 function memberLogin(){
+  var pinTyped=(document.getElementById('memLoginPin').value||'').trim();
+  var rec=_bioRec();
+  if(!pinTyped && rec && rec.credId){
+    _bioPlatformAvailable().then(function(avail){
+      if(!avail){ _promptPin(); return; }
+      bioLogin().then(function(ok){ if(!ok) _promptPin(); });
+    });
+    return;
+  }
+  _pinLogin();
+}
+function _promptPin(){
+  var errEl=document.getElementById('memLoginErr'); if(errEl) errEl.textContent='请用手机号 + PIN 登录';
+  try{ document.getElementById('memLoginPin').focus(); }catch(e){}
+}
+function _pinLogin(){
   var errEl = document.getElementById('memLoginErr'); errEl.textContent='';
   if(!db){ errEl.textContent='未连接云端，暂时无法登录'; return; }
   var phone = document.getElementById('memLoginPhone').value.trim();
@@ -5022,26 +5036,26 @@ async function bioEnable(){
     _renderBioUi();
   }catch(e){ if(e && e.name==='NotAllowedError') return; alert('开启失败，请重试'); }
 }
-/* 登录页：刷脸/按指纹 → 通过后恢复本机会话 */
+/* 刷脸/按指纹 → 通过后恢复本机会话。返回 true=登进去了，false=取消/失败/令牌失效（交给调用方回退密码） */
 async function bioLogin(){
-  var rec=_bioRec(); if(!rec || !rec.credId) return;
+  var rec=_bioRec(); if(!rec || !rec.credId) return false;
   try{
     await navigator.credentials.get({ publicKey:{
       challenge:_rand(32), rpId:location.hostname,
       allowCredentials:[{ type:'public-key', id:_unb64u(rec.credId) }],
       userVerification:'required', timeout:60000
     }});
-  }catch(e){ if(e && e.name==='NotAllowedError') return; alert('生物识别失败，请重试或用 PIN 登录'); return; }
+  }catch(e){ return false; }   // 取消/识别失败 → 回退密码
   _memSaveSession(rec.memberId, rec.token);   // 生物识别通过 → 恢复会话
-  refreshMemberProfile().then(function(){
+  var ok=true;
+  await refreshMemberProfile().then(function(){
     if(!_memberId){   // 令牌已失效（例如密码被后台重置、轮换了令牌）
-      _bioClear(); _renderBioUi();
-      alert('登录已过期，请用手机号 + PIN 重新登录（登录后可再开启快速登录）');
-      return;
+      _bioClear(); _renderBioUi(); ok=false; return;
     }
     try{ closeRegister(); }catch(e){}
     renderProfileScreen();
   });
+  return ok;
 }
 function bioToggle(){
   var rec=_bioRec();
@@ -5052,8 +5066,8 @@ function bioToggle(){
 function _renderBioUi(){
   _bioPlatformAvailable().then(function(avail){
     var rec=_bioRec();
-    var lb=document.getElementById('memBioLogin');
-    if(lb) lb.style.display=(avail && rec && rec.credId)?'flex':'none';
+    var hint=document.getElementById('memBioHint');
+    if(hint) hint.style.display=(avail && rec && rec.credId)?'block':'none';
     var tg=document.getElementById('memBioToggle');
     if(tg){
       if(avail && _memberId){ tg.style.display='block';
