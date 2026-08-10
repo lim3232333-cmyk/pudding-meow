@@ -4759,6 +4759,13 @@ function _isGuestLevel(l){
   return n.indexOf('游客')>=0 || n.indexOf('访客')>=0 || n.indexOf('guest')>=0;
 }
 function _realLevels(){ return (_memberLevels||[]).filter(function(l){ return !_isGuestLevel(l); }); }
+/* 卡片显示用的等级：注册会员若还挂在「游客」档（后台把游客也建了行、注册默认又给了它），
+   名字/序号/成长值门槛一律按第一个真实等级(青铜)显示，跟配色一致——不会「橙卡却写游客」。
+   （根治在服务端：注册默认等级应按成长值规则给青铜，见 supabase-member-default-level.sql） */
+function _memDisplayLevel(lvl){
+  if(lvl && lvl.id!=null && !_isGuestLevel(lvl)) return lvl;
+  return _realLevels()[0] || lvl || null;
+}
 /* 会员卡配色（Figma 612:1820）：Lv.1橙 / Lv.2蓝 / Lv.3金 / Lv.Max暗红。
    灰色 Lv.0 只留给未登录游客——注册了就不该是灰卡。
    排名只在「非游客」等级里算：第一个真实等级(Bronze)=1，依次 2/3/4，超过 4 级封顶 Lv.Max。
@@ -4906,23 +4913,24 @@ function renderProfileScreen(){
       return;
     }
     var lvl = _memLevelById(_memberProfile.level_id);
+    var dlvl = _memDisplayLevel(lvl);   // 挂在游客档的注册会员按青铜显示，名字/序号/门槛都跟它走
     /* 会员卡按等级换配色（Figma 612:1820）：1新生小猫橙 / 2幼猫蓝 / 3青年猫黄 / 4布丁猫暗红 */
-    var themeLv = _memThemeLevel(lvl);
+    var themeLv = _memThemeLevel(dlvl);
     homeEl.className = 'mem-lvl-' + themeLv;
     _renderMemCat(themeLv);
     document.getElementById('memName').textContent = _memberProfile.nickname ||'喵星人';
-    document.getElementById('memLevelNum').textContent = _memLevelLabel(lvl);
-    document.getElementById('memLevelName').textContent = lvl.name_cn||'';
+    document.getElementById('memLevelNum').textContent = _memLevelLabel(dlvl);
+    document.getElementById('memLevelName').textContent = dlvl && dlvl.name_cn ? dlvl.name_cn : '';
     // 窄格三等分，余额带小数会撑破比例：这里只显示整块钱（_fmtWalletShort），精确余额看充值页 / 结算页
     var _wb=Number(_memberProfile.wallet_balance)||0;
     document.getElementById('memWallet').textContent = _fmtWalletShort(_wb);
     document.getElementById('memCoins').textContent = _memberProfile.coins||0;
-    var nextLvl = _memNextLevel(lvl);
+    var nextLvl = _memNextLevel(dlvl);
     var xp = _memberProfile.xp||0;
     var bar = document.getElementById('memXpBar'), nextLbl = document.getElementById('memXpNext');
     if(nextLvl){
-      var span = nextLvl.xp_required - (lvl.xp_required||0);
-      var prog = span>0 ? Math.min(100, Math.max(0,(xp-(lvl.xp_required||0))/span*100)) : 100;
+      var span = nextLvl.xp_required - (dlvl.xp_required||0);
+      var prog = span>0 ? Math.min(100, Math.max(0,(xp-(dlvl.xp_required||0))/span*100)) : 100;
       bar.style.width = prog+'%';
       document.getElementById('memXpNow').textContent = xp+'/'+nextLvl.xp_required+' XP';
       nextLbl.textContent ='再获得'+Math.max(0,nextLvl.xp_required-xp)+' XP即可升级到'+_memLevelLabel(nextLvl)+' '+nextLvl.name_cn;
