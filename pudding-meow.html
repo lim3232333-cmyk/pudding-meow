@@ -191,16 +191,24 @@
      外卖模式地址长了要折行，所以是 min-height 不是写死 height（写死就把第二行切没了）*/
   .menu-header{ position:sticky; top:0; z-index:20; background:var(--red); display:flex; flex-direction:column; justify-content:center; gap:8px; padding:6.5px 16px; min-height:80px; box-sizing:border-box; flex-shrink:0; }
   .menu-h-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
-  .menu-seg{ display:flex; align-items:center; gap:8px; width:200px; height:40px; background:var(--cream2); border-radius:32px; padding:4px; }
-  /* 选中那格比未选的矮 3px（Figma 548:160 高 32、548:159/157 高 35），不是笔误，蓝胶囊本来就略收一点 */
+  /* 用餐方式三段切换（Figma 548:164）：米黄容器 + 红色描边 + 红色选中胶囊，胶囊滑动过去 */
+  .menu-seg{ position:relative; display:flex; align-items:center; width:200px; height:40px; background:var(--cream2); border:1.5px solid var(--red); border-radius:999px; padding:4px; box-sizing:border-box; }
+  /* 滑动的红色选中胶囊：宽 = 三分之一容器内宽，靠 --seg-i(0/1/2) 平移自身宽度 */
+  .seg-thumb{
+    position:absolute; top:4px; left:4px; height:calc(100% - 8px); width:calc((100% - 8px) / 3);
+    background:var(--red); border-radius:999px;
+    transform:translateX(calc(var(--seg-i, 0) * 100%));
+    transition:transform .28s cubic-bezier(.4,0,.2,1); z-index:0;
+  }
   .menu-seg button{
-    flex:1; height:35px; min-width:0; border:none; cursor:pointer; background:transparent; border-radius:999px;
+    position:relative; z-index:1; flex:1; height:100%; min-width:0; border:none; cursor:pointer; background:transparent; border-radius:999px;
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0;
     color:var(--red); font-family:"Noto Sans SC",sans-serif;
+    transition:color .2s;
   }
   .menu-seg button .cn{ font-weight:700; font-size:12px; line-height:15px; }
   .menu-seg button .en{ font-weight:500; font-size:8px; line-height:10px; }
-  .menu-seg button.active{ background:var(--blue); height:32px; }
+  .menu-seg button.active{ color:var(--cream2); }   /* 选中：浅色字压在红胶囊上 */
   /* 搜索（Figma 843:918 双态）：收起只有 24px 图标；点一下往左展开成白色胶囊。
      右边缘定住、宽度变长，所以是「往左长出来」而不是整体平移。 */
   .menu-search{
@@ -1375,7 +1383,8 @@
   <section class="screen" id="screen-menu">
     <div class="menu-header">
       <div class="menu-h-row">
-        <div class="menu-seg" id="seg">
+        <div class="menu-seg" id="seg" style="--seg-i:0">
+          <div class="seg-thumb" aria-hidden="true"></div>
           <button data-mode="dinein" class="active" onclick="setMenuMode(this)"><span class="cn">堂食</span><span class="en">Dine-In</span></button>
           <button data-mode="pickup" onclick="setMenuMode(this)"><span class="cn">自取</span><span class="en">Pick-Up</span></button>
           <button data-mode="delivery" onclick="setMenuMode(this)"><span class="cn">外卖</span><span class="en">Delivery</span></button>
@@ -2781,10 +2790,17 @@ function _rsvBuildAndSubmit(name, phone, dateStr){
   };
   if(typeof assignOrderNumsApp==='function'){ assignOrderNumsApp(order).then(finish); } else { finish(); }
 }
+/* 选中胶囊滑到当前模式：dinein=0 / pickup=1 / delivery=2 */
+var _SEG_IDX={dinein:0, pickup:1, delivery:2};
+function _syncSegThumb(){
+  var seg=document.getElementById('seg'); if(!seg) return;
+  seg.style.setProperty('--seg-i', _SEG_IDX[currentMode]!=null ? _SEG_IDX[currentMode] : 0);
+}
 function syncMenuMode(){
   document.querySelectorAll('#seg button').forEach(b=>{
     b.classList.toggle('active', b.dataset.mode===currentMode);
   });
+  _syncSegThumb();
   updateMenuTableInfo();
 }
 function setMenuMode(el){
@@ -2796,20 +2812,39 @@ function setMenuMode(el){
   el.classList.add('active');
   currentMode = el.dataset.mode;
   _modeChosen = true;
+  _syncSegThumb();
   refilterMenuForMode();
   updateMenuTableInfo();
 }
-/* 页头第二行（Figma 547:1199）：堂食显示桌号+人数，外卖显示收货地址，自取显示模式说明 */
+/* 日期成 DD/MM/YYYY 周X（页头资料行用，Figma 1049:1677） */
+function _hdrDate(iso){
+  if(!iso) return '';
+  var p=String(iso).split('-'); if(p.length<3) return '';
+  var dt=new Date(+p[0], +p[1]-1, +p[2]);
+  var wd=(typeof _RSV_WD!=='undefined'?_RSV_WD:['周日','周一','周二','周三','周四','周五','周六'])[dt.getDay()];
+  return p[2]+'/'+p[1]+'/'+p[0]+' '+wd;
+}
+/* 页头第二行（Figma 547:1199 / 1049:1677）——真实资料随模式变：
+   堂食 = 桌号 ｜ 人数；自取 = 日期 ｜ 时段；外卖 = 日期 ｜ 时段 ｜ 地址 */
 function updateMenuTableInfo(){
   var t=document.getElementById('menuTableInfoText');
   if(!t) return;
   if(currentMode==='dinein'){
     /* DINE_TABLES 里存的就是 'Table 1' 这种完整文本，别再加一次 'Table ' 前缀（会变成 Table Table 1） */
-    t.textContent = _dineInfo ? (_dineInfo.table+' ｜'+_dineInfo.pax+' Pax') : '堂食 · 请选择桌号';
+    t.textContent = _dineInfo ? (_dineInfo.table+' ｜ '+_dineInfo.pax+' Pax') : '堂食 · 请选择桌号';
   } else if(currentMode==='pickup'){
-    t.textContent = _pickupInfo ? ('自取 · '+(_pickupInfo.time==='尽快'?'尽快':((_pickupInfo.date||'').slice(5)+' '+_pickupInfo.time))) : '自取 · 到店领取';
+    if(_pickupInfo){
+      var pd=_hdrDate(_pickupInfo.date), ptm=_pickupInfo.time||'尽快';
+      t.textContent = (pd?pd+' ｜ ':'')+ptm;
+    } else t.textContent='自取 · 到店领取';
   } else if(currentMode==='delivery'){
-    t.textContent = _deliveryInfo ? (_deliveryInfo.address||'外卖 · 送餐上门') : '外卖 · 送餐上门';
+    if(_deliveryInfo){
+      var parts=[]; var dd=_hdrDate(_dvDate);
+      if(dd) parts.push(dd);
+      if(_dvTime) parts.push(_dvTime);
+      if(_deliveryInfo.address) parts.push(_deliveryInfo.address);
+      t.textContent = parts.join(' ｜ ') || '外卖 · 送餐上门';
+    } else t.textContent='外卖 · 送餐上门';
   } else {
     t.textContent = '请选择用餐方式';
   }
