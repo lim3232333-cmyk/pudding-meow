@@ -191,24 +191,24 @@
      外卖模式地址长了要折行，所以是 min-height 不是写死 height（写死就把第二行切没了）*/
   .menu-header{ position:sticky; top:0; z-index:20; background:var(--red); display:flex; flex-direction:column; justify-content:center; gap:8px; padding:6.5px 16px; min-height:80px; box-sizing:border-box; flex-shrink:0; }
   .menu-h-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
-  /* 用餐方式三段切换（Figma 547:1199）：米黄容器 + 白色选中胶囊，选中胶囊滑动过去 */
-  .menu-seg{ position:relative; display:flex; align-items:center; width:200px; height:40px; background:var(--cream2); border-radius:999px; padding:4px; box-sizing:border-box; }
-  /* 滑动的选中胶囊：宽 = 三分之一容器内宽，靠 --seg-i(0/1/2) 平移自身宽度 */
+  /* 用餐方式三段切换（Figma 548:164）：米黄容器 + 红色描边 + 红色选中胶囊，胶囊滑动过去 */
+  .menu-seg{ position:relative; display:flex; align-items:center; width:200px; height:40px; background:var(--cream2); border:1.5px solid var(--red); border-radius:999px; padding:4px; box-sizing:border-box; }
+  /* 滑动的红色选中胶囊：宽 = 三分之一容器内宽，靠 --seg-i(0/1/2) 平移自身宽度 */
   .seg-thumb{
-    position:absolute; top:4px; left:4px; height:32px; width:calc((100% - 8px) / 3);
-    background:#fff; border-radius:999px; box-shadow:0 1px 2px rgba(141,5,5,.18);
+    position:absolute; top:4px; left:4px; height:calc(100% - 8px); width:calc((100% - 8px) / 3);
+    background:var(--red); border-radius:999px;
     transform:translateX(calc(var(--seg-i, 0) * 100%));
     transition:transform .28s cubic-bezier(.4,0,.2,1); z-index:0;
   }
   .menu-seg button{
     position:relative; z-index:1; flex:1; height:100%; min-width:0; border:none; cursor:pointer; background:transparent; border-radius:999px;
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0;
-    color:var(--red); opacity:.55; font-family:"Noto Sans SC",sans-serif;
-    transition:opacity .2s;
+    color:var(--red); font-family:"Noto Sans SC",sans-serif;
+    transition:color .2s;
   }
   .menu-seg button .cn{ font-weight:700; font-size:12px; line-height:15px; }
   .menu-seg button .en{ font-weight:500; font-size:8px; line-height:10px; }
-  .menu-seg button.active{ opacity:1; }
+  .menu-seg button.active{ color:var(--cream2); }   /* 选中：浅色字压在红胶囊上 */
   /* 搜索（Figma 843:918 双态）：收起只有 24px 图标；点一下往左展开成白色胶囊。
      右边缘定住、宽度变长，所以是「往左长出来」而不是整体平移。 */
   .menu-search{
