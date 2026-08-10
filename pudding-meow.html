@@ -416,7 +416,7 @@
     background:var(--red); padding:10px 14px; display:flex; align-items:center; justify-content:space-between;
   }
   /* 订单代号（Table N / TAxx / DLxx）——用餐方式一眼分辨，尺寸跟原来的订单号一样 */
-  .order-code{ font-weight:700; font-size:13px; line-height:1.2; color:var(--cream2); }
+  .order-code{ font-weight:700; font-size:14px; line-height:1.2; color:var(--cream2); }
   .order-num{ font-weight:500; font-size:10px; color:rgba(255,255,213,.75); margin-top:1px; }
   .order-date{ font-size:10px; color:rgba(255,255,213,.75); }
   .order-status-badge{
@@ -860,6 +860,9 @@
   .mem-promo-text{ color:var(--cream2); font-size:14px; font-weight:700; margin-top:8px; }
 
   .mem-logout{ display:block; margin:24px auto 0; background:none; border:none; color:var(--muted); font-size:12px; text-decoration:underline; cursor:pointer; }
+  /* Face ID / 指纹：登录页提示 + 会员页开关（登录按钮会先走生物识别，失败才用密码） */
+  .mem-bio-hint{ margin-top:10px; text-align:center; font-size:11px; color:var(--red); }
+  .mem-bio-toggle{ display:block; margin:14px auto 0; background:none; border:none; color:var(--red); font-size:12px; font-weight:700; text-decoration:underline; cursor:pointer; }
 
   .mem-ref-card, .mem-coupon-card{ background:#fff; border-radius:16px; padding:18px; margin-top:16px; box-shadow:0 2px 10px rgba(141,5,5,.08); }
   .mem-ref-head, .mem-coupon-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
@@ -1481,8 +1484,8 @@
   <section class="screen" id="screen-profile">
     <div id="memAuth" class="mem-wrap" style="display:none">
       <div class="mem-auth-back" onclick="closeRegister()"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></div>
-      <div class="mem-title">布丁喵会员</div>
-      <div class="mem-sub">Meow Club Member</div>
+      <div class="mem-title">Pudding Meow</div>
+      <div class="mem-sub">布丁喵会员 · Meow Club</div>
       <div class="mem-tabs">
         <div class="mem-tab active" id="memTabLogin" onclick="memSwitchAuthTab('login')">登录</div>
         <div class="mem-tab" id="memTabRegister" onclick="memSwitchAuthTab('register')">注册</div>
@@ -1492,6 +1495,7 @@
         <div class="mem-field"><label>PIN 密码</label><input type="password" id="memLoginPin" placeholder="4-6 位数字" inputmode="numeric"></div>
         <div class="mem-err" id="memLoginErr"></div>
         <button class="mem-submit" onclick="memberLogin()">登录</button>
+        <div class="mem-bio-hint" id="memBioHint" style="display:none">已开启 Face ID / 指纹 · 按「登录」即可</div>
 </div>
       <div id="memRegisterForm" style="display:none">
         <div class="mem-field"><label>昵称</label><input type="text" id="memRegNickname" placeholder="给自己取个名字"></div>
@@ -1585,6 +1589,7 @@
           <div class="mem-promo-text">生日周享双倍快乐！</div>
 </div>
 
+        <button class="mem-bio-toggle" id="memBioToggle" style="display:none" onclick="bioToggle()">开启 Face ID / 指纹快速登录</button>
         <button class="mem-logout" onclick="memberLogout()">退出登录</button>
 </div>
 </div>
@@ -4854,6 +4859,7 @@ function memSwitchAuthTab(tab){
   document.getElementById('memTabRegister').classList.toggle('active', tab==='register');
   document.getElementById('memLoginForm').style.display = tab==='login' ?'block' :'none';
   document.getElementById('memRegisterForm').style.display = tab==='register' ?'block' :'none';
+  try{ _renderBioUi(); }catch(e){}
 }
 function loadMemberLevels(){
   if(!db) return Promise.resolve();
@@ -4938,7 +4944,24 @@ function memberRegister(){
     return refreshMemberProfile().then(renderProfileScreen);
   }).catch(function(e){ errEl.textContent ='网络错误，请重试'; });
 }
+/* 按「登录」：本机开过快速登录、且没填 PIN → 先刷脸/指纹；识别失败/取消才回退到手机号+PIN */
 function memberLogin(){
+  var pinTyped=(document.getElementById('memLoginPin').value||'').trim();
+  var rec=_bioRec();
+  if(!pinTyped && rec && rec.credId){
+    _bioPlatformAvailable().then(function(avail){
+      if(!avail){ _promptPin(); return; }
+      bioLogin().then(function(ok){ if(!ok) _promptPin(); });
+    });
+    return;
+  }
+  _pinLogin();
+}
+function _promptPin(){
+  var errEl=document.getElementById('memLoginErr'); if(errEl) errEl.textContent='请用手机号 + PIN 登录';
+  try{ document.getElementById('memLoginPin').focus(); }catch(e){}
+}
+function _pinLogin(){
   var errEl = document.getElementById('memLoginErr'); errEl.textContent='';
   if(!db){ errEl.textContent='未连接云端，暂时无法登录'; return; }
   var phone = document.getElementById('memLoginPhone').value.trim();
@@ -4959,7 +4982,8 @@ function memberLogout(){
 function showRegisterForm(){
   document.getElementById('memHome').style.display='none';
   document.getElementById('memAuth').style.display='block';
-  try{ memSwitchAuthTab('register'); }catch(e){}
+  try{ memSwitchAuthTab(_bioRec()?'login':'register'); }catch(e){}   // 本机开过快速登录 → 默认落在登录页看到生物识别按钮
+  try{ _renderBioUi(); }catch(e){}
 }
 function closeRegister(){
   document.getElementById('memAuth').style.display='none';
@@ -4973,6 +4997,84 @@ function refreshMemberProfile(){
     _memberProfile = res.data && res.data[0];
     _renderHomeMemberBar();
   }).catch(function(e){});
+}
+
+/* ===== Face ID / 指纹快速登录（WebAuthn 平台认证器）=====
+   本机方案：先用手机号+PIN 登录一次，开启后把会话令牌绑到本机的生物识别凭证上；
+   之后登录页刷脸/按指纹通过，就直接恢复这份会话，不用再输 PIN。
+   纯客户端、不改服务器：生物识别只是「解锁本机已存的登录」。每台手机各开一次。
+   不支持的设备（能力检测）自动隐藏按钮，照常用 PIN。 */
+var _bioAvail=null;
+function _bioReady(){ return !!(window.PublicKeyCredential && navigator.credentials && navigator.credentials.create && location.protocol==='https:'); }
+async function _bioPlatformAvailable(){
+  if(_bioAvail!=null) return _bioAvail;
+  try{ _bioAvail = !!(_bioReady() && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); }
+  catch(e){ _bioAvail=false; }
+  return _bioAvail;
+}
+function _bioRec(){ try{ return JSON.parse(localStorage.getItem('pm_bio')||'null'); }catch(e){ return null; } }
+function _bioClear(){ try{ localStorage.removeItem('pm_bio'); }catch(e){} }
+function _rand(n){ var a=new Uint8Array(n); crypto.getRandomValues(a); return a; }
+function _b64u(buf){ var b=new Uint8Array(buf), s=''; for(var i=0;i<b.length;i++) s+=String.fromCharCode(b[i]); return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function _unb64u(s){ s=String(s||'').replace(/-/g,'+').replace(/_/g,'/'); var pad=s.length%4; if(pad) s+='='.repeat(4-pad); var bin=atob(s), b=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++) b[i]=bin.charCodeAt(i); return b.buffer; }
+/* 开启：注册一个平台生物识别凭证，把当前会话（member_id + token）绑本机 */
+async function bioEnable(){
+  if(!_memberId || !_memberToken){ alert('请先用手机号 + PIN 登录，再开启'); return; }
+  if(!(await _bioPlatformAvailable())){ alert('这台设备不支持 Face ID / 指纹'); return; }
+  try{
+    var cred=await navigator.credentials.create({ publicKey:{
+      challenge:_rand(32),
+      rp:{ name:'Pudding Meow', id:location.hostname },
+      user:{ id:_rand(16), name:(_memberProfile&&_memberProfile.phone)||('m'+_memberId), displayName:(_memberProfile&&_memberProfile.nickname)||'会员' },
+      pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+      authenticatorSelection:{ authenticatorAttachment:'platform', userVerification:'required', residentKey:'preferred' },
+      timeout:60000, attestation:'none'
+    }});
+    localStorage.setItem('pm_bio', JSON.stringify({ credId:_b64u(cred.rawId), memberId:_memberId, token:_memberToken,
+      phone:(_memberProfile&&_memberProfile.phone)||'', nickname:(_memberProfile&&_memberProfile.nickname)||'', ts:Date.now() }));
+    alert('已开启 Face ID / 指纹快速登录');
+    _renderBioUi();
+  }catch(e){ if(e && e.name==='NotAllowedError') return; alert('开启失败，请重试'); }
+}
+/* 刷脸/按指纹 → 通过后恢复本机会话。返回 true=登进去了，false=取消/失败/令牌失效（交给调用方回退密码） */
+async function bioLogin(){
+  var rec=_bioRec(); if(!rec || !rec.credId) return false;
+  try{
+    await navigator.credentials.get({ publicKey:{
+      challenge:_rand(32), rpId:location.hostname,
+      allowCredentials:[{ type:'public-key', id:_unb64u(rec.credId) }],
+      userVerification:'required', timeout:60000
+    }});
+  }catch(e){ return false; }   // 取消/识别失败 → 回退密码
+  _memSaveSession(rec.memberId, rec.token);   // 生物识别通过 → 恢复会话
+  var ok=true;
+  await refreshMemberProfile().then(function(){
+    if(!_memberId){   // 令牌已失效（例如密码被后台重置、轮换了令牌）
+      _bioClear(); _renderBioUi(); ok=false; return;
+    }
+    try{ closeRegister(); }catch(e){}
+    renderProfileScreen();
+  });
+  return ok;
+}
+function bioToggle(){
+  var rec=_bioRec();
+  if(rec && rec.memberId===_memberId){ _bioClear(); _renderBioUi(); alert('已关闭快速登录'); }
+  else bioEnable();
+}
+/* 按能力/状态显示：登录页的「Face ID / 指纹登录」按钮；会员页的开启/关闭开关 */
+function _renderBioUi(){
+  _bioPlatformAvailable().then(function(avail){
+    var rec=_bioRec();
+    var hint=document.getElementById('memBioHint');
+    if(hint) hint.style.display=(avail && rec && rec.credId)?'block':'none';
+    var tg=document.getElementById('memBioToggle');
+    if(tg){
+      if(avail && _memberId){ tg.style.display='block';
+        tg.textContent=(rec && rec.memberId===_memberId)?'关闭 Face ID / 指纹快速登录':'开启 Face ID / 指纹快速登录';
+      } else tg.style.display='none';
+    }
+  });
 }
 
 /* ===== 首页引导注册条（Figma 872:1775）两态：游客(Frame375) ↔ 会员(Frame374) ===== */
@@ -5013,6 +5115,7 @@ function renderProfileScreen(){
   }).then(function(){
     /* 一律显示会员卡；注册表单默认不显示，只有点「立即注册」才开 */
     authEl.style.display='none'; homeEl.style.display='block';
+    try{ _renderBioUi(); }catch(e){}   // 会员页的「开启/关闭 快速登录」开关按状态显示
     var heroLogo = document.getElementById('memHeroLogo'), brandLogo = document.getElementById('brandLogoImg');
     if(heroLogo && brandLogo && !heroLogo.src) heroLogo.src = brandLogo.src;
     if(!_memberProfile){
