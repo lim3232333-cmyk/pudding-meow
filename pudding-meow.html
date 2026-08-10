@@ -2548,11 +2548,18 @@ function rsvPaxChange(delta){ _rsvPax=Math.max(1,Math.min(50,_rsvPax+delta)); do
    复用预约那套 .rsv-* 样式和日历渲染。「前往下单」= 结算前的一步，收集自取日期/时间/电话后进结算页。 */
 var _pkDate=null, _pkTime='尽快', _pkCalYM=null;
 function _pkIso(dt){ return dt.getFullYear()+'-'+('0'+(dt.getMonth()+1)).slice(-2)+'-'+('0'+dt.getDate()).slice(-2); }
+/* 从今天起找第一个该渠道不休息的日子（自取默认日用它，跳过营业时间里设了休息的那天，例如周二） */
+function _firstOpenDay(code){
+  var n=new Date(), base=new Date(n.getFullYear(),n.getMonth(),n.getDate());
+  for(var i=0;i<60;i++){ var d=new Date(base.getFullYear(),base.getMonth(),base.getDate()+i);
+    if(!_chDayClosed(code, _pkIso(d))) return d; }
+  return base;
+}
 function openPickup(){
-  var now=new Date();
-  _pkCalYM={y:now.getFullYear(), m:now.getMonth()};
-  _pkDate=_pkIso(now);                                   // 默认选当天
-  document.getElementById('pkDateVal').textContent=_pkDate+' '+_RSV_WD[now.getDay()];
+  var first=_firstOpenDay('pickup');                    // 默认第一个营业日，休息日（如周二）自动跳过
+  _pkCalYM={y:first.getFullYear(), m:first.getMonth()};
+  _pkDate=_pkIso(first);
+  document.getElementById('pkDateVal').textContent=_pkDate+' '+_RSV_WD[first.getDay()];
   _pkTime=_defaultTimeFor('pickup', _pkDate);            // 打烊时默认第一个可预约时段，不是「尽快」
   document.getElementById('pkTimeVal').textContent=_pkTime;
   document.getElementById('pkDateDD').open=false;
@@ -2641,7 +2648,27 @@ var _appChannels=[];
 function loadAppChannels(){
   if(!db) return Promise.resolve();
   return db.from('sales_channels').select('code,enabled,hours_enabled,hours')
-    .then(function(res){ if(!res.error) _appChannels=res.data||[]; }).catch(function(){});
+    .then(function(res){ if(!res.error) _appChannels=res.data||[]; _rsvRefreshOpenPickers(); }).catch(function(){});
+}
+/* 营业时间到货/后台改动后，重画正开着的自取日历、外卖日期列表——
+   否则先开了弹窗、渠道数据晚到，休息日（如周二）就没被灰掉 */
+function _rsvRefreshOpenPickers(){
+  try{
+    if(document.getElementById('pkModal') && document.getElementById('pkModal').classList.contains('show')){
+      if(_chDayClosed('pickup', _pkDate)){ var f=_firstOpenDay('pickup'); _pkDate=_pkIso(f);
+        _pkCalYM={y:f.getFullYear(), m:f.getMonth()};
+        document.getElementById('pkDateVal').textContent=_pkDate+' '+_RSV_WD[f.getDay()]; }
+      pkRenderCal(); _pkSyncTime();
+    }
+  }catch(e){}
+  try{
+    if(document.getElementById('dvWhenModal') && document.getElementById('dvWhenModal').classList.contains('show')){
+      var days=_dvDayList();
+      if(days.length && !days.some(function(d){return _pkIso(d)===_dvDate;})){
+        _dvDate=_pkIso(days[0]); document.getElementById('dvDateVal').textContent=_dvDayLabel(days[0]); }
+      dvRenderDates(); _dvSyncTime();
+    }
+  }catch(e){}
 }
 function _appChannel(code){ return (_appChannels||[]).find(function(c){return c.code===code;}); }
 function _chHm(s){ var m=/(\d+):(\d+)/.exec(s||''); return m?(+m[1])*60+(+m[2]):0; }
