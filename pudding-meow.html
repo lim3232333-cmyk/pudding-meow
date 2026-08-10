@@ -415,9 +415,9 @@
   .order-card-head{
     background:var(--red); padding:10px 14px; display:flex; align-items:center; justify-content:space-between;
   }
-  /* 订单代号（TA/DL/桌号）比订单号大，一眼分辨用餐方式 */
-  .order-code{ font-weight:800; font-size:20px; line-height:1.1; color:var(--cream2); letter-spacing:.5px; }
-  .order-num{ font-weight:500; font-size:11px; color:rgba(255,255,213,.8); margin-top:1px; }
+  /* 订单代号（Table N / TAxx / DLxx）——用餐方式一眼分辨，尺寸跟原来的订单号一样 */
+  .order-code{ font-weight:700; font-size:13px; line-height:1.2; color:var(--cream2); }
+  .order-num{ font-weight:500; font-size:10px; color:rgba(255,255,213,.75); margin-top:1px; }
   .order-date{ font-size:10px; color:rgba(255,255,213,.75); }
   .order-status-badge{
     padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700;
@@ -4649,13 +4649,17 @@ function _orderMode(o){
   if(t.indexOf('自取')>=0||di.pickup) return 'pickup';
   return 'dinein';
 }
-/* 订单代号：外卖 DLxx / 自取 TAxx / 堂食用桌号——比订单号更能一眼分辨 */
+/* 订单代号——跟 POS 的 _orderTypeLabel 用同一套：堂食→Table N；自取/打包→TAxx；外卖→DLxx。
+   TA/DL 后接该类型当天序号(kindSeq)，历史单没有就退回当天流水号。 */
+function _tableLabel(v){ v=String(v||'').trim(); var m=v.match(/(\d+)/); return m?'Table '+m[1]:(v&&v!=='-'?'Table '+v:'Table'); }
 function _orderCode(o){
-  var kind=_appOrderKind(o);
-  if(kind==='delivery') return 'DL'+String(o.kindSeq!=null?o.kindSeq:(o.orderNum||'')).padStart(2,'0');
-  if(kind==='takeaway') return 'TA'+String(o.kindSeq!=null?o.kindSeq:(o.orderNum||'')).padStart(2,'0');
-  var t=String(o.tableName||''), m=t.match(/堂食[·\s]*([^·\s]+)/);
-  return m?m[1]:'堂食';
+  var raw=String(o.tableName==null?'':o.tableName);
+  var num=String(parseInt(o.kindSeq!=null?o.kindSeq:o.orderNum,10)||0).padStart(2,'0');
+  if(raw.indexOf('外卖')>=0) return 'DL'+num;                            // 外卖
+  if(raw.indexOf('自取')>=0 || o.taMode==='takeaway') return 'TA'+num;   // 自取/打包
+  if(raw.indexOf('堂食')>=0){ return _tableLabel(raw.split('·')[2]); }   // 线上堂食：取桌号段
+  var t=raw.trim().replace(/^📱[^·]*·?/,'');
+  return _tableLabel(t);                                                  // 兜底当堂食桌号
 }
 /* 自取/堂食：过了「当天营业时间」的截止时刻（毫秒）——过了就自动已完成，不用店里操作、不用外部信息 */
 function _autoDoneCutoff(o){
