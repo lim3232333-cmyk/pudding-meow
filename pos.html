@@ -3356,12 +3356,15 @@ function renderReserveAdmin(){
   if(!list.length){ rows='<div class="rsa-empty">暂无预约</div>'; }
   else rows=list.map(function(o){
     var r=o.deliveryInfo.reservation;
+    var canceled=(o.status==='void');   // 「全部」页会带上已取消的，别再标成待确认
     var done=(o.status==='done');
-    var st=done?'<span class="rsa-badge done">已确认</span>':'<span class="rsa-badge pending">待确认</span>';
-    var btns=done
-      ? '<button class="rsa-btn ghost" onclick="rsvSetStatus(\''+o.id+'\',\'pending\')">改回待确认</button>'
-      : '<button class="rsa-btn ok" onclick="rsvSetStatus(\''+o.id+'\',\'done\')">确认预约</button>';
-    btns+='<button class="rsa-btn cancel" onclick="rsvCancel(\''+o.id+'\')">取消</button>';
+    var st=canceled?'<span class="rsa-badge" style="background:#ddd;color:#666">已取消</span>'
+          :done?'<span class="rsa-badge done">已确认</span>':'<span class="rsa-badge pending">待确认</span>';
+    var btns=canceled ? ''
+      : (done
+        ? '<button class="rsa-btn ghost" onclick="rsvSetStatus(\''+o.id+'\',\'pending\')">改回待确认</button>'
+        : '<button class="rsa-btn ok" onclick="rsvSetStatus(\''+o.id+'\',\'done\')">确认预约</button>')
+        +'<button class="rsa-btn cancel" onclick="rsvCancel(\''+o.id+'\')">取消</button>';
     return '<div class="rsa-card">'
       +'<div class="rsa-card-top"><div class="rsa-dt"><b>'+_h(r.date)+'</b> '+_h(r.time)+'</div>'+st+'</div>'
       +'<div class="rsa-info"><span class="rsa-name">'+_h(r.name)+'</span><span class="rsa-phone">'+_h(r.phone)+'</span><span class="rsa-pax">'+(r.pax||1)+' 人</span></div>'
