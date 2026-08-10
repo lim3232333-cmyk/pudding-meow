@@ -601,6 +601,7 @@ input.pdt-chip{border:none;outline:none;font-family:"Noto Sans SC",sans-serif;te
 .rsa-empty{grid-column:1/-1;text-align:center;color:#9a8f7f;padding:40px 0;font-size:15px;}
 .page-title{font-size:22px;font-weight:700;color:#8D0505;margin-bottom:18px;}
 .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;}
+.kpi-row.k6{grid-template-columns:repeat(6,1fr);gap:12px;}
 .kpi{background:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 2px 8px rgba(141,5,5,.08);}
 .kpi .l{font-size:11px;color:#4A4848;margin-bottom:8px;}
 .kpi .v{font-size:26px;font-weight:900;color:#8D0505;}
@@ -630,7 +631,14 @@ tr:hover td{background:rgba(141,5,5,.02);}
 .b-void{background:#e2e2e2;color:#777;}
 .tx-split{display:flex;gap:16px;align-items:flex-start;}
 .tx-left{flex:2;min-width:0;}
-.tx-right{flex:1;min-width:260px;}
+.tx-right{flex:1;min-width:260px;display:flex;flex-direction:column;gap:16px;}
+.rc-scroll{max-height:220px;overflow-y:auto;}
+.rc-item{display:flex;justify-content:space-between;align-items:center;padding:9px 18px;border-bottom:1px solid #F5E9D4;}
+.rc-item:last-child{border-bottom:none;}
+.rc-l{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.rc-l b{font-size:13px;color:#8D0505;}
+.rc-l span{font-size:11px;color:#4A4848;}
+.rc-a{font-size:13px;font-weight:700;color:#8D0505;white-space:nowrap;margin-left:10px;}
 .tx-scroll{max-height:440px;overflow-y:auto;}
 .th-filter{border:none;background:transparent;font:inherit;font-size:11px;font-weight:700;color:#4A4848;cursor:pointer;margin-left:4px;}
 tr.tx-sel td{background:rgba(141,5,5,.06);}
@@ -3421,6 +3429,8 @@ function renderDash(){
   var rev=live.reduce(function(s,o){return s+o.total;},0);
   var cash=live.filter(function(o){return o.payMethod==='cash';}).reduce(function(s,o){return s+o.total;},0);
   var tng=live.filter(function(o){return o.payMethod==='tng';}).reduce(function(s,o){return s+o.total;},0);
+  var onl=live.filter(function(o){return o.payMethod==='hitpay';}).reduce(function(s,o){return s+o.total;},0);  // 在线支付（HitPay 网关）
+  var wal=live.filter(function(o){return o.payMethod==='wallet';}).reduce(function(s,o){return s+o.total;},0);  // Meow Wallet 余额支付
   var revShown = _revMode ? live.filter(function(o){return orderMode3(o)===_revMode;}).reduce(function(s,o){return s+o.total;},0) : rev;
   // 看的不是今天就别再写「今日」，不然翻到昨天还顶着今日营业额，容易看岔
   var revLabel = {'':(dd===today?'今日营业额':'当日营业额'),dinein:'堂食营业额',takeaway:'打包/自取营业额',delivery:'外卖营业额'}[_revMode];
@@ -3430,6 +3440,10 @@ function renderDash(){
   });
   if(!_txSelId && filtered.length) _txSelId=filtered[0].id;
   var selOrder=filtered.find(function(o){return o.id===_txSelId;}) || filtered[0] || null;
+
+  // 当日充值单单列——它不算营业额（钱花出去时才算），但老板想看今天充了多少
+  var rcOrds=_dayOrders(dd).filter(function(o){try{return _orderDay(o)===dd && o.taMode==='recharge' && o.status==='done';}catch(e){return false;}});
+  var rcTot=rcOrds.reduce(function(s,o){return s+(o.total||0);},0);
 
   var el=document.getElementById('adminContent');
   // 记住交易列表滚动位置——点某单会整块重绘，不还原的话会跳回顶部
@@ -3450,7 +3464,7 @@ function renderDash(){
     +'<select onchange="setBizCut(this.value)" style="border:1.5px solid #F5E9D4;border-radius:8px;padding:4px 8px;font-size:12px;font-family:inherit;color:#4A4848;background:#fff;cursor:pointer">'
     + [0,1,2,3,4,5,6,7].map(function(h){ return '<option value="'+h+'"'+(h===_bizCut?' selected':'')+'>'+String(h).padStart(2,'0')+':00</option>'; }).join('')
     +'</select> 之前的单算前一天</span></div>'
-    +'<div class="kpi-row">'
+    +'<div class="kpi-row k6">'
     +'<div class="kpi"><div class="l">'+revLabel+'<select class="th-filter" onchange="setRevMode(this.value)">'
       +'<option value=""'+(_revMode===''?' selected':'')+'>▼ 总营业额</option>'
       +'<option value="dinein"'+(_revMode==='dinein'?' selected':'')+'>堂食</option>'
@@ -3460,6 +3474,8 @@ function renderDash(){
     +'<div class="kpi"><div class="l">交易笔数</div><div class="v">'+live.length+'</div></div>'
     +'<div class="kpi"><div class="l">现金 Cash</div><div class="v">RM '+cash.toFixed(1)+'</div></div>'
     +'<div class="kpi"><div class="l">DuitNow</div><div class="v">RM '+tng.toFixed(1)+'</div></div>'
+    +'<div class="kpi"><div class="l">Online</div><div class="v">RM '+onl.toFixed(1)+'</div></div>'
+    +'<div class="kpi"><div class="l">Meow Wallet</div><div class="v">RM '+wal.toFixed(1)+'</div></div>'
     +'</div>'
     +'<div class="tx-split">'
       +'<div class="tx-left tx-card"><div class="tx-ch"><h3>交易明细</h3></div>'
@@ -3476,11 +3492,12 @@ function renderDash(){
         +'<option value="cash"'+(_txPayFilter==='cash'?' selected':'')+'>Cash</option>'
         +'<option value="tng"'+(_txPayFilter==='tng'?' selected':'')+'>DuitNow</option>'
         +'<option value="hitpay"'+(_txPayFilter==='hitpay'?' selected':'')+'>Online</option>'
+        +'<option value="wallet"'+(_txPayFilter==='wallet'?' selected':'')+'>Wallet</option>'
       +'</select></th>'
       +'<th>金额</th><th>状态</th></tr></thead>'
       +'<tbody>'+(filtered.length?filtered.map(function(o){
         var dt=new Date(o.createdAt);var p=function(n){return String(n).padStart(2,'0');};
-        var pm2={cash:'Cash',tng:'DuitNow',card:'Card',counter:'Counter',hitpay:'Online'};
+        var pm2={cash:'Cash',tng:'DuitNow',card:'Card',counter:'Counter',hitpay:'Online',wallet:'Wallet'};
         var statusHtml=o.status==='void' ?'<span class="badge b-void">已作废</span>'
           : o.status==='pending' ?'<span class="badge b-pend">待付款</span>'
           :'<span class="badge b-paid">已付款</span>';
@@ -3493,7 +3510,8 @@ function renderDash(){
           +'<td>'+statusHtml+'</td></tr>';
       }).join(''):'<tr><td colspan="6" style="text-align:center;padding:30px;color:#4A4848">暂无交易记录</td></tr>')
       +'</tbody></table></div></div>'
-      +'<div class="tx-right tx-card"><div class="tx-ch"><h3>商品</h3></div>'
+      +'<div class="tx-right">'
+      +'<div class="tx-card"><div class="tx-ch"><h3>商品</h3></div>'
       +(selOrder ?'<div style="padding:14px 18px;display:flex;flex-direction:column;height:calc(100% - 20px)">'
         +'<div style="flex:1">'
         +'<div style="font-size:12px;color:#4A4848;margin-bottom:8px">订单 #'+selOrder.orderNum+'</div>'
@@ -3507,6 +3525,18 @@ function renderDash(){
         +'</div>'
         +'</div>'
         :'<div class="pd-empty">点击左侧订单查看商品明细</div>')
+      +'</div>'
+      +'<div class="tx-card"><div class="tx-ch"><h3>今日充值 Top-ups</h3>'
+        +'<span style="font-size:12px;color:#4A4848;align-self:center">'+rcOrds.length+' 笔 · RM '+rcTot.toFixed(1)+'</span></div>'
+      +'<div class="rc-scroll">'+(rcOrds.length?rcOrds.map(function(o){
+          var dt=new Date(o.createdAt);var p=function(n){return String(n).padStart(2,'0');};
+          var nm=(o.tableName||'').replace(/^💰充值·/,'')||'会员';
+          var rc=(o.deliveryInfo&&o.deliveryInfo.recharge)||{};var coins=rc.coins||0;
+          return '<div class="rc-item"><div class="rc-l"><b>'+esc(nm)+'</b>'
+            +'<span>'+p(dt.getHours())+':'+p(dt.getMinutes())+(coins?' · +'+coins+' Coin':'')+'</span></div>'
+            +'<div class="rc-a">RM '+(o.total||0).toFixed(2)+'</div></div>';
+        }).join(''):'<div class="pd-empty">今日暂无充值</div>')+'</div>'
+      +'</div>'
       +'</div>'
     +'</div>';
   var _txSc2=el.querySelector('.tx-scroll'); if(_txSc2) _txSc2.scrollTop=_txTop;
@@ -3537,8 +3567,8 @@ function selectTx(id){_txSelId=id;renderDash();}
 /* 切换支付方式：交易明细里点某单 → 改支付。改本地 _orders + 云端 orders.pay_method，
    重绘看板（表格/支付分布跟着变）。 */
 var _paySwId=null;
-var _PAY_SW_OPTS=[['cash','Cash'],['tng','DuitNow'],['hitpay','Online']];
-function _payLabel(pm){ return ({cash:'Cash',tng:'DuitNow',card:'Card',counter:'Counter',hitpay:'Online'})[pm]||pm||'—'; }
+var _PAY_SW_OPTS=[['cash','Cash'],['tng','DuitNow'],['hitpay','Online'],['wallet','Wallet']];
+function _payLabel(pm){ return ({cash:'Cash',tng:'DuitNow',card:'Card',counter:'Counter',hitpay:'Online',wallet:'Wallet'})[pm]||pm||'—'; }
 function changePay(id){
   var o=_findOrder(id); if(!o){ showN('找不到这笔订单'); return; } _paySwId=id;
   document.getElementById('paySwBody').innerHTML=
