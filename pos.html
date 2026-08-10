@@ -5755,8 +5755,13 @@ function _fireKitchen(o, isPD){
   if(isPD){ try{ printRec(o); }catch(e){} try{ _notifyNewOrder(); }catch(e){} }
   try{ showN('线上预付单 #'+o.orderNum+' 已出单'); }catch(e){}
 }
+/* 同一台机「正在认领中」的同步占位：认领是异步的，_printedKitchen 要等 DB 回来才写，
+   期间要是又来一次实时事件（INSERT 后紧跟 UPDATE，或云端/localStorage 两条路各触发一次），
+   第二次扫描会因为 _printedKitchen 还没写而重复认领、重复出单——所以下手前先同步占位挡住。 */
+var _kitchenClaiming={};
 function _claimAndPrintKitchen(o, isPD){
-  if(_printedKitchen[o.id]) return;                 // 本机已打过，快速跳过
+  if(_printedKitchen[o.id] || _kitchenClaiming[o.id]) return;   // 已打过 / 正在认领中 → 跳过
+  _kitchenClaiming[o.id]=1;                                     // 同步占位，挡住本机并发重入
   if(!db){ _fireKitchen(o, isPD); return; }         // 离线：只能靠本地去重
   db.from('orders').update({kitchen_printed_at:new Date().toISOString()})
     .eq('id',o.id).is('kitchen_printed_at',null).select('id')
