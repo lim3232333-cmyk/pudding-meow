@@ -4056,7 +4056,9 @@ function renderMemberDetail(){
   var lvl=_loyaltyLevels.find(function(l){return l.id===m.level_id;});
   panel.innerHTML=
      '<div class="md-hd"><span><b>'+esc(m.nickname||'—')+'</b> <span style="font-weight:400;font-size:13px;opacity:.75">'+esc(m.phone)+'</span></span>'
-    +'<button class="md-x" onclick="closeMemberDetail()">✕ 收起</button></div>'
+    +'<span style="display:flex;gap:8px;align-items:center">'
+    +'<button class="md-x" style="background:#B6F3FF;color:#8D0505" onclick="resetMemberPin()">重置 PIN</button>'
+    +'<button class="md-x" onclick="closeMemberDetail()">✕ 收起</button></span></div>'
     +'<div class="md-sum">'
     +'<div class="md-kpi"><div class="l">等级</div><div class="v">'+(lvl?esc(lvl.name_cn):'—')+'</div></div>'
     +'<div class="md-kpi"><div class="l">XP</div><div class="v">'+(m.xp||0)+'</div></div>'
@@ -4116,6 +4118,20 @@ function renderMemberDetail(){
         +'<td style="font-size:12px;color:#4A4848">'+_mdDate(c.expires_at)+'</td></tr>';
     });
   }
+}
+/* 会员忘记登录 PIN：店员核实身份后帮他重置。顾客可当场报想要的新 PIN，店员代填。
+   服务端把 pin_hash 改掉并轮换 session_token（旧登录态失效），重置后用新 PIN 重新登录。 */
+function resetMemberPin(){
+  var m=_mdMember; if(!m) return;
+  if(!db){ alert('重置 PIN 需要联网'); return; }
+  var np=prompt('给会员「'+(m.nickname||m.phone)+'」重置登录 PIN。\n可让顾客当场报想要的新密码，你代填。\n\n请输入新的 4–6 位数字 PIN：');
+  if(np==null) return;                                   // 取消
+  np=(''+np).trim();
+  if(!/^\d{4,6}$/.test(np)){ alert('PIN 必须是 4–6 位数字'); return; }
+  db.rpc('rpc_admin_reset_member_pin',{p_member_id:m.id, p_new_pin:np}).then(function(res){
+    if(res.error){ showN('重置失败：'+(res.error.message||'')); return; }
+    alert('✓ 已重置。请让顾客用「手机号 '+m.phone+'」+ 新 PIN「'+np+'」重新登录。');
+  }).catch(function(e){ showN('网络错误'); });
 }
 function saveMemberNotes(){
   if(!_mdMember) return;
