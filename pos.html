@@ -2191,10 +2191,18 @@ function _findMenuItem(line){
     } }
   return null;
 }
-/* 把购物车行里已选的规格，映射回规格页每组的下标（跳过的组=SKIP_SEL） */
+/* 把购物车行里已选的规格，映射回规格页每组的下标（跳过的组=SKIP_SEL）。
+   稳一点：defId 用 String() 归一（跟 _specDefById 一样，防数字/字符串对不上）；
+   已匹配的规格用掉、不重复认；defId、名字都对不上时，用「值正好是这组某个选项」兜底。
+   —— 匹配不准会退回默认第 0 个，编辑时选择框就跟原选择对不上、还会把默认值写回购物车。 */
 function _mapSelFromSpecs(groups, specs){
+  var pool=(specs||[]).slice(), used=pool.map(function(){return false;});
+  function take(pred){ for(var k=0;k<pool.length;k++){ if(!used[k] && pred(pool[k])){ used[k]=true; return pool[k]; } } return null; }
+  var eq=function(a,b){ return a!=null && b!=null && String(a)===String(b); };
   return groups.map(function(g){
-    var sp=(specs||[]).find(function(s){ return (g.defId!=null && s.defId===g.defId) || (g.defId==null && s.name===g.name); });
+    var sp = (g.defId!=null && take(function(s){ return eq(s.defId,g.defId); }))
+          || (g.name && take(function(s){ return s.name===g.name; }))
+          || take(function(s){ return (g.options||[]).indexOf(s.value)>=0; });   // 兜底：值对得上就认
     if(!sp) return _groupRequired(g)?0:SKIP_SEL;
     var oi=(g.options||[]).indexOf(sp.value);
     return oi>=0 ? oi : (_groupRequired(g)?0:SKIP_SEL);
