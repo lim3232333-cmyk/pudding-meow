@@ -386,6 +386,8 @@
 
   /* =================== ORDERS PAGE =================== */
   #screen-orders{ background:var(--cream); }
+  /* 页头（标题+标签）浮在顶上、不跟订单一起滑动 */
+  .orders-top{ position:sticky; top:0; z-index:30; }
   .orders-header{
     background:var(--red); padding:18px 20px 14px; flex-shrink:0;
     display:flex; align-items:center; justify-content:space-between;
@@ -1421,16 +1423,18 @@
 
   <!-- ================= ORDERS ================= -->
   <section class="screen" id="screen-orders">
-    <div class="orders-header">
-      <div>
-        <div class="orders-header-title">My Orders</div>
-        <div class="orders-header-sub">我的订单记录</div>
+    <div class="orders-top">
+      <div class="orders-header">
+        <div>
+          <div class="orders-header-title">My Orders</div>
+          <div class="orders-header-sub">我的订单记录</div>
 </div>
 </div>
-    <div class="orders-tabs">
-      <div class="orders-tab active" data-filter="all" onclick="filterOrders(this)">全部</div>
-      <div class="orders-tab" data-filter="ongoing" onclick="filterOrders(this)">进行中</div>
-      <div class="orders-tab" data-filter="done" onclick="filterOrders(this)">已完成</div>
+      <div class="orders-tabs">
+        <div class="orders-tab active" data-filter="all" onclick="filterOrders(this)">全部</div>
+        <div class="orders-tab" data-filter="ongoing" onclick="filterOrders(this)">进行中</div>
+        <div class="orders-tab" data-filter="done" onclick="filterOrders(this)">已完成</div>
+</div>
 </div>
     <div class="orders-list" id="ordersList"></div>
   </section>
