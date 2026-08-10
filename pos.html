@@ -275,9 +275,9 @@ body.ds-on{user-select:none;-webkit-user-select:none;}
 /* 规格选择：卡片 182.5×136.5、22px 文字、4 列 15px 间距、整排居中（Figma 394-318）；选中态蓝底、售罄态灰底划线 */
 .item-cat-name .bc-sep{color:rgba(141,5,5,.4);margin:0 8px;font-weight:700;}
 .item-cat-name .bc-cur{color:#000;}
-/* 面包屑里之前选过的规格段可点：点了跳回那一页改（下划虚线提示可点） */
-.item-cat-name .bc-jump{cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;}
-.item-cat-name .bc-jump:hover{color:#B00;}
+/* 面包屑里其它规格段：红字可点，点了就跳到那一页（当前页那段是黑字 bc-cur） */
+.item-cat-name .bc-jump{cursor:pointer;}
+.item-cat-name .bc-jump:hover{opacity:.7;}
 .spec-opts{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,1fr);gap:15px;justify-content:center;}
 .spec-card{width:auto;height:136.5px;border-radius:16px;}
 .spec-card .ic-name{font-size:22px;line-height:26px;}
@@ -2070,26 +2070,28 @@ function _renderSpecPicker(){
 }
 function _updateSpecBreadcrumb(){
   var c=_specCtx; var it=MENU[c.cat].items[c.idx];
-  // parts：{t:文字, s:可跳到的规格步骤(仅规格段有)}；分类/子分类/商品名只是上下文，不可点
+  var editing = (c.editIdx!=null && c.editIdx>=0);
+  // parts：{t:文字, s:对应的规格步骤(仅规格段有)}；分类/子分类/商品名只是上下文，不可点
   var parts=[{t:MENU[c.cat].en}];
   if(it.subcat){ var sn=catNameEn(it.subcat); if(sn) parts.push({t:sn}); }   // 商品所在子分类也进面包屑
   parts.push({t:it.name});
-  for(var s=0;s<=c.step;s++){
+  // 编辑：所有规格段都列出来（点哪个跳哪个）；新增：还是逐段累积到当前步
+  var upto = editing ? c.groups.length-1 : c.step;
+  for(var s=0;s<=upto;s++){
     var g=c.groups[s], nm=g.name;
     // 规格组名优先用英文（规格库 name_en），POS 面包屑保持全英文
     if(nm){ var d=g.defId?_specDefById(g.defId):null; if(d&&d.name_en) nm=d.name_en; }
     else { var v=(g.options||[])[c.sel[s]]; nm=v||''; }
     if(nm) parts.push({t:nm, s:s});
   }
-  var last=parts.length-1;
-  document.getElementById('itemCatName').innerHTML=parts.map(function(p,idx){
+  document.getElementById('itemCatName').innerHTML=parts.map(function(p){
     var label=esc(p.t);
-    if(idx===last) return '<span class="bc-cur">'+label+'</span>';        // 当前页：黑字，不可点
-    if(p.s!=null) return '<span class="bc-jump" onclick="specGoto('+p.s+')">'+label+'</span>';  // 选过的规格段：可点跳回去改
+    if(p.s===c.step) return '<span class="bc-cur">'+label+'</span>';       // 当前页那段：黑字
+    if(p.s!=null) return '<span class="bc-jump" onclick="specGoto('+p.s+')">'+label+'</span>';  // 其它规格段：红字可点
     return label;                                                          // 分类/子分类/商品名：纯文字
   }).join('<span class="bc-sep">\\</span>');
 }
-/* 点面包屑里某个规格段 → 直接跳到那一页改（不用一路 Back） */
+/* 点面包屑里某个规格段 → 直接跳到那一页（那段变黑、其余红） */
 function specGoto(step){
   var c=_specCtx; if(!c) return;
   step=Math.max(0, Math.min(step, c.groups.length-1));
@@ -2126,7 +2128,12 @@ function _syncEditLine(){
   _cartApplyLine(c.editIdx, it, _specsFromCtx(c));
   renderCart();
 }
-function specNext(){ var c=_specCtx; if(!c)return; if(c.step<c.groups.length-1){ c.step++; _renderSpecPicker(); } else confirmSpecAdd(); }
+function specNext(){ var c=_specCtx; if(!c)return;
+  // 编辑：购物栏已实时预览，随便在哪一页按 OK 都直接确定
+  if(c.editIdx!=null && c.editIdx>=0){ confirmSpecAdd(); return; }
+  // 新增：还是逐组翻到最后一组再确定
+  if(c.step<c.groups.length-1){ c.step++; _renderSpecPicker(); } else confirmSpecAdd();
+}
 function specBack(){ var c=_specCtx; if(c && c.step>0){ c.step--; _renderSpecPicker(); } else { _specCtx=null; renderItemList(); } }
 function confirmSpecAdd(){
   var c=_specCtx; var it=MENU[c.cat].items[c.idx];
