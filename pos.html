@@ -275,6 +275,9 @@ body.ds-on{user-select:none;-webkit-user-select:none;}
 /* 规格选择：卡片 182.5×136.5、22px 文字、4 列 15px 间距、整排居中（Figma 394-318）；选中态蓝底、售罄态灰底划线 */
 .item-cat-name .bc-sep{color:rgba(141,5,5,.4);margin:0 8px;font-weight:700;}
 .item-cat-name .bc-cur{color:#000;}
+/* 面包屑里其它规格段：红字可点，点了就跳到那一页（当前页那段是黑字 bc-cur） */
+.item-cat-name .bc-jump{cursor:pointer;}
+.item-cat-name .bc-jump:hover{opacity:.7;}
 .spec-opts{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,1fr);gap:15px;justify-content:center;}
 .spec-card{width:auto;height:136.5px;border-radius:16px;}
 .spec-card .ic-name{font-size:22px;line-height:26px;}
@@ -2067,29 +2070,74 @@ function _renderSpecPicker(){
 }
 function _updateSpecBreadcrumb(){
   var c=_specCtx; var it=MENU[c.cat].items[c.idx];
-  var parts=[MENU[c.cat].en];
-  if(it.subcat){ var sn=catNameEn(it.subcat); if(sn) parts.push(sn); }   // 商品所在子分类也进面包屑
-  parts.push(it.name);
-  for(var s=0;s<=c.step;s++){
+  var editing = (c.editIdx!=null && c.editIdx>=0);
+  // parts：{t:文字, s:对应的规格步骤(仅规格段有)}；分类/子分类/商品名只是上下文，不可点
+  var parts=[{t:MENU[c.cat].en}];
+  if(it.subcat){ var sn=catNameEn(it.subcat); if(sn) parts.push({t:sn}); }   // 商品所在子分类也进面包屑
+  parts.push({t:it.name});
+  // 编辑：所有规格段都列出来（点哪个跳哪个）；新增：还是逐段累积到当前步
+  var upto = editing ? c.groups.length-1 : c.step;
+  for(var s=0;s<=upto;s++){
     var g=c.groups[s], nm=g.name;
     // 规格组名优先用英文（规格库 name_en），POS 面包屑保持全英文
     if(nm){ var d=g.defId?_specDefById(g.defId):null; if(d&&d.name_en) nm=d.name_en; }
     else { var v=(g.options||[])[c.sel[s]]; nm=v||''; }
-    if(nm) parts.push(nm);
+    if(nm) parts.push({t:nm, s:s});
   }
-  document.getElementById('itemCatName').innerHTML=_crumbHtml(parts);
+  document.getElementById('itemCatName').innerHTML=parts.map(function(p){
+    var label=esc(p.t);
+    if(p.s===c.step) return '<span class="bc-cur">'+label+'</span>';       // 当前页那段：黑字
+    if(p.s!=null) return '<span class="bc-jump" onclick="specGoto('+p.s+')">'+label+'</span>';  // 其它规格段：红字可点
+    return label;                                                          // 分类/子分类/商品名：纯文字
+  }).join('<span class="bc-sep">\\</span>');
 }
-function pickSpecOpt(oi){ var c=_specCtx; var g=c.groups[c.step]; if(oi!==SKIP_SEL && _posOptSold(g.defId,g.options[oi]))return; c.sel[c.step]=oi; _renderSpecPicker(); }
-function specNext(){ var c=_specCtx; if(!c)return; if(c.step<c.groups.length-1){ c.step++; _renderSpecPicker(); } else confirmSpecAdd(); }
-function specBack(){ var c=_specCtx; if(c && c.step>0){ c.step--; _renderSpecPicker(); } else { _specCtx=null; renderItemList(); } }
-function confirmSpecAdd(){
-  var c=_specCtx; var it=MENU[c.cat].items[c.idx];
+/* 点面包屑里某个规格段 → 直接跳到那一页（那段变黑、其余红） */
+function specGoto(step){
+  var c=_specCtx; if(!c) return;
+  step=Math.max(0, Math.min(step, c.groups.length-1));
+  c.step=step; _renderSpecPicker();
+}
+function pickSpecOpt(oi){
+  var c=_specCtx; var g=c.groups[c.step]; if(oi!==SKIP_SEL && _posOptSold(g.defId,g.options[oi]))return;
+  c.sel[c.step]=oi; _renderSpecPicker();
+  if(c.editIdx!=null && c.editIdx>=0) _syncEditLine();   // 改现有行：购物栏实时跟着变，不用等按到最后的 OK
+}
+/* 从规格页当前选择拼出 specs 数组（跳过的组不算） */
+function _specsFromCtx(c){
   var chosen=[];
   c.groups.forEach(function(g,gi){
     if(c.sel[gi]===SKIP_SEL) return;
     var v=(g.options||[])[c.sel[gi]];
+    if(v==null) return;
     chosen.push({defId:g.defId||null,name:g.name,value:v,add:_optAdd(g,v)});
   });
+  return chosen;
+}
+/* 就地更新某购物车行的规格/价格（不合并、不删行——留到最后 OK 再由 _cartReplace 处理撞行） */
+function _cartApplyLine(i, it, specs){
+  var line=cart[i]; if(!line) return;
+  var specText=_specTextOf(specs), price=(Number(it.price)||0)+_specsAdd(specs);
+  line.id=it.id||null; line.name=it.name; line.name_cn=it.name_cn;
+  line.price=price; line.basePrice=Number(it.price)||0;
+  line.specs=specs||[]; line.specText=specText; line.flavor=specText;
+}
+/* 编辑态实时同步：把当前规格选择写回正在改的那行，重画购物栏 */
+function _syncEditLine(){
+  var c=_specCtx; if(!c || c.editIdx==null || c.editIdx<0) return;
+  var it=MENU[c.cat].items[c.idx];
+  _cartApplyLine(c.editIdx, it, _specsFromCtx(c));
+  renderCart();
+}
+function specNext(){ var c=_specCtx; if(!c)return;
+  // 编辑：购物栏已实时预览，随便在哪一页按 OK 都直接确定
+  if(c.editIdx!=null && c.editIdx>=0){ confirmSpecAdd(); return; }
+  // 新增：还是逐组翻到最后一组再确定
+  if(c.step<c.groups.length-1){ c.step++; _renderSpecPicker(); } else confirmSpecAdd();
+}
+function specBack(){ var c=_specCtx; if(c && c.step>0){ c.step--; _renderSpecPicker(); } else { _specCtx=null; renderItemList(); } }
+function confirmSpecAdd(){
+  var c=_specCtx; var it=MENU[c.cat].items[c.idx];
+  var chosen=_specsFromCtx(c);
   var label=chosen.map(function(s){return s.value;}).filter(Boolean).join(' · ');
   if(c.editIdx!=null && c.editIdx>=0){                          // 改现有行：替换、保留数量
     _cartReplace(c.editIdx, it, chosen);
@@ -3470,12 +3518,12 @@ function renderDash(){
       +'<option value="dinein"'+(_revMode==='dinein'?' selected':'')+'>堂食</option>'
       +'<option value="takeaway"'+(_revMode==='takeaway'?' selected':'')+'>打包/自取</option>'
       +'<option value="delivery"'+(_revMode==='delivery'?' selected':'')+'>外卖</option>'
-    +'</select></div><div class="v">RM '+revShown.toFixed(1)+'</div></div>'
+    +'</select></div><div class="v">RM '+revShown.toFixed(2)+'</div></div>'
     +'<div class="kpi"><div class="l">交易笔数</div><div class="v">'+live.length+'</div></div>'
-    +'<div class="kpi"><div class="l">现金 Cash</div><div class="v">RM '+cash.toFixed(1)+'</div></div>'
-    +'<div class="kpi"><div class="l">DuitNow</div><div class="v">RM '+tng.toFixed(1)+'</div></div>'
-    +'<div class="kpi"><div class="l">Online</div><div class="v">RM '+onl.toFixed(1)+'</div></div>'
-    +'<div class="kpi"><div class="l">Meow Wallet</div><div class="v">RM '+wal.toFixed(1)+'</div></div>'
+    +'<div class="kpi"><div class="l">现金 Cash</div><div class="v">RM '+cash.toFixed(2)+'</div></div>'
+    +'<div class="kpi"><div class="l">DuitNow</div><div class="v">RM '+tng.toFixed(2)+'</div></div>'
+    +'<div class="kpi"><div class="l">Online</div><div class="v">RM '+onl.toFixed(2)+'</div></div>'
+    +'<div class="kpi"><div class="l">Meow Wallet</div><div class="v">RM '+wal.toFixed(2)+'</div></div>'
     +'</div>'
     +'<div class="tx-split">'
       +'<div class="tx-left tx-card"><div class="tx-ch"><h3>交易明细</h3></div>'
@@ -3527,7 +3575,7 @@ function renderDash(){
         :'<div class="pd-empty">点击左侧订单查看商品明细</div>')
       +'</div>'
       +'<div class="tx-card"><div class="tx-ch"><h3>今日充值 Top-ups</h3>'
-        +'<span style="font-size:12px;color:#4A4848;align-self:center">'+rcOrds.length+' 笔 · RM '+rcTot.toFixed(1)+'</span></div>'
+        +'<span style="font-size:12px;color:#4A4848;align-self:center">'+rcOrds.length+' 笔 · RM '+rcTot.toFixed(2)+'</span></div>'
       +'<div class="rc-scroll">'+(rcOrds.length?rcOrds.map(function(o){
           var dt=new Date(o.createdAt);var p=function(n){return String(n).padStart(2,'0');};
           var nm=(o.tableName||'').replace(/^💰充值·/,'')||'会员';
@@ -4687,20 +4735,20 @@ function renderReports(){
     +'<input type="month" value="'+selM+'" onchange="setRM(this.value)"><span style="font-size:14px;color:#4A4848">选择月份</span>'
     +(_monthLoading===selM?'<span style="font-size:13px;color:#8D0505">读取整月数据…</span>':(db&&!_monthCache[selM]?'<span style="font-size:13px;color:#4A4848">（本地数据，读取中…）</span>':''))+'</div>'
     +'<div class="kpi-row">'
-    +'<div class="kpi"><div class="l">月总营业额</div><div class="v">RM '+tot.toFixed(0)+'</div></div>'
+    +'<div class="kpi"><div class="l">月总营业额</div><div class="v">RM '+tot.toFixed(2)+'</div></div>'
     +'<div class="kpi"><div class="l">交易笔数</div><div class="v">'+mords.length+'</div></div>'
-    +'<div class="kpi"><div class="l">日均营业额</div><div class="v">RM '+(Object.keys(days).length?tot/Object.keys(days).length:0).toFixed(0)+'</div></div>'
-    +'<div class="kpi"><div class="l">最高单日</div><div class="v">RM '+maxD.toFixed(0)+'</div></div>'
+    +'<div class="kpi"><div class="l">日均营业额</div><div class="v">RM '+(Object.keys(days).length?tot/Object.keys(days).length:0).toFixed(2)+'</div></div>'
+    +'<div class="kpi"><div class="l">最高单日</div><div class="v">RM '+maxD.toFixed(2)+'</div></div>'
     +'</div>'
     +'<div class="rpt-grid">'
     +'<div class="rpt-card"><h3>支付方式分布 Payment Breakdown</h3>'
-    +'<div class="pie-row"><div class="pie-dot" style="background:#8D0505"></div><div class="pie-lbl">现金 Cash</div><div class="pie-right"><div class="pie-val">RM '+cash.toFixed(0)+'</div><div class="pie-pct">'+(tot?Math.round(cash/tot*100):0)+'%</div></div></div>'
-    +'<div class="pie-row"><div class="pie-dot" style="background:#202055"></div><div class="pie-lbl">DuitNow / TNG</div><div class="pie-right"><div class="pie-val">RM '+tng.toFixed(0)+'</div><div class="pie-pct">'+(tot?Math.round(tng/tot*100):0)+'%</div></div></div>'
-    +'<div class="pie-row"><div class="pie-dot" style="background:#555"></div><div class="pie-lbl">刷卡 Card</div><div class="pie-right"><div class="pie-val">RM '+card.toFixed(0)+'</div><div class="pie-pct">'+(tot?Math.round(card/tot*100):0)+'%</div></div></div>'
+    +'<div class="pie-row"><div class="pie-dot" style="background:#8D0505"></div><div class="pie-lbl">现金 Cash</div><div class="pie-right"><div class="pie-val">RM '+cash.toFixed(2)+'</div><div class="pie-pct">'+(tot?Math.round(cash/tot*100):0)+'%</div></div></div>'
+    +'<div class="pie-row"><div class="pie-dot" style="background:#202055"></div><div class="pie-lbl">DuitNow / TNG</div><div class="pie-right"><div class="pie-val">RM '+tng.toFixed(2)+'</div><div class="pie-pct">'+(tot?Math.round(tng/tot*100):0)+'%</div></div></div>'
+    +'<div class="pie-row"><div class="pie-dot" style="background:#555"></div><div class="pie-lbl">刷卡 Card</div><div class="pie-right"><div class="pie-val">RM '+card.toFixed(2)+'</div><div class="pie-pct">'+(tot?Math.round(card/tot*100):0)+'%</div></div></div>'
     +'</div>'
     +'<div class="rpt-card"><h3>每日营业额 Daily Revenue</h3>'
     +'<div style="max-height:260px;overflow-y:auto">'
-    +(Object.keys(days).sort().map(function(d){var pct=days[d]/maxD*100;return'<div class="bar-row"><div class="bar-lbl">'+d.slice(5)+'</div><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:#8D0505">'+days[d].toFixed(0)+'</div></div><div class="bar-val">RM '+days[d].toFixed(0)+'</div></div>';}).join('')||'<div style="text-align:center;padding:30px;color:#4A4848">暂无数据</div>')
+    +(Object.keys(days).sort().map(function(d){var pct=days[d]/maxD*100;return'<div class="bar-row"><div class="bar-lbl">'+d.slice(5)+'</div><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:#8D0505">'+days[d].toFixed(2)+'</div></div><div class="bar-val">RM '+days[d].toFixed(2)+'</div></div>';}).join('')||'<div style="text-align:center;padding:30px;color:#4A4848">暂无数据</div>')
     +'</div></div></div>';
   // 没拉过这个月就去云端整月拉一次（防重入：正在拉这个月时不再触发）
   if(db && !_monthCache[selM] && _monthLoading!==selM) loadReportsMonth(selM);
