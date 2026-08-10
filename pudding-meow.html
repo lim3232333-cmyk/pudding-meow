@@ -2652,9 +2652,11 @@ function loadAppChannels(){
 }
 /* 营业时间到货/后台改动后，重画正开着的自取日历、外卖日期列表——
    否则先开了弹窗、渠道数据晚到，休息日（如周二）就没被灰掉 */
+function _chPaused(code){ var ch=_appChannel(code); return !!(ch && ch.enabled===false); }   // 店家手动「暂停接单」
 function _rsvRefreshOpenPickers(){
   try{
     if(document.getElementById('pkModal') && document.getElementById('pkModal').classList.contains('show')){
+      if(_chPaused('pickup')){ closePickup(); alert('自取 · 暂停接单'); return; }   // 弹窗开着时被临时关了→关掉并提示
       if(_chDayClosed('pickup', _pkDate)){ var f=_firstOpenDay('pickup'); _pkDate=_pkIso(f);
         _pkCalYM={y:f.getFullYear(), m:f.getMonth()};
         document.getElementById('pkDateVal').textContent=_pkDate+' '+_RSV_WD[f.getDay()]; }
@@ -2663,6 +2665,7 @@ function _rsvRefreshOpenPickers(){
   }catch(e){}
   try{
     if(document.getElementById('dvWhenModal') && document.getElementById('dvWhenModal').classList.contains('show')){
+      if(_chPaused('delivery')){ closeDvWhen(); alert('外卖 · 暂停接单'); return; }   // 同上
       var days=_dvDayList();
       if(days.length && !days.some(function(d){return _pkIso(d)===_dvDate;})){
         _dvDate=_pkIso(days[0]); document.getElementById('dvDateVal').textContent=_dvDayLabel(days[0]); }
