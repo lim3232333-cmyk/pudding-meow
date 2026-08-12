@@ -2656,7 +2656,14 @@ function _renderKitchen(o){
     +items
     +'</div>';
 }
-function printKitchen(o){ _queuePrint(function(){ _renderKitchen(o); }); }
+/* 制作单按订单号去重：同一单不管被哪条路径喊几次（实时扫描 / changeDone / 手滑连点），
+   本机这一轮只出一张。这是跟出单路径无关的兜底，单台 POS 保证不重复。
+   （跨设备去重还是靠 orders.kitchen_printed_at 那张迁移。）没有 id 的临时单不去重。 */
+var _kitchenPrintedIds={};
+function printKitchen(o){
+  if(o && o.id!=null){ if(_kitchenPrintedIds[o.id]) return; _kitchenPrintedIds[o.id]=1; }
+  _queuePrint(function(){ _renderKitchen(o); });
+}
 function printRec(o){
   // 带会员的订单先拉会员区块数据（昵称/等级/本单积分/余额），拉不到就直接打印。
   // 渲染+打印统一进串行队列（_queuePrint），避免和制作单/别的收据抢同一个 #rcc。
