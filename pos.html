@@ -2656,7 +2656,14 @@ function _renderKitchen(o){
     +items
     +'</div>';
 }
-function printKitchen(o){ _queuePrint(function(){ _renderKitchen(o); }); }
+/* 制作单按订单号去重：同一单不管被哪条路径喊几次（实时扫描 / changeDone / 手滑连点），
+   本机这一轮只出一张。这是跟出单路径无关的兜底，单台 POS 保证不重复。
+   （跨设备去重还是靠 orders.kitchen_printed_at 那张迁移。）没有 id 的临时单不去重。 */
+var _kitchenPrintedIds={};
+function printKitchen(o){
+  if(o && o.id!=null){ if(_kitchenPrintedIds[o.id]) return; _kitchenPrintedIds[o.id]=1; }
+  _queuePrint(function(){ _renderKitchen(o); });
+}
 function printRec(o){
   // 带会员的订单先拉会员区块数据（昵称/等级/本单积分/余额），拉不到就直接打印。
   // 渲染+打印统一进串行队列（_queuePrint），避免和制作单/别的收据抢同一个 #rcc。
@@ -2960,6 +2967,10 @@ function _confirmPendPay(tender,change){
   o.items=cart.map(function(i){return{name:i.name,name_cn:i.name_cn,price:i.price,qty:i.qty,specs:i.specs||[],flavor:i.specText||i.flavor||""};});
   o.total=payTotalAmount;
   o.status=(o.source==='app'?'preparing':'paid');
+  /* 这单的制作单等下由 changeDone 手动出（跟收银台自己开的单同一条链）。
+     必须在把云端状态翻成 preparing 之前先标记已出单——否则那次 update 会触发实时扫描
+     (_scanPrepaidPrint) 自动再出一张，就是「线上单出两次制作单」的根因。 */
+  try{ _printedKitchen[o.id]=1; sj('pm_printed_kitchen',_printedKitchen); }catch(e){}
   sj('pm_orders',_orders); pmBroadcastOrders();
   if(db){
     db.from('orders').update({status:o.status,pay_method:o.payMethod,items:o.items,total:o.total}).eq('id',o.id)
