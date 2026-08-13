@@ -530,6 +530,14 @@
     font-size:12px; color:var(--muted); background:#E9E7DC; text-align:center; padding:0 16px;
   }
   .od-track-note.hide{ display:none; }
+  /* 距离条：压在地图底部，有坐标才显示 */
+  .od-track-info{
+    position:absolute; left:0; right:0; bottom:0; display:none;
+    padding:7px 12px; background:rgba(141,5,5,.88); color:var(--cream);
+    font-size:12px; font-weight:700; line-height:1.35;
+  }
+  .od-track-info.show{ display:block; }
+  .od-track-info .sub{ font-weight:400; opacity:.85; font-size:11px; }
 
 
   ::-webkit-scrollbar{ width:0; height:0; }
@@ -1483,6 +1491,7 @@
         <div class="od-track-map" id="odTrackMap" style="display:none">
           <div class="od-track-canvas" id="odTrackCanvas"></div>
           <div class="od-track-note" id="odTrackNote">地图加载中…</div>
+          <div class="od-track-info" id="odTrackInfo"></div>
         </div>
         <div id="odDeliverBody"></div>
       </div>
@@ -4814,7 +4823,7 @@ function _lmStatusText(code){
    ② 骑手位置 = lalamove-driver 每 15 秒轮询一次。Lalamove 那头本来就是 10 秒才更新，
       查得更勤只会拿到同一个点，纯浪费。
    地图/路线/坐标任何一环挂掉都只是「不画」，绝不能连累订单详情页其它内容。 */
-var _trkMap=null, _trkTimer=null, _trkOrderId=null, _trkRouteKey='';
+var _trkMap=null, _trkTimer=null, _trkOrderId=null, _trkRouteKey='', _trkDest=null;
 var _trkDriverMk=null, _trkStoreMk=null, _trkDestMk=null, _trkRouteLine=null;
 
 // 到了这些状态就没有骑手在路上了，停止轮询（COMPLETED 之后 Lalamove 也会返回 403）
@@ -4834,7 +4843,8 @@ function _trkStop(){
 function _trkClearOverlays(){
   [_trkDriverMk,_trkStoreMk,_trkDestMk,_trkRouteLine].forEach(function(x){ try{ if(x) x.setMap(null); }catch(e){} });
   _trkDriverMk=_trkStoreMk=_trkDestMk=_trkRouteLine=null;
-  _trkRouteKey='';
+  _trkRouteKey=''; _trkDest=null;
+  _trkInfo(null);                      // 上一单的距离留着会挂到新单头上
 }
 
 function _trkIcon(svg, w, h){
@@ -4845,6 +4855,35 @@ function _trkPinSvg(fill, glyph){
   return '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">'+
     '<circle cx="18" cy="18" r="13" fill="'+fill+'" stroke="#fff" stroke-width="3"/>'+
     '<text x="18" y="24" font-size="15" text-anchor="middle">'+glyph+'</text></svg>';
+}
+
+/* 骑手到目标点的距离。用直线（haversine），不是走路线的实际距离——
+   后者要每轮都打一次 Directions，15 秒一次、一单十几分钟，账单撑不住。
+   所以文案上老老实实写「直线」，不假装是导航距离。 */
+function _trkKm(a, b){
+  var R=6371, rad=Math.PI/180;
+  var dLat=(b.lat-a.lat)*rad, dLng=(b.lng-a.lng)*rad;
+  var s=Math.sin(dLat/2)*Math.sin(dLat/2)+
+        Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return R*2*Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+}
+// 先按 10 米取整再决定单位，否则 999 m 会被凑成「1000 m」而不是「1.0 km」
+function _trkDist(km){
+  var m=Math.round(km*1000/10)*10;
+  return m<1000 ? m+' m' : (m/1000).toFixed(1)+' km';
+}
+
+/* 距离条。取餐前后量的不是同一段路：骑手还没到店时，顾客关心的是他还有多久到店，
+   量骑手→顾客会让人以为「快到了」其实食物还没出门。 */
+function _trkInfo(pos, status, driver){
+  var el=document.getElementById('odTrackInfo'); if(!el) return;
+  if(!pos || !_trkDest){ el.classList.remove('show'); el.innerHTML=''; return; }
+  var toMe=status==='PICKED_UP';
+  var km=_trkKm(pos, toMe?_trkDest:STORE_LATLNG);
+  var who=(driver&&driver.name)?_addrEsc(driver.name):'骑手';
+  el.innerHTML='🛵 '+who+' · '+(toMe?'距您':'距门店')+'约 '+_trkDist(km)+
+    '<span class="sub">（直线距离'+(toMe?'':'，尚未取餐')+'）</span>';
+  el.classList.add('show');
 }
 
 function _trkStart(o){
@@ -4896,6 +4935,7 @@ function _trkDrawRoute(o){
   _trkClearOverlays();
   _trkRouteKey=o.id;
   var dest={lat:Number(o.deliveryInfo.lat), lng:Number(o.deliveryInfo.lng)};
+  _trkDest=dest;                                     // 距离条要拿它做终点
 
   // 端点先画上：万一 Directions 失败，至少「店」和「家」两个点还在图上，不是一片空白
   _trkStoreMk=new google.maps.Marker({map:_trkMap, position:STORE_LATLNG, icon:_trkIcon(_trkPinSvg('#8D0505','🏠'),36,36), zIndex:2});
@@ -4944,6 +4984,7 @@ function _trkPoll(){
       _trkDriverMk=new google.maps.Marker({map:_trkMap, position:pos, icon:_trkIcon(_trkPinSvg('#B6F3FF','🛵'),40,40), zIndex:3});
       _trkFit();                                  // 骑手第一次出现时重新框一次视野
     }
+    _trkInfo(pos, d.status, d.driver);
     _trkNote('');
     if(d.status && TRK_ENDED[d.status] && _trkTimer){ clearInterval(_trkTimer); _trkTimer=null; }
   }).catch(function(){});
