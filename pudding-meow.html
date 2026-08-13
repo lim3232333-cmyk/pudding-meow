@@ -425,6 +425,7 @@
   .status-pending{ background:var(--yellow); color:var(--red); }
   .status-preparing{ background:var(--blue); color:var(--red); }
   .status-ready{ background:#6ee07a; color:#1a4a20; }
+  .status-delivering{ background:#FFB454; color:#5A2E00; }   /* 外卖专属：骑手已取餐、在路上 */
   .status-done{ background:rgba(141,5,5,.12); color:var(--red); }
 
   .order-card-body{ padding:12px 14px; }
@@ -517,6 +518,26 @@
     border-radius:12px; height:40px; font-weight:700; font-size:14px; cursor:pointer;
     font-family:"Noto Sans SC",sans-serif;
   }
+  /* 骑手实时追踪地图：店→顾客的真实路线 + 每 15 秒挪一次的骑手点 */
+  .od-track-map{
+    position:relative; width:100%; height:200px; margin:10px 0 12px;
+    border-radius:12px; overflow:hidden; background:#E9E7DC;
+  }
+  .od-track-canvas{ width:100%; height:100%; }
+  /* 地图没起来（没 key / 被墙 / 还没坐标）时盖在上面的说明，别留一块灰底让人以为坏了 */
+  .od-track-note{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:12px; color:var(--muted); background:#E9E7DC; text-align:center; padding:0 16px;
+  }
+  .od-track-note.hide{ display:none; }
+  /* 距离条：压在地图底部，有坐标才显示 */
+  .od-track-info{
+    position:absolute; left:0; right:0; bottom:0; display:none;
+    padding:7px 12px; background:rgba(141,5,5,.88); color:var(--cream);
+    font-size:12px; font-weight:700; line-height:1.35;
+  }
+  .od-track-info.show{ display:block; }
+  .od-track-info .sub{ font-weight:400; opacity:.85; font-size:11px; }
 
 
   ::-webkit-scrollbar{ width:0; height:0; }
@@ -1465,6 +1486,13 @@
       <div id="odDeliverBlock" style="display:none">
         <hr class="od-divider">
         <div class="od-section-title">配送 Delivery</div>
+        <!-- 地图容器放在 odDeliverBody 外面：body 每次都整块 innerHTML 重写，
+             地图实例挂在里面的话每轮渲染都会被冲掉、重建一次，闪且费钱 -->
+        <div class="od-track-map" id="odTrackMap" style="display:none">
+          <div class="od-track-canvas" id="odTrackCanvas"></div>
+          <div class="od-track-note" id="odTrackNote">地图加载中…</div>
+          <div class="od-track-info" id="odTrackInfo"></div>
+        </div>
         <div id="odDeliverBody"></div>
       </div>
       <hr class="od-divider">
@@ -3289,10 +3317,9 @@ function _addrPickSugg(i){
     var loc=place.location; if(!loc) return;
     if(_addrMap){ _addrMap.panTo(loc); _addrMap.setZoom(17); }   // idle 会顺手记坐标
     else { _addrLocateCoords={lat:loc.lat(), lng:loc.lng()}; }
-    _fillAddrFromComponents(place.addressComponents||[]);
-    // 完整地址写进「地址」栏，供顾客修改（万一搜不到精确门牌）
+    // 拆进各自的框（门牌/地址/邮编/城市）；搜索框那边仍然回显完整地址
     var full = place.formattedAddress || place.displayName || '';
-    if(full) document.getElementById('afAddress').value=full;
+    _fillAddrFromComponents(place.addressComponents||[], full);
     var inp=document.getElementById('addrSearch');
     inp.value = full;                                       // Done 态：回显完整地址
     document.getElementById('addrSearchBox').classList.add('has-text');
@@ -3307,11 +3334,51 @@ function _acComp(comps, type){
   var m=(comps||[]).find(function(c){ return (c.types||[]).indexOf(type)>=0; });
   return m ? (m.long_name||m.longText||m.short_name||m.shortText||'') : '';
 }
-function _fillAddrFromComponents(comps){
+/* 街道行：只要「大厦名 / 街道 / 小区」这一段，门牌、邮编、城市、国家都有自己的框。
+   leadNum 是「有单位号时被挤出来的门牌号」——公寓那种 subpremise=5 / street_number=12，
+   单位号栏放 5，12 就得跟着街道走（「12 Jalan X」），否则这个号码哪都不剩。 */
+function _addrStreetLine(comps, leadNum){
+  var route=_acComp(comps,'route'), premise=_acComp(comps,'premise');
+  var area=_acComp(comps,'neighborhood') || _acComp(comps,'sublocality_level_1') || _acComp(comps,'sublocality');
+  var parts=[], seen={};
+  [premise, (leadNum ? (leadNum+' '+route).trim() : route), area].forEach(function(x){
+    x=(x||'').trim();
+    if(x && !seen[x]){ seen[x]=1; parts.push(x); }   // Google 偶尔把同一个名字同时挂在 premise 和 neighborhood 上
+  });
+  return parts.join('，');
+}
+/* 兜底：组件里拆不出街道行时，退回去切 formatted_address，
+   把已经有独立输入框的那几段（邮编行/城市/国家/门牌号）逐段丢掉 */
+function _addrTrimFull(full, pc, city, unit){
+  if(!full) return '';
+  var norm=function(s){ return String(s).toLowerCase().replace(/[^a-z0-9]/g,''); };
+  return String(full).split(',').map(function(s){ return s.trim(); }).filter(function(s){
+    if(!s) return false;
+    if(/^malaysia$/i.test(s)) return false;                       // 国家没有对应的框
+    if(pc && s.indexOf(pc)>=0) return false;                      // 「75200 Melaka」这种整段丢掉
+    if(city && norm(s)===norm(city)) return false;
+    if(unit && (norm(s)===norm(unit) || norm(s)==='no'+norm(unit))) return false;   // 「No K5」也要认出来
+    return true;
+  }).join('，');
+}
+/* 把联想/反查到的地址拆进各自的框。
+   以前只拆邮编和城市，剩下整条 formatted_address 原样塞进「地址」栏，
+   于是门牌号、邮编、城市在地址栏里又出现一遍，顾客填完还得回头手动删。
+   只在真的解析出值时才写：Google 给不出的字段，保留顾客自己打的，别清空。 */
+function _fillAddrFromComponents(comps, full){
   var pc=_acComp(comps,'postal_code');
   var city=_acComp(comps,'locality') || _acComp(comps,'postal_town') || _acComp(comps,'administrative_area_level_2');
   if(pc) document.getElementById('afPostcode').value=pc;
   if(city) document.getElementById('afCity').value=city;
+
+  var sub=_acComp(comps,'subpremise'), num=_acComp(comps,'street_number');
+  var unit=sub||num;                                  // 公寓优先用单位号，独栋就是门牌号
+  if(unit) document.getElementById('afUnit').value=unit;
+
+  var street=_addrStreetLine(comps, (sub&&num)?num:'');
+  if(!street) street=_addrTrimFull(full, pc, city, unit);
+  if(!street) street=full||'';                        // 实在拆不动，宁可重复也别让地址栏空着
+  if(street) document.getElementById('afAddress').value=street;
 }
 /* GPS 定位后没有文字地址，反查一次把街道/邮编/城市填上（只在用户主动点定位时调，省钱） */
 function _addrReverseFill(lat, lng){
@@ -3319,9 +3386,7 @@ function _addrReverseFill(lat, lng){
   _addrGeocoder.geocode({location:{lat:lat, lng:lng}}, function(res, status){
     if(status!=='OK' || !res || !res[0]) return;
     var r=res[0];
-    _fillAddrFromComponents(r.address_components||[]);
-    var input=document.getElementById('afAddress');   // 完整地址写进「地址」栏，供顾客修改
-    if(input && r.formatted_address) input.value=r.formatted_address;
+    _fillAddrFromComponents(r.address_components||[], r.formatted_address||'');
     var sb=document.getElementById('addrSearch');   // 搜索框回显完整地址（Done 态）
     if(sb && r.formatted_address){ sb.value=r.formatted_address; document.getElementById('addrSearchBox').classList.add('has-text'); }
     _addrCheckValid();
@@ -4514,6 +4579,7 @@ var STATUS = {
   preparing: { label:'制作中', cls:'status-preparing' },
   paid:      { label:'制作中', cls:'status-preparing' },   // POS 标记已付款后 → 进入制作中
   ready:     { label:'待取餐', cls:'status-ready' },
+  delivering:{ label:'配送中', cls:'status-delivering' },   // 只有外卖会走到，由骑手状态推出来（见 _effStatus）
   done:      { label:'已完成', cls:'status-done' },
 };
 
@@ -4677,16 +4743,34 @@ function _autoDoneCutoff(o){
   var cut=new Date(+pt[0],+pt[1]-1,+pt[2],0,0,0,0); cut.setMinutes(closeMin);
   return cut.getTime();
 }
-/* 顾客看到的「有效状态」：外卖骑手送达 / 自取·堂食过了当天营业时间 → 自动已完成 */
+/* 外卖单的进度由骑手状态推出来，而不是看 orders.status —— 那一列在整个配送过程里
+   一直是 preparing（店里没有「已交给骑手」这个操作），顾客会看到食物早就出门了还写着「制作中」。
+   叫车 → 待取（骑手在赶来店里）；骑手取餐 → 配送中；送达 → 完成。
+   只是显示层的换算，数据库那列不动：POS 的队列、报表还是照 orders.status 走。
+   叫车失败/取消（CANCELED 等）不映射，退回 orders.status，店里可以重新叫车。 */
+var LM_STEP = { ASSIGNING_DRIVER:'ready', ON_GOING:'ready', PICKED_UP:'delivering', COMPLETED:'done' };
+/* 顾客看到的「有效状态」：外卖按骑手进度 / 自取·堂食过了当天营业时间 → 自动已完成 */
 function _effStatus(o){
   if(!o) return 'pending';
   if(o.status==='done'||o.status==='void') return o.status;
   var m=_orderMode(o);
-  if(m==='delivery'){ var lm=o.deliveryInfo&&o.deliveryInfo.lalamove; return (lm&&lm.status==='COMPLETED')?'done':o.status; }
+  if(m==='delivery'){
+    var lm=o.deliveryInfo&&o.deliveryInfo.lalamove;
+    // 还没付款就别跳到「待取」：叫车总在付款之后，但历史/异常数据里两者可能对不上
+    if(o.status==='pending') return 'pending';
+    return (lm && LM_STEP[lm.status]) || o.status;
+  }
   if(o.status==='preparing'||o.status==='paid'||o.status==='ready'){
     var cut=_autoDoneCutoff(o); if(cut && Date.now()>cut) return 'done';
   }
   return o.status;
+}
+/* 徽章文案：外卖的「待取」指骑手正赶来店里取餐，不是顾客去柜台取，
+   跟自取单共用「待取餐」会把人看糊涂 */
+function _statusBadge(o, eff){
+  var s = STATUS[eff] || STATUS['pending'];
+  if(eff==='ready' && _orderMode(o)==='delivery') return {label:'骑手待取', cls:s.cls};
+  return s;
 }
 function renderOrdersList(){
   var list = document.getElementById('ordersList');
@@ -4708,7 +4792,7 @@ function renderOrdersList(){
   var html ='';
   for(var i=0;i<filtered.length;i++){
     var o = filtered[i];
-    var s = STATUS[_effStatus(o)] || STATUS['pending'];
+    var s = _statusBadge(o, _effStatus(o));
     var payLabel = o.payMethod==='tng'?'Touch n Go':'柜台支付';
     var preview ='';
     for(var j=0;j<Math.min(2,o.items.length);j++){
@@ -4732,21 +4816,197 @@ function _lmStatusText(code){
     COMPLETED:'已送达', CANCELED:'已取消', REJECTED:'骑手拒单', EXPIRED:'已过期'
   })[code] || (code||'处理中');
 }
+/* ---------- 骑手实时追踪 ---------- */
+/* 两部分数据源，分开管：
+   ① 路线 = Directions 算出来的「店 → 顾客」真实道路路径，一单只算一次（按次计费，
+      而且路线本身不会变，没必要重算）；
+   ② 骑手位置 = lalamove-driver 每 15 秒轮询一次。Lalamove 那头本来就是 10 秒才更新，
+      查得更勤只会拿到同一个点，纯浪费。
+   地图/路线/坐标任何一环挂掉都只是「不画」，绝不能连累订单详情页其它内容。 */
+var _trkMap=null, _trkTimer=null, _trkOrderId=null, _trkRouteKey='', _trkDest=null;
+var _trkDriverMk=null, _trkStoreMk=null, _trkDestMk=null, _trkRouteLine=null;
+
+// 到了这些状态就没有骑手在路上了，停止轮询（COMPLETED 之后 Lalamove 也会返回 403）
+var TRK_ENDED = {COMPLETED:1, CANCELED:1, REJECTED:1, EXPIRED:1};
+
+function _trkNote(msg){
+  var n=document.getElementById('odTrackNote'); if(!n) return;
+  if(msg){ n.textContent=msg; n.classList.remove('hide'); } else { n.classList.add('hide'); }
+}
+
+function _trkStop(){
+  if(_trkTimer){ clearInterval(_trkTimer); _trkTimer=null; }
+  _trkOrderId=null;
+}
+
+// 换单时把上一单的路线和点清掉，否则两单的线会叠在同一张图上
+function _trkClearOverlays(){
+  [_trkDriverMk,_trkStoreMk,_trkDestMk,_trkRouteLine].forEach(function(x){ try{ if(x) x.setMap(null); }catch(e){} });
+  _trkDriverMk=_trkStoreMk=_trkDestMk=_trkRouteLine=null;
+  _trkRouteKey=''; _trkDest=null;
+  _trkInfo(null);                      // 上一单的距离留着会挂到新单头上
+}
+
+function _trkIcon(svg, w, h){
+  return { url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg),
+           scaledSize:new google.maps.Size(w,h), anchor:new google.maps.Point(w/2,h/2) };
+}
+function _trkPinSvg(fill, glyph){
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">'+
+    '<circle cx="18" cy="18" r="13" fill="'+fill+'" stroke="#fff" stroke-width="3"/>'+
+    '<text x="18" y="24" font-size="15" text-anchor="middle">'+glyph+'</text></svg>';
+}
+
+/* 骑手到目标点的距离。用直线（haversine），不是走路线的实际距离——
+   后者要每轮都打一次 Directions，15 秒一次、一单十几分钟，账单撑不住。
+   所以文案上老老实实写「直线」，不假装是导航距离。 */
+function _trkKm(a, b){
+  var R=6371, rad=Math.PI/180;
+  var dLat=(b.lat-a.lat)*rad, dLng=(b.lng-a.lng)*rad;
+  var s=Math.sin(dLat/2)*Math.sin(dLat/2)+
+        Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return R*2*Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+}
+// 先按 10 米取整再决定单位，否则 999 m 会被凑成「1000 m」而不是「1.0 km」
+function _trkDist(km){
+  var m=Math.round(km*1000/10)*10;
+  return m<1000 ? m+' m' : (m/1000).toFixed(1)+' km';
+}
+
+/* 距离条。取餐前后量的不是同一段路：骑手还没到店时，顾客关心的是他还有多久到店，
+   量骑手→顾客会让人以为「快到了」其实食物还没出门。 */
+function _trkInfo(pos, status, driver){
+  var el=document.getElementById('odTrackInfo'); if(!el) return;
+  if(!pos || !_trkDest){ el.classList.remove('show'); el.innerHTML=''; return; }
+  var toMe=status==='PICKED_UP';
+  var km=_trkKm(pos, toMe?_trkDest:STORE_LATLNG);
+  var who=(driver&&driver.name)?_addrEsc(driver.name):'骑手';
+  el.innerHTML='🛵 '+who+' · '+(toMe?'距您':'距门店')+'约 '+_trkDist(km)+
+    '<span class="sub">（直线距离'+(toMe?'':'，尚未取餐')+'）</span>';
+  el.classList.add('show');
+}
+
+function _trkStart(o){
+  var wrap=document.getElementById('odTrackMap');
+  var di=o&&o.deliveryInfo, lm=di&&di.lalamove;
+  // 还没叫车、或这单根本不是外卖：整块地图不显示，别摆一张空图在那
+  if(!di || !di.lat || !di.lng || !lm || !lm.orderId){ _trkStop(); if(wrap) wrap.style.display='none'; return; }
+  if(wrap) wrap.style.display='block';
+  // 已经在追同一单就什么都不做：realtime 每来一条更新都会重进 openOrderDetail，
+  // 每次都重置轮询的话，状态变化频繁时会平白多查好几次位置
+  if(_trkOrderId===o.id && _trkTimer) return;
+  _trkStop();
+  _trkOrderId=o.id;
+  _trkNote('地图加载中…');
+  if(!_gmapsAvailable()){ _trkNote('地图暂不可用'); return; }
+
+  _loadGoogleMaps().then(function(){
+    if(_trkOrderId!==o.id) return;   // 加载期间用户已经关掉/换了单，别再往里画
+    _trkEnsureMap();
+    _trkDrawRoute(o);
+    // 已送达/已取消的单只画路线不查位置：顾客翻历史订单时，每开一单都白打一次
+    // Edge Function + Lalamove（那边这时也一律 403）
+    if(!TRK_ENDED[lm.status]){
+      _trkPoll();                                      // 先立刻要一次，别让用户干等 15 秒
+      _trkTimer=setInterval(_trkPoll, 15000);
+    }
+  }).catch(function(){ _trkNote('地图暂不可用'); });
+}
+
+function _trkEnsureMap(){
+  if(_trkMap){ try{ google.maps.event.trigger(_trkMap,'resize'); }catch(e){} return; }
+  _trkMap=new google.maps.Map(document.getElementById('odTrackCanvas'), {
+    center:STORE_LATLNG, zoom:14, disableDefaultUI:true, clickableIcons:false, gestureHandling:'greedy'
+  });
+}
+
+// DirectionsService 在新版 Maps JS 里归 routes 库；脚本标签加载时通常已挂在 google.maps 上，
+// 两条路都试一遍，省得为了它去改共用的加载器（地址页那张图也在用同一个 loader）
+function _trkDirections(){
+  try{
+    if(window.google && google.maps && google.maps.DirectionsService) return Promise.resolve(new google.maps.DirectionsService());
+    if(google.maps.importLibrary) return google.maps.importLibrary('routes').then(function(lib){ return new lib.DirectionsService(); });
+  }catch(e){}
+  return Promise.reject(new Error('no-directions'));
+}
+
+function _trkDrawRoute(o){
+  if(_trkRouteKey===o.id) return;          // 同一单已经画过，别再花一次 Directions 的钱
+  _trkClearOverlays();
+  _trkRouteKey=o.id;
+  var dest={lat:Number(o.deliveryInfo.lat), lng:Number(o.deliveryInfo.lng)};
+  _trkDest=dest;                                     // 距离条要拿它做终点
+
+  // 端点先画上：万一 Directions 失败，至少「店」和「家」两个点还在图上，不是一片空白
+  _trkStoreMk=new google.maps.Marker({map:_trkMap, position:STORE_LATLNG, icon:_trkIcon(_trkPinSvg('#8D0505','🏠'),36,36), zIndex:2});
+  _trkDestMk =new google.maps.Marker({map:_trkMap, position:dest,        icon:_trkIcon(_trkPinSvg('#FFDE5B','📍'),36,36), zIndex:2});
+  _trkFit();
+  _trkNote('');
+
+  _trkDirections().then(function(svc){
+    svc.route({origin:STORE_LATLNG, destination:dest, travelMode:'DRIVING'}, function(res, st){
+      if(_trkRouteKey!==o.id) return;                       // 期间换单了，这条线已经不属于当前页
+      if(st!=='OK' || !res || !res.routes || !res.routes[0]) return;   // 算不出路线就只留两个端点
+      _trkRouteLine=new google.maps.Polyline({
+        map:_trkMap, path:res.routes[0].overview_path,
+        strokeColor:'#8D0505', strokeOpacity:.85, strokeWeight:5, zIndex:1
+      });
+      _trkFit();
+    });
+  }).catch(function(){});
+}
+
+// 把店、家、骑手三点都框进视野；只有一个点时别让地图缩到最大级别
+function _trkFit(){
+  if(!_trkMap) return;
+  var b=new google.maps.LatLngBounds(), n=0;
+  [_trkStoreMk,_trkDestMk,_trkDriverMk].forEach(function(m){ if(m){ b.extend(m.getPosition()); n++; } });
+  if(_trkRouteLine){ _trkRouteLine.getPath().forEach(function(p){ b.extend(p); n++; }); }
+  if(!n) return;
+  _trkMap.fitBounds(b, {top:28,right:28,bottom:28,left:28});
+}
+
+function _trkPoll(){
+  var id=_trkOrderId;
+  if(!id || !db) return;
+  db.functions.invoke('lalamove-driver', {body:{orderId:id}}).then(function(res){
+    if(_trkOrderId!==id) return;                 // 回来时用户已经翻到别的单了
+    var d=res&&res.data;
+    if(!d || !d.ok || !d.available){
+      // 没位置不是错：可能骑手还没到店取餐（Lalamove 在那之前一律 403）
+      if(!_trkDriverMk) _trkNote(_trkMap ? '' : '地图暂不可用');
+      if(d && d.status && TRK_ENDED[d.status] && _trkTimer){ clearInterval(_trkTimer); _trkTimer=null; }
+      return;
+    }
+    var pos={lat:Number(d.coordinates.lat), lng:Number(d.coordinates.lng)};
+    if(_trkDriverMk){ _trkDriverMk.setPosition(pos); }
+    else{
+      _trkDriverMk=new google.maps.Marker({map:_trkMap, position:pos, icon:_trkIcon(_trkPinSvg('#B6F3FF','🛵'),40,40), zIndex:3});
+      _trkFit();                                  // 骑手第一次出现时重新框一次视野
+    }
+    _trkInfo(pos, d.status, d.driver);
+    _trkNote('');
+    if(d.status && TRK_ENDED[d.status] && _trkTimer){ clearInterval(_trkTimer); _trkTimer=null; }
+  }).catch(function(){});
+}
+
 function openOrderDetail(id){
   var o = null;
   for(var i=0;i<_orders.length;i++){ if(_orders[i].id===id){ o=_orders[i]; break; } }
   if(!o) return;
   _orderDetail = o;
   var eff = _effStatus(o);
-  var s = STATUS[eff]||STATUS['pending'];
+  var s = _statusBadge(o, eff);
 
   document.getElementById('odNum').textContent = _orderCode(o);
   document.getElementById('odDate').textContent = '#'+o.orderNum+' · '+fmtDate(o.createdAt);
   document.getElementById('odStatusBadge').innerHTML ='<span class="order-status-badge '+s.cls+'">'+s.label+'</span>';
 
-  // steps
-  var steps = ['pending','preparing','ready','done'];
-  var stepLabels = {pending:'下单',preparing:'制作中',ready:'待取',done:'完成'};
+  // steps —— 外卖多一节「配送中」，自取/堂食没有这一段
+  var isDelivery = _orderMode(o)==='delivery';
+  var steps = isDelivery ? ['pending','preparing','ready','delivering','done']
+                         : ['pending','preparing','ready','done'];
+  var stepLabels = {pending:'下单',preparing:'制作中',ready:isDelivery?'骑手待取':'待取',delivering:'配送中',done:'完成'};
   var curIdx = steps.indexOf(eff);
   var bar ='';
   for(var i=0;i<steps.length;i++){
@@ -4780,8 +5040,11 @@ function openOrderDetail(id){
       h+='<div class="od-summary"><span class="od-summary-label">配送状态</span><span class="od-summary-val">商家安排配送中</span></div>';
     }
     dvBody.innerHTML=h; dvBlock.style.display='block';
+    _trkStart(o);
   } else {
     dvBlock.style.display='none';
+    _trkStop();
+    var tm=document.getElementById('odTrackMap'); if(tm) tm.style.display='none';
   }
 
   document.getElementById('orderDetailSheet').classList.add('show');
@@ -4794,6 +5057,7 @@ function closeOrderDetail(){
   if(sheet) sheet.classList.remove('show');
   if(ov) ov.classList.remove('show');
   _orderDetail = null;
+  _trkStop();   // 页面关了还每 15 秒查一次位置，纯属白烧配额
 }
 
 /* 按当前商品的每个规格组，从历史订单里找回对应的选择：
