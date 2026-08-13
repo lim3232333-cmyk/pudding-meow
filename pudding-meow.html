@@ -3307,10 +3307,9 @@ function _addrPickSugg(i){
     var loc=place.location; if(!loc) return;
     if(_addrMap){ _addrMap.panTo(loc); _addrMap.setZoom(17); }   // idle 会顺手记坐标
     else { _addrLocateCoords={lat:loc.lat(), lng:loc.lng()}; }
-    _fillAddrFromComponents(place.addressComponents||[]);
-    // 完整地址写进「地址」栏，供顾客修改（万一搜不到精确门牌）
+    // 拆进各自的框（门牌/地址/邮编/城市）；搜索框那边仍然回显完整地址
     var full = place.formattedAddress || place.displayName || '';
-    if(full) document.getElementById('afAddress').value=full;
+    _fillAddrFromComponents(place.addressComponents||[], full);
     var inp=document.getElementById('addrSearch');
     inp.value = full;                                       // Done 态：回显完整地址
     document.getElementById('addrSearchBox').classList.add('has-text');
@@ -3325,11 +3324,51 @@ function _acComp(comps, type){
   var m=(comps||[]).find(function(c){ return (c.types||[]).indexOf(type)>=0; });
   return m ? (m.long_name||m.longText||m.short_name||m.shortText||'') : '';
 }
-function _fillAddrFromComponents(comps){
+/* 街道行：只要「大厦名 / 街道 / 小区」这一段，门牌、邮编、城市、国家都有自己的框。
+   leadNum 是「有单位号时被挤出来的门牌号」——公寓那种 subpremise=5 / street_number=12，
+   单位号栏放 5，12 就得跟着街道走（「12 Jalan X」），否则这个号码哪都不剩。 */
+function _addrStreetLine(comps, leadNum){
+  var route=_acComp(comps,'route'), premise=_acComp(comps,'premise');
+  var area=_acComp(comps,'neighborhood') || _acComp(comps,'sublocality_level_1') || _acComp(comps,'sublocality');
+  var parts=[], seen={};
+  [premise, (leadNum ? (leadNum+' '+route).trim() : route), area].forEach(function(x){
+    x=(x||'').trim();
+    if(x && !seen[x]){ seen[x]=1; parts.push(x); }   // Google 偶尔把同一个名字同时挂在 premise 和 neighborhood 上
+  });
+  return parts.join('，');
+}
+/* 兜底：组件里拆不出街道行时，退回去切 formatted_address，
+   把已经有独立输入框的那几段（邮编行/城市/国家/门牌号）逐段丢掉 */
+function _addrTrimFull(full, pc, city, unit){
+  if(!full) return '';
+  var norm=function(s){ return String(s).toLowerCase().replace(/[^a-z0-9]/g,''); };
+  return String(full).split(',').map(function(s){ return s.trim(); }).filter(function(s){
+    if(!s) return false;
+    if(/^malaysia$/i.test(s)) return false;                       // 国家没有对应的框
+    if(pc && s.indexOf(pc)>=0) return false;                      // 「75200 Melaka」这种整段丢掉
+    if(city && norm(s)===norm(city)) return false;
+    if(unit && (norm(s)===norm(unit) || norm(s)==='no'+norm(unit))) return false;   // 「No K5」也要认出来
+    return true;
+  }).join('，');
+}
+/* 把联想/反查到的地址拆进各自的框。
+   以前只拆邮编和城市，剩下整条 formatted_address 原样塞进「地址」栏，
+   于是门牌号、邮编、城市在地址栏里又出现一遍，顾客填完还得回头手动删。
+   只在真的解析出值时才写：Google 给不出的字段，保留顾客自己打的，别清空。 */
+function _fillAddrFromComponents(comps, full){
   var pc=_acComp(comps,'postal_code');
   var city=_acComp(comps,'locality') || _acComp(comps,'postal_town') || _acComp(comps,'administrative_area_level_2');
   if(pc) document.getElementById('afPostcode').value=pc;
   if(city) document.getElementById('afCity').value=city;
+
+  var sub=_acComp(comps,'subpremise'), num=_acComp(comps,'street_number');
+  var unit=sub||num;                                  // 公寓优先用单位号，独栋就是门牌号
+  if(unit) document.getElementById('afUnit').value=unit;
+
+  var street=_addrStreetLine(comps, (sub&&num)?num:'');
+  if(!street) street=_addrTrimFull(full, pc, city, unit);
+  if(!street) street=full||'';                        // 实在拆不动，宁可重复也别让地址栏空着
+  if(street) document.getElementById('afAddress').value=street;
 }
 /* GPS 定位后没有文字地址，反查一次把街道/邮编/城市填上（只在用户主动点定位时调，省钱） */
 function _addrReverseFill(lat, lng){
@@ -3337,9 +3376,7 @@ function _addrReverseFill(lat, lng){
   _addrGeocoder.geocode({location:{lat:lat, lng:lng}}, function(res, status){
     if(status!=='OK' || !res || !res[0]) return;
     var r=res[0];
-    _fillAddrFromComponents(r.address_components||[]);
-    var input=document.getElementById('afAddress');   // 完整地址写进「地址」栏，供顾客修改
-    if(input && r.formatted_address) input.value=r.formatted_address;
+    _fillAddrFromComponents(r.address_components||[], r.formatted_address||'');
     var sb=document.getElementById('addrSearch');   // 搜索框回显完整地址（Done 态）
     if(sb && r.formatted_address){ sb.value=r.formatted_address; document.getElementById('addrSearchBox').classList.add('has-text'); }
     _addrCheckValid();
