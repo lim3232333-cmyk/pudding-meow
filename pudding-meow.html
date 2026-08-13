@@ -517,6 +517,18 @@
     border-radius:12px; height:40px; font-weight:700; font-size:14px; cursor:pointer;
     font-family:"Noto Sans SC",sans-serif;
   }
+  /* 骑手实时追踪地图：店→顾客的真实路线 + 每 15 秒挪一次的骑手点 */
+  .od-track-map{
+    position:relative; width:100%; height:200px; margin:10px 0 12px;
+    border-radius:12px; overflow:hidden; background:#E9E7DC;
+  }
+  .od-track-canvas{ width:100%; height:100%; }
+  /* 地图没起来（没 key / 被墙 / 还没坐标）时盖在上面的说明，别留一块灰底让人以为坏了 */
+  .od-track-note{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:12px; color:var(--muted); background:#E9E7DC; text-align:center; padding:0 16px;
+  }
+  .od-track-note.hide{ display:none; }
 
 
   ::-webkit-scrollbar{ width:0; height:0; }
@@ -1465,6 +1477,12 @@
       <div id="odDeliverBlock" style="display:none">
         <hr class="od-divider">
         <div class="od-section-title">配送 Delivery</div>
+        <!-- 地图容器放在 odDeliverBody 外面：body 每次都整块 innerHTML 重写，
+             地图实例挂在里面的话每轮渲染都会被冲掉、重建一次，闪且费钱 -->
+        <div class="od-track-map" id="odTrackMap" style="display:none">
+          <div class="od-track-canvas" id="odTrackCanvas"></div>
+          <div class="od-track-note" id="odTrackNote">地图加载中…</div>
+        </div>
         <div id="odDeliverBody"></div>
       </div>
       <hr class="od-divider">
@@ -4732,6 +4750,148 @@ function _lmStatusText(code){
     COMPLETED:'已送达', CANCELED:'已取消', REJECTED:'骑手拒单', EXPIRED:'已过期'
   })[code] || (code||'处理中');
 }
+/* ---------- 骑手实时追踪 ---------- */
+/* 两部分数据源，分开管：
+   ① 路线 = Directions 算出来的「店 → 顾客」真实道路路径，一单只算一次（按次计费，
+      而且路线本身不会变，没必要重算）；
+   ② 骑手位置 = lalamove-driver 每 15 秒轮询一次。Lalamove 那头本来就是 10 秒才更新，
+      查得更勤只会拿到同一个点，纯浪费。
+   地图/路线/坐标任何一环挂掉都只是「不画」，绝不能连累订单详情页其它内容。 */
+var _trkMap=null, _trkTimer=null, _trkOrderId=null, _trkRouteKey='';
+var _trkDriverMk=null, _trkStoreMk=null, _trkDestMk=null, _trkRouteLine=null;
+
+// 到了这些状态就没有骑手在路上了，停止轮询（COMPLETED 之后 Lalamove 也会返回 403）
+var TRK_ENDED = {COMPLETED:1, CANCELED:1, REJECTED:1, EXPIRED:1};
+
+function _trkNote(msg){
+  var n=document.getElementById('odTrackNote'); if(!n) return;
+  if(msg){ n.textContent=msg; n.classList.remove('hide'); } else { n.classList.add('hide'); }
+}
+
+function _trkStop(){
+  if(_trkTimer){ clearInterval(_trkTimer); _trkTimer=null; }
+  _trkOrderId=null;
+}
+
+// 换单时把上一单的路线和点清掉，否则两单的线会叠在同一张图上
+function _trkClearOverlays(){
+  [_trkDriverMk,_trkStoreMk,_trkDestMk,_trkRouteLine].forEach(function(x){ try{ if(x) x.setMap(null); }catch(e){} });
+  _trkDriverMk=_trkStoreMk=_trkDestMk=_trkRouteLine=null;
+  _trkRouteKey='';
+}
+
+function _trkIcon(svg, w, h){
+  return { url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg),
+           scaledSize:new google.maps.Size(w,h), anchor:new google.maps.Point(w/2,h/2) };
+}
+function _trkPinSvg(fill, glyph){
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">'+
+    '<circle cx="18" cy="18" r="13" fill="'+fill+'" stroke="#fff" stroke-width="3"/>'+
+    '<text x="18" y="24" font-size="15" text-anchor="middle">'+glyph+'</text></svg>';
+}
+
+function _trkStart(o){
+  var wrap=document.getElementById('odTrackMap');
+  var di=o&&o.deliveryInfo, lm=di&&di.lalamove;
+  // 还没叫车、或这单根本不是外卖：整块地图不显示，别摆一张空图在那
+  if(!di || !di.lat || !di.lng || !lm || !lm.orderId){ _trkStop(); if(wrap) wrap.style.display='none'; return; }
+  if(wrap) wrap.style.display='block';
+  // 已经在追同一单就什么都不做：realtime 每来一条更新都会重进 openOrderDetail，
+  // 每次都重置轮询的话，状态变化频繁时会平白多查好几次位置
+  if(_trkOrderId===o.id && _trkTimer) return;
+  _trkStop();
+  _trkOrderId=o.id;
+  _trkNote('地图加载中…');
+  if(!_gmapsAvailable()){ _trkNote('地图暂不可用'); return; }
+
+  _loadGoogleMaps().then(function(){
+    if(_trkOrderId!==o.id) return;   // 加载期间用户已经关掉/换了单，别再往里画
+    _trkEnsureMap();
+    _trkDrawRoute(o);
+    // 已送达/已取消的单只画路线不查位置：顾客翻历史订单时，每开一单都白打一次
+    // Edge Function + Lalamove（那边这时也一律 403）
+    if(!TRK_ENDED[lm.status]){
+      _trkPoll();                                      // 先立刻要一次，别让用户干等 15 秒
+      _trkTimer=setInterval(_trkPoll, 15000);
+    }
+  }).catch(function(){ _trkNote('地图暂不可用'); });
+}
+
+function _trkEnsureMap(){
+  if(_trkMap){ try{ google.maps.event.trigger(_trkMap,'resize'); }catch(e){} return; }
+  _trkMap=new google.maps.Map(document.getElementById('odTrackCanvas'), {
+    center:STORE_LATLNG, zoom:14, disableDefaultUI:true, clickableIcons:false, gestureHandling:'greedy'
+  });
+}
+
+// DirectionsService 在新版 Maps JS 里归 routes 库；脚本标签加载时通常已挂在 google.maps 上，
+// 两条路都试一遍，省得为了它去改共用的加载器（地址页那张图也在用同一个 loader）
+function _trkDirections(){
+  try{
+    if(window.google && google.maps && google.maps.DirectionsService) return Promise.resolve(new google.maps.DirectionsService());
+    if(google.maps.importLibrary) return google.maps.importLibrary('routes').then(function(lib){ return new lib.DirectionsService(); });
+  }catch(e){}
+  return Promise.reject(new Error('no-directions'));
+}
+
+function _trkDrawRoute(o){
+  if(_trkRouteKey===o.id) return;          // 同一单已经画过，别再花一次 Directions 的钱
+  _trkClearOverlays();
+  _trkRouteKey=o.id;
+  var dest={lat:Number(o.deliveryInfo.lat), lng:Number(o.deliveryInfo.lng)};
+
+  // 端点先画上：万一 Directions 失败，至少「店」和「家」两个点还在图上，不是一片空白
+  _trkStoreMk=new google.maps.Marker({map:_trkMap, position:STORE_LATLNG, icon:_trkIcon(_trkPinSvg('#8D0505','🏠'),36,36), zIndex:2});
+  _trkDestMk =new google.maps.Marker({map:_trkMap, position:dest,        icon:_trkIcon(_trkPinSvg('#FFDE5B','📍'),36,36), zIndex:2});
+  _trkFit();
+  _trkNote('');
+
+  _trkDirections().then(function(svc){
+    svc.route({origin:STORE_LATLNG, destination:dest, travelMode:'DRIVING'}, function(res, st){
+      if(_trkRouteKey!==o.id) return;                       // 期间换单了，这条线已经不属于当前页
+      if(st!=='OK' || !res || !res.routes || !res.routes[0]) return;   // 算不出路线就只留两个端点
+      _trkRouteLine=new google.maps.Polyline({
+        map:_trkMap, path:res.routes[0].overview_path,
+        strokeColor:'#8D0505', strokeOpacity:.85, strokeWeight:5, zIndex:1
+      });
+      _trkFit();
+    });
+  }).catch(function(){});
+}
+
+// 把店、家、骑手三点都框进视野；只有一个点时别让地图缩到最大级别
+function _trkFit(){
+  if(!_trkMap) return;
+  var b=new google.maps.LatLngBounds(), n=0;
+  [_trkStoreMk,_trkDestMk,_trkDriverMk].forEach(function(m){ if(m){ b.extend(m.getPosition()); n++; } });
+  if(_trkRouteLine){ _trkRouteLine.getPath().forEach(function(p){ b.extend(p); n++; }); }
+  if(!n) return;
+  _trkMap.fitBounds(b, {top:28,right:28,bottom:28,left:28});
+}
+
+function _trkPoll(){
+  var id=_trkOrderId;
+  if(!id || !db) return;
+  db.functions.invoke('lalamove-driver', {body:{orderId:id}}).then(function(res){
+    if(_trkOrderId!==id) return;                 // 回来时用户已经翻到别的单了
+    var d=res&&res.data;
+    if(!d || !d.ok || !d.available){
+      // 没位置不是错：可能骑手还没到店取餐（Lalamove 在那之前一律 403）
+      if(!_trkDriverMk) _trkNote(_trkMap ? '' : '地图暂不可用');
+      if(d && d.status && TRK_ENDED[d.status] && _trkTimer){ clearInterval(_trkTimer); _trkTimer=null; }
+      return;
+    }
+    var pos={lat:Number(d.coordinates.lat), lng:Number(d.coordinates.lng)};
+    if(_trkDriverMk){ _trkDriverMk.setPosition(pos); }
+    else{
+      _trkDriverMk=new google.maps.Marker({map:_trkMap, position:pos, icon:_trkIcon(_trkPinSvg('#B6F3FF','🛵'),40,40), zIndex:3});
+      _trkFit();                                  // 骑手第一次出现时重新框一次视野
+    }
+    _trkNote('');
+    if(d.status && TRK_ENDED[d.status] && _trkTimer){ clearInterval(_trkTimer); _trkTimer=null; }
+  }).catch(function(){});
+}
+
 function openOrderDetail(id){
   var o = null;
   for(var i=0;i<_orders.length;i++){ if(_orders[i].id===id){ o=_orders[i]; break; } }
@@ -4780,8 +4940,11 @@ function openOrderDetail(id){
       h+='<div class="od-summary"><span class="od-summary-label">配送状态</span><span class="od-summary-val">商家安排配送中</span></div>';
     }
     dvBody.innerHTML=h; dvBlock.style.display='block';
+    _trkStart(o);
   } else {
     dvBlock.style.display='none';
+    _trkStop();
+    var tm=document.getElementById('odTrackMap'); if(tm) tm.style.display='none';
   }
 
   document.getElementById('orderDetailSheet').classList.add('show');
@@ -4794,6 +4957,7 @@ function closeOrderDetail(){
   if(sheet) sheet.classList.remove('show');
   if(ov) ov.classList.remove('show');
   _orderDetail = null;
+  _trkStop();   // 页面关了还每 15 秒查一次位置，纯属白烧配额
 }
 
 /* 按当前商品的每个规格组，从历史订单里找回对应的选择：
