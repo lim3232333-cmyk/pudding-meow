@@ -425,6 +425,7 @@
   .status-pending{ background:var(--yellow); color:var(--red); }
   .status-preparing{ background:var(--blue); color:var(--red); }
   .status-ready{ background:#6ee07a; color:#1a4a20; }
+  .status-delivering{ background:#FFB454; color:#5A2E00; }   /* 外卖专属：骑手已取餐、在路上 */
   .status-done{ background:rgba(141,5,5,.12); color:var(--red); }
 
   .order-card-body{ padding:12px 14px; }
@@ -4569,6 +4570,7 @@ var STATUS = {
   preparing: { label:'制作中', cls:'status-preparing' },
   paid:      { label:'制作中', cls:'status-preparing' },   // POS 标记已付款后 → 进入制作中
   ready:     { label:'待取餐', cls:'status-ready' },
+  delivering:{ label:'配送中', cls:'status-delivering' },   // 只有外卖会走到，由骑手状态推出来（见 _effStatus）
   done:      { label:'已完成', cls:'status-done' },
 };
 
@@ -4732,16 +4734,34 @@ function _autoDoneCutoff(o){
   var cut=new Date(+pt[0],+pt[1]-1,+pt[2],0,0,0,0); cut.setMinutes(closeMin);
   return cut.getTime();
 }
-/* 顾客看到的「有效状态」：外卖骑手送达 / 自取·堂食过了当天营业时间 → 自动已完成 */
+/* 外卖单的进度由骑手状态推出来，而不是看 orders.status —— 那一列在整个配送过程里
+   一直是 preparing（店里没有「已交给骑手」这个操作），顾客会看到食物早就出门了还写着「制作中」。
+   叫车 → 待取（骑手在赶来店里）；骑手取餐 → 配送中；送达 → 完成。
+   只是显示层的换算，数据库那列不动：POS 的队列、报表还是照 orders.status 走。
+   叫车失败/取消（CANCELED 等）不映射，退回 orders.status，店里可以重新叫车。 */
+var LM_STEP = { ASSIGNING_DRIVER:'ready', ON_GOING:'ready', PICKED_UP:'delivering', COMPLETED:'done' };
+/* 顾客看到的「有效状态」：外卖按骑手进度 / 自取·堂食过了当天营业时间 → 自动已完成 */
 function _effStatus(o){
   if(!o) return 'pending';
   if(o.status==='done'||o.status==='void') return o.status;
   var m=_orderMode(o);
-  if(m==='delivery'){ var lm=o.deliveryInfo&&o.deliveryInfo.lalamove; return (lm&&lm.status==='COMPLETED')?'done':o.status; }
+  if(m==='delivery'){
+    var lm=o.deliveryInfo&&o.deliveryInfo.lalamove;
+    // 还没付款就别跳到「待取」：叫车总在付款之后，但历史/异常数据里两者可能对不上
+    if(o.status==='pending') return 'pending';
+    return (lm && LM_STEP[lm.status]) || o.status;
+  }
   if(o.status==='preparing'||o.status==='paid'||o.status==='ready'){
     var cut=_autoDoneCutoff(o); if(cut && Date.now()>cut) return 'done';
   }
   return o.status;
+}
+/* 徽章文案：外卖的「待取」指骑手正赶来店里取餐，不是顾客去柜台取，
+   跟自取单共用「待取餐」会把人看糊涂 */
+function _statusBadge(o, eff){
+  var s = STATUS[eff] || STATUS['pending'];
+  if(eff==='ready' && _orderMode(o)==='delivery') return {label:'骑手待取', cls:s.cls};
+  return s;
 }
 function renderOrdersList(){
   var list = document.getElementById('ordersList');
@@ -4763,7 +4783,7 @@ function renderOrdersList(){
   var html ='';
   for(var i=0;i<filtered.length;i++){
     var o = filtered[i];
-    var s = STATUS[_effStatus(o)] || STATUS['pending'];
+    var s = _statusBadge(o, _effStatus(o));
     var payLabel = o.payMethod==='tng'?'Touch n Go':'柜台支付';
     var preview ='';
     for(var j=0;j<Math.min(2,o.items.length);j++){
@@ -4935,15 +4955,17 @@ function openOrderDetail(id){
   if(!o) return;
   _orderDetail = o;
   var eff = _effStatus(o);
-  var s = STATUS[eff]||STATUS['pending'];
+  var s = _statusBadge(o, eff);
 
   document.getElementById('odNum').textContent = _orderCode(o);
   document.getElementById('odDate').textContent = '#'+o.orderNum+' · '+fmtDate(o.createdAt);
   document.getElementById('odStatusBadge').innerHTML ='<span class="order-status-badge '+s.cls+'">'+s.label+'</span>';
 
-  // steps
-  var steps = ['pending','preparing','ready','done'];
-  var stepLabels = {pending:'下单',preparing:'制作中',ready:'待取',done:'完成'};
+  // steps —— 外卖多一节「配送中」，自取/堂食没有这一段
+  var isDelivery = _orderMode(o)==='delivery';
+  var steps = isDelivery ? ['pending','preparing','ready','delivering','done']
+                         : ['pending','preparing','ready','done'];
+  var stepLabels = {pending:'下单',preparing:'制作中',ready:isDelivery?'骑手待取':'待取',delivering:'配送中',done:'完成'};
   var curIdx = steps.indexOf(eff);
   var bar ='';
   for(var i=0;i<steps.length;i++){
