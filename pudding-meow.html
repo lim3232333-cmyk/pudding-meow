@@ -5316,13 +5316,28 @@ function closeRegister(){
   document.getElementById('memHome').style.display='block';
 }
 function openRegister(){ switchTab('profile'); setTimeout(showRegisterForm, 80); }
+/* 服务端只有 _auth_member 会抛「登录状态无效，请重新登录」，那才是真的该登出。
+   别的错误（网络抖动、Supabase 打嗝、PostgREST 缓存没刷新、限流…）都是暂时的，
+   不能当成会话失效。 */
+function _isAuthErr(err){
+  if(!err) return false;
+  return /登录状态无效|重新登录/.test(String(err.message||err.hint||err.details||''));
+}
 function refreshMemberProfile(){
   if(!db || !_memberId || !_memberToken) return Promise.resolve();
   return db.rpc('rpc_get_my_profile', {p_member_id:_memberId, p_session_token:_memberToken}).then(function(res){
-    if(res.error){ _memClearSession(); return; }
+    if(res.error){
+      /* 以前这里是「一有 error 就 _memClearSession()」——网络抖一下就把正在登录的
+         顾客静默踢下线。他自己没察觉（界面上只是会员卡变回游客卡），下一单就以游客
+         身份下进去，orders.member_id 是空的，买单自然不加 XP/Coin，而且全程没有任何提示。
+         现在只认服务端明说的「登录状态无效」，其余的保留会话，下次再刷。 */
+      if(_isAuthErr(res.error)) _memClearSession();
+      else console.error('rpc_get_my_profile（保留登录态）:', res.error);
+      return;
+    }
     _memberProfile = res.data && res.data[0];
     _renderHomeMemberBar();
-  }).catch(function(e){});
+  }).catch(function(e){ console.error('rpc_get_my_profile:', e); });
 }
 
 /* ===== Face ID / 指纹快速登录（WebAuthn 平台认证器）=====
