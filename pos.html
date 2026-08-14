@@ -1793,8 +1793,11 @@ var cart=[],selIdx=-1,payMethod='cash',taMode=true;
 /* 待付款单核对模式：点 Pending Payment 队列的 Payment 后，把该单商品+会员资料
    载入购物栏——购物栏这时候是可以编辑的（删行/改数量/改价，正常购物栏能干的这里都能干），
    店员发现有重复/多点的行可以直接删/改，改完点 Payment 会按购物栏现在的样子收款、
-   并把订单同步成编辑后的内容（_confirmPendPay 里落库）。真要整单作废用旁边三角形
-   → Delete All（voidOrder）。_pendReviewOrder 只管「购物栏现在是不是在核对某张待付款单」，
+   并把订单同步成编辑后的内容（_confirmPendPay 里落库）。
+   核对期间 Delete / Delete All 都只动购物栏，不碰订单本身：点开一张单常常只是想看看
+   顾客点了什么（有客人是待会才来付钱），清购物栏不该把人家的单废掉。整单作废只有
+   一个入口——待付款弹窗里每行的「取消」按钮。
+   _pendReviewOrder 只管「购物栏现在是不是在核对某张待付款单」，
    会员/充值这类跟单据编辑无关的操作（Voucher/Top up）还是挡住，避免跟核对流程混在一起。 */
 var _pendReviewOrder=null;
 function _reviewGuard(){
@@ -2299,12 +2302,15 @@ document.addEventListener('click',function(e){
 });
 function deleteAllCart(){
   closeDeleteMenu();
-  // 核对待付款单时，Delete All 不是清空购物栏草稿，是取消这一整张待付款单（重复单场景）
+  /* 核对待付款单时：Delete All 只是清掉购物栏、退出核对，那张单原样留在待付款队列里。
+     以前这里是整单作废（voidOrder）——但店员点开一张单，多半只是想看看顾客点了什么
+     （有些客人是待会才来付钱），顺手清个购物栏就把人家的单废掉了，代价太大。
+     真要作废，待付款弹窗里每一行都有「取消」按钮，那才是明确的意图。 */
   if(_pendReviewOrder){
-    var oid=_pendReviewOrder.id;
-    voidOrder(oid);   // 里面自带 confirm()，店员没确认就什么都不会变
-    var o=_findOrder(oid);
-    if(o && o.status==='void'){ _exitPendReview(); updPend(); }
+    if(!confirm('退出核对并清空购物栏？这张待付款单会原样留在待付款队列里。')) return;
+    _exitPendReview();          // 连同 _payPendId 一起清掉，免得下一次 Payment 结算到这张单上
+    updPend();
+    showN('已退出核对，订单仍在待付款队列');
     return;
   }
   if(!cart.length){ showN('购物车是空的'); return; }
@@ -2943,9 +2949,11 @@ function payPend(id){
     _posMember=null; _renderPosMember();
     custEl.value=o.customerName||'';
   }
-  showN('待付款单已载入购物栏，核对无误请点 Payment 收款；重复单用三角形 → Delete All 整单取消');
+  showN('待付款单已载入购物栏，核对无误请点 Payment 收款；只是看看就用三角形 → Delete All 退出，单子照留');
 }
-/* 核对结束（付完款或整单取消）：把购物栏、桌号/电话框、会员资料都还原成建新单前的样子 */
+/* 核对结束（付完款，或点 Delete All 退出核对）：把购物栏、桌号/电话框、会员资料
+   都还原成建新单前的样子。注意这里只动 POS 本地的界面状态，不碰订单本身——
+   退出核对之后那张单还在待付款队列里，等客人回来照样能收款。 */
 function _exitPendReview(){
   _pendReviewOrder=null; _payPendId=null;
   cart=[]; selIdx=-1;
