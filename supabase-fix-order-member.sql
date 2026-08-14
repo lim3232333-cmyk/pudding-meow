@@ -46,12 +46,15 @@ with cand as (select id, phone, nickname from public.members where regexp_replac
                where o.order_num = '这里填单号'
                  and coalesce(o.ta_mode,'') not in ('recharge','reservation')
                order by o.created_at desc limit 1)
-select (select count(*) from cand) as 匹配到的会员数,
+select '这里填单号' as 你填的单号, '这里填手机号' as 你填的手机号,
+       (select count(*) from cand) as 匹配到的会员数,
        (select string_agg(phone||'('||nickname||')','、') from cand) as 匹配到谁,
        t.order_num as 单号, t.total as 金额, (t.原member is not null) as 单子已绑会员,
-       case when (select count(*) from cand) = 0 then '❌ 找不到这个手机号的会员'
+       case when regexp_replace('这里填手机号','\D','','g') = ''
+                 then '❌ 手机号占位符没替换（填的内容里一个数字都没有）。用编辑器的「全部替换」——它在文件里出现好几处，只改第一处是不够的'
+            when (select count(*) from cand) = 0 then '❌ 这个手机号在会员表里找不到（对一下上面「你填的手机号」，再用第 0 步查真实号码）'
             when (select count(*) from cand) > 1 then '❌ 匹配到多个会员，请把手机号填完整（本次不会改动任何数据）'
-            when t.order_id is null   then '❌ 找不到这个单号'
+            when t.order_id is null   then '❌ 找不到这个单号（对一下上面「你填的单号」：别带 #，也别漏了替换）'
             when t.原member is not null then '⚠ 这单已经绑了会员，不会改动'
             else '✅ 可以补' end as 检查
   from tgt t;
