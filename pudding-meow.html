@@ -260,7 +260,26 @@
   .sub-body.loose{ padding-top:8px; }   /* 没挂子分类的散货排在最前面，顶上补回 8 的留白 */
   /* 商品行（Figma 841:868）：缩略图 100 圆角 16，右栏与图等高、名字顶格、价格与加减贴底 */
   .item-row{ display:flex; gap:10px; cursor:pointer; align-items:flex-start; }
-  .item-thumb{ width:100px; height:100px; flex-shrink:0; background:var(--red); border-radius:16px; }
+  .item-thumb{ position:relative; width:100px; height:100px; flex-shrink:0; background:var(--red); border-radius:16px; }
+  /* 售罄：照常列出但点不进去。图片压暗 + 盖一条 SOLD OUT，加购按钮整个撤掉，
+     文字转灰——让人一眼看出「有这道，只是今天没了」，而不是以为菜单里压根没有 */
+  .item-row.soldout{ cursor:default; }
+  /* 压暗用叠一层半透明奶油底，不用 opacity——opacity 加在 .item-thumb 上会把
+     里面的 SOLD OUT 徽章一起压淡，那条字反而看不清 */
+  .item-row.soldout .item-thumb{ filter:grayscale(1); }
+  .item-row.soldout .item-thumb::before{
+    content:''; position:absolute; inset:0; border-radius:16px; background:rgba(255,253,214,.55);
+  }
+  .item-row.soldout .name,
+  .item-row.soldout .en,
+  .item-row.soldout .price{ color:#9A9A9A; }
+  .soldout-badge{
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    background:rgba(0,0,0,.72); color:#fff; border-radius:4px;
+    font-size:10px; font-weight:700; letter-spacing:.6px; line-height:1;
+    padding:5px 8px; white-space:nowrap; pointer-events:none;
+  }
+  .soldout-note{ font-size:11px; font-weight:700; color:#9A9A9A; white-space:nowrap; }
   .item-info{ flex:1; min-width:0; align-self:stretch; padding-top:4px; display:flex; flex-direction:column; justify-content:space-between; }
   .item-text{ display:flex; flex-direction:column; gap:4px; }
   .item-info .name{ font-weight:700; font-size:15px; line-height:normal; color:var(--red); }
@@ -3523,18 +3542,21 @@ function _openInMode(channels, mode){
   if(!channels || !channels.length) return true;
   return channels.indexOf(mode||currentMode) >= 0;
 }
-/* 把 menu_items 表的行组装成 menu 对象结构（已售罄的品项对顾客隐藏 = 下架）*/
+/* 把 menu_items 表的行组装成 menu 对象结构。
+   售罄（下架）的品项**照常进菜单**，只打个 soldOut 标记：以前是直接过滤掉，
+   顾客看不到东西，分不清是「本来就没这个」还是「今天卖完了」，只会反复翻着找。
+   点不进去 + 照片上盖「SOLD OUT」比凭空消失清楚得多（外卖平台都是这么做的）。
+   注意「仅POS」和渠道不开放是另一回事——那是真的不该让顾客看见，仍然过滤掉。 */
 function buildMenuFromRows(rows, mode){
   var m = {};
   catTops().forEach(function(c){ m[c.code] = {code:c.code, cn:c.name, en:c.name_en||c.name, items:[], subcats:[]}; });
   (rows||[]).slice().sort(function(a,b){ return (a.sort_order||0)-(b.sort_order||0); }).forEach(function(r){
-    if(r.sold_out) return;
     if(!_openInMode(r.channels, mode)) return;
     if(_catPosOnly(r.cat)) return;                    // 母分类仅POS → 整类商品不进小程序
     if(r.subcat && _catPosOnly(r.subcat)) return;     // 子分类仅POS → 其商品也一起藏，不掉回散装
     var c = r.cat; if(!m[c]) m[c] = {code:c, cn:catName(c), en:catNameEn(c), items:[], subcats:[]};
     m[c].items.push({ id:r.id, name:r.name, en:r.en||'', price:Number(r.price)||0, desc:r.descr||'',
-      subcat:r.subcat||'',
+      subcat:r.subcat||'', soldOut:!!r.sold_out,
       flavors:(r.flavors && r.flavors.length)?r.flavors:['Original'], specs:r.specs||[], image:r.image_url||'' });
   });
   Object.keys(m).forEach(function(c){
@@ -3612,8 +3634,27 @@ function applyMenu(m){
   if(!m || !Object.keys(m).length) return;
   menu = m;
   if(!menu[activeCat]) activeCat = Object.keys(menu)[0] ||'special';
+  try{ _dropSoldOutFromCart(); }catch(e){}
   try{ renderCats(); }catch(e){}
   try{ renderItems(); }catch(e){}
+}
+/* 顾客在挑东西的时候店里可能刚把某样标成售罄。以前那个品项会直接从菜单消失，
+   购物车里那一行却还在，一路能结账到底。现在品项还留着（灰掉），所以这里主动把
+   对应的购物车行清掉——菜单每次刷新都过一遍，realtime 改动也会走到。 */
+function _dropSoldOutFromCart(){
+  var sold={};
+  Object.keys(menu).forEach(function(cat){
+    (menu[cat].items||[]).forEach(function(it){ if(it && it.soldOut && it.id) sold[it.id]=it.name||'商品'; });
+  });
+  var gone=[];
+  Object.keys(cart).forEach(function(k){
+    var c=cart[k];
+    if(c && c.id && sold[c.id]){ gone.push(sold[c.id]); delete cart[k]; }
+  });
+  if(gone.length){
+    try{ updateCartBadge(); }catch(e){}
+    alert(gone.join('、')+' 刚刚售罄，已从购物车移除。');
+  }
 }
 function loadMenuCache(){
   try{ var raw=localStorage.getItem('pm_menu_cache'); if(!raw) return null;
@@ -3716,16 +3757,21 @@ function _itemRowEl(cat, idx){
   const qty = itemQtyTotal(cat, idx);
   const name = it.name_cn || it.name ||'';
   const en = it.name_en || it.en ||'';
+  const soldOut = !!it.soldOut;
   const row = document.createElement('div');
-  row.className ='item-row';
+  row.className ='item-row' + (soldOut ?' soldout' :'');
   const qtyHTML = qty > 0
     ? `<button class="qty-btn" onclick="event.stopPropagation(); quickAdjust('${cat}', ${idx}, -1)">−</button>
        <span class="qty-num">${qty}</span>
        <button class="qty-btn plus" onclick="event.stopPropagation(); openSheet('${cat}', ${idx})">+</button>`
     : `<button class="qty-btn plus" onclick="event.stopPropagation(); openSheet('${cat}', ${idx})">+</button>`;
   const thumbStyle = it.image ? ` style="background-image:url('${it.image}');background-size:cover;background-repeat:no-repeat;background-position:center"` :'';
+  // 售罄的行不给加购按钮：留着按钮却按不动，比直接没有更让人火大
+  const actionHTML = soldOut
+    ? `<div class="soldout-note">今日售罄</div>`
+    : `<div class="item-qty${qty>0?' has':''}">${qtyHTML}</div>`;
   row.innerHTML = `
-    <div class="item-thumb"${thumbStyle}></div>
+    <div class="item-thumb"${thumbStyle}>${soldOut?'<span class="soldout-badge">SOLD OUT</span>':''}</div>
     <div class="item-info">
       <div class="item-text">
         <div class="name">${name}</div>
@@ -3733,10 +3779,10 @@ function _itemRowEl(cat, idx){
       </div>
       <div class="item-bottom">
         <div class="price">RM ${(it.price||0).toFixed(1)}</div>
-        <div class="item-qty${qty>0?' has':''}">${qtyHTML}</div>
+        ${actionHTML}
       </div>
     </div>`;
-  row.onclick = ()=> openSheet(cat, idx);
+  if(!soldOut) row.onclick = ()=> openSheet(cat, idx);
   return row;
 }
 function _subBodyEl(cat, idxs, loose){
@@ -4414,6 +4460,8 @@ function editCartLine(key){
   var it = menu[cat] && menu[cat].items && menu[cat].items[idx];
   // 商品可能已经下架、或切模式后这个渠道不卖了——那就别开详情页，免得开出一个空壳
   if(!it){ alert('这个商品目前买不到了，改不了规格'); return; }
+  // 售罄的品项现在还留在菜单里，得单独拦一下（在 toggleCart 之前，别把购物车关掉了才弹）
+  if(it.soldOut){ alert((it.name||'这个商品')+' 今日已售罄，改不了规格'); return; }
   _editKey = key;
   toggleCart();
   openSheet(cat, idx, { sel:String(p[2]||'').split(',').map(Number), qty:line.qty });
@@ -4446,6 +4494,10 @@ function _sheetSpecGroupHtml(group, gi){
 /* edit 只在从购物车「修改」进来时有值：{sel:[各组选中的下标], qty}，
    把这一行原来的选择和数量填回去，按钮也换成「保存修改」。 */
 function openSheet(cat, idx, edit){
+  const it0 = menu[cat] && menu[cat].items && menu[cat].items[idx];
+  // 售罄的品项现在照常列在菜单里，所以每个入口都得挡一道：列表行本身不绑点击，
+  // 但快捷 + 按钮、购物车「修改」、搜索结果都会走到这儿
+  if(it0 && it0.soldOut){ alert((it0.name||'这个商品')+' 今日已售罄'); return; }
   sheetCat = cat; sheetIdx = idx;
   const it = menu[cat].items[idx];
   const specs = _itemSpecs(it);
