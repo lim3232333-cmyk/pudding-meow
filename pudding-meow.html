@@ -1543,7 +1543,7 @@
         <div class="mem-tab" id="memTabRegister" onclick="memSwitchAuthTab('register')">注册</div>
 </div>
       <div id="memLoginForm">
-        <div class="mem-field"><label>手机号</label><input type="tel" id="memLoginPhone" placeholder="0123456789"></div>
+        <div class="mem-field"><label>手机号</label><input type="tel" id="memLoginPhone" placeholder="0127010189" inputmode="numeric" maxlength="11" oninput="_phoneInput(this)"></div>
         <div class="mem-field"><label>PIN 密码</label><input type="password" id="memLoginPin" placeholder="4-6 位数字" inputmode="numeric"></div>
         <div class="mem-err" id="memLoginErr"></div>
         <button class="mem-submit" onclick="memberLogin()">登录</button>
@@ -1551,7 +1551,9 @@
 </div>
       <div id="memRegisterForm" style="display:none">
         <div class="mem-field"><label>昵称</label><input type="text" id="memRegNickname" placeholder="给自己取个名字"></div>
-        <div class="mem-field"><label>手机号</label><input type="tel" id="memRegPhone" placeholder="0123456789"></div>
+        <!-- 手机号只收 0127010189 这一种写法：本地格式、纯数字，柜台在 POS 里照着念就能输进去 -->
+        <div class="mem-field"><label>手机号</label><input type="tel" id="memRegPhone" placeholder="0127010189" inputmode="numeric" maxlength="11" oninput="_phoneInput(this)"></div>
+        <div class="mem-field"><label>生日</label><input type="date" id="memRegBirthday"></div>
         <div class="mem-field"><label>设置 PIN 密码</label><input type="password" id="memRegPin" placeholder="4-6 位数字，之后登录要用" inputmode="numeric"></div>
         <div class="mem-field"><label>邀请码（选填）</label><input type="text" id="memRegReferral" placeholder="好友的邀请码"></div>
         <div class="mem-err" id="memRegErr"></div>
@@ -2360,6 +2362,7 @@ function assignOrderNumsApp(o){
 }
 
 /* ---------- tab switching ---------- */
+var _profileReady = null;   // 「我的」页最近一次 renderProfileScreen() 的 promise（openRegister 要等它）
 function switchTab(tab){
   try{ closeSheet(); }catch(e){}
   try{ document.getElementById('cartSheet').classList.remove('show'); }catch(e){}
@@ -2373,7 +2376,8 @@ function switchTab(tab){
     renderOrdersList();
     loadOrdersFromCloud().then(function(){ try{ renderOrdersList(); }catch(e){} });
   }
-  if(tab==='profile'){ try{ renderProfileScreen(); }catch(e){} }
+  // renderProfileScreen() 是异步的：留住它的 promise，openRegister() 要等它画完才能开注册页
+  if(tab==='profile'){ try{ _profileReady = renderProfileScreen(); }catch(e){ _profileReady = null; } }
   // 没在首页选过用餐方式就直接点「点单」的，先把当前方式的弹窗顶出来。
   // 不然默认落在堂食、桌号却是空的，顾客能一路下单，厨房不知道送哪桌。
   if(tab==='menu' && !_modeChosen) setTimeout(promptModeIfNeeded, 80);
@@ -2450,6 +2454,9 @@ function confirmDine(){
 
 /* ---------- 预约（Figma 546:922 New reservation + 711:789 日历）---------- */
 var RSV_TIMES=['4:00 pm','4:30 pm','5:00 pm','5:30 pm','6:00 pm','6:30 pm','7:00 pm','7:30 pm','8:00 pm','8:30 pm','9:00 pm','9:30 pm','10:00 pm'];
+/* 预约 = 订桌，所以休息天跟「堂食」渠道的营业时间走（POS 菜单管理 → 销售方式 → 堂食，每天可勾「休息」）。
+   没配 hours_enabled 时 _chDayClosed 一律返回 false，日历就跟以前一样只灰掉过去的日期。 */
+var RSV_CHANNEL='dinein';
 var _rsvDate=null, _rsvTime=null, _rsvPax=2, _rsvCalYM=null;   // _rsvDate: 'YYYY-MM-DD' 字符串；_rsvCalYM:{y,m}
 /* 三态流转（Figma 546:923 Component 2）：
    ① Search reservation：点「预约」进搜索框（546:920）
@@ -2582,8 +2589,10 @@ function rsvRenderCal(){
   for(var d=1;d<=days;d++){
     var iso=y+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+d).slice(-2);
     var past=new Date(y,m,d)<today;
+    var closed=_chDayClosed(RSV_CHANNEL, iso);      // 「堂食」这天休息（如周二）→ 跟已过日期一样灰掉、不可点
+    var off=past||closed;
     var sel=(iso===_rsvDate);
-    html+='<div class="rsv-cal-day'+(past?' muted':'')+(sel?' sel':'')+'"'+(past?'':' onclick="rsvPickDate('+y+','+m+','+d+')"')+'>'+d+'</div>';
+    html+='<div class="rsv-cal-day'+(off?' muted':'')+(sel?' sel':'')+'"'+(off?'':' onclick="rsvPickDate('+y+','+m+','+d+')"')+'>'+d+'</div>';
   }
   document.getElementById('rsvCalGrid').innerHTML=html;
 }
@@ -2723,6 +2732,15 @@ function _rsvRefreshOpenPickers(){
         _pkCalYM={y:f.getFullYear(), m:f.getMonth()};
         document.getElementById('pkDateVal').textContent=_pkDate+' '+_RSV_WD[f.getDay()]; }
       pkRenderCal(); _pkSyncTime();
+    }
+  }catch(e){}
+  try{
+    // 预约日历：休息日灰掉。已经选中的那天正好被设成休息 → 清掉选择，别让顾客带着休息日去提交
+    if(document.getElementById('rsvModal') && document.getElementById('rsvModal').classList.contains('show')){
+      if(_rsvDate && _chDayClosed(RSV_CHANNEL, _rsvDate)){
+        _rsvDate=null; document.getElementById('rsvDateVal').textContent='请选择日期';
+      }
+      rsvRenderCal();
     }
   }catch(e){}
   try{
@@ -2866,6 +2884,8 @@ function confirmReserve(){
   var name=(document.getElementById('rsvName').value||'').trim();
   var phone=(document.getElementById('rsvPhone').value||'').trim();
   if(!_rsvDate){ alert('请选择预约日期'); return; }
+  // 兜底：日历里休息日已经点不动了，但渠道数据可能是选完日期之后才到/才改的
+  if(_chDayClosed(RSV_CHANNEL, _rsvDate)){ alert('该日休息，请改预约日期'); rsvRenderCal(); return; }
   if(!_rsvTime){ alert('请选择预约时间'); return; }
   if(!name){ alert('请填写姓名'); return; }
   if(!phone){ alert('请填写手机号码'); return; }
@@ -5254,16 +5274,51 @@ function _renderMemCat(themeLv){
   }catch(e){ _memCatLvl = -1; }
 }
 
+/* ── 手机号一律存成本地写法 0127010189（纯数字、0 开头）──
+   以前存的是顾客怎么打就怎么存：+60 12-701 0189、6012 7010189、012-7010189 混在一起。
+   柜台在 POS 按手机号找会员时照着单子念「零一二七…」输进去就找不到人，
+   rpc_pos_find_member 比的是纯数字，60 开头和 0 开头对不上。统一到一种写法，柜台才好输。 */
+function _normPhoneMY(s){
+  var d = String(s==null?'':s).replace(/\D/g,'');
+  if(d.indexOf('0')!==0 && d.indexOf('60')===0) d = '0'+d.slice(2);   // +60127010189 / 60127010189 → 0127010189
+  else if(d.indexOf('1')===0) d = '0'+d;                              // 127010189（漏了开头的 0）→ 0127010189
+  return d;
+}
+/* 马来西亚本地号：0 开头，连 0 一共 9-11 位（手机 01x 10-11 位，座机如 06 9 位） */
+function _phoneOkMY(s){ return /^0\d{8,10}$/.test(_normPhoneMY(s)); }
+var PHONE_HINT = '手机号请用 0127010189 这样的写法（纯数字、0 开头）';
+/* 边打边清掉非数字，并把 +60 换成 0。故意不补开头的 0——刚打下第一个「1」就跳出「01」很莫名其妙，
+   那一步留到提交时的 _normPhoneMY 做。 */
+function _phoneInput(el){
+  var d = String(el.value||'').replace(/\D/g,'');
+  if(d.indexOf('0')!==0 && d.indexOf('60')===0) d = '0'+d.slice(2);
+  if(d !== el.value) el.value = d;
+}
+/* 生日：不能是未来，也不能离谱（1900 年以前）。存进 members.birthday，POS 会员列表看得到。 */
+function _birthdayErr(v){
+  if(!v) return '请填写生日';
+  var d = new Date(v+'T00:00:00');
+  if(isNaN(d)) return '生日格式不对';
+  var today = new Date(); today.setHours(0,0,0,0);
+  if(d > today) return '生日不能填未来的日期';
+  if(d.getFullYear() < 1900) return '请填写正确的生日';
+  return '';
+}
 function memberRegister(){
   var errEl = document.getElementById('memRegErr'); errEl.textContent='';
   if(!db){ errEl.textContent='未连接云端，暂时无法注册'; return; }
   var nickname = document.getElementById('memRegNickname').value.trim();
-  var phone = document.getElementById('memRegPhone').value.trim();
+  var phone = _normPhoneMY(document.getElementById('memRegPhone').value);
+  var birthday = document.getElementById('memRegBirthday').value;
   var pin = document.getElementById('memRegPin').value.trim();
   var referralCode = document.getElementById('memRegReferral').value.trim();
   if(!phone){ errEl.textContent='请填写手机号'; return; }
+  if(!_phoneOkMY(phone)){ errEl.textContent=PHONE_HINT; return; }
+  document.getElementById('memRegPhone').value = phone;   // 把清理后的写法回填给顾客看，别让他以为填的是别的号
+  var bErr = _birthdayErr(birthday);
+  if(bErr){ errEl.textContent=bErr; return; }
   if(pin.length < 4){ errEl.textContent='PIN 至少 4 位'; return; }
-  db.rpc('rpc_member_register', {p_phone:phone, p_pin:pin, p_nickname:nickname||null, p_referral_code:referralCode||null}).then(function(res){
+  db.rpc('rpc_member_register', {p_phone:phone, p_pin:pin, p_nickname:nickname||null, p_referral_code:referralCode||null, p_birthday:birthday}).then(function(res){
     if(res.error){ errEl.textContent = res.error.message ||'注册失败'; return; }
     var row = res.data && res.data[0];
     _memSaveSession(row.member_id, row.session_token);
@@ -5290,9 +5345,11 @@ function _promptPin(){
 function _pinLogin(){
   var errEl = document.getElementById('memLoginErr'); errEl.textContent='';
   if(!db){ errEl.textContent='未连接云端，暂时无法登录'; return; }
-  var phone = document.getElementById('memLoginPhone').value.trim();
+  var phone = _normPhoneMY(document.getElementById('memLoginPhone').value);   // 跟注册存的写法对齐，不然 +60 打头的登不进
   var pin = document.getElementById('memLoginPin').value.trim();
   if(!phone || !pin){ errEl.textContent='请填写手机号和 PIN'; return; }
+  if(!_phoneOkMY(phone)){ errEl.textContent=PHONE_HINT; return; }
+  document.getElementById('memLoginPhone').value = phone;
   db.rpc('rpc_member_login', {p_phone:phone, p_pin:pin}).then(function(res){
     if(res.error){ errEl.textContent = res.error.message ||'登录失败'; return; }
     var row = res.data && res.data[0];
@@ -5304,18 +5361,34 @@ function memberLogout(){
   _memClearSession();
   renderProfileScreen();
 }
-/* 立即注册：显示注册/登录表单（默认注册页）；关闭则回到会员卡（游客卡或等级卡） */
-function showRegisterForm(){
+/* 立即注册：显示注册/登录表单（默认注册页）；关闭则回到会员卡（游客卡或等级卡）。
+   传 tab 可以指定落在哪一页（邀请链接进来的一定要「注册」，不能被快速登录抢走）。 */
+function showRegisterForm(tab){
   document.getElementById('memHome').style.display='none';
   document.getElementById('memAuth').style.display='block';
-  try{ memSwitchAuthTab(_bioRec()?'login':'register'); }catch(e){}   // 本机开过快速登录 → 默认落在登录页看到生物识别按钮
+  try{ memSwitchAuthTab(tab || (_bioRec()?'login':'register')); }catch(e){}   // 本机开过快速登录 → 默认落在登录页看到生物识别按钮
+  try{ var b=document.getElementById('memRegBirthday'); if(b) b.max=_pkIso(new Date()); }catch(e){}   // 生日不给选到未来
   try{ _renderBioUi(); }catch(e){}
 }
 function closeRegister(){
+  _regIntent++;   // 顾客自己关掉了：作废还没兑现的补开
   document.getElementById('memAuth').style.display='none';
   document.getElementById('memHome').style.display='block';
 }
-function openRegister(){ switchTab('profile'); setTimeout(showRegisterForm, 80); }
+/* 从别的页面一步跳到注册页。麻烦在 renderProfileScreen() 是异步的（要先拉等级表），
+   它最后一步会把 memAuth 关掉、memHome 打开——以前这里是 setTimeout 80ms 抢在它前面开表单，
+   等级表慢一点（冷启动/网络差/云端不通）就被它盖回会员卡，顾客得再按一次「立即注册」。
+   所以：先立刻开（网络再慢也别让顾客干等），等它画完再补开一次。
+   _regIntent 是防止补开打扰顾客——这期间他自己按了返回，或又发起了别的跳转，就不补了。 */
+var _regIntent = 0;
+function openRegister(tab){
+  var my = ++_regIntent;
+  switchTab('profile');
+  showRegisterForm(tab);
+  Promise.resolve(_profileReady).catch(function(){}).then(function(){
+    if(_regIntent === my) showRegisterForm(tab);
+  });
+}
 /* 服务端只有 _auth_member 会抛「登录状态无效，请重新登录」，那才是真的该登出。
    别的错误（网络抖动、Supabase 打嗝、PostgREST 缓存没刷新、限流…）都是暂时的，
    不能当成会话失效。 */
@@ -5773,10 +5846,15 @@ function _showRefWelcome(code){
   }
 }
 function rwClose(){ document.getElementById('refWelcomeBg').classList.remove('show'); }
+/* 「立即加入布丁喵会员」= 直接进注册页，不是只切到「我的」页。
+   以前切过去落在游客会员卡上，顾客还得自己找到卡右上角的「立即注册」再按一次——
+   从邀请链接进来的人本来就是为了注册，中间那一步纯粹是流失。
+   指定 'register' 是因为本机开过快速登录时默认会落在登录页，那样预填好的邀请码根本看不到。 */
 function rwJoin(){
   rwClose();
-  try{ switchTab('profile'); }catch(e){}            // 去「我的」页注册（邀请码已预填）
-  try{ var el=document.getElementById('memRegReferral'); if(el){ el.scrollIntoView({block:'center'}); } }catch(e){}
+  try{ openRegister('register'); }catch(e){}
+  // 邀请码再填一次：页面加载时就填过，但表单被别的流程清过/顾客手动删过也要能带回来
+  try{ var el=document.getElementById('memRegReferral'); if(el && _rwCode && !el.value) el.value=_rwCode; }catch(e){}
 }
 (function(){
   try{
