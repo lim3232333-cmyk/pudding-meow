@@ -2360,6 +2360,7 @@ function assignOrderNumsApp(o){
 }
 
 /* ---------- tab switching ---------- */
+var _profileReady = null;   // 「我的」页最近一次 renderProfileScreen() 的 promise（openRegister 要等它）
 function switchTab(tab){
   try{ closeSheet(); }catch(e){}
   try{ document.getElementById('cartSheet').classList.remove('show'); }catch(e){}
@@ -2373,7 +2374,8 @@ function switchTab(tab){
     renderOrdersList();
     loadOrdersFromCloud().then(function(){ try{ renderOrdersList(); }catch(e){} });
   }
-  if(tab==='profile'){ try{ renderProfileScreen(); }catch(e){} }
+  // renderProfileScreen() 是异步的：留住它的 promise，openRegister() 要等它画完才能开注册页
+  if(tab==='profile'){ try{ _profileReady = renderProfileScreen(); }catch(e){ _profileReady = null; } }
   // 没在首页选过用餐方式就直接点「点单」的，先把当前方式的弹窗顶出来。
   // 不然默认落在堂食、桌号却是空的，顾客能一路下单，厨房不知道送哪桌。
   if(tab==='menu' && !_modeChosen) setTimeout(promptModeIfNeeded, 80);
@@ -5320,18 +5322,33 @@ function memberLogout(){
   _memClearSession();
   renderProfileScreen();
 }
-/* 立即注册：显示注册/登录表单（默认注册页）；关闭则回到会员卡（游客卡或等级卡） */
-function showRegisterForm(){
+/* 立即注册：显示注册/登录表单（默认注册页）；关闭则回到会员卡（游客卡或等级卡）。
+   传 tab 可以指定落在哪一页（邀请链接进来的一定要「注册」，不能被快速登录抢走）。 */
+function showRegisterForm(tab){
   document.getElementById('memHome').style.display='none';
   document.getElementById('memAuth').style.display='block';
-  try{ memSwitchAuthTab(_bioRec()?'login':'register'); }catch(e){}   // 本机开过快速登录 → 默认落在登录页看到生物识别按钮
+  try{ memSwitchAuthTab(tab || (_bioRec()?'login':'register')); }catch(e){}   // 本机开过快速登录 → 默认落在登录页看到生物识别按钮
   try{ _renderBioUi(); }catch(e){}
 }
 function closeRegister(){
+  _regIntent++;   // 顾客自己关掉了：作废还没兑现的补开
   document.getElementById('memAuth').style.display='none';
   document.getElementById('memHome').style.display='block';
 }
-function openRegister(){ switchTab('profile'); setTimeout(showRegisterForm, 80); }
+/* 从别的页面一步跳到注册页。麻烦在 renderProfileScreen() 是异步的（要先拉等级表），
+   它最后一步会把 memAuth 关掉、memHome 打开——以前这里是 setTimeout 80ms 抢在它前面开表单，
+   等级表慢一点（冷启动/网络差/云端不通）就被它盖回会员卡，顾客得再按一次「立即注册」。
+   所以：先立刻开（网络再慢也别让顾客干等），等它画完再补开一次。
+   _regIntent 是防止补开打扰顾客——这期间他自己按了返回，或又发起了别的跳转，就不补了。 */
+var _regIntent = 0;
+function openRegister(tab){
+  var my = ++_regIntent;
+  switchTab('profile');
+  showRegisterForm(tab);
+  Promise.resolve(_profileReady).catch(function(){}).then(function(){
+    if(_regIntent === my) showRegisterForm(tab);
+  });
+}
 /* 服务端只有 _auth_member 会抛「登录状态无效，请重新登录」，那才是真的该登出。
    别的错误（网络抖动、Supabase 打嗝、PostgREST 缓存没刷新、限流…）都是暂时的，
    不能当成会话失效。 */
@@ -5789,10 +5806,15 @@ function _showRefWelcome(code){
   }
 }
 function rwClose(){ document.getElementById('refWelcomeBg').classList.remove('show'); }
+/* 「立即加入布丁喵会员」= 直接进注册页，不是只切到「我的」页。
+   以前切过去落在游客会员卡上，顾客还得自己找到卡右上角的「立即注册」再按一次——
+   从邀请链接进来的人本来就是为了注册，中间那一步纯粹是流失。
+   指定 'register' 是因为本机开过快速登录时默认会落在登录页，那样预填好的邀请码根本看不到。 */
 function rwJoin(){
   rwClose();
-  try{ switchTab('profile'); }catch(e){}            // 去「我的」页注册（邀请码已预填）
-  try{ var el=document.getElementById('memRegReferral'); if(el){ el.scrollIntoView({block:'center'}); } }catch(e){}
+  try{ openRegister('register'); }catch(e){}
+  // 邀请码再填一次：页面加载时就填过，但表单被别的流程清过/顾客手动删过也要能带回来
+  try{ var el=document.getElementById('memRegReferral'); if(el && _rwCode && !el.value) el.value=_rwCode; }catch(e){}
 }
 (function(){
   try{
