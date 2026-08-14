@@ -2524,18 +2524,20 @@ function askPrint(yes){
   }
   (_pendingNums||Promise.resolve()).then(function(){
     // 保存订单：本地缓存 + 广播 + 写云端（跨设备）——等取号完成后再入库，云端存的是最终号
-    _orders.unshift(o);sj('pm_orders',_orders);pmBroadcastOrders();
-    if(db) db.from('orders').insert(orderToRow(o)).then(function(res){ if(res&&res.error) console.error('pos order insert',res.error); }).catch(function(e){ console.error('pos order insert',e); });
+    try{ _orders.unshift(o);sj('pm_orders',_orders);pmBroadcastOrders(); }catch(e){ console.error('pos order local save',e); }
+    // 顾客还站在柜台等收据，先打，再去记账——记账那几步任何一个抛异常都不该让收据出不来
+    if(yes){ try{ printRec(o); }catch(e){ console.error('printRec',e); } }
+    try{
+      if(db) db.from('orders').insert(orderToRow(o)).then(function(res){ if(res&&res.error) console.error('pos order insert',res.error); }).catch(function(e){ console.error('pos order insert',e); });
+    }catch(e){ console.error('pos order insert',e); }
     // 柜台单是直接 status:'paid' 落库、不经过 markPaid，所以 XP/Coin 要在这里结算，
     // 否则绑了会员也白绑
-    if(db && o.memberId) db.rpc('rpc_on_order_completed',{p_member_id:o.memberId,p_order_id:o.id,p_amount:o.total})
-      .catch(function(e){ console.error('rpc_on_order_completed',e); });
+    try{ _settleMemberRewards(o); }catch(e){ console.error('rpc_on_order_completed',e); }
     // 券到这一步才正式核销——挂在购物车时不扣，中途取消不会白烧
     if(db && o.couponId) db.rpc('rpc_pos_use_coupon',{p_member_coupon_id:o.couponId,p_order_id:o.id})
       // 核销失败要吭声：折扣已经给出去了，券却没扣掉，得让店员知道去补
       .then(function(res){ if(res&&res.error){ console.error('rpc_pos_use_coupon:',res.error); showN('券核销失败：'+_rpcErr(res.error)); } })
       .catch(function(e){ console.error('rpc_pos_use_coupon:',e); showN('券核销失败：'+_rpcErr(e)); });
-    if(yes) printRec(o);
     // 清空购物车
     cart=[];selIdx=-1;
     _posMember=null; _posCoupon=null; try{ _renderPosMember(); }catch(e){}
@@ -2655,6 +2657,16 @@ function _renderKitchen(o){
     +'<div class="kmeta"><span>Ticket No: '+esc(ticketNo)+'</span><span>'+ds+'</span></div>'
     +items
     +'</div>';
+}
+/* 结算会员 XP/Coin。
+   Supabase 的 RPC 出错时是 resolve 一个 {error}、不是 reject，所以「只挂 .catch」
+   等于把失败全吞掉——积分没进账，店员和顾客都看不到任何提示，只能靠事后对账发现。
+   跟旁边的券核销一样：钱都收了，奖励没发出去必须吭声。 */
+function _settleMemberRewards(o){
+  if(!db || !o || !o.memberId) return;
+  db.rpc('rpc_on_order_completed',{p_member_id:o.memberId,p_order_id:o.id,p_amount:o.total})
+    .then(function(res){ if(res&&res.error){ console.error('rpc_on_order_completed:',res.error); showN('会员积分结算失败：'+_rpcErr(res.error)); } })
+    .catch(function(e){ console.error('rpc_on_order_completed:',e); showN('会员积分结算失败：'+_rpcErr(e)); });
 }
 /* 制作单按订单号去重：同一单不管被哪条路径喊几次（实时扫描 / changeDone / 手滑连点），
    本机这一轮只出一张。这是跟出单路径无关的兜底，单台 POS 保证不重复。
@@ -2971,16 +2983,12 @@ function _confirmPendPay(tender,change){
      必须在把云端状态翻成 preparing 之前先标记已出单——否则那次 update 会触发实时扫描
      (_scanPrepaidPrint) 自动再出一张，就是「线上单出两次制作单」的根因。 */
   try{ _printedKitchen[o.id]=1; sj('pm_printed_kitchen',_printedKitchen); }catch(e){}
-  sj('pm_orders',_orders); pmBroadcastOrders();
-  if(db){
-    db.from('orders').update({status:o.status,pay_method:o.payMethod,items:o.items,total:o.total}).eq('id',o.id)
-      .then(function(res){if(res&&res.error)console.error('payPend update',res.error);})
-      .catch(function(e){console.error('payPend update',e);});
-    if(o.memberId) db.rpc('rpc_on_order_completed',{p_member_id:o.memberId,p_order_id:o.id,p_amount:o.total})
-      .catch(function(e){console.error('rpc_on_order_completed',e);});
-  }
-  updPend(); _refreshPendIfOpen();
-  // 接回找零 → 制作单 → 问收据 这条链，跟自己开新单完全一样：
+  try{ sj('pm_orders',_orders); pmBroadcastOrders(); }catch(e){ console.error('payPend local save',e); }
+
+  /* 钱已经收了——先把「找零 → 制作单 → 问收据」这条链接上，再去做记账。
+     以前顺序反过来：中间任何一步抛异常（写库、刷新待付款列表…）就走不到下面这几行，
+     结果是找零窗不弹、制作单不出、收据也不问，厨房那边等于没收到这一单。
+     记账失败最多是数据要补，出不出单是当场就毁掉一单的事，优先级不一样。 */
   // 购物栏的商品一路留到「打印收据？」答完 Yes/No 才清空（在 askPrint 里），
   // 中途找零/打印那几步都还看得到商品。_pendExisting 让 askPrint 知道这单早就在库里、别再 insert
   _pendingOrder=o; _pendingNums=null; _pendExisting=true;
@@ -2988,6 +2996,16 @@ function _confirmPendPay(tender,change){
   document.getElementById('chgTender').textContent='RM '+tender.toFixed(2);
   document.getElementById('chgChange').textContent='RM '+change.toFixed(2);
   document.getElementById('changeBg').classList.add('show');
+
+  if(db){
+    try{
+      db.from('orders').update({status:o.status,pay_method:o.payMethod,items:o.items,total:o.total}).eq('id',o.id)
+        .then(function(res){if(res&&res.error){console.error('payPend update',res.error); showN('订单状态没同步到云端：'+_rpcErr(res.error));}})
+        .catch(function(e){console.error('payPend update',e);});
+    }catch(e){ console.error('payPend update',e); }
+    try{ _settleMemberRewards(o); }catch(e){ console.error('rpc_on_order_completed',e); }
+  }
+  try{ updPend(); _refreshPendIfOpen(); }catch(e){ console.error('payPend refresh',e); }
 }
 function reprO(id){var o=_findOrder(id);if(o)printRec(o);}
 
