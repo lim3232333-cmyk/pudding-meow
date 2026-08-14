@@ -28,31 +28,36 @@
 begin;
 
 -- 1) 先看清楚要动哪一单、接给谁。两边都必须查得到，不然下面会报错停住。
-with tgt as (
-  select o.id as order_id, o.order_num, o.total, o.member_id as 原member,
-         (select m.id from public.members m where regexp_replace(m.phone,'\D','','g') like '%' || right(regexp_replace('这里填手机号','\D','','g'),8) || '%') as 目标member
-    from public.orders o
-   where o.order_num = '这里填单号'
-     and coalesce(o.ta_mode,'') not in ('recharge','reservation')
-   order by o.created_at desc
-   limit 1
-)
-select case when order_id is null    then '❌ 找不到这个单号'
-            when 目标member is null   then '❌ 找不到这个手机号的会员'
-            when 原member is not null then '⚠ 这单已经绑了会员，不会改动'
-            else '✅ 可以补：' || order_num || ' RM' || total
-       end as 检查, *
-  from tgt;
+with cand as (select id, phone, nickname from public.members where regexp_replace(regexp_replace(regexp_replace(phone,'\D','','g'),'^60',''),'^0','')
+              = regexp_replace(regexp_replace(regexp_replace('这里填手机号','\D','','g'),'^60',''),'^0','')),
+     mem  as (select * from cand where (select count(*) from cand) = 1),
+     tgt  as (select o.id as order_id, o.order_num, o.total, o.member_id as 原member
+                from public.orders o
+               where o.order_num = '这里填单号'
+                 and coalesce(o.ta_mode,'') not in ('recharge','reservation')
+               order by o.created_at desc limit 1)
+select (select count(*) from cand) as 匹配到的会员数,
+       (select string_agg(phone||'('||nickname||')','、') from cand) as 匹配到谁,
+       t.order_num as 单号, t.total as 金额, (t.原member is not null) as 单子已绑会员,
+       case when (select count(*) from cand) = 0 then '❌ 找不到这个手机号的会员'
+            when (select count(*) from cand) > 1 then '❌ 匹配到多个会员，请把手机号填完整（本次不会改动任何数据）'
+            when t.order_id is null   then '❌ 找不到这个单号'
+            when t.原member is not null then '⚠ 这单已经绑了会员，不会改动'
+            else '✅ 可以补' end as 检查
+  from tgt t;
 
 -- 2) 补上 member_id（只补空的）
+with cand as (select id from public.members where regexp_replace(regexp_replace(regexp_replace(phone,'\D','','g'),'^60',''),'^0','')
+              = regexp_replace(regexp_replace(regexp_replace('这里填手机号','\D','','g'),'^60',''),'^0','')),
+     mem  as (select * from cand where (select count(*) from cand) = 1)
 update public.orders o
-   set member_id = (select m.id from public.members m where regexp_replace(m.phone,'\D','','g') like '%' || right(regexp_replace('这里填手机号','\D','','g'),8) || '%')
+   set member_id = (select id from mem)
  where o.id = (select id from public.orders
                 where order_num = '这里填单号'
                   and coalesce(ta_mode,'') not in ('recharge','reservation')
                 order by created_at desc limit 1)
    and o.member_id is null
-   and exists (select 1 from public.members where regexp_replace(phone,'\D','','g') like '%' || right(regexp_replace('这里填手机号','\D','','g'),8) || '%');
+   and (select id from mem) is not null;
 
 -- 3) 按规则结算 XP / Coin（金额从订单读，不手填；重复跑不会多发）
 select public.rpc_on_order_completed(o.member_id, o.id::text, o.total)
