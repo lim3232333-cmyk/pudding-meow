@@ -2450,6 +2450,9 @@ function confirmDine(){
 
 /* ---------- 预约（Figma 546:922 New reservation + 711:789 日历）---------- */
 var RSV_TIMES=['4:00 pm','4:30 pm','5:00 pm','5:30 pm','6:00 pm','6:30 pm','7:00 pm','7:30 pm','8:00 pm','8:30 pm','9:00 pm','9:30 pm','10:00 pm'];
+/* 预约 = 订桌，所以休息天跟「堂食」渠道的营业时间走（POS 菜单管理 → 销售方式 → 堂食，每天可勾「休息」）。
+   没配 hours_enabled 时 _chDayClosed 一律返回 false，日历就跟以前一样只灰掉过去的日期。 */
+var RSV_CHANNEL='dinein';
 var _rsvDate=null, _rsvTime=null, _rsvPax=2, _rsvCalYM=null;   // _rsvDate: 'YYYY-MM-DD' 字符串；_rsvCalYM:{y,m}
 /* 三态流转（Figma 546:923 Component 2）：
    ① Search reservation：点「预约」进搜索框（546:920）
@@ -2582,8 +2585,10 @@ function rsvRenderCal(){
   for(var d=1;d<=days;d++){
     var iso=y+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+d).slice(-2);
     var past=new Date(y,m,d)<today;
+    var closed=_chDayClosed(RSV_CHANNEL, iso);      // 「堂食」这天休息（如周二）→ 跟已过日期一样灰掉、不可点
+    var off=past||closed;
     var sel=(iso===_rsvDate);
-    html+='<div class="rsv-cal-day'+(past?' muted':'')+(sel?' sel':'')+'"'+(past?'':' onclick="rsvPickDate('+y+','+m+','+d+')"')+'>'+d+'</div>';
+    html+='<div class="rsv-cal-day'+(off?' muted':'')+(sel?' sel':'')+'"'+(off?'':' onclick="rsvPickDate('+y+','+m+','+d+')"')+'>'+d+'</div>';
   }
   document.getElementById('rsvCalGrid').innerHTML=html;
 }
@@ -2723,6 +2728,15 @@ function _rsvRefreshOpenPickers(){
         _pkCalYM={y:f.getFullYear(), m:f.getMonth()};
         document.getElementById('pkDateVal').textContent=_pkDate+' '+_RSV_WD[f.getDay()]; }
       pkRenderCal(); _pkSyncTime();
+    }
+  }catch(e){}
+  try{
+    // 预约日历：休息日灰掉。已经选中的那天正好被设成休息 → 清掉选择，别让顾客带着休息日去提交
+    if(document.getElementById('rsvModal') && document.getElementById('rsvModal').classList.contains('show')){
+      if(_rsvDate && _chDayClosed(RSV_CHANNEL, _rsvDate)){
+        _rsvDate=null; document.getElementById('rsvDateVal').textContent='请选择日期';
+      }
+      rsvRenderCal();
     }
   }catch(e){}
   try{
@@ -2866,6 +2880,8 @@ function confirmReserve(){
   var name=(document.getElementById('rsvName').value||'').trim();
   var phone=(document.getElementById('rsvPhone').value||'').trim();
   if(!_rsvDate){ alert('请选择预约日期'); return; }
+  // 兜底：日历里休息日已经点不动了，但渠道数据可能是选完日期之后才到/才改的
+  if(_chDayClosed(RSV_CHANNEL, _rsvDate)){ alert('该日休息，请改预约日期'); rsvRenderCal(); return; }
   if(!_rsvTime){ alert('请选择预约时间'); return; }
   if(!name){ alert('请填写姓名'); return; }
   if(!phone){ alert('请填写手机号码'); return; }
