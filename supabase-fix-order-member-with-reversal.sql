@@ -20,14 +20,30 @@
 --    · 发分走 rpc_on_order_completed，按订单号幂等，重复跑不会多发
 -- ============================================================================
 
---  要改的三处（每处只出现一次，用编辑器替换即可）：
+--  要改两个占位（用编辑器的「全部替换」，每个都出现好几处）：
 --    '这里填单号'    ← POS 交易明细里那个 #0007 就填 '0007'
---    '这里填手机号'  ← 会员注册用的手机号，照 members 表里存的样子填
+--    '这里填手机号'  ← 顾客手机号，格式随便填（下面是按数字比对的，
+--                      +60 / 0 开头 / 中间有空格或横杠都认）
+--
+--  ── 第 0 步：不确定该填什么？先把下面这段**选中**单独 Run ─────────────────
+--     它会把最近两天的单和匹配到的会员列出来，照着抄就行。
+/*
+select '订单' as 类型, o.order_num as 单号或手机, o.created_at::text as 时间,
+       o.total::text as 金额, coalesce(o.member_id::text,'(没绑会员)') as 备注
+  from public.orders o
+ where o.created_at >= now() - interval '2 days'
+   and coalesce(o.ta_mode,'') not in ('recharge','reservation')
+union all
+select '会员', m.phone, m.nickname, m.xp::text || ' XP', m.coins::text || ' Coin'
+  from public.members m
+ order by 1, 3 desc;
+*/
+-- ─────────────────────────────────────────────────────────────────────────────
 
 begin;
 
 -- ── 1) 先看清楚：要冲掉哪几笔手工调整、要把哪一单接给谁 ────────────────────
-with mem as (select id, nickname, xp, coins from public.members where phone = '这里填手机号'),
+with mem as (select id, nickname, xp, coins from public.members where regexp_replace(phone,'\D','','g') like '%' || right(regexp_replace('这里填手机号','\D','','g'),8) || '%'),
      ord as (select o.id, o.order_num, o.total, o.member_id
                from public.orders o
               where o.order_num = '这里填单号'
@@ -57,7 +73,7 @@ select (select nickname from mem)                         as 会员,
 --    这样整段重复跑也安全——已经冲销过（同一单已有 admin_adjust_revert）就
 --    什么都不插，update 也跟着落空。分两步写的话，第二次跑会照着原始那笔
 --    admin_adjust 再冲一次，余额直接冲成负数。
-with mem as (select id from public.members where phone = '这里填手机号'),
+with mem as (select id from public.members where regexp_replace(phone,'\D','','g') like '%' || right(regexp_replace('这里填手机号','\D','','g'),8) || '%'),
      amt as (
        select coalesce(sum(l.delta),0) as d
          from public.member_xp_ledger l
@@ -77,7 +93,7 @@ with mem as (select id from public.members where phone = '这里填手机号'),
 update public.members m set xp = m.xp + (select delta from ins)
  where m.id = (select member_id from ins);
 
-with mem as (select id from public.members where phone = '这里填手机号'),
+with mem as (select id from public.members where regexp_replace(phone,'\D','','g') like '%' || right(regexp_replace('这里填手机号','\D','','g'),8) || '%'),
      amt as (
        select coalesce(sum(l.delta),0) as d
          from public.member_coin_ledger l
@@ -99,13 +115,13 @@ update public.members m set coins = m.coins + (select delta from ins)
 
 -- ── 3) 把订单接回会员名下（只补空的），再按规则正常结算 ────────────────────
 update public.orders o
-   set member_id = (select id from public.members where phone = '这里填手机号')
+   set member_id = (select id from public.members where regexp_replace(phone,'\D','','g') like '%' || right(regexp_replace('这里填手机号','\D','','g'),8) || '%')
  where o.id = (select id from public.orders
                 where order_num = '这里填单号'
                   and coalesce(ta_mode,'') not in ('recharge','reservation')
                 order by created_at desc limit 1)
    and o.member_id is null
-   and exists (select 1 from public.members where phone = '这里填手机号');
+   and exists (select 1 from public.members where regexp_replace(phone,'\D','','g') like '%' || right(regexp_replace('这里填手机号','\D','','g'),8) || '%');
 
 select public.rpc_on_order_completed(o.member_id, o.id::text, o.total)
   from public.orders o
