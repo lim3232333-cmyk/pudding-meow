@@ -4043,13 +4043,24 @@ function loadLoyaltyMembers(kw){
     renderLoyaltyMembersBody();
   }).catch(function(e){showN('网络错误');});
 }
+/* 生日：只显示 月-日（哪一年不关柜台的事，生日权益按月/日算）；没填就 — */
+function _fmtBirthday(b){
+  if(!b) return '—';
+  var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(b));
+  return m ? (m[2]+'-'+m[3]) : '—';
+}
+/* 本月生日的标红，扫一眼就知道这个月该给谁生日权益 */
+function _isBirthdayMonth(b){
+  var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(b||''));
+  return !!m && (+m[2])===(new Date().getMonth()+1);
+}
 function renderLoyaltyMembersBody(){
   var body=document.getElementById('loyaltyBody'); if(!body) return;
   var html='<div style="margin-bottom:14px"><input class="mfi" style="max-width:280px;display:inline-block" id="loyaltySearchBox" placeholder="搜索手机号/昵称，回车查询" onkeydown="if(event.key===\'Enter\')loyaltySearch()"></div>'
     +'<div id="mdPanel" class="md-panel"></div>';   // 会员详情就地展开，紧贴搜索框下方
-  html+='<div class="tx-card"><table><thead><tr><th>会员</th><th>手机号</th><th>等级</th><th>XP</th><th>Coin</th><th>储值余额</th><th>累计消费</th><th>消费次数</th><th>最后消费</th><th>注册时间</th><th>操作</th></tr></thead><tbody>';
+  html+='<div class="tx-card"><table><thead><tr><th>会员</th><th>手机号</th><th>生日</th><th>等级</th><th>XP</th><th>Coin</th><th>储值余额</th><th>累计消费</th><th>消费次数</th><th>最后消费</th><th>注册时间</th><th>操作</th></tr></thead><tbody>';
   if(!_loyaltyMembers.length){
-    html+='<tr><td colspan="11" style="text-align:center;padding:30px;color:#4A4848">暂无会员</td></tr>';
+    html+='<tr><td colspan="12" style="text-align:center;padding:30px;color:#4A4848">暂无会员</td></tr>';
   }else{
     _loyaltyMembers.forEach(function(m){
       var lvl=_loyaltyLevels.find(function(l){return l.id===m.level_id;});
@@ -4059,6 +4070,7 @@ function renderLoyaltyMembersBody(){
       html+='<tr class="mb-row" onclick="openMemberDetail(\''+m.id+'\')">'
         +'<td><div class="mb-who">'+av+'<b>'+esc(m.nickname||'—')+'</b></div></td>'
         +'<td>'+esc(m.phone)+'</td>'
+        +'<td'+(_isBirthdayMonth(m.birthday)?' style="color:#8D0505;font-weight:700"':' style="font-size:12px;color:#4A4848"')+'>'+_fmtBirthday(m.birthday)+'</td>'
         +'<td>'+(lvl?('<span style="color:'+lvl.color_hex+';font-weight:700">'+(lvl.badge_icon||'')+''+esc(lvl.name_cn)+'</span>'):'—')+'</td>'
         +'<td>'+(m.xp||0)+'</td><td>'+(m.coins||0)+'</td>'
         +'<td>RM '+Number(m.wallet_balance||0).toFixed(2)+'</td>'
