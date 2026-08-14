@@ -30,7 +30,7 @@ begin;
 -- 1) 先看清楚要动哪一单、接给谁。两边都必须查得到，不然下面会报错停住。
 with tgt as (
   select o.id as order_id, o.order_num, o.total, o.member_id as 原member,
-         (select m.id from public.members m where m.phone = '这里填手机号') as 目标member
+         (select m.id from public.members m where regexp_replace(m.phone,'\D','','g') like '%' || right(regexp_replace('这里填手机号','\D','','g'),8) || '%') as 目标member
     from public.orders o
    where o.order_num = '这里填单号'
      and coalesce(o.ta_mode,'') not in ('recharge','reservation')
@@ -46,13 +46,13 @@ select case when order_id is null    then '❌ 找不到这个单号'
 
 -- 2) 补上 member_id（只补空的）
 update public.orders o
-   set member_id = (select m.id from public.members m where m.phone = '这里填手机号')
+   set member_id = (select m.id from public.members m where regexp_replace(m.phone,'\D','','g') like '%' || right(regexp_replace('这里填手机号','\D','','g'),8) || '%')
  where o.id = (select id from public.orders
                 where order_num = '这里填单号'
                   and coalesce(ta_mode,'') not in ('recharge','reservation')
                 order by created_at desc limit 1)
    and o.member_id is null
-   and exists (select 1 from public.members where phone = '这里填手机号');
+   and exists (select 1 from public.members where regexp_replace(phone,'\D','','g') like '%' || right(regexp_replace('这里填手机号','\D','','g'),8) || '%');
 
 -- 3) 按规则结算 XP / Coin（金额从订单读，不手填；重复跑不会多发）
 select public.rpc_on_order_completed(o.member_id, o.id::text, o.total)
