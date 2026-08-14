@@ -657,7 +657,12 @@
   .mem-xp-count{ font-size:8px; color:var(--red); }
   .mem-xpbar{ width:100%; height:10px; border-radius:999px; background:#F5E9D4; overflow:hidden; }
   .mem-xpbar i{ display:block; height:100%; background:var(--red); border-radius:999px; transition:width .5s ease; }
-  .mem-xp-next{ width:100%; font-size:8px; color:var(--red); opacity:.85; text-align:center; }
+  /* 只要有一点成长值就得看得见：5/1000 XP 算出来是 0.5%，在 202px 宽的条上只有 1px，
+     再被 999px 圆角一裁就什么都不剩——数字明明在涨，进度条看着一动不动。
+     下限取条高（10px），画出来是个圆头小块，像是有意设计的起点。 */
+  .mem-xpbar i.has{ min-width:10px; }
+  /* 跟进度条左边缘对齐：这行是在解释条走到哪了，居中会跟上面的条脱开 */
+  .mem-xp-next{ width:100%; font-size:8px; color:var(--red); opacity:.85; text-align:left; }
   /* 三个资料：图标 30px + 右边 值/标签两行，中间 1px 竖线。
      文字色、图标底色、图标图形色、竖线色都走 --mst* 变量，各等级在下面各给一套。 */
   .mem-stats-row{ display:flex; align-items:center; justify-content:center; gap:8px; margin-top:8px;
@@ -5191,13 +5196,18 @@ function _memNextLevel(lvl){
   if(idx < 0) return null;
   return _memberLevels[idx+1] || null;
 }
-/* 「游客」那一档只对应未注册的灰卡；后台若把它也建成一行（Lv.0 游客），
-   它不能参与真实等级的排名，否则 Bronze 会被挤到第 2 档（蓝）——这正是配色对不上的原因。 */
+/* 「未注册」那一档只对应灰卡 Lv.0；它不能参与真实等级的排名，否则第一个会员等级
+   会被挤到第 2 档（蓝）——这正是配色和等级号对不上的原因。
+   认定方式以后台「等级管理」的**排序**列为准：排序 0 那行就是 Lv.0，跟后台表上写的
+   一模一样，小程序不再自己数一遍。名字带游客/访客/guest 的也一并认下（老配置兼容）。
+   后台没有排序 0 这行时就没有 Lv.0 档，所有等级从 Lv.1 起算，灰卡退回写死的兜底名。 */
 function _isGuestLevel(l){
   if(!l) return false;
+  if(Number(l.sort_order) === 0) return true;
   var n = ((l.name_cn||'')+'|'+(l.name_en||'')).toLowerCase();
   return n.indexOf('游客')>=0 || n.indexOf('访客')>=0 || n.indexOf('guest')>=0;
 }
+function _guestLevel(){ return (_memberLevels||[]).find(_isGuestLevel) || null; }
 function _realLevels(){ return (_memberLevels||[]).filter(function(l){ return !_isGuestLevel(l); }); }
 /* 卡片显示用的等级：注册会员若还挂在「游客」档（后台把游客也建了行、注册默认又给了它），
    名字/序号/成长值门槛一律按第一个真实等级(青铜)显示，跟配色一致——不会「橙卡却写游客」。
@@ -5440,11 +5450,14 @@ function renderProfileScreen(){
       _renderMemCat(0);
       document.getElementById('memName').textContent = '游客';
       document.getElementById('memLevelNum').textContent = 'Lv.0';
-      document.getElementById('memLevelName').textContent = '猫咪蛋';
+      // 等级名一律读后台「等级管理」里排序 0 那行，不写死——后台改名/删档，这里跟着变
+      var glvl = _guestLevel();
+      document.getElementById('memLevelName').textContent = (glvl && glvl.name_cn) || '猫咪蛋';
       document.getElementById('memWallet').textContent = 'RM 0';
       document.getElementById('memCoins').textContent = '0';
       document.getElementById('memCouponCount').textContent = '0';
       document.getElementById('memXpBar').style.width = '0%';
+      document.getElementById('memXpBar').classList.remove('has');   // 游客是真的 0，别留那个小头
       document.getElementById('memXpNow').textContent = '0 XP';
       document.getElementById('memXpNext').textContent = '注册成为会员即可升级到Lv.1 ' + ((_realLevels()[0] && _realLevels()[0].name_cn) || '新生小猫');
       return;
@@ -5466,13 +5479,20 @@ function renderProfileScreen(){
     var xp = _memberProfile.xp||0;
     var bar = document.getElementById('memXpBar'), nextLbl = document.getElementById('memXpNext');
     if(nextLvl){
-      var span = nextLvl.xp_required - (dlvl.xp_required||0);
-      var prog = span>0 ? Math.min(100, Math.max(0,(xp-(dlvl.xp_required||0))/span*100)) : 100;
+      /* 基准要跟旁边两行字一致：数字写「450/600 XP」、下面写「再获得150 XP」，
+         两句都是从 0 算到下一级门槛。以前进度条却按「本级门槛→下级门槛」那一段算，
+         同样是 450/600，字面 75% 条只画 50%，对不上。
+         更糟的是会员 XP 低于自己那级的门槛时（服务端默认等级给高了就会这样），
+         算出来是负数、夹成 0%——数字一直在涨，条却焊死在最左边。 */
+      var need = Number(nextLvl.xp_required)||0;
+      var prog = need>0 ? Math.min(100, Math.max(0, xp/need*100)) : 100;
       bar.style.width = prog+'%';
+      bar.classList.toggle('has', prog>0);   // 比例再小也留个看得见的头，见 .mem-xpbar i.has
       document.getElementById('memXpNow').textContent = xp+'/'+nextLvl.xp_required+' XP';
       nextLbl.textContent ='再获得'+Math.max(0,nextLvl.xp_required-xp)+' XP即可升级到'+_memLevelLabel(nextLvl)+' '+nextLvl.name_cn;
     } else {
       bar.style.width='100%';
+      bar.classList.add('has');
       document.getElementById('memXpNow').textContent = xp+' XP';
       nextLbl.textContent ='已是最高等级';
     }
