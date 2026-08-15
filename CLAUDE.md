@@ -47,6 +47,8 @@ Member phones are stored in **one canonical shape: `0127010189`** — local form
 
 生日 is a **required** field on the registration form (`memRegBirthday` → `members.birthday`, which already existed but nothing ever wrote to it) — the level table has advertised 生日 perks all along, and an optional field everyone skips can't power them. It sits between 手机号 and PIN so that **邀请码 stays the last field**, pre-filled from `?ref=`. POS 会员运营 → 会员列表 shows it as a 月-日 column, red when it's this month.
 
+It is the one field **not** stretched to `width:100%`. `input[type=date]` paints its own `dd/mm/yyyy` text plus a calendar icon, and that text is normal body colour rather than placeholder grey — so at full width it was the only box in a column of short grey hints that read as long and black, and looked like it didn't belong. It's sized to its content (170px) and given an `.empty` class (toggled on `oninput` and re-synced in `showRegisterForm`) that drops the text to the same grey as the other placeholders. Don't "fix" it back to full width — the boxes were already identical at 350×44; the mismatch was the content, not the geometry.
+
 `rpc_member_register` has been rewritten by three different SQL files and two of them lost each other's work: `supabase-referral-v2.sql` writes the `referrals` row but keeps the old default level (lands on the 未注册 tier), `supabase-member-default-level.sql` fixes the level but drops the `referrals` insert. `supabase-member-birthday-phone.sql` carries both. Anything that touches this function again must too — losing the `referrals` insert breaks the whole invite payout chain silently.
 
 ### 会员等级 / 成长值条

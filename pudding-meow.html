@@ -624,6 +624,14 @@
   .mem-field label{ display:block; font-size:12px; font-weight:700; color:var(--red); margin-bottom:6px; }
   .mem-field input{ width:100%; height:44px; border:1.5px solid var(--cream2); border-radius:10px; padding:0 14px; font-size:15px; box-sizing:border-box; font-family:"Noto Sans SC",sans-serif; outline:none; }
   .mem-field input:focus{ border-color:var(--red); }
+  /* 生日走原生日期选择器，它自带 dd/mm/yyyy 的文字和右边的日历图标，而且那段文字
+     是正常字色、不是占位符的浅灰。拉满整行时，一排「短浅灰提示」里就它一个又长又黑，
+     顾客一眼就觉得这个框跟别的不一样。所以按内容给宽度（日期本来也就那么几个字），
+     空着的时候把字色降到跟其它框的占位符一致。 */
+  .mem-field input[type=date]{ width:170px; max-width:100%; }
+  .mem-field input[type=date].empty{ color:#9a9a9a; }
+  .mem-field input[type=date]::-webkit-datetime-edit{ font-family:inherit; }
+  .mem-field input[type=date]::-webkit-calendar-picker-indicator{ opacity:.45; cursor:pointer; }
   .mem-submit{ width:100%; height:48px; background:var(--red); color:var(--yellow); border:none; border-radius:999px; font-weight:700; font-size:16px; margin-top:8px; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }
   .mem-err{ color:var(--red); font-size:12px; margin-top:-6px; margin-bottom:10px; min-height:14px; }
 
@@ -1553,7 +1561,7 @@
         <div class="mem-field"><label>昵称</label><input type="text" id="memRegNickname" placeholder="给自己取个名字"></div>
         <!-- 手机号只收 0127010189 这一种写法：本地格式、纯数字，柜台在 POS 里照着念就能输进去 -->
         <div class="mem-field"><label>手机号</label><input type="tel" id="memRegPhone" placeholder="0127010189" inputmode="numeric" maxlength="11" oninput="_phoneInput(this)"></div>
-        <div class="mem-field"><label>生日</label><input type="date" id="memRegBirthday"></div>
+        <div class="mem-field"><label>生日</label><input type="date" id="memRegBirthday" class="empty" oninput="this.classList.toggle('empty', !this.value)"></div>
         <div class="mem-field"><label>设置 PIN 密码</label><input type="password" id="memRegPin" placeholder="4-6 位数字，之后登录要用" inputmode="numeric"></div>
         <div class="mem-field"><label>邀请码（选填）</label><input type="text" id="memRegReferral" placeholder="好友的邀请码"></div>
         <div class="mem-err" id="memRegErr"></div>
@@ -5367,7 +5375,9 @@ function showRegisterForm(tab){
   document.getElementById('memHome').style.display='none';
   document.getElementById('memAuth').style.display='block';
   try{ memSwitchAuthTab(tab || (_bioRec()?'login':'register')); }catch(e){}   // 本机开过快速登录 → 默认落在登录页看到生物识别按钮
-  try{ var b=document.getElementById('memRegBirthday'); if(b) b.max=_pkIso(new Date()); }catch(e){}   // 生日不给选到未来
+  try{ var b=document.getElementById('memRegBirthday');
+       if(b){ b.max=_pkIso(new Date());                        // 生日不给选到未来
+              b.classList.toggle('empty', !b.value); } }catch(e){}   // 空着就用占位符的浅灰，跟其它框看齐
   try{ _renderBioUi(); }catch(e){}
 }
 function closeRegister(){
