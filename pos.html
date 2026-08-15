@@ -3125,8 +3125,10 @@ function _confirmPendPay(tender,change){
   var _boundNow=false;
   if(!o.memberId && _posMember && _posMember.id){ o.memberId=_posMember.id; _boundNow=true; }
   /* 这单的制作单等下由 changeDone 手动出（跟收银台自己开的单同一条链）。
-     必须在把云端状态翻成 preparing 之前先标记已出单——否则那次 update 会触发实时扫描
-     (_scanPrepaidPrint) 自动再出一张，就是「线上单出两次制作单」的根因。 */
+     本机先记一笔，挡住本机自己的实时扫描 (_scanPrepaidPrint) 再出一张。
+     ⚠ 但这只挡得住本机——pm_printed_kitchen 是每台机、每个标签页各存一份的。
+     跨设备那一半在下面的 update 里做：把 kitchen_printed_at 跟状态写在同一条语句里，
+     别的机器收到 pending→preparing 时去认领就会失败，于是不会重复出单。 */
   try{ _printedKitchen[o.id]=1; sj('pm_printed_kitchen',_printedKitchen); }catch(e){}
   try{ sj('pm_orders',_orders); pmBroadcastOrders(); }catch(e){ console.error('payPend local save',e); }
 
@@ -3144,13 +3146,32 @@ function _confirmPendPay(tender,change){
 
   if(db){
     try{
-      var _upd={status:o.status,pay_method:o.payMethod,items:o.items,total:o.total};
+      /* kitchen_printed_at 必须跟 status 写在**同一条 update 里**，这是跨设备防重复出单的关键。
+         这单的制作单由本机的 changeDone 负责出，所以在这里就把出单权认领掉。
+         以前只翻 status、不写这一列：别台 POS（或同一台机的第二个标签页）收到
+         pending→preparing 的实时事件后去认领，发现 kitchen_printed_at 还是 NULL，
+         认领成功 → 又出一张。同一条语句写下去，别台看到状态变化时这一列已经有值，
+         认领必然失败，就不会再出第二张。
+         列还没建（supabase-order-kitchen-printed.sql 没跑）时这次 update 会整条失败，
+         所以下面 catch 里会退回只写状态，至少不影响收款。 */
+      var _upd={status:o.status,pay_method:o.payMethod,items:o.items,total:o.total,
+                kitchen_printed_at:new Date().toISOString()};
       // 当场补绑的会员要一起写回去，不然积分发了、单子在库里还是「没主人」，
       // 会员的消费次数/消费金额/每周任务全是漏的，跟事后补单要解决的是同一件事。
       if(_boundNow) _upd.member_id=o.memberId;
+      var _updFallback=function(){
+        // kitchen_printed_at 那一列不存在（迁移没跑）会让整条 update 失败——连状态都翻不了，
+        // 单子会卡在待付款里。所以退回只写状态那几列：跨设备时最多多出一张制作单，
+        // 总好过收了钱订单还挂在 pending。
+        var _fb={status:o.status,pay_method:o.payMethod,items:o.items,total:o.total};
+        if(_boundNow) _fb.member_id=o.memberId;
+        db.from('orders').update(_fb).eq('id',o.id)
+          .then(function(r){ if(r&&r.error){ console.error('payPend update fallback',r.error); showN('订单状态没同步到云端：'+_rpcErr(r.error)); } })
+          .catch(function(e){ console.error('payPend update fallback',e); });
+      };
       db.from('orders').update(_upd).eq('id',o.id)
-        .then(function(res){if(res&&res.error){console.error('payPend update',res.error); showN('订单状态没同步到云端：'+_rpcErr(res.error));}})
-        .catch(function(e){console.error('payPend update',e);});
+        .then(function(res){ if(res&&res.error){ console.error('payPend update',res.error); _updFallback(); } })
+        .catch(function(e){ console.error('payPend update',e); _updFallback(); });
     }catch(e){ console.error('payPend update',e); }
     try{ _settleMemberRewards(o); }catch(e){ console.error('rpc_on_order_completed',e); }
     if(_boundNow) showN('已绑定会员 '+((_posMember&&(_posMember.nickname||_posMember.phone))||'')+'，本单积分已入账');
