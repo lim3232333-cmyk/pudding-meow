@@ -57,7 +57,7 @@ create or replace function public._referral_grant(
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   if p_member_id is null then return; end if;
@@ -94,7 +94,7 @@ create or replace function public._referral_payout(p_invitee uuid)
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare s record; v_ref record; v_l2 uuid;
 begin
@@ -134,7 +134,7 @@ create or replace function public.rpc_member_register(
   p_phone text, p_pin text, p_nickname text default null, p_referral_code text default null)
 returns table(member_id uuid, session_token text)
 language plpgsql security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare v_id uuid; v_token text; v_referrer uuid; v_default_level uuid;
 begin
@@ -168,7 +168,7 @@ $$;
 create or replace function public.rpc_on_order_completed(p_member_id uuid, p_order_id text, p_amount numeric)
 returns void
 language plpgsql security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare v_pay text; v_earns boolean;
 begin
@@ -208,7 +208,7 @@ create or replace function public.rpc_get_my_referral(p_member_id uuid, p_sessio
 returns table(out_code text, out_nickname text, out_l1 int, out_l2 int,
               out_coins int, out_xp int, out_friends jsonb)
 language plpgsql security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   perform public._auth_member(p_member_id, p_session_token);
