@@ -55,7 +55,7 @@ create or replace function public.rpc_member_login(p_phone text, p_pin text)
 returns table(member_id uuid, session_token text)
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare v_id uuid; v_token text; v_phone text;
 begin
