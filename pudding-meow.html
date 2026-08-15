@@ -1972,6 +1972,7 @@
           <div class="ck-price-row"><span>商品小计</span><span id="ckSubtotal">RM 0.00</span></div>
           <div class="ck-price-row" id="ckFeeRow"><span>配送费</span><span id="ckFee">RM 0.00</span></div>
           <div class="ck-price-row"><span>折扣</span><span class="neg" id="ckDiscount">-RM 0.00</span></div>
+          <div class="ck-price-row" id="ckAdminRow"><span id="ckAdminLbl">手续费</span><span id="ckAdminFee">RM 0.00</span></div>
           <div class="ck-pay-hr"></div>
           <div class="ck-price-row total"><span>付款总额</span><span class="val" id="ckTotal">RM 0.00</span></div>
         </div>
@@ -2316,14 +2317,14 @@ function orderToRow(o){
   return { id:o.id, order_num:o.orderNum, receipt_no:o.receiptNo!=null?o.receiptNo:null, kind_seq:o.kindSeq!=null?o.kindSeq:null, created_at:o.createdAt, items:o.items||[],
     total:o.total||0, pay_method:o.payMethod, status:o.status,
     source:o.source, table_name:o.tableName, ta_mode:o.taMode, member_id:o.memberId||null, device_id:o.deviceId||null,
-    coupon_id:o.couponId||null, discount:Number(o.discount)||0,
+    coupon_id:o.couponId||null, discount:Number(o.discount)||0, admin_fee:Number(o.adminFee)||0,
     delivery_info:o.deliveryInfo||null };
 }
 function rowToOrder(r){
   return { id:r.id, orderNum:r.order_num||(r.id?String(r.id).slice(-4):''), receiptNo:r.receipt_no!=null?r.receipt_no:null, kindSeq:r.kind_seq!=null?r.kind_seq:null, createdAt:r.created_at,
     items:r.items||[], total:Number(r.total)||0, payMethod:r.pay_method||'counter',
     status:r.status||'pending', source:r.source||'app', tableName:r.table_name||'', taMode:r.ta_mode||'',
-    couponId:r.coupon_id||null, discount:Number(r.discount)||0,
+    couponId:r.coupon_id||null, discount:Number(r.discount)||0, adminFee:Number(r.admin_fee)||0,
     memberId:r.member_id||null, deviceId:r.device_id||null, deliveryInfo:r.delivery_info||null };
 }
 /* 取号：永久收据号 receiptNo + 当天订单号 orderNum。优先 Supabase RPC（跨设备唯一/按天重置），离线兜底本地 */
@@ -3152,6 +3153,44 @@ function _selectAddr(id){
    注意：缓冲只加在顾客这一边；POS 叫车时显示的「现在运费」用的是 Lalamove 原始价（真实成本）。 */
 var DELIVERY_FEE_MULTIPLIER = 1.2;
 function _dvCustomerFee(rawTotal){ return Math.round((Number(rawTotal)||0)*DELIVERY_FEE_MULTIPLIER*100)/100; }
+
+/* ===== 手续费：把 HitPay 的通道费转嫁给顾客 =====
+   只有真的走 HitPay 的付款方式才收。钱包扣的是店内余额、柜台收的是现金，
+   店家零成本，再收手续费就是乱收钱——所以判断条件是付款方式以 hp_ 开头，
+   不是「模式是自取/外卖」：自取的客人用钱包付，一样不该被收。
+   费率照抄 HitPay 公开费率表，有固定几毛就收几毛；线上从 shop_settings 读，
+   POS 后台可改。这份常量只是没联网时的兜底，必须和 pos.html 里那份一模一样。 */
+var ADMIN_FEE_FALLBACK = {
+  hp_tng: {pct:1.9, fixed:0},      // Touch n Go
+  hp_fpx: {pct:1.8, fixed:0.40},   // Online Banking (FPX)
+  hp_card:{pct:1.2, fixed:1.00}    // 信用卡/借记卡：按本地卡算（外国卡是 3%+RM1，付款前分不出来）
+};
+var _adminFeeRates = null;
+function _feeRates(){ return _adminFeeRates || ADMIN_FEE_FALLBACK; }
+/* base = 顾客真正要付的钱（商品小计 + 配送费 − 折扣），不是商品小计 */
+function _adminFee(pay, base){
+  if(String(pay||'').indexOf('hp_')!==0) return 0;
+  var r=_feeRates()[pay]; if(!r) return 0;
+  var v=(Number(base)||0)*(Number(r.pct)||0)/100 + (Number(r.fixed)||0);
+  return v>0 ? Math.round(v*100)/100 : 0;
+}
+/* 费率写给顾客看：「1.9%」或「1.8% + RM0.40」。让他看得出为什么换个付款方式钱不一样 */
+function _adminFeeDesc(pay){
+  var r=_feeRates()[pay]; if(!r) return '';
+  var p=Number(r.pct)||0, f=Number(r.fixed)||0;
+  return (p?p+'%':'') + (p&&f?' + ':'') + (f?'RM'+f.toFixed(2):'');
+}
+function loadAdminFeeRates(){
+  try{ var c=JSON.parse(localStorage.getItem('pm_fee_rates')||'null'); if(c) _adminFeeRates=c; }catch(e){}
+  if(!db) return Promise.resolve();
+  return db.from('shop_settings').select('admin_fee_rates').eq('id',1).then(function(res){
+    // 读不到就继续用兜底费率：手续费算错一点，也比结算页整个打不开强
+    if(res.error){ console.error('shop_settings.admin_fee_rates', res.error); return; }
+    var r=res.data && res.data[0] && res.data[0].admin_fee_rates;
+    if(r && typeof r==='object'){ _adminFeeRates=r;
+      try{ localStorage.setItem('pm_fee_rates', JSON.stringify(r)); }catch(e){} }
+  }).catch(function(e){ console.error('shop_settings.admin_fee_rates', e); });
+}
 
 /* 报价在后台算，弹窗里不显示配送费（之后显示在购物车）；只有出错才在 dvErr 提示一行 */
 function _dvFetchQuote(){
@@ -4128,12 +4167,24 @@ function renderCheckout(){
   // 选中的券若已不适用（改了购物车导致不满门槛/甜品没了），自动取消，避免算出不该有的折扣
   if(_ckCoupon && _couponUsable(_ckCoupon, sub).ok===false) _ckCoupon=null;
   var disc=_ckCoupon?_couponDiscount(_ckCoupon, sub):0;
-  var total=Math.max(0, sub+fee-disc);
+  // 手续费按「顾客真正要付的钱」算，所以先把应付额结出来，再往上加
+  var payable=Math.max(0, sub+fee-disc);
+  var afee=_adminFee(selectedPay, payable);
+  var total=payable+afee;
   document.getElementById('ckSubtotal').textContent='RM '+sub.toFixed(2);
   // 堂食/自取没有配送这回事，整行藏掉——留着一行「配送费 RM 0.00」只会让顾客愣一下
   document.getElementById('ckFeeRow').style.display=isDv?'flex':'none';
   document.getElementById('ckFee').textContent='RM '+fee.toFixed(2);
   document.getElementById('ckDiscount').textContent='-RM '+disc.toFixed(2);
+  // 手续费同理：钱包/柜台付款没有这笔钱，整行藏掉。费率写在标签上，顾客才看得懂
+  // 为什么换个付款方式总额会变（也顺带把人往便宜的 Touch n Go 引）。
+  var aRow=document.getElementById('ckAdminRow');
+  if(aRow){
+    aRow.style.display=afee>0?'flex':'none';
+    var aLbl=document.getElementById('ckAdminLbl');
+    if(aLbl){ var d=_adminFeeDesc(selectedPay); aLbl.textContent='手续费'+(d?' '+d:''); }
+    document.getElementById('ckAdminFee').textContent='RM '+afee.toFixed(2);
+  }
   document.getElementById('ckTotal').textContent='RM '+total.toFixed(2);
   document.getElementById('ckPayBtn').textContent='立即支付 RM'+total.toFixed(2);
   _ckRenderCouponRow(disc);
@@ -4246,7 +4297,10 @@ function selectPay(method){
   var radiCtr=document.getElementById('radio-counter');
   if(radiTng) radiTng.className ='pay-radio-tng' + (method==='tng' ?' selected' :'');
   if(radiCtr) radiCtr.className ='pay-radio-counter' + (method==='counter' ?' selected' :'');
-  _ckSyncPayRows();   // 确认订单页的付款方式行同步选中态
+  // 整页重画而不是只同步选中态：手续费是按付款方式算的，换一个方式手续费和
+  // 付款总额都会变（钱包/柜台没有这笔钱）。只同步选中态的话，顾客从 Touch n Go
+  // 换成余额支付，手续费那行还挂在那里，按钮上的金额也还是旧的。
+  renderCheckout();
 }
 
 function confirmOrder(){
@@ -4281,6 +4335,10 @@ function _doConfirmOrder(discount, couponId, presetId){
   total += deliveryFee;
   discount = Math.min(Math.max(Number(discount)||0, 0), total);   // 服务端算的折扣，兜底夹一次防负数
   total -= discount;
+  // 手续费：口径必须和 renderCheckout() 完全一致（都按折扣后的应付额算），
+  // 否则顾客在结算页看到一个数、实际被扣另一个数。
+  var adminFee = _adminFee(selectedPay, total);
+  total += adminFee;
 
   // 余额支付：先做客户端预检（余额够不够、有没有登录联网），不够就直接拦下，不建单
   if(selectedPay==='wallet'){
@@ -4294,6 +4352,7 @@ function _doConfirmOrder(discount, couponId, presetId){
     id: presetId || ('o'+Date.now()),   // 有券时用核销时那个 id，两边要对上
     couponId: couponId || null,
     discount: discount,
+    adminFee: adminFee,        // 已含在 total 里；单独存一份，报表要扣掉它、积分也要按扣掉它之后发
     orderNum: '',              // 取号后填入（当天流水号）
     createdAt: new Date().toISOString(),
     items: items,
@@ -4636,6 +4695,7 @@ renderCartPanel();
 loadMenu();   // 从云端拉菜单（拉到后自动重绘；未配置/离线则保持写死菜单）
 loadSpecDefs();   // 拉规格库，用于判断哪些规格选项当前售罄
 loadAppChannels();   // 拉销售渠道的营业时间/开关（外卖·自取据此拦截）
+loadAdminFeeRates();   // 拉手续费费率（HitPay 通道费转嫁），读不到就用兜底常量
 try{ if(db) db.channel('app-channels').on('postgres_changes',{event:'*',schema:'public',table:'sales_channels'},function(){ loadAppChannels(); }).subscribe(); }catch(e){}
 
 /* =================== ORDERS =================== */

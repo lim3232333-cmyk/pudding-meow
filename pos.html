@@ -605,6 +605,7 @@ input.pdt-chip{border:none;outline:none;font-family:"Noto Sans SC",sans-serif;te
 .page-title{font-size:22px;font-weight:700;color:#8D0505;margin-bottom:18px;}
 .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;}
 .kpi-row.k6{grid-template-columns:repeat(6,1fr);gap:12px;}
+.kpi-row.k7{grid-template-columns:repeat(7,1fr);gap:10px;}
 .kpi{background:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 2px 8px rgba(141,5,5,.08);}
 .kpi .l{font-size:11px;color:#4A4848;margin-bottom:8px;}
 .kpi .v{font-size:26px;font-weight:900;color:#8D0505;}
@@ -1115,6 +1116,16 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
 </div>
 
 <!-- 外卖配送（叫 Lalamove）-->
+<!-- 手续费费率：照抄 HitPay 的费率表，改完两个前端下次启动各自从 shop_settings 读到 -->
+<div class="modal-bg" id="afeeBg" onclick="if(event.target===this)closeAdminFee()">
+  <div style="background:#fff;border-radius:20px;width:560px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="background:#8D0505;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+      <span style="font-size:22px;font-weight:700;color:#B6F3FF">手续费费率 · Admin Fee</span>
+      <button onclick="closeAdminFee()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div id="afeeBody" style="padding:18px 20px;"></div>
+  </div>
+</div>
 <div class="modal-bg" id="dlvBg" onclick="if(event.target===this)closeDelivery()">
   <div style="background:#fff;border-radius:20px;width:620px;max-height:660px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);">
     <div style="background:#8D0505;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
@@ -1507,11 +1518,11 @@ function setCloudStatus(s){
 setTimeout(function(){ setCloudStatus(db?'connecting':'offline'); },0);
 /* 订单对象 <-> 数据库行（只映射数据库已有的列，tender/change/customerName 等不入库）*/
 function orderToRow(o){return{id:o.id,order_num:o.orderNum,receipt_no:o.receiptNo!=null?o.receiptNo:null,kind_seq:o.kindSeq!=null?o.kindSeq:null,created_at:o.createdAt,items:o.items||[],
-  total:o.total||0,pay_method:o.payMethod,status:o.status,source:o.source,table_name:o.tableName,ta_mode:o.taMode,member_id:o.memberId||null,device_id:o.deviceId||null,coupon_id:o.couponId||null,discount:Number(o.discount)||0,
+  total:o.total||0,pay_method:o.payMethod,status:o.status,source:o.source,table_name:o.tableName,ta_mode:o.taMode,member_id:o.memberId||null,device_id:o.deviceId||null,coupon_id:o.couponId||null,discount:Number(o.discount)||0,admin_fee:Number(o.adminFee)||0,
   delivery_info:o.deliveryInfo||null};}
 function rowToOrder(r){return{id:r.id,orderNum:r.order_num||(r.id?String(r.id).slice(-4):''),receiptNo:r.receipt_no!=null?r.receipt_no:null,kindSeq:r.kind_seq!=null?r.kind_seq:null,createdAt:r.created_at,
   items:r.items||[],total:Number(r.total)||0,payMethod:r.pay_method||'counter',status:r.status||'pending',
-  source:r.source||'app',tableName:r.table_name||'',taMode:r.ta_mode||'',memberId:r.member_id||null,deviceId:r.device_id||null,couponId:r.coupon_id||null,discount:Number(r.discount)||0,deliveryInfo:r.delivery_info||null,businessDate:r.business_date||null};}
+  source:r.source||'app',tableName:r.table_name||'',taMode:r.ta_mode||'',memberId:r.member_id||null,deviceId:r.device_id||null,couponId:r.coupon_id||null,discount:Number(r.discount)||0,adminFee:Number(r.admin_fee)||0,deliveryInfo:r.delivery_info||null,businessDate:r.business_date||null};}
 /* ── 取号：永久收据号 receiptNo + 当天订单号 orderNum ──
    优先用 Supabase rpc_next_order_num（跨设备唯一/按天重置）；离线或失败时本地兜底。 */
 function _setOrderNums(o,rc,on,ks){ o.receiptNo=rc; o.orderNum=String(on).padStart(4,'0'); if(ks!=null) o.kindSeq=ks; }
@@ -2717,17 +2728,26 @@ function _renderReceipt(o, mem){
   }).join('');
   var subtotal=(o.items||[]).reduce(function(s,it){return s+it.qty*it.price;},0)||o.total||0;
   var discount=o.discount||0;
-  // 商品组（Frame200）：商品行，有折扣时末尾接一条虚线（Line26）
-  var itemsGroup='<div class="rgroup">'+itemsHtml+(discount>0?'<div class="rdash"></div>':'')+'</div>';
-  // SUBTOTAL/DISCOUNT 段（Frame207）：仅有折扣时显示；没折扣时 subtotal 与 total 相同、省略。
-  // 段内含 2px 粗线（Line25）；没折扣时用独立粗线兜底分隔。
+  var adminFee=Number(o.adminFee)||0;                                   // 支付手续费（HitPay 通道费转嫁）
+  var dlvFee=Number(o.deliveryInfo&&o.deliveryInfo.fee)||0;             // 外卖运费（存在 delivery_info 里，没有独立列）
+  // 只要总额里含了商品之外的钱，这一段就得列出来，否则小票上「商品加起来」对不上 TOTAL。
+  // 以前只在有折扣时才列，外卖单就变成商品 30.00 而 TOTAL 38.00，顾客照着算会以为被多收。
+  var hasAdj = discount>0 || adminFee>0 || dlvFee>0;
+  // 商品组（Frame200）：商品行，后面还有明细时末尾接一条虚线（Line26）
+  var itemsGroup='<div class="rgroup">'+itemsHtml+(hasAdj?'<div class="rdash"></div>':'')+'</div>';
+  // SUBTOTAL/DISCOUNT 段（Frame207）：没有任何加减项时 subtotal 与 total 相同、整段省略。
+  // 段内含 2px 粗线（Line25）；省略时用独立粗线兜底分隔。
   var subGroup, sepLine;
-  if(discount>0){
+  if(hasAdj){
     subGroup='<div class="rgroup">'
       +'<div class="rrow"><span class="rlbl">SUBTOTAL</span><span>'+subtotal.toFixed(2)+'</span></div>'
-      +'<div class="rdisc"><div class="rname"><span class="rlbl">DISCOUNT</span>'
-      +(o.discountLabel?'<div class="rflavs" style="padding-left:0"><div class="rflav">'+esc(o.discountLabel)+'</div></div>':'')
-      +'</div><span class="rval">-'+discount.toFixed(2)+'</span></div>'
+      +(dlvFee>0?'<div class="rrow"><span class="rlbl">DELIVERY</span><span>'+dlvFee.toFixed(2)+'</span></div>':'')
+      +(discount>0
+        ? '<div class="rdisc"><div class="rname"><span class="rlbl">DISCOUNT</span>'
+          +(o.discountLabel?'<div class="rflavs" style="padding-left:0"><div class="rflav">'+esc(o.discountLabel)+'</div></div>':'')
+          +'</div><span class="rval">-'+discount.toFixed(2)+'</span></div>'
+        : '')
+      +(adminFee>0?'<div class="rrow"><span class="rlbl">手续费 ADMIN FEE</span><span>'+adminFee.toFixed(2)+'</span></div>':'')
       +'<div class="rline2"></div>'
       +'</div>';
     sepLine='';
@@ -3449,12 +3469,70 @@ var _WD=['周日','周一','周二','周三','周四','周五','周六'];
 var _bizCut = 4;
 function loadShopSettings(){
   if(!db) return Promise.resolve();
-  return db.from('shop_settings').select('day_cutoff_hour').eq('id',1).then(function(res){
+  return db.from('shop_settings').select('day_cutoff_hour,admin_fee_rates').eq('id',1).then(function(res){
     if(res.error){ console.error('shop_settings', res.error); return; }
     var r = res.data && res.data[0];
     if(r && r.day_cutoff_hour != null) _bizCut = r.day_cutoff_hour;
+    if(r && r.admin_fee_rates && typeof r.admin_fee_rates==='object') _adminFeeRates = r.admin_fee_rates;
   }).catch(function(e){ console.error('shop_settings', e); });
 }
+/* ===== 手续费费率（HitPay 通道费转嫁给顾客）=====
+   这份兜底常量必须和 pudding-meow.html 里那份一模一样——两边算出不同的手续费，
+   顾客在小程序看到一个数、小票印出另一个数。真正生效的是 shop_settings 里那份。 */
+var ADMIN_FEE_FALLBACK = {
+  hp_tng: {pct:1.9, fixed:0},      // Touch n Go
+  hp_fpx: {pct:1.8, fixed:0.40},   // Online Banking (FPX)
+  hp_card:{pct:1.2, fixed:1.00}    // 信用卡/借记卡：按本地卡算（外国卡是 3%+RM1，付款前分不出来）
+};
+var _adminFeeRates = null;
+var ADMIN_FEE_LABEL = {hp_tng:'Touch n Go', hp_fpx:'Online Banking (FPX)', hp_card:'信用卡 / 借记卡'};
+function _feeRates(){ return _adminFeeRates || ADMIN_FEE_FALLBACK; }
+/* 保存费率。只写 shop_settings，两个前端下次启动各自读到——POS 不直接改小程序 */
+function saveAdminFeeRates(){
+  var out={};
+  Object.keys(ADMIN_FEE_LABEL).forEach(function(k){
+    var p=document.getElementById('afp_'+k), f=document.getElementById('aff_'+k);
+    if(!p||!f) return;
+    out[k]={pct:Math.max(0,Number(p.value)||0), fixed:Math.max(0,Number(f.value)||0)};
+  });
+  if(!db){ showN('未连接云端，改不了费率'); return; }
+  db.from('shop_settings').update({admin_fee_rates:out, updated_at:new Date().toISOString()}).eq('id',1)
+    .then(function(res){
+      // 写失败必须吭声：静默失败的话你以为改了费率，顾客那边还是照旧收
+      if(res && res.error){ console.error('admin_fee_rates', res.error); showN('费率保存失败：'+_rpcErr(res.error)); return; }
+      _adminFeeRates=out; showN('手续费费率已保存'); closeAdminFee(); renderDash();
+    }).catch(function(e){ console.error('admin_fee_rates', e); showN('费率保存失败，请检查网络'); });
+}
+function openAdminFee(){
+  var r=_feeRates();
+  var inp='border:1.5px solid #F5E9D4;border-radius:8px;padding:6px 8px;font-size:14px;font-family:inherit;width:88px;text-align:right';
+  document.getElementById('afeeBody').innerHTML=
+     '<div style="font-size:13px;color:#4A4848;line-height:1.7;margin-bottom:14px">'
+    +'照抄 HitPay 的费率表，顾客付款时按他选的方式收，收多少就原样付给 HitPay。<br>'
+    +'<b>只有走 HitPay 的单才收</b>——余额支付和柜台收现金没有通道费，一律不收。'
+    +'</div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:14px">'
+    +'<tr style="color:#8D0505;font-weight:700"><td style="padding:6px 0">付款方式</td>'
+    +'<td style="text-align:right">百分比 %</td><td style="text-align:right;padding-left:12px">固定 RM</td></tr>'
+    + Object.keys(ADMIN_FEE_LABEL).map(function(k){
+        var v=r[k]||{pct:0,fixed:0};
+        return '<tr><td style="padding:7px 0">'+ADMIN_FEE_LABEL[k]+'</td>'
+          +'<td style="text-align:right"><input id="afp_'+k+'" type="number" step="0.01" min="0" value="'+(Number(v.pct)||0)+'" style="'+inp+'"></td>'
+          +'<td style="text-align:right;padding-left:12px"><input id="aff_'+k+'" type="number" step="0.01" min="0" value="'+(Number(v.fixed)||0)+'" style="'+inp+'"></td></tr>';
+      }).join('')
+    +'</table>'
+    // 这条不写清楚，下次看到「信用卡 1.2%」会以为漏了 HitPay 的外国卡 3%
+    +'<div style="font-size:12px;color:#8a7f7f;line-height:1.7;margin-top:14px;border-top:1px dashed #F5E9D4;padding-top:12px">'
+    +'信用卡按 <b>本地卡 1.2% + RM1</b> 算。HitPay 的外国卡是 3% + RM1，但顾客点「信用卡」时还没刷卡，'
+    +'前端分不出是哪种；按 3% 收会让本地卡的客人多付 1.8%，所以外国卡那点差价店里自己吃。'
+    +'</div>'
+    +'<div style="text-align:right;margin-top:16px">'
+    +'<button onclick="closeAdminFee()" style="background:#eee;border:none;border-radius:10px;padding:9px 18px;font-size:14px;font-family:inherit;cursor:pointer;margin-right:8px">取消</button>'
+    +'<button onclick="saveAdminFeeRates()" style="background:#8D0505;color:#FFDE5B;border:none;border-radius:10px;padding:9px 20px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer">保存</button>'
+    +'</div>';
+  document.getElementById('afeeBg').classList.add('show');
+}
+function closeAdminFee(){ document.getElementById('afeeBg').classList.remove('show'); }
 function _bizDay(d){ d = d || new Date(); return _ymd(new Date(d.getTime() - _bizCut*3600000)); }
 /* 一单算哪个营业日：优先用服务端写死的那一列，没有才本地算 */
 function _orderDay(o){
@@ -3522,12 +3600,17 @@ function renderDash(){
   var today=_bizDay();var dd=_vDate||today;
   var ords=_dayOrders(dd).filter(function(o){try{return _orderDay(o)===dd && o.taMode!=='recharge' && o.taMode!=='reservation';}catch(e){return false;}});  // 充值单/预约单不算营业额
   var live=ords.filter(function(o){return o.status!=='void';});
-  var rev=live.reduce(function(s,o){return s+o.total;},0);
+  // 营业额要扣掉手续费：那笔钱顾客付了，但转手就付给 HitPay 当通道费，一分没进店里。
+  // 算进营业额的话，账面上的钱会比银行到账多，月底对不上。下面几个按付款方式拆的
+  // KPI 用的仍是含手续费的实收额——那才是当时真的划走的钱。
+  var _net=function(o){ return (o.total||0)-(Number(o.adminFee)||0); };
+  var rev=live.reduce(function(s,o){return s+_net(o);},0);
+  var afee=live.reduce(function(s,o){return s+(Number(o.adminFee)||0);},0);
   var cash=live.filter(function(o){return o.payMethod==='cash';}).reduce(function(s,o){return s+o.total;},0);
   var tng=live.filter(function(o){return o.payMethod==='tng';}).reduce(function(s,o){return s+o.total;},0);
   var onl=live.filter(function(o){return o.payMethod==='hitpay';}).reduce(function(s,o){return s+o.total;},0);  // 在线支付（HitPay 网关）
   var wal=live.filter(function(o){return o.payMethod==='wallet';}).reduce(function(s,o){return s+o.total;},0);  // Meow Wallet 余额支付
-  var revShown = _revMode ? live.filter(function(o){return orderMode3(o)===_revMode;}).reduce(function(s,o){return s+o.total;},0) : rev;
+  var revShown = _revMode ? live.filter(function(o){return orderMode3(o)===_revMode;}).reduce(function(s,o){return s+_net(o);},0) : rev;
   // 看的不是今天就别再写「今日」，不然翻到昨天还顶着今日营业额，容易看岔
   var revLabel = {'':(dd===today?'今日营业额':'当日营业额'),dinein:'堂食营业额',takeaway:'打包/自取营业额',delivery:'外卖营业额'}[_revMode];
 
@@ -3559,8 +3642,11 @@ function renderDash(){
     +'<span class="dbox-hint" style="margin-left:auto">营业日切点 '
     +'<select onchange="setBizCut(this.value)" style="border:1.5px solid #F5E9D4;border-radius:8px;padding:4px 8px;font-size:12px;font-family:inherit;color:#4A4848;background:#fff;cursor:pointer">'
     + [0,1,2,3,4,5,6,7].map(function(h){ return '<option value="'+h+'"'+(h===_bizCut?' selected':'')+'>'+String(h).padStart(2,'0')+':00</option>'; }).join('')
-    +'</select> 之前的单算前一天</span></div>'
-    +'<div class="kpi-row k6">'
+    +'</select> 之前的单算前一天</span>'
+    // 费率也放这一页：改完当场在上面的「手续费」KPI 看到效果，跟切点同一个道理
+    +'<span class="dbox-hint" style="margin-left:14px"><a href="javascript:openAdminFee()" style="color:#8D0505;font-weight:700;text-decoration:none;border-bottom:1px dashed #8D0505">手续费费率</a></span></div>'
+    // 有收到手续费才多挂一格，免得平时白占一列显示 RM 0.00
+    +'<div class="kpi-row '+(afee>0?'k7':'k6')+'">'
     +'<div class="kpi"><div class="l">'+revLabel+'<select class="th-filter" onchange="setRevMode(this.value)">'
       +'<option value=""'+(_revMode===''?' selected':'')+'>▼ 总营业额</option>'
       +'<option value="dinein"'+(_revMode==='dinein'?' selected':'')+'>堂食</option>'
@@ -3572,6 +3658,8 @@ function renderDash(){
     +'<div class="kpi"><div class="l">DuitNow</div><div class="v">RM '+tng.toFixed(2)+'</div></div>'
     +'<div class="kpi"><div class="l">Online</div><div class="v">RM '+onl.toFixed(2)+'</div></div>'
     +'<div class="kpi"><div class="l">Meow Wallet</div><div class="v">RM '+wal.toFixed(2)+'</div></div>'
+    // 代收的手续费：已经从营业额里扣掉了，单列出来是让你知道这笔钱要付给 HitPay
+    +(afee>0?'<div class="kpi"><div class="l">手续费（付给 HitPay）</div><div class="v">RM '+afee.toFixed(2)+'</div></div>':'')
     +'</div>'
     +'<div class="tx-split">'
       +'<div class="tx-left tx-card"><div class="tx-ch"><h3>交易明细</h3></div>'
@@ -4799,11 +4887,14 @@ function renderReports(){
   var src=Object.keys(mmap).map(function(k){return mmap[k];});
   // 跟交易看板口径对齐：作废单、充值单、预约单都不算营业额
   var mords=src.filter(function(o){return _orderDay(o).slice(0,7)===selM && o.status!=='void' && o.taMode!=='recharge' && o.taMode!=='reservation';});
-  var tot=mords.reduce(function(s,o){return s+o.total;},0);
+  // 跟交易看板同一个口径：营业额扣掉代收的手续费（那笔钱转手付给 HitPay）。
+  // 这里不扣的话，同一天在看板上是 53.00、在月报里是 53.63，月底对账会以为丢了钱。
+  var _net=function(o){ return (o.total||0)-(Number(o.adminFee)||0); };
+  var tot=mords.reduce(function(s,o){return s+_net(o);},0);
   var cash=mords.filter(function(o){return o.payMethod==='cash';}).reduce(function(s,o){return s+o.total;},0);
   var tng=mords.filter(function(o){return o.payMethod==='tng';}).reduce(function(s,o){return s+o.total;},0);
   var card=mords.filter(function(o){return o.payMethod==='card';}).reduce(function(s,o){return s+o.total;},0);
-  var days={};mords.forEach(function(o){var d=_orderDay(o);days[d]=(days[d]||0)+o.total;});
+  var days={};mords.forEach(function(o){var d=_orderDay(o);days[d]=(days[d]||0)+_net(o);});
   var maxD=Math.max.apply(null,Object.values(days).concat([1]));
   var el=document.getElementById('adminContent');
   el.innerHTML='<div class="page-title">月度报告 Monthly Report</div>'

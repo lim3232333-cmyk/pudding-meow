@@ -211,7 +211,13 @@ Deno.serve(async (req: Request) => {
           Authorization: `Bearer ${SERVICE_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ p_member_id: updated.member_id, p_order_id: updated.id, p_amount: updated.total }),
+        // 发分要扣掉手续费：那笔钱是转手付给 HitPay 的通道费，不是店里的营业额，
+        // 按含手续费的总额发分等于替通道费倒贴 XP/Coin。
+        body: JSON.stringify({
+          p_member_id: updated.member_id,
+          p_order_id: updated.id,
+          p_amount: Math.max(0, Number(updated.total || 0) - Number(updated.admin_fee || 0)),
+        }),
       });
       if (!rpcRes.ok) console.error("hitpay-webhook: rpc_on_order_completed failed", await rpcRes.text());
     }
