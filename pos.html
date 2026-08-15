@@ -357,6 +357,14 @@ body.ds-on{user-select:none;-webkit-user-select:none;}
 .pend-cancel{flex-shrink:0;padding:10px 14px;background:#fff;border:2px solid #8D0505;border-radius:12px;color:#8D0505;font-size:20px;font-weight:500;line-height:1;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
 .pend-pay:active{transform:translateY(1px);}
 .pend-sep{height:1px;background:#8D0505;opacity:.25;flex-shrink:0;}
+/* 合并：勾选框 + 底部的合并条 */
+.pend-pick{width:26px;height:26px;flex-shrink:0;accent-color:#8D0505;cursor:pointer;margin:0;}
+.pend-pick-sp{width:26px;flex-shrink:0;}   /* 不能合并的行（在线支付/充值）留个等宽占位，单号才对得齐 */
+.pend-merge{flex-shrink:0;padding:14px 24px;background:#FFDE5B;border-top:2px solid #8D0505;
+  display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:16px;color:#8D0505;font-weight:700;}
+.pend-merge-btn{padding:10px 18px;background:#8D0505;border:none;border-radius:12px;color:#FFDE5B;
+  font-size:18px;font-weight:700;line-height:1;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
+.pend-merge-btn:active{transform:translateY(1px);}
 .pend-empty{text-align:center;padding:40px;font-size:18px;color:#4A4848;}
 
 /* ═══════ PAYMENT PANEL — 570×722px exact Figma ═══════ */
@@ -1112,6 +1120,11 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       </button>
 </div>
     <div id="pendList" class="pend-body"></div>
+    <!-- 合并条：勾了两张以上柜台单才出现（同桌加单、分开下的单，合成一张一起收） -->
+    <div id="pendMergeBar" class="pend-merge" style="display:none">
+      <span id="pendMergeInfo"></span>
+      <button class="pend-merge-btn" onclick="mergePend()">合并成一单</button>
+    </div>
 </div>
 </div>
 
@@ -2878,16 +2891,107 @@ function showPending(){
       right='<button class="pend-pay" onclick="payPend(\''+o.id+'\')">Payment</button>'
            +'<button class="pend-cancel" onclick="cancelPend(\''+o.id+'\')">取消</button>';
     }
+    // 只有柜台付款的餐单能合并。在线支付单不行——hitpay-webhook 是按订单 id 找单的，
+    // 合并会让顾客真的付了款却找不到那张单；充值单不是餐单，合并没有意义。
+    var canMerge = !isOnlinePay && !isRecharge;
+    var pick = canMerge
+      ? '<input type="checkbox" class="pend-pick" '+(_pendPick[o.id]?'checked':'')+' onchange="pendTogglePick(\''+o.id+'\',this.checked)">'
+      : '<span class="pend-pick-sp"></span>';
     return (i?'<div class="pend-sep"></div>':'')
       +'<div class="pend-row">'
-      +'<div class="pend-row-l"><span class="pend-ord">'+esc(num)+'</span><span class="pend-table">'+esc(name)+'</span>'
+      +'<div class="pend-row-l">'+pick+'<span class="pend-ord">'+esc(num)+'</span><span class="pend-table">'+esc(name)+'</span>'
       +'<span class="pend-amt">RM '+Number(o.total||0).toFixed(2)+'</span></div>'
       +'<div class="pend-row-r">'+right+'</div>'
       +'</div>';
   }).join('');}
+  // 列表重画后，勾选状态里可能还留着已经被收款/取消掉的单，清一清再算合并条
+  var live={}; pend.forEach(function(o){ if(_pendPick[o.id]) live[o.id]=1; });
+  _pendPick=live;
+  _renderMergeBar(pend);
   document.getElementById('pendBg').classList.add('show');
 }
-function closePending(){document.getElementById('pendBg').classList.remove('show');}
+function closePending(){ _pendPick={}; document.getElementById('pendBg').classList.remove('show'); }
+
+/* ══════════ 合并待付款单 ══════════
+   同一桌分两次下单、或者一群人各点各的，柜台想合成一张一起收。勾两张以上就能合。
+   只合柜台付款的餐单：在线支付单不能碰（hitpay-webhook 按订单 id 找单，合掉了顾客
+   付了钱却对不上那张单），充值单也不是餐单。
+   被合掉的那几张直接删（跟「取消」一个做法）——它们从没收过钱、不是交易，
+   留成「已作废」只会让交易明细多出一堆没意义的行。商品都搬到留下的那张单上了。 */
+var _pendPick={};
+function pendTogglePick(id, on){
+  if(on) _pendPick[id]=1; else delete _pendPick[id];
+  var pend=_orders.filter(function(o){return o.status==='pending' && o.taMode!=='reservation';});
+  _renderMergeBar(pend);
+}
+function _pickedOrders(pend){
+  return pend.filter(function(o){ return _pendPick[o.id]; });
+}
+function _renderMergeBar(pend){
+  var bar=document.getElementById('pendMergeBar'); if(!bar) return;
+  var sel=_pickedOrders(pend);
+  if(sel.length<2){ bar.style.display='none'; return; }
+  var tot=sel.reduce(function(s,o){ return s+(Number(o.total)||0); },0);
+  document.getElementById('pendMergeInfo').textContent=
+    '已选 '+sel.length+' 张：'+sel.map(function(o){return '#'+o.orderNum;}).join('、')
+    +'　合计 RM '+tot.toFixed(2);
+  bar.style.display='flex';
+}
+function mergePend(){
+  var pend=_orders.filter(function(o){return o.status==='pending' && o.taMode!=='reservation';});
+  var sel=_pickedOrders(pend);
+  if(sel.length<2){ showN('至少勾两张单才能合并'); return; }
+  // 正在核对的那张单如果被卷进来，购物栏里的内容跟合并后的单会对不上，先让店员退出核对
+  if(_pendReviewOrder && sel.some(function(o){ return o.id===_pendReviewOrder.id; })){
+    showN('这几张里有正在核对的单，请先用三角形 → Delete All 退出核对再合并'); return;
+  }
+  // 会员冲突：两张单绑了不同的人，合起来积分该算谁的？没有正确答案，交给店员拆开处理
+  var mems={}; sel.forEach(function(o){ if(o.memberId) mems[o.memberId]=1; });
+  if(Object.keys(mems).length>1){
+    alert('这几张单绑了不同的会员，合并后积分算谁的没法判断。\n请先分开收款，或取消其中一张重下。');
+    return;
+  }
+  // 留下单号最小的那张：厨房和顾客已经认得这个号了，换成别的号反而对不上
+  var keep=sel.slice().sort(function(a,b){
+    return (parseInt(a.orderNum,10)||0)-(parseInt(b.orderNum,10)||0); })[0];
+  var drop=sel.filter(function(o){ return o.id!==keep.id; });
+  var tot=sel.reduce(function(s,o){ return s+(Number(o.total)||0); },0);
+  if(!confirm('把这 '+sel.length+' 张单合并成 #'+keep.orderNum+'？\n\n'
+    +sel.map(function(o){ return '  #'+o.orderNum+'  '+_pendCode(o)+'  RM '+Number(o.total||0).toFixed(2); }).join('\n')
+    +'\n\n合并后：#'+keep.orderNum+' 共 RM '+tot.toFixed(2)
+    +'\n其余 '+drop.length+' 张会从待付款移除。')) return;
+
+  // 商品直接接上去，不去合并同名行——规格不同的同一件商品并不该并成一行，
+  // 而且店员看得到顾客实际是怎么点的，核对时才对得上
+  drop.forEach(function(o){ keep.items=(keep.items||[]).concat(o.items||[]); });
+  keep.total=tot;
+  keep.discount=sel.reduce(function(s,o){ return s+(Number(o.discount)||0); },0);
+  keep.adminFee=sel.reduce(function(s,o){ return s+(Number(o.adminFee)||0); },0);
+  if(!keep.memberId){ var mid=Object.keys(mems)[0]; if(mid) keep.memberId=mid; }
+
+  var dropIds=drop.map(function(o){ return o.id; });
+  _orders=_orders.filter(function(o){ return dropIds.indexOf(o.id)<0; });
+  try{ sj('pm_orders',_orders); pmBroadcastOrders(); }catch(e){ console.error('mergePend local', e); }
+
+  if(db){
+    try{
+      db.from('orders').update({items:keep.items, total:keep.total, discount:keep.discount,
+        admin_fee:keep.adminFee, member_id:keep.memberId||null}).eq('id',keep.id)
+        .then(function(res){ if(res&&res.error){ console.error('mergePend keep', res.error);
+          showN('合并没同步到云端：'+_rpcErr(res.error)); } })
+        .catch(function(e){ console.error('mergePend keep', e); });
+      // 带 status=pending 守卫：万一另一台机器刚好把某张收了款，就不该被删掉
+      dropIds.forEach(function(id){
+        db.from('orders').delete().eq('id',id).eq('status','pending')
+          .then(function(res){ if(res&&res.error) console.error('mergePend drop', res.error); })
+          .catch(function(e){ console.error('mergePend drop', e); });
+      });
+    }catch(e){ console.error('mergePend', e); }
+  }
+  _pendPick={};
+  updPend(); _refreshPendIfOpen();
+  showN('已合并成 #'+keep.orderNum+'，共 RM '+tot.toFixed(2));
+}
 /* 手动取消一张待付款单：直接删掉（本地 + 云端，带 status=pending 守卫，万一已收款/到账
    就不会被误删），从待付款移除。删除而非作废，交易明细不会多出「已作废」（作废只保留给店员
    主动 Void）。柜台充值和柜台付款餐单共用这套逻辑，只有确认/提示文案不同。 */
@@ -2957,7 +3061,6 @@ function payPend(id){
   // 没绑会员的单（顾客忘了登录就下单，很常见）留着可以输入——收钱时当场补上手机号，
   // 这单就直接归到他账下，XP/Coin 照常发，不用事后跑 SQL 补单。
   custEl.readOnly=!!o.memberId;
-  custEl.placeholder=o.memberId?'Member':'输入手机号绑定会员';
   if(o.memberId && db){
     custEl.value='加载会员资料…';
     _posMember=null; _renderPosMember();
@@ -2990,7 +3093,7 @@ function _exitPendReview(){
   try{ _renderPosMember(); }catch(e){}
   _posClearTable();   // ctTable 一直是 readonly（点击弹数字盘），只清值不解锁
   var c=document.getElementById('ctCustomer');
-  if(c){ c.value=''; c.readOnly=false; c.placeholder='Member'; }   // 核对时改过 placeholder，退出要还原
+  if(c){ c.value=''; c.readOnly=false; }
   renderCart();
 }
 function _confirmPendPay(tender,change){
