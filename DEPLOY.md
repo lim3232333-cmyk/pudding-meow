@@ -81,6 +81,12 @@ var GOOGLE_MAPS_KEY = 'YOUR-GOOGLE-MAPS-API-KEY';   // ← 换成 AIzaSy... 那�
 
 Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-push-subscriptions.sql`** 全部内容 → **Run**。（存每台手机的推送订阅 + 手机号白名单用。）
 
+### 5.0 建手续费费率（一次性，想把 HitPay 手续费转嫁给顾客才要跑）
+
+Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-admin-fee.sql`** 全部内容 → **Run**。
+
+费率预设照抄 HitPay 的公开费率表（Touch n Go 1.9%、Online Banking 1.8%+RM0.40、信用卡 1.2%+RM1），跑完之后在 **POS → Transaction → 手续费费率** 里随时改，不用再回来碰 SQL。**不跑这段也不会坏**：两个前端读不到费率就用内置的同一份兜底值。要完全不收手续费，把三行的百分比和固定金额都改成 0 就行。
+
 ### 5.2 设 Edge Function 密钥
 
 Supabase → **Edge Functions** → **Secrets**（或 Project Settings → Edge Functions），加这几个：
