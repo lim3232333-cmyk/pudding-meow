@@ -2681,7 +2681,10 @@ function _renderKitchen(o){
    跟旁边的券核销一样：钱都收了，奖励没发出去必须吭声。 */
 function _settleMemberRewards(o){
   if(!db || !o || !o.memberId) return;
-  db.rpc('rpc_on_order_completed',{p_member_id:o.memberId,p_order_id:o.id,p_amount:o.total})
+  // 发分要扣掉手续费：那笔钱是代收转付给 HitPay 的通道费，不是店里的营业额。
+  // 柜台单的 adminFee 本来就是 0，这里是为了跟 hitpay-webhook 的口径一致。
+  var amt=Math.max(0,(Number(o.total)||0)-(Number(o.adminFee)||0));
+  db.rpc('rpc_on_order_completed',{p_member_id:o.memberId,p_order_id:o.id,p_amount:amt})
     .then(function(res){ if(res&&res.error){ console.error('rpc_on_order_completed:',res.error); showN('会员积分结算失败：'+_rpcErr(res.error)); } })
     .catch(function(e){ console.error('rpc_on_order_completed:',e); showN('会员积分结算失败：'+_rpcErr(e)); });
 }
@@ -2950,7 +2953,11 @@ function payPend(id){
   tblEl.value=lbl+(paxM?(' · '+paxM[1]+'人'):'');
   tblEl.readOnly=true;
   var custEl=document.getElementById('ctCustomer');
-  custEl.readOnly=true;
+  // 已经绑了会员的单：电话框锁死，免得店员手滑把这单的积分改记到别人头上。
+  // 没绑会员的单（顾客忘了登录就下单，很常见）留着可以输入——收钱时当场补上手机号，
+  // 这单就直接归到他账下，XP/Coin 照常发，不用事后跑 SQL 补单。
+  custEl.readOnly=!!o.memberId;
+  custEl.placeholder=o.memberId?'Member':'输入手机号绑定会员';
   if(o.memberId && db){
     custEl.value='加载会员资料…';
     _posMember=null; _renderPosMember();
@@ -2969,7 +2976,9 @@ function payPend(id){
     _posMember=null; _renderPosMember();
     custEl.value=o.customerName||'';
   }
-  showN('待付款单已载入购物栏，核对无误请点 Payment 收款；只是看看就用三角形 → Delete All 退出，单子照留');
+  showN(o.memberId
+    ? '待付款单已载入购物栏，核对无误请点 Payment 收款；只是看看就用三角形 → Delete All 退出，单子照留'
+    : '待付款单已载入购物栏。这单没绑会员——顾客要是有会员，在 Member 框输入手机号再收款，积分就直接进他账户');
 }
 /* 核对结束（付完款，或点 Delete All 退出核对）：把购物栏、桌号/电话框、会员资料
    都还原成建新单前的样子。注意这里只动 POS 本地的界面状态，不碰订单本身——
@@ -2981,7 +2990,7 @@ function _exitPendReview(){
   try{ _renderPosMember(); }catch(e){}
   _posClearTable();   // ctTable 一直是 readonly（点击弹数字盘），只清值不解锁
   var c=document.getElementById('ctCustomer');
-  if(c){ c.value=''; c.readOnly=false; }
+  if(c){ c.value=''; c.readOnly=false; c.placeholder='Member'; }   // 核对时改过 placeholder，退出要还原
   renderCart();
 }
 function _confirmPendPay(tender,change){
@@ -3007,6 +3016,11 @@ function _confirmPendPay(tender,change){
   o.items=cart.map(function(i){return{name:i.name,name_cn:i.name_cn,price:i.price,qty:i.qty,specs:i.specs||[],flavor:i.specText||i.flavor||""};});
   o.total=payTotalAmount;
   o.status=(o.source==='app'?'preparing':'paid');
+  /* 顾客下单时忘了登录 → 店员在核对时输入手机号查到人 → 收款当场把这单绑到他名下。
+     只补空的，绝不覆盖已经绑好的单：改绑等于把积分从一个人挪到另一个人。
+     （payPend 里已经把绑过会员那些单的电话框锁成 readOnly，这里是第二道。） */
+  var _boundNow=false;
+  if(!o.memberId && _posMember && _posMember.id){ o.memberId=_posMember.id; _boundNow=true; }
   /* 这单的制作单等下由 changeDone 手动出（跟收银台自己开的单同一条链）。
      必须在把云端状态翻成 preparing 之前先标记已出单——否则那次 update 会触发实时扫描
      (_scanPrepaidPrint) 自动再出一张，就是「线上单出两次制作单」的根因。 */
@@ -3027,11 +3041,16 @@ function _confirmPendPay(tender,change){
 
   if(db){
     try{
-      db.from('orders').update({status:o.status,pay_method:o.payMethod,items:o.items,total:o.total}).eq('id',o.id)
+      var _upd={status:o.status,pay_method:o.payMethod,items:o.items,total:o.total};
+      // 当场补绑的会员要一起写回去，不然积分发了、单子在库里还是「没主人」，
+      // 会员的消费次数/消费金额/每周任务全是漏的，跟事后补单要解决的是同一件事。
+      if(_boundNow) _upd.member_id=o.memberId;
+      db.from('orders').update(_upd).eq('id',o.id)
         .then(function(res){if(res&&res.error){console.error('payPend update',res.error); showN('订单状态没同步到云端：'+_rpcErr(res.error));}})
         .catch(function(e){console.error('payPend update',e);});
     }catch(e){ console.error('payPend update',e); }
     try{ _settleMemberRewards(o); }catch(e){ console.error('rpc_on_order_completed',e); }
+    if(_boundNow) showN('已绑定会员 '+((_posMember&&(_posMember.nickname||_posMember.phone))||'')+'，本单积分已入账');
   }
   try{ updPend(); _refreshPendIfOpen(); }catch(e){ console.error('payPend refresh',e); }
 }
