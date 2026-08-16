@@ -1492,6 +1492,20 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
 </div>
 
 <!-- COUPON ISSUE MODAL — 发放优惠券给指定会员，或广播给全体会员 -->
+<!-- 发放规则（三层模型的中间层）：一张券可以挂多条规则，各有各的触发事件和条件 -->
+<div class="modal-bg" id="cprBg" onclick="if(event.target===this)closeCpr()">
+  <div style="background:#fff;border-radius:20px;width:860px;max-height:700px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="background:#8D0505;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+      <span style="font-size:20px;font-weight:700;color:#B6F3FF" id="cprTitle">发放规则</span>
+      <button onclick="closeCpr()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:18px 20px">
+      <div id="cprList"></div>
+      <div id="cprForm" style="margin-top:16px;border-top:2px dashed #F5E9D4;padding-top:16px"></div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="cpnIssueBg" onclick="if(event.target===this)closeCpnIssue()">
   <div class="mm-box">
     <div class="mm-hd"><h3>发放优惠券</h3><button class="mm-cl" onclick="closeCpnIssue()">✕</button></div>
@@ -4789,9 +4803,11 @@ function saveRef(){
 
 /* ---- 优惠券管理：模板 CRUD + 发放 + 已发放列表（核销）---- */
 var _loyaltyCoupons=[], _loyaltyMemberCoupons=[], _cpnEditId=null, _cpnIssueId=null;
+var _couponRules=[], _cprCouponId=null, _cprEditId=null;
 function loadLoyaltyCoupons(){
   Promise.all([
     db.from('coupons').select('*').then(function(res){ if(!res.error) _loyaltyCoupons=res.data||[]; }),
+    db.from('coupon_rules').select('*').then(function(res){ if(!res.error) _couponRules=res.data||[]; }),
     db.rpc('rpc_admin_list_member_coupons',{p_search:null}).then(function(res){ if(!res.error) _loyaltyMemberCoupons=res.data||[]; })
   ]).then(function(){ renderLoyaltyCouponsBody(); }).catch(function(e){});
 }
@@ -4829,6 +4845,7 @@ function renderLoyaltyCouponsBody(){
         +'<td>'+(c.enabled?'<span style="color:#1D7715">启用</span>':'<span style="color:#8D0505">停用</span>')+'</td>'
         +'<td style="white-space:nowrap">'
         +'<button onclick="openCpnIssue(\''+c.id+'\',\''+esc(c.name)+'\')" style="border:none;background:#FFDE5B;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">发放</button>'
+        +'<button onclick="openCpr(\''+c.id+'\')" style="border:none;background:#1D7715;color:#fff;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">规则'+(_cprCount(c.id)?(' '+_cprCount(c.id)):'')+'</button>'
         +'<button onclick="openCpn(\''+c.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">改</button>'
         +'<button onclick="delCpn(\''+c.id+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">删</button>'
         +'</td></tr>';
@@ -4853,6 +4870,219 @@ function renderLoyaltyCouponsBody(){
   }
   html+='</tbody></table></div>';
   body.innerHTML=html;
+}
+/* ══════════ 发放规则（三层模型的中间层）══════════
+   券模板（面额/门槛/有效期）→ **发放规则**（什么事件触发·什么条件·限领几张）→ 券实例。
+   一张券可以挂多条规则：同一张「满20减5」既可以注册时送，也可以消费满 RM100 再送一张。
+
+   条件是通用的「字段 · 运算符 · 值」三元组，存进 coupon_rules.conditions：
+       {"all":[{"field":"amount","op":">=","value":100}, ...]}
+   后端 _coupon_facts 把这个会员/这次事件的所有事实算成一个 jsonb，_coupon_cond_ok
+   逐条比。所以下面这张字段表就是店里能用的全部条件——想怎么组合都行，不用改代码。 */
+var _CPR_EVENT={register:'注册即送', order_paid:'下单付款后', birthday_month:'生日月'};
+/* ev 留空 = 任何事件都能用；写了就只在那些事件下出现（注册时没有「本单金额」这回事） */
+var _CPR_FIELDS=[
+  {k:'amount',             t:'本单金额 RM',        type:'num',  ev:['order_paid']},
+  {k:'mode',               t:'用餐方式',            type:'enum', ev:['order_paid'],
+   opts:[['dinein','堂食'],['takeaway','自取'],['delivery','外卖']]},
+  {k:'pay_method',         t:'支付方式',            type:'enum', ev:['order_paid'],
+   opts:[['cash','现金'],['tng','DuitNow/TNG'],['hitpay','在线支付'],['wallet','喵钱包'],['counter','柜台']]},
+  {k:'is_first_order',     t:'是否首单',            type:'enum', ev:['order_paid'],
+   opts:[['1','是'],['0','否']]},
+  {k:'order_count',        t:'历史完成单数',        type:'num'},
+  {k:'total_spent',        t:'历史消费总额 RM',     type:'num'},
+  {k:'level_sort_order',   t:'会员等级排序',        type:'num'},
+  {k:'xp',                 t:'成长值 XP',           type:'num'},
+  {k:'coins',              t:'Coin 余额',           type:'num'},
+  {k:'wallet_balance',     t:'钱包余额 RM',         type:'num'},
+  {k:'days_since_register',t:'注册至今天数',        type:'num'},
+  {k:'weekday',            t:'星期几（1=一…7=日）', type:'num'},
+  {k:'hour',               t:'小时（0-23）',        type:'num'},
+  {k:'month',              t:'当前月份（1-12）',    type:'num'},
+  {k:'birthday_month',     t:'会员生日月（1-12）',  type:'num'}
+];
+var _CPR_OPS=[['>=','≥'],['<=','≤'],['>','大于'],['<','小于'],['==','等于'],['!=','不等于'],
+              ['in','属于其中'],['not_in','不属于']];
+var _cprCond=[];                       // 表单里正在编辑的条件行
+function _cprField(k){ return _CPR_FIELDS.find(function(f){return f.k===k;}); }
+function _cprCount(couponId){ return (_couponRules||[]).filter(function(r){return r.coupon_id===couponId;}).length; }
+function _cprOf(couponId){ return (_couponRules||[]).filter(function(r){return r.coupon_id===couponId;}); }
+/* 把条件翻成人话，店员一眼看得懂这条规则到底管什么 */
+function _cprCondTxt(r){
+  var arr=(r.conditions&&r.conditions.all)||[];
+  if(!arr.length) return '<span style="color:#8a7f7f">无条件</span>';
+  return arr.map(function(c){
+    var f=_cprField(c.field), op=(_CPR_OPS.find(function(o){return o[0]===c.op;})||[])[1]||c.op;
+    var v=c.value;
+    if(Array.isArray(v)) v=v.join('、');
+    if(f&&f.opts){ var hit=f.opts.find(function(o){return String(o[0])===String(v);}); if(hit) v=hit[1]; }
+    return ((f&&f.t)||c.field)+' '+op+' '+v;
+  }).join('　·　');
+}
+function openCpr(couponId){
+  _cprCouponId=couponId; _cprEditId=null; _cprCond=[];
+  var c=_loyaltyCoupons.find(function(x){return x.id===couponId;});
+  document.getElementById('cprTitle').textContent='发放规则 · '+((c&&c.name)||'');
+  _cprRender();
+  document.getElementById('cprBg').classList.add('show');
+}
+function closeCpr(){ _cprCouponId=null; _cprEditId=null; _cprCond=[]; document.getElementById('cprBg').classList.remove('show'); }
+function _cprRender(){
+  var rows=_cprOf(_cprCouponId);
+  var html='<table style="width:100%;border-collapse:collapse;font-size:13px">'
+    +'<thead><tr style="color:#8D0505;font-weight:700;text-align:left">'
+    +'<th style="padding:6px 4px">规则</th><th>触发</th><th>条件</th><th>每人</th><th>总量</th><th>已发</th><th>状态</th><th></th></tr></thead><tbody>';
+  if(!rows.length){
+    html+='<tr><td colspan="8" style="padding:22px;text-align:center;color:#8a7f7f">这张券还没有自动发放规则。加一条之后，符合条件的会员会自动拿到它。</td></tr>';
+  } else {
+    rows.forEach(function(r){
+      html+='<tr style="border-top:1px solid #F5E9D4'+(r.enabled?'':';opacity:.5')+'">'
+        +'<td style="padding:7px 4px"><b>'+esc(r.name||'(未命名)')+'</b></td>'
+        +'<td>'+(_CPR_EVENT[r.trigger_event]||esc(r.trigger_event))+'</td>'
+        +'<td>'+_cprCondTxt(r)+'</td>'
+        +'<td>'+(r.per_member_limit>0?r.per_member_limit+' 张':'不限')+'</td>'
+        +'<td>'+(r.total_limit!=null?r.total_limit+' 张':'不限')+'</td>'
+        +'<td><b>'+(r.issued_count||0)+'</b></td>'
+        +'<td>'+(r.enabled?'<span style="color:#1D7715">启用</span>':'<span style="color:#8D0505">停用</span>')+'</td>'
+        +'<td style="white-space:nowrap">'
+        +'<button onclick="cprEdit(\''+r.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:3px 9px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">改</button>'
+        +'<button onclick="cprDel(\''+r.id+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:3px 9px;cursor:pointer;font-size:12px;font-weight:700">删</button>'
+        +'</td></tr>';
+    });
+  }
+  html+='</tbody></table>';
+  document.getElementById('cprList').innerHTML=html;
+  _cprForm();
+}
+function cprEdit(id){
+  _cprEditId=id;
+  var r=_couponRules.find(function(x){return x.id===id;})||{};
+  _cprCond=JSON.parse(JSON.stringify((r.conditions&&r.conditions.all)||[]));
+  _cprForm();
+}
+/* 条件行：字段 + 运算符 + 值。值那一格按「字段类型 × 运算符」决定长什么样——
+   枚举字段配 ==/!= 时给下拉（免得店员打错 delivery 拼写），其余给输入框。 */
+function _cprCondRows(){
+  var ev=document.getElementById('cprEvent') ? document.getElementById('cprEvent').value : 'register';
+  var inp='border:1.5px solid #F5E9D4;border-radius:8px;padding:5px 7px;font-size:13px;font-family:inherit';
+  var usable=_CPR_FIELDS.filter(function(f){ return !f.ev || f.ev.indexOf(ev)>=0; });
+  if(!_cprCond.length) return '<div style="color:#8a7f7f;font-size:13px;padding:4px 0">无条件 —— 这个事件一发生就发券。</div>';
+  return _cprCond.map(function(c,i){
+    var f=_cprField(c.field);
+    var isEnum=f&&f.opts&&(c.op==='=='||c.op==='!=');
+    var valHtml;
+    if(isEnum){
+      valHtml='<select style="'+inp+';width:130px" onchange="_cprSet('+i+',\'value\',this.value)">'
+        + f.opts.map(function(o){ return '<option value="'+o[0]+'"'+(String(c.value)===String(o[0])?' selected':'')+'>'+o[1]+'</option>'; }).join('')
+        +'</select>';
+    } else {
+      var shown=Array.isArray(c.value)?c.value.join(','):(c.value==null?'':c.value);
+      valHtml='<input value="'+esc(String(shown))+'" placeholder="'+((c.op==='in'||c.op==='not_in')?'逗号分隔，如 6,7':'数值')
+        +'" style="'+inp+';width:130px" onchange="_cprSet('+i+',\'value\',this.value)">';
+    }
+    return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">'
+      +'<select style="'+inp+';width:165px" onchange="_cprSet('+i+',\'field\',this.value)">'
+        + usable.map(function(x){ return '<option value="'+x.k+'"'+(c.field===x.k?' selected':'')+'>'+x.t+'</option>'; }).join('')
+      +'</select>'
+      +'<select style="'+inp+';width:110px" onchange="_cprSet('+i+',\'op\',this.value)">'
+        + _CPR_OPS.map(function(o){ return '<option value="'+o[0]+'"'+(c.op===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')
+      +'</select>'
+      + valHtml
+      +'<button onclick="_cprDelCond('+i+')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 9px;cursor:pointer;font-size:12px">✕</button>'
+      +'</div>';
+  }).join('');
+}
+function _cprSet(i,k,v){
+  _cprCond[i][k]=v;
+  // 换了字段就把值清掉：不同字段的取值范围不一样，留着旧值多半是错的
+  if(k==='field') _cprCond[i].value='';
+  document.getElementById('cprCondBox').innerHTML=_cprCondRows();
+}
+function _cprAddCond(){
+  var ev=document.getElementById('cprEvent').value;
+  var first=_CPR_FIELDS.filter(function(f){ return !f.ev || f.ev.indexOf(ev)>=0; })[0];
+  _cprCond.push({field:first.k, op:'>=', value:''});
+  document.getElementById('cprCondBox').innerHTML=_cprCondRows();
+}
+function _cprDelCond(i){ _cprCond.splice(i,1); document.getElementById('cprCondBox').innerHTML=_cprCondRows(); }
+function _cprForm(){
+  var r=_cprEditId?(_couponRules.find(function(x){return x.id===_cprEditId;})||{}):{};
+  var inp='border:1.5px solid #F5E9D4;border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit';
+  var ev=r.trigger_event||'register';
+  document.getElementById('cprForm').innerHTML=
+     '<div style="font-weight:700;color:#8D0505;margin-bottom:10px">'+(_cprEditId?'编辑规则':'新增规则')+'</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;font-size:13px;margin-bottom:12px">'
+    +'<label>规则备注<br><input id="cprName" value="'+esc(r.name||'')+'" placeholder="如：新人注册礼" style="'+inp+';width:150px"></label>'
+    +'<label>触发事件<br><select id="cprEvent" onchange="_cprSyncEvent()" style="'+inp+';width:130px">'
+      + Object.keys(_CPR_EVENT).map(function(k){ return '<option value="'+k+'"'+(ev===k?' selected':'')+'>'+_CPR_EVENT[k]+'</option>'; }).join('')
+    +'</select></label>'
+    +'<label>每人限领<br><input id="cprPer" type="number" min="0" value="'+(r.per_member_limit!=null?r.per_member_limit:1)+'" style="'+inp+';width:80px"></label>'
+    +'<label>总量上限<br><input id="cprTotal" type="number" min="1" value="'+(r.total_limit!=null?r.total_limit:'')+'" placeholder="不限" style="'+inp+';width:90px"></label>'
+    +'<label style="align-self:center"><input id="cprEnabled" type="checkbox"'+(r.enabled===false?'':' checked')+'> 启用</label>'
+    +'</div>'
+    +'<div style="font-weight:700;color:#8D0505;font-size:13px;margin-bottom:6px">发放条件 '
+      +'<button onclick="_cprAddCond()" style="border:none;background:#1D7715;color:#fff;border-radius:6px;padding:3px 10px;margin-left:6px;cursor:pointer;font-size:12px;font-weight:700">＋ 加一条</button>'
+      +'<span style="font-weight:400;color:#8a7f7f;margin-left:8px">全部满足才发</span></div>'
+    +'<div id="cprCondBox"></div>'
+    +'<div style="font-size:12px;color:#8a7f7f;margin-top:8px">每人限领填 <b>0</b> = 不限张数；总量上限留空 = 不限。'
+      +'「属于其中」的值用逗号分隔，例如星期几填 <b>6,7</b> 就是只在周六周日。</div>'
+    +'<div style="text-align:right;margin-top:12px">'
+    +(_cprEditId?'<button onclick="_cprEditId=null;_cprCond=[];_cprForm()" style="background:#eee;border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-family:inherit;cursor:pointer;margin-right:8px">取消编辑</button>':'')
+    +'<button onclick="cprSave()" style="background:#8D0505;color:#FFDE5B;border:none;border-radius:10px;padding:8px 20px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">保存规则</button>'
+    +'</div>';
+  document.getElementById('cprCondBox').innerHTML=_cprCondRows();
+}
+/* 换事件时，把只属于别的事件的条件行删掉——留着的话规则永远不触发，
+   店员会以为设好了却一张券都不发。 */
+function _cprSyncEvent(){
+  var ev=document.getElementById('cprEvent').value;
+  _cprCond=_cprCond.filter(function(c){ var f=_cprField(c.field); return !f||!f.ev||f.ev.indexOf(ev)>=0; });
+  document.getElementById('cprCondBox').innerHTML=_cprCondRows();
+}
+function cprSave(){
+  if(!db){ showN('未连接云端'); return; }
+  var all=[];
+  for(var i=0;i<_cprCond.length;i++){
+    var c=_cprCond[i], f=_cprField(c.field);
+    var raw=c.value;
+    if(raw===''||raw==null){ showN('第 '+(i+1)+' 条条件还没填值'); return; }
+    var val;
+    if(c.op==='in'||c.op==='not_in'){
+      val=String(raw).split(',').map(function(x){return x.trim();}).filter(Boolean)
+            .map(function(x){ return isNaN(Number(x))?x:Number(x); });
+      if(!val.length){ showN('第 '+(i+1)+' 条条件的值是空的'); return; }
+    } else if(f&&f.type==='num'){
+      val=Number(raw);
+      if(isNaN(val)){ showN('第 '+(i+1)+' 条条件要填数字'); return; }
+    } else {
+      val=isNaN(Number(raw))?String(raw):Number(raw);
+    }
+    all.push({field:c.field, op:c.op, value:val});
+  }
+  var per=parseInt(document.getElementById('cprPer').value); if(isNaN(per)||per<0) per=1;
+  var totRaw=document.getElementById('cprTotal').value.trim();
+  var tot=totRaw===''?null:parseInt(totRaw);
+  if(tot!=null && (isNaN(tot)||tot<1)){ showN('总量上限要么留空，要么填 ≥1 的整数'); return; }
+  var payload={ coupon_id:_cprCouponId, name:document.getElementById('cprName').value.trim()||null,
+    trigger_event:document.getElementById('cprEvent').value, conditions:{all:all},
+    per_member_limit:per, total_limit:tot, enabled:document.getElementById('cprEnabled').checked };
+  var q=_cprEditId ? db.from('coupon_rules').update(payload).eq('id',_cprEditId)
+                   : db.from('coupon_rules').insert(payload);
+  q.then(function(res){
+    // 写失败必须吭声：静默失败的话你以为规则存好了，顾客那边一张券也不会发
+    if(res&&res.error){ console.error('coupon_rules save',res.error); showN('规则保存失败：'+_rpcErr(res.error)); return; }
+    _cprEditId=null; _cprCond=[]; showN('规则已保存');
+    db.from('coupon_rules').select('*').then(function(r2){ if(!r2.error) _couponRules=r2.data||[]; _cprRender(); renderLoyaltyCouponsBody(); });
+  }).catch(function(e){ console.error('coupon_rules save',e); showN('规则保存失败，请检查网络'); });
+}
+function cprDel(id){
+  var r=_couponRules.find(function(x){return x.id===id;});
+  if(!confirm('删除规则「'+((r&&r.name)||'未命名')+'」？\n已经发出去的券不受影响，只是以后不再自动发。')) return;
+  db.from('coupon_rules').delete().eq('id',id).then(function(res){
+    if(res&&res.error){ console.error('coupon_rules del',res.error); showN('删除失败：'+_rpcErr(res.error)); return; }
+    showN('规则已删除');
+    db.from('coupon_rules').select('*').then(function(r2){ if(!r2.error) _couponRules=r2.data||[]; _cprRender(); renderLoyaltyCouponsBody(); });
+  }).catch(function(e){ console.error('coupon_rules del',e); showN('删除失败，请检查网络'); });
 }
 function cpnSearch(){
   var kw=document.getElementById('cpnSearchBox').value.trim();

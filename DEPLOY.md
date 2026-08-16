@@ -73,6 +73,26 @@ var GOOGLE_MAPS_KEY = 'YOUR-GOOGLE-MAPS-API-KEY';   // ← 换成 AIzaSy... 那�
 
 ---
 
+## 选做功能的一次性 SQL
+
+下面每段都是**跑一次就好、可以重复跑**，跟主流程无关 —— 不跑只是没有那个功能，不会影响已有的东西。
+
+### 优惠券发放规则（想做「新人券」这类自动发放才跑）
+
+Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-coupon-rules.sql`** 全部内容 → **Run**。
+
+跑完之后，POS → **会员运营 → 优惠券** 里每张券多一个「规则」按钮：可以设「注册即送 / 下单付款后 / 生日月」，配满额门槛、用餐方式、仅首单、会员等级、每人限领、总量上限。
+
+做新人券的话：先建一张券（建议带满额门槛，例如满 RM20 减 RM5，这样就算有人换号码重复注册也换不成钱），再给它加一条「注册即送、每人限领 1」的规则就行。**不跑这段不会影响现有功能**，只是没有自动发放，还是只能手动点「发放」。
+
+### 手续费费率（想把 HitPay 手续费转嫁给顾客才跑）
+
+Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-admin-fee.sql`** 全部内容 → **Run**。
+
+费率预设照抄 HitPay 的公开费率表（Touch n Go 1.9%、Online Banking 1.8%+RM0.40、信用卡 1.2%+RM1），跑完之后在 **POS → Transaction → 手续费费率** 里随时改，不用再回来碰 SQL。**不跑这段也不会坏**：两个前端读不到费率就用内置的同一份兜底值。要完全不收手续费，把三行的百分比和固定金额都改成 0 就行。
+
+---
+
 ## 第 5 步（选做）：手机接收新订单推送 🔔
 
 给店员手机装一个「订单提醒」App（PWA）：**自取 / 外卖**付款到账时，手机弹通知——**锁屏也能收**，平时不用盯着 POS。堂食客人就在店里，不推送。
@@ -80,12 +100,6 @@ var GOOGLE_MAPS_KEY = 'YOUR-GOOGLE-MAPS-API-KEY';   // ← 换成 AIzaSy... 那�
 ### 5.1 建订阅表（一次性）
 
 Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-push-subscriptions.sql`** 全部内容 → **Run**。（存每台手机的推送订阅 + 手机号白名单用。）
-
-### 5.0 建手续费费率（一次性，想把 HitPay 手续费转嫁给顾客才要跑）
-
-Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-admin-fee.sql`** 全部内容 → **Run**。
-
-费率预设照抄 HitPay 的公开费率表（Touch n Go 1.9%、Online Banking 1.8%+RM0.40、信用卡 1.2%+RM1），跑完之后在 **POS → Transaction → 手续费费率** 里随时改，不用再回来碰 SQL。**不跑这段也不会坏**：两个前端读不到费率就用内置的同一份兜底值。要完全不收手续费，把三行的百分比和固定金额都改成 0 就行。
 
 ### 5.2 设 Edge Function 密钥
 
