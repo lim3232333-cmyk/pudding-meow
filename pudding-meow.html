@@ -2227,12 +2227,14 @@
       <div class="addr-map-canvas" id="addrMapCanvas"></div>
       <!-- 搜索框 (Figma 443:422)：4 态 —— 空/聚焦=放大镜，输入=✕清除+自定义联想下拉，已选=回显地址 -->
       <div class="addr-search-wrap" id="addrSearchWrap">
-        <!-- 用 <form> + type=search：iOS 中文/拼音键盘只认这个才把回车键变成 🔍（enterkeyhint 它不认） -->
-        <form class="addr-search" id="addrSearchBox" action="#" onsubmit="return _addrSearchSubmit(event)">
-          <input class="addr-search-inp" id="addrSearch" type="search" placeholder="搜索地址" autocomplete="off" enterkeyhint="search" oninput="_addrSuggest()" onfocus="_addrSuggest()" onblur="_addrSuggBlur()">
+        <!-- 刻意不用 <form>：Chrome 安卓一见 form 就在键盘上方加一条「∧ ∨ ✓」表单导航栏，
+             这一页只有这一个搜索框要按回车，那条栏纯属挡视线。回车改用 keydown 自己接。
+             代价：iOS 中文/拼音键盘的回车键会从🔍变回「换行」，但按下去照样选第一条。 -->
+        <div class="addr-search" id="addrSearchBox">
+          <input class="addr-search-inp" id="addrSearch" type="search" placeholder="搜索地址" autocomplete="off" enterkeyhint="search" oninput="_addrSuggest()" onfocus="_addrSuggest()" onblur="_addrSuggBlur()" onkeydown="if(event.key==='Enter')_addrSearchSubmit(event)">
           <svg class="addr-search-ico addr-ico-search" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
           <svg class="addr-search-ico addr-ico-clear" viewBox="0 0 24 24" onclick="_addrClearSearch()" role="button" aria-label="清除"><circle cx="12" cy="12" r="10" fill="#8D0505"/><path d="M15 9l-6 6M9 9l6 6" stroke="#FFFFD5" stroke-width="2" stroke-linecap="round"/></svg>
-        </form>
+        </div>
         <div class="addr-sugg" id="addrSugg"></div>
       </div>
       <!-- 完整图钉：一整张 pin.svg（水滴+布丁喵合一，尖角在底部正中），尖对地图中心 -->
@@ -3439,7 +3441,7 @@ function _addrClearSearch(){
   _addrRenderSugg([]); inp.focus();     // 清空后下拉只剩「当前位置」那一行
 }
 function _addrSuggBlur(){ clearTimeout(_addrSuggBlurTimer); _addrSuggBlurTimer=setTimeout(function(){ document.getElementById('addrSugg').classList.remove('show'); }, 150); }
-/* 手机键盘的「搜索」键 = 提交表单：按下就选第一条联想，选不到就收起键盘（return false 阻止页面跳转） */
+/* 手机键盘的回车 = 选第一条联想，选不到就收起键盘（preventDefault 免得触发别的默认行为） */
 function _addrSearchSubmit(e){
   if(e) e.preventDefault();
   if(_addrPreds && _addrPreds.length){ _addrPickSugg(0); }
@@ -3451,6 +3453,8 @@ function _addrPickSugg(i, gen){
   // 认下去就等于随机挑一个地方，宁可不响应。
   if(gen!=null && gen!==_addrSuggGen) return;
   var sugg=document.getElementById('addrSugg'); sugg.classList.remove('show'); sugg.innerHTML='';
+  document.getElementById('addrSearch').blur();   // 选定了就收键盘，让顾客直接看到地图挪过去
+  clearTimeout(_addrSuggBlurTimer);               // blur 的那个延时隐藏已经没意义了，别让它再跑一轮
   var pred=_addrPreds[i]; if(!pred || !pred.toPlace) return;
   var place=pred.toPlace();
   place.fetchFields({fields:['location','formattedAddress','addressComponents','displayName']}).then(function(){
