@@ -1305,12 +1305,9 @@
   /* 搜索框（443:422）：外壳浮顶，内含胶囊 + 联想下拉；兜底模式隐藏 */
   .addr-search-wrap{ display:none; }
   .addr-search{ display:flex; align-items:center; justify-content:space-between; height:45px; margin:0; padding:8px 20px; background:#fff; border-radius:12px; box-shadow:0 0 2px rgba(217,217,217,.5); box-sizing:border-box; }
-  /* contenteditable 不是 input：单行靠 white-space:nowrap + overflow 自己压平，
-     placeholder 靠 data-ph + ::before（.is-empty 由 JS 挂，不用 :empty —— 输入法留下的
-     <br> 会让 :empty 失效，placeholder 就跟真字叠在一起） */
-  .addr-search-inp{ flex:1; min-width:0; border:none; outline:none; background:transparent; font-size:14px; line-height:29px; color:var(--muted); caret-color:var(--red); font-family:"Noto Sans SC",sans-serif; white-space:nowrap; overflow-x:auto; overflow-y:hidden; text-overflow:ellipsis; -webkit-user-select:text; user-select:text; }
-  .addr-search-inp::-webkit-scrollbar{ display:none; }
-  .addr-search-inp.is-empty::before{ content:attr(data-ph); color:var(--muted); opacity:1; pointer-events:none; }
+  .addr-search-inp{ flex:1; min-width:0; border:none; outline:none; background:transparent; font-size:14px; color:var(--muted); caret-color:var(--red); font-family:"Noto Sans SC",sans-serif; text-overflow:ellipsis; -webkit-appearance:none; appearance:none; }
+  .addr-search-inp::-webkit-search-cancel-button,.addr-search-inp::-webkit-search-decoration{ -webkit-appearance:none; display:none; }
+  .addr-search-inp::placeholder{ color:var(--muted); opacity:1; }
   .addr-search-ico{ width:24px; height:24px; flex-shrink:0; margin-left:12px; cursor:pointer; }
   .addr-ico-clear{ display:none; }
   .addr-search.has-text .addr-ico-search{ display:none; }
@@ -2230,14 +2227,13 @@
       <div class="addr-map-canvas" id="addrMapCanvas"></div>
       <!-- 搜索框 (Figma 443:422)：4 态 —— 空/聚焦=放大镜，输入=✕清除+自定义联想下拉，已选=回显地址 -->
       <div class="addr-search-wrap" id="addrSearchWrap">
-        <!-- 搜索框刻意不是 <input>，是 contenteditable。
-             浏览器（Chrome/Samsung 安卓）会在键盘上方给「表单控件」加一条「∧ ∨ ✓」导航栏，
-             用来在页面上的各个输入框之间跳。这一页下面有 8 个框，所以只要它是 input，
-             那条栏就一定出现，而它正好盖在地图上。把 <form> 拿掉治不了——那条栏认的是
-             控件本身，不是 form。contenteditable 不算表单控件，就不会招来它。
-             读写一律走 _addrSearchGet/_addrSearchSet（textContent，不是 .value）。 -->
+        <!-- 曾经把它改成 contenteditable，想躲掉键盘上方那条「∧ ∨ ✓」导航栏——没躲掉
+             （那条栏还在，说明它不是浏览器按「表单控件」加的），却带来了新毛病：
+             contenteditable 上 blur() 收不掉安卓的输入法，点完联想键盘赖着不走。
+             所以退回普通 <input>。读写仍走 _addrSearchGet/_addrSearchSet，免得再散回一堆 .value。
+             不包 <form> 是上一版留下的，无害：回车在 keydown 里接。 -->
         <div class="addr-search" id="addrSearchBox">
-          <div class="addr-search-inp is-empty" id="addrSearch" contenteditable="plaintext-only" role="textbox" aria-label="搜索地址" data-ph="搜索地址" inputmode="search" enterkeyhint="search" oninput="_addrSuggest()" onfocus="_addrSuggest()" onblur="_addrSuggBlur()" onkeydown="if(event.key==='Enter')_addrSearchSubmit(event)"></div>
+          <input class="addr-search-inp" id="addrSearch" type="search" placeholder="搜索地址" autocomplete="off" enterkeyhint="search" oninput="_addrSuggest()" onfocus="_addrSuggest()" onblur="_addrSuggBlur()" onkeydown="if(event.key==='Enter')_addrSearchSubmit(event)">
           <svg class="addr-search-ico addr-ico-search" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
           <svg class="addr-search-ico addr-ico-clear" viewBox="0 0 24 24" onclick="_addrClearSearch()" role="button" aria-label="清除"><circle cx="12" cy="12" r="10" fill="#8D0505"/><path d="M15 9l-6 6M9 9l6 6" stroke="#FFFFD5" stroke-width="2" stroke-linecap="round"/></svg>
         </div>
@@ -3390,22 +3386,20 @@ function _addrEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c
 var _ADDR_PIN_ICO='<svg class="addr-sugg-ico" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg>';
 /* 「当前位置」用准星图标，跟地图右下角那颗定位钮同一个图形——顾客一眼认得出是同一件事 */
 var _ADDR_LOC_ICO='<svg class="addr-sugg-ico" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="1.6" fill="#8D0505" stroke="none"/><path d="M12 1.6V4.4M12 19.6v2.8M1.6 12H4.4M19.6 12h2.8"/></svg>';
-/* 搜索框是 contenteditable，不是 input：读写统一走这两个，别再写 .value（见 HTML 里的注释） */
+/* 搜索框的读写统一走这两个（曾经是 contenteditable，改回 input 后留着，免得 .value 又散一地） */
 function _addrSearchGet(){
   var el=document.getElementById('addrSearch');
-  return el ? String(el.textContent||'').replace(/\s+/g,' ').trim() : '';
+  return el ? String(el.value||'').trim() : '';
 }
 function _addrSearchSet(v){
   var el=document.getElementById('addrSearch'); if(!el) return;
   v=String(v==null?'':v);
-  el.textContent=v;
-  el.classList.toggle('is-empty', !v);                     // placeholder 开关
+  el.value=v;
   document.getElementById('addrSearchBox').classList.toggle('has-text', !!v);
 }
 function _addrSuggest(){
-  var el=document.getElementById('addrSearch'), box=document.getElementById('addrSearchBox');
+  var box=document.getElementById('addrSearchBox');
   var q=_addrSearchGet();
-  el.classList.toggle('is-empty', !q);
   box.classList.toggle('has-text', !!q);                   // 有字→显示 ✕，无字→显示放大镜
   // 空框（刚聚焦）或没 Places：下拉里也留着「当前位置」那一行，顾客懒得打字就点它
   if(!q || !_addrPlacesReady){ _addrRenderSugg([]); return; }
@@ -3464,8 +3458,7 @@ function _addrClearSearch(){
    少了这一步，选中一条之后那个迟到的响应回来会再调一次 _addrRenderSugg，
    下拉「自己又打开了」——顾客看到的就是「点了没关」。 */
 function _addrCancelSugg(){ clearTimeout(_addrSuggTimer); _addrSuggSeq++; }
-/* 收干净：关下拉 + 掐请求 + 收键盘。blur 连 activeElement 一起收——
-   contenteditable 上 blur() 偶尔留着焦点，键盘就赖着不走。 */
+/* 收干净：关下拉 + 掐请求 + 收键盘。blur 连 activeElement 一起收 */
 function _addrCloseSugg(){
   _addrCancelSugg();
   clearTimeout(_addrSuggBlurTimer);
@@ -3476,7 +3469,7 @@ function _addrCloseSugg(){
 function _addrSuggBlur(){ clearTimeout(_addrSuggBlurTimer); _addrSuggBlurTimer=setTimeout(function(){ document.getElementById('addrSugg').classList.remove('show'); }, 150); }
 /* 手机键盘的回车 = 选第一条联想，选不到就收起键盘（preventDefault 免得触发别的默认行为） */
 function _addrSearchSubmit(e){
-  if(e) e.preventDefault();     // contenteditable 里回车会插一个换行，这一行就是拦它的
+  if(e) e.preventDefault();
   if(_addrPreds && _addrPreds.length) _addrPickSugg(0);
   else _addrCloseSugg();        // 一条都没有：至少把键盘和下拉收掉
   return false;
@@ -3595,10 +3588,15 @@ function _fillAddrFromComponents(comps, full, opts){
   var name=_addrPlaceName(opts.name, _acComp(comps,'route'), unit);
   if(!opts.onlyEmpty) _addrSetLabel(name);
 
+  var route=_acComp(comps,'route'), premise=_acComp(comps,'premise');
   var street=_addrStreetLine(comps, (sub&&num)?num:'');
-  // 拆不出街道行才退回去切 formatted_address。刻意不再有「整条原样塞进去」那一档：
-  // 那会让街道栏变成一条含门牌+邮编+城市+店名的长句，看着就是「没拆」。
-  // 宁可留空，让下面的 _addrFillMissing 用坐标反查一份干净的街道回来。
+  // 只拆出小区、连路名和楼名都没有 = 这一行是残的。店铺类结果（POI）尤其常见：
+  // addressComponents 里往往只剩一个 neighborhood，于是「Jalan KPKS 1，Kompleks
+  // Perniagaan Kota Syahbandar」整段消失，街道栏只剩「Kota Laksamana」。
+  // 这时退回去切 formatted_address —— 那一整条里这些段全都在。
+  if(!route && !premise) street='';
+  // 刻意不再有「整条原样塞进去」那一档：那会让街道栏变成一条含门牌+邮编+城市+店名
+  // 的长句，看着就是「没拆」。切完还是空就留空，让 _addrFillMissing 用坐标反查一份回来。
   if(!street) street=_addrTrimFull(full, pc, city, unit, name);
   set('afAddress', street);
 }
