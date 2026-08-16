@@ -1305,9 +1305,12 @@
   /* 搜索框（443:422）：外壳浮顶，内含胶囊 + 联想下拉；兜底模式隐藏 */
   .addr-search-wrap{ display:none; }
   .addr-search{ display:flex; align-items:center; justify-content:space-between; height:45px; margin:0; padding:8px 20px; background:#fff; border-radius:12px; box-shadow:0 0 2px rgba(217,217,217,.5); box-sizing:border-box; }
-  .addr-search-inp{ flex:1; min-width:0; border:none; outline:none; background:transparent; font-size:14px; color:var(--muted); caret-color:var(--red); font-family:"Noto Sans SC",sans-serif; text-overflow:ellipsis; -webkit-appearance:none; appearance:none; }
-  .addr-search-inp::-webkit-search-cancel-button,.addr-search-inp::-webkit-search-decoration{ -webkit-appearance:none; display:none; }
-  .addr-search-inp::placeholder{ color:var(--muted); opacity:1; }
+  /* contenteditable 不是 input：单行靠 white-space:nowrap + overflow 自己压平，
+     placeholder 靠 data-ph + ::before（.is-empty 由 JS 挂，不用 :empty —— 输入法留下的
+     <br> 会让 :empty 失效，placeholder 就跟真字叠在一起） */
+  .addr-search-inp{ flex:1; min-width:0; border:none; outline:none; background:transparent; font-size:14px; line-height:29px; color:var(--muted); caret-color:var(--red); font-family:"Noto Sans SC",sans-serif; white-space:nowrap; overflow-x:auto; overflow-y:hidden; text-overflow:ellipsis; -webkit-user-select:text; user-select:text; }
+  .addr-search-inp::-webkit-scrollbar{ display:none; }
+  .addr-search-inp.is-empty::before{ content:attr(data-ph); color:var(--muted); opacity:1; pointer-events:none; }
   .addr-search-ico{ width:24px; height:24px; flex-shrink:0; margin-left:12px; cursor:pointer; }
   .addr-ico-clear{ display:none; }
   .addr-search.has-text .addr-ico-search{ display:none; }
@@ -2227,11 +2230,14 @@
       <div class="addr-map-canvas" id="addrMapCanvas"></div>
       <!-- 搜索框 (Figma 443:422)：4 态 —— 空/聚焦=放大镜，输入=✕清除+自定义联想下拉，已选=回显地址 -->
       <div class="addr-search-wrap" id="addrSearchWrap">
-        <!-- 刻意不用 <form>：Chrome 安卓一见 form 就在键盘上方加一条「∧ ∨ ✓」表单导航栏，
-             这一页只有这一个搜索框要按回车，那条栏纯属挡视线。回车改用 keydown 自己接。
-             代价：iOS 中文/拼音键盘的回车键会从🔍变回「换行」，但按下去照样选第一条。 -->
+        <!-- 搜索框刻意不是 <input>，是 contenteditable。
+             浏览器（Chrome/Samsung 安卓）会在键盘上方给「表单控件」加一条「∧ ∨ ✓」导航栏，
+             用来在页面上的各个输入框之间跳。这一页下面有 8 个框，所以只要它是 input，
+             那条栏就一定出现，而它正好盖在地图上。把 <form> 拿掉治不了——那条栏认的是
+             控件本身，不是 form。contenteditable 不算表单控件，就不会招来它。
+             读写一律走 _addrSearchGet/_addrSearchSet（textContent，不是 .value）。 -->
         <div class="addr-search" id="addrSearchBox">
-          <input class="addr-search-inp" id="addrSearch" type="search" placeholder="搜索地址" autocomplete="off" enterkeyhint="search" oninput="_addrSuggest()" onfocus="_addrSuggest()" onblur="_addrSuggBlur()" onkeydown="if(event.key==='Enter')_addrSearchSubmit(event)">
+          <div class="addr-search-inp is-empty" id="addrSearch" contenteditable="plaintext-only" role="textbox" aria-label="搜索地址" data-ph="搜索地址" inputmode="search" enterkeyhint="search" oninput="_addrSuggest()" onfocus="_addrSuggest()" onblur="_addrSuggBlur()" onkeydown="if(event.key==='Enter')_addrSearchSubmit(event)"></div>
           <svg class="addr-search-ico addr-ico-search" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
           <svg class="addr-search-ico addr-ico-clear" viewBox="0 0 24 24" onclick="_addrClearSearch()" role="button" aria-label="清除"><circle cx="12" cy="12" r="10" fill="#8D0505"/><path d="M15 9l-6 6M9 9l6 6" stroke="#FFFFD5" stroke-width="2" stroke-linecap="round"/></svg>
         </div>
@@ -3275,13 +3281,14 @@ function openAddrForm(editAddr){
     if(editAddr.lat!=null && editAddr.lng!=null) _addrLocateCoords={lat:Number(editAddr.lat), lng:Number(editAddr.lng)};
   }
   var _tt=document.getElementById('addrFormTitle'); if(_tt) _tt.textContent = editAddr ? '编辑地址' : '新收货地址';
-  document.getElementById('addrSearch').value='';
+  _addrLabelAuto=false;         // 编辑已有地址时，那个「地点名称」是顾客的，搜索不许改它
+  _addrSearchSet('');
+  _addrCancelSugg();            // 上一次开表单还在飞的联想，别让它回来往新表单里填
   // pin 用仓库里的 logo.svg（HTML 里已静态设 src），不再用首页 PNG 覆盖
   // 游客和会员是同一张表单，只有底下的按钮不同：游客「确认」（只用这一次），会员「保存」（进地址簿）
   var _isGuest=!(_memberId && _memberToken && db);
   document.getElementById('addrSaveBtn').textContent = _isGuest ? '确认' : '保存';
   document.getElementById('addrLocStat').textContent='';
-  document.getElementById('addrSearchBox').classList.remove('has-text');   // 重置搜索框到「空」态（放大镜）
   var _sg=document.getElementById('addrSugg'); _sg.classList.remove('show'); _sg.innerHTML='';
   _addrCheckValid();
   document.getElementById('addrFormOverlay').classList.add('show');
@@ -3383,10 +3390,23 @@ function _addrEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c
 var _ADDR_PIN_ICO='<svg class="addr-sugg-ico" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg>';
 /* 「当前位置」用准星图标，跟地图右下角那颗定位钮同一个图形——顾客一眼认得出是同一件事 */
 var _ADDR_LOC_ICO='<svg class="addr-sugg-ico" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="1.6" fill="#8D0505" stroke="none"/><path d="M12 1.6V4.4M12 19.6v2.8M1.6 12H4.4M19.6 12h2.8"/></svg>';
+/* 搜索框是 contenteditable，不是 input：读写统一走这两个，别再写 .value（见 HTML 里的注释） */
+function _addrSearchGet(){
+  var el=document.getElementById('addrSearch');
+  return el ? String(el.textContent||'').replace(/\s+/g,' ').trim() : '';
+}
+function _addrSearchSet(v){
+  var el=document.getElementById('addrSearch'); if(!el) return;
+  v=String(v==null?'':v);
+  el.textContent=v;
+  el.classList.toggle('is-empty', !v);                     // placeholder 开关
+  document.getElementById('addrSearchBox').classList.toggle('has-text', !!v);
+}
 function _addrSuggest(){
-  var inp=document.getElementById('addrSearch'), box=document.getElementById('addrSearchBox');
-  box.classList.toggle('has-text', !!inp.value);           // 有字→显示 ✕，无字→显示放大镜
-  var q=inp.value.trim();
+  var el=document.getElementById('addrSearch'), box=document.getElementById('addrSearchBox');
+  var q=_addrSearchGet();
+  el.classList.toggle('is-empty', !q);
+  box.classList.toggle('has-text', !!q);                   // 有字→显示 ✕，无字→显示放大镜
   // 空框（刚聚焦）或没 Places：下拉里也留着「当前位置」那一行，顾客懒得打字就点它
   if(!q || !_addrPlacesReady){ _addrRenderSugg([]); return; }
   clearTimeout(_addrSuggTimer);
@@ -3430,44 +3450,56 @@ function _addrFetchSuggest(q){
 }
 /* 下拉第一行：直接走 GPS 定位那条路（反查会把街道/邮编/城市一起填上） */
 function _addrUseCurrentLoc(){
-  var sugg=document.getElementById('addrSugg'); sugg.classList.remove('show'); sugg.innerHTML='';
-  document.getElementById('addrSearch').blur();
+  _addrCloseSugg();
   addrLocate();
 }
 function _addrClearSearch(){
-  var inp=document.getElementById('addrSearch');
-  inp.value=''; document.getElementById('addrSearchBox').classList.remove('has-text');
-  _addrPreds=[]; _addrSuggSeq++;        // 作废还在飞的那个请求，免得它回来又把下拉填满
-  _addrRenderSugg([]); inp.focus();     // 清空后下拉只剩「当前位置」那一行
+  _addrSearchSet('');
+  _addrCancelSugg();                    // 作废还在飞的那个请求，免得它回来又把下拉填满
+  _addrPreds=[];
+  _addrRenderSugg([]);                  // 清空后下拉只剩「当前位置」那一行
+  document.getElementById('addrSearch').focus();
+}
+/* 取消联想：还没发出的定时器 + 已经在飞的那个请求一起作废。
+   少了这一步，选中一条之后那个迟到的响应回来会再调一次 _addrRenderSugg，
+   下拉「自己又打开了」——顾客看到的就是「点了没关」。 */
+function _addrCancelSugg(){ clearTimeout(_addrSuggTimer); _addrSuggSeq++; }
+/* 收干净：关下拉 + 掐请求 + 收键盘。blur 连 activeElement 一起收——
+   contenteditable 上 blur() 偶尔留着焦点，键盘就赖着不走。 */
+function _addrCloseSugg(){
+  _addrCancelSugg();
+  clearTimeout(_addrSuggBlurTimer);
+  var sugg=document.getElementById('addrSugg'); sugg.classList.remove('show'); sugg.innerHTML='';
+  var el=document.getElementById('addrSearch'); if(el) el.blur();
+  var a=document.activeElement; if(a && a!==document.body && typeof a.blur==='function') a.blur();
 }
 function _addrSuggBlur(){ clearTimeout(_addrSuggBlurTimer); _addrSuggBlurTimer=setTimeout(function(){ document.getElementById('addrSugg').classList.remove('show'); }, 150); }
 /* 手机键盘的回车 = 选第一条联想，选不到就收起键盘（preventDefault 免得触发别的默认行为） */
 function _addrSearchSubmit(e){
-  if(e) e.preventDefault();
-  if(_addrPreds && _addrPreds.length){ _addrPickSugg(0); }
-  document.getElementById('addrSearch').blur();
+  if(e) e.preventDefault();     // contenteditable 里回车会插一个换行，这一行就是拦它的
+  if(_addrPreds && _addrPreds.length) _addrPickSugg(0);
+  else _addrCloseSugg();        // 一条都没有：至少把键盘和下拉收掉
   return false;
 }
 function _addrPickSugg(i, gen){
+  // 收键盘、关下拉、掐掉还在飞的联想请求——这三件先做，且不管这一下认不认。
+  // 顺序很关键：迟到的那个响应回来会重新 _addrRenderSugg 把下拉再打开，
+  // 所以必须先 _addrCancelSugg 作废它，光 remove('show') 是关不住的。
+  _addrCloseSugg();
   // gen 对不上 = 这一批下拉已经被新结果换掉了，手指按的是旧列表上的位置：
-  // 认下去就等于随机挑一个地方，宁可不响应。
+  // 认下去就等于随机挑一个地方，宁可不响应（但 UI 已经收干净了，不会卡着）。
   if(gen!=null && gen!==_addrSuggGen) return;
-  var sugg=document.getElementById('addrSugg'); sugg.classList.remove('show'); sugg.innerHTML='';
-  document.getElementById('addrSearch').blur();   // 选定了就收键盘，让顾客直接看到地图挪过去
-  clearTimeout(_addrSuggBlurTimer);               // blur 的那个延时隐藏已经没意义了，别让它再跑一轮
   var pred=_addrPreds[i]; if(!pred || !pred.toPlace) return;
   var place=pred.toPlace();
   place.fetchFields({fields:['location','formattedAddress','addressComponents','displayName']}).then(function(){
     var loc=place.location; if(!loc) return;
     if(_addrMap){ _addrMap.panTo(loc); _addrMap.setZoom(17); }   // idle 会顺手记坐标
     else { _addrLocateCoords={lat:loc.lat(), lng:loc.lng()}; }
-    // 拆进各自的框（门牌/街道小区/邮编/城市）；搜索框那边仍然回显完整地址
+    // 店名/楼名进「地点名称」，地址本身拆进门牌/街道小区/邮编/城市；搜索框回显完整地址
     var full = place.formattedAddress || place.displayName || '';
     _fillAddrFromComponents(place.addressComponents||[], full, {name:place.displayName});
-    _addrFillMissing(loc.lat(), loc.lng());   // place 缺邮编/城市的，反查补上（只补空框）
-    var inp=document.getElementById('addrSearch');
-    inp.value = full;                                       // Done 态：回显完整地址
-    document.getElementById('addrSearchBox').classList.add('has-text');
+    _addrFillMissing(loc.lat(), loc.lng());   // place 缺门牌/邮编/城市的，反查补上（只补空框）
+    _addrSearchSet(full);                                   // Done 态：回显完整地址
     document.getElementById('addrLocStat').textContent='已选定 ✓ 可拖动地图微调门牌';
     try{ _addrSessTok=new google.maps.places.AutocompleteSessionToken(); }catch(e){}   // 选定后 token 作废，下轮新建
     _addrCheckValid();
@@ -3495,35 +3527,42 @@ function _addrStreetLine(comps, leadNum){
   });
   return parts.join('，');
 }
+function _addrNorm(s){ return String(s==null?'':s).toLowerCase().replace(/[^a-z0-9一-龥]/g,''); }
 /* 兜底：组件里拆不出街道行时，退回去切 formatted_address，
-   把已经有独立输入框的那几段（邮编行/城市/国家/门牌号）逐段丢掉 */
-function _addrTrimFull(full, pc, city, unit){
+   把已经有独立输入框的那几段（邮编行/城市/国家/门牌号/店名）逐段丢掉 */
+function _addrTrimFull(full, pc, city, unit, name){
   if(!full) return '';
-  var norm=function(s){ return String(s).toLowerCase().replace(/[^a-z0-9]/g,''); };
+  var norm=_addrNorm;
   return String(full).split(',').map(function(s){ return s.trim(); }).filter(function(s){
     if(!s) return false;
     if(/^malaysia$/i.test(s)) return false;                       // 国家没有对应的框
     if(pc && s.indexOf(pc)>=0) return false;                      // 「75200 Melaka」这种整段丢掉
     if(city && norm(s)===norm(city)) return false;
     if(unit && (norm(s)===norm(unit) || norm(s)==='no'+norm(unit))) return false;   // 「No K5」也要认出来
+    if(name && norm(s)===norm(name)) return false;                // 店名/楼名有自己的框（地点名称）
     return true;
   }).join('，');
 }
-/* 大厦名 / 店名：addressComponents 里常常压根没有 premise，名字只挂在 place.displayName 上。
-   丢了它，「XX 公寓 A 座」就只剩一条路名，骑手到了路口不知道该进哪一栋。
-   但门牌地址的 displayName 往往就是「12 Jalan Merdeka」——那是路名不是楼名，
-   再拼一次就成了「12 Jalan Merdeka，Jalan Merdeka，Taman X」。所以名字里只要含着路名，
-   或者它本身就是那个门牌号，就当它没有额外信息，跳过。 */
-function _addrPrependName(name, street, route, unit){
-  name=String(name||'').trim(); if(!name) return street;
-  var norm=function(s){ return String(s).toLowerCase().replace(/[^a-z0-9一-龥]/g,''); };
-  var n=norm(name); if(!n) return street;
-  if(unit && n===norm(unit)) return street;
-  if(/^\d+$/.test(n)) return street;
-  if(route && n.indexOf(norm(route))>=0) return street;   // 「门牌+路名」型，不是楼名
-  if(!street) return name;
-  if(norm(street).indexOf(n)>=0) return street;           // 已经在街道行里（Google 有时既当 premise 又当 displayName）
-  return name+'，'+street;
+/* place.displayName 有时是真的店名/楼名（「Menara Pudding」「布丁喵 Kota Syahbandar」），
+   有时只是「12 Jalan Merdeka」这种门牌+路名。后者不是名字，写进「地点名称」只会让地址簿里
+   躺着一条以路名命名的记录。所以：纯数字、等于门牌号、或者名字里含着路名的，一律不当名字。 */
+function _addrPlaceName(name, route, unit){
+  name=String(name||'').trim(); if(!name) return '';
+  var n=_addrNorm(name); if(!n) return '';
+  if(/^\d+$/.test(n)) return '';
+  if(unit && n===_addrNorm(unit)) return '';
+  if(route && _addrNorm(route) && n.indexOf(_addrNorm(route))>=0) return '';
+  return name;
+}
+/* 店名/楼名写进「地点名称」。
+   _addrLabelAuto 记着这一格是不是我们自己填的：顾客自己打的「家」「公司」绝不覆盖，
+   但上一条搜索留下的名字要能被这一条换掉，否则改选了地方、名字还挂着上一家店的招牌。 */
+var _addrLabelAuto=false;
+function _addrSetLabel(name){
+  if(!name) return;
+  var el=document.getElementById('afLabel'); if(!el) return;
+  if(el.value.trim() && !_addrLabelAuto) return;
+  el.value=name; _addrLabelAuto=true;
 }
 /* 把联想/反查到的地址拆进各自的框。
    以前只拆邮编和城市，剩下整条 formatted_address 原样塞进「地址」栏，
@@ -3551,18 +3590,24 @@ function _fillAddrFromComponents(comps, full, opts){
   var unit=sub||num;                                  // 公寓优先用单位号，独栋就是门牌号
   set('afUnit', unit);
 
+  // 店名/楼名去「地点名称」，不再挂在街道行前面——那一格问的是「街道、小区」，
+  // 塞一个招牌名进去，顾客还得自己删。
+  var name=_addrPlaceName(opts.name, _acComp(comps,'route'), unit);
+  if(!opts.onlyEmpty) _addrSetLabel(name);
+
   var street=_addrStreetLine(comps, (sub&&num)?num:'');
-  if(!street) street=_addrTrimFull(full, pc, city, unit);
-  if(!street) street=full||'';                        // 实在拆不动，宁可重复也别让地址栏空着
-  street=_addrPrependName(opts.name, street, _acComp(comps,'route'), unit);
+  // 拆不出街道行才退回去切 formatted_address。刻意不再有「整条原样塞进去」那一档：
+  // 那会让街道栏变成一条含门牌+邮编+城市+店名的长句，看着就是「没拆」。
+  // 宁可留空，让下面的 _addrFillMissing 用坐标反查一份干净的街道回来。
+  if(!street) street=_addrTrimFull(full, pc, city, unit, name);
   set('afAddress', street);
 }
-/* 补漏：联想选中的那个 place 常常缺邮编（POI 结果尤其），缺了必填框就是空的。
+/* 补漏：联想选中的那个 place 常常缺门牌/邮编（POI 结果尤其），缺了必填框就是空的。
    拿它的坐标反查一次，只往还空着的框里填，已经填好的一律不动。
    只在真的缺东西时才调，不缺就不花这一次 Geocoding。 */
 function _addrFillMissing(lat, lng){
   if(!_addrGeocoder) return;
-  var miss=['afPostcode','afCity','afAddress'].some(function(id){ return !document.getElementById(id).value.trim(); });
+  var miss=['afUnit','afPostcode','afCity','afAddress'].some(function(id){ return !document.getElementById(id).value.trim(); });
   if(!miss) return;
   _addrGeocoder.geocode({location:{lat:lat, lng:lng}}, function(res, status){
     if(status!=='OK' || !res || !res[0]) return;
@@ -3577,8 +3622,7 @@ function _addrReverseFill(lat, lng){
     if(status!=='OK' || !res || !res[0]) return;
     var r=res[0];
     _fillAddrFromComponents(r.address_components||[], r.formatted_address||'');
-    var sb=document.getElementById('addrSearch');   // 搜索框回显完整地址（Done 态）
-    if(sb && r.formatted_address){ sb.value=r.formatted_address; document.getElementById('addrSearchBox').classList.add('has-text'); }
+    if(r.formatted_address) _addrSearchSet(r.formatted_address);   // 搜索框回显完整地址（Done 态）
     _addrCheckValid();
   });
 }
