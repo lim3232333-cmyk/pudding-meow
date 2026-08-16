@@ -1042,7 +1042,6 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
     <div class="price-bottom-row">
       <div class="price-numpad" id="dscNumpad"></div>
       <div class="price-btn-col">
-        <button class="price-cancel-btn" style="background:#4A4848" onclick="posClearDiscount();closeDiscount()">清除</button>
         <button class="price-cancel-btn" onclick="closeDiscount()">Cancel</button>
         <button class="price-done-btn" onclick="confirmDiscount()">Done</button>
       </div>
@@ -2420,7 +2419,7 @@ function buildPriceNumpad(){
   });
 }
 function priceNumpadPress(v){
-  if(v==='⌫'){ priceInput=priceInput.slice(0,-1); }
+  if(v==='⌫'){ priceInput=''; }                     // ✕ = 清空重打，不是退一格
   else if(v==='.'){ if(priceInput.includes('.'))return; if(!priceInput)priceInput='0'; priceInput+='.'; }
   else if(priceInput.length>=9) return;
   else priceInput+=v;
@@ -2485,7 +2484,7 @@ function buildDscNumpad(){
   });
 }
 function dscNumpadPress(v){
-  if(v==='⌫') dscInput=dscInput.slice(0,-1);
+  if(v==='⌫'){ dscInput=''; }                       // ✕ = 清空重打，不是退一格
   else if(v==='.'){ if(dscInput.indexOf('.')<0) dscInput+= (dscInput?'.':'0.'); }
   else if(dscInput.length>=6) return;
   else dscInput+=v;
@@ -2523,8 +2522,11 @@ function posOpenDiscount(){
 }
 function closeDiscount(){ document.getElementById('dscBg').classList.remove('show'); }
 function confirmDiscount(){
-  var v=parseFloat(dscInput||document.getElementById('dscVal').value);
-  if(!v || v<=0){ showN('请输入折扣数值'); return; }
+  var raw=(dscInput||document.getElementById('dscVal').value||'').trim();
+  var v=parseFloat(raw);
+  // ✕ 清空后按 Done = 取消这个折扣。不报错——键盘上没有别的地方能表达「不打折了」
+  if(raw==='' || v===0){ posClearDiscount(); closeDiscount(); return; }
+  if(!v || v<0){ showN('请输入折扣数值'); return; }
   if(_dscType==='percent' && v>100){ showN('百分比不能超过 100'); return; }
   if(_dscScope==='item'){
     if(selIdx<0 || !cart[selIdx]){ showN('先在购物栏点一行商品，再打单项折扣'); return; }
@@ -2599,7 +2601,7 @@ function buildNumpad(){
 function numpadPress(v){
   // 只有 cash 模式才能用数字键
   if(payMethod!=='cash'){ showN('DuitNow 无需输入金额'); return; }
-  if(v==='⌫'){ tenderInput=tenderInput.slice(0,-1); }
+  if(v==='⌫'){ tenderInput=''; }                    // ✕ = 清空重打，不是退一格
   else if(v==='.'){ if(tenderInput.includes('.'))return; if(!tenderInput)tenderInput='0'; tenderInput+='.'; }
   else if(tenderInput.length>=9) return;
   else tenderInput+=v;
@@ -3448,7 +3450,7 @@ function _tpSync(){
 }
 function tpKey(k){
   var cur=(_tpField==='table')?_tpTable:_tpPax;
-  if(k==='⌫'){ cur=cur.slice(0,-1); }
+  if(k==='⌫'){ cur=''; }                            // ✕ = 清空重打，不是退一格
   else { if(cur.length>=3) return; cur=(cur==='0'?'':cur)+k; }
   if(_tpField==='table') _tpTable=cur; else _tpPax=cur;
   _tpSync();
