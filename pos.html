@@ -457,10 +457,22 @@ input.pdt-chip{border:none;outline:none;font-family:"Noto Sans SC",sans-serif;te
 .price-bottom-row{display:flex;gap:24px;align-items:flex-end;justify-content:center;}
 .price-numpad{display:grid;grid-template-columns:repeat(3,100px);grid-template-rows:repeat(4,100px);gap:20px;}
 .price-btn-col{display:flex;flex-direction:column;gap:25px;width:150px;flex-shrink:0;}
-.dsc-seg-row{display:flex;gap:24px;justify-content:space-between;}
-.dsc-seg{display:flex;gap:0;background:#FFFFD5;border-radius:14px;overflow:hidden;border:2px solid #8D0505;}
-.dsc-seg-b{border:none;background:transparent;color:#8D0505;font-weight:700;font-size:22px;padding:12px 22px;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
-.dsc-seg-b.on{background:#8D0505;color:#FFDE5B;}
+.dsc-seg-row{display:flex;gap:24px;}
+/* 切换按钮（Figma 1096:299 / 1096:302）：两半拼成一颗胶囊，选中那半橙底白字，另一半橙描边黑字。
+   两半贴死不留缝，只有外侧两角是 12 圆角，中间那条接缝是直角。
+   选中态在 Figma 里没有描边——这里仍给它同色描边，纯粹是为了两半盒子一样大：
+   少 2px 边框会让选中的那半矮一圈，切换时整排跳一下。 */
+.dsc-seg{display:flex;flex:1;}
+.dsc-seg-b{
+  flex:1;padding:10px;box-sizing:border-box;
+  border:2px solid #D9641B;background:transparent;color:#000;
+  font-weight:700;font-size:24px;cursor:pointer;white-space:nowrap;
+  font-family:"Noto Sans SC",sans-serif;
+  transition:background .1s,color .1s;
+}
+.dsc-seg-b:first-child{border-radius:12px 0 0 12px;}
+.dsc-seg-b:last-child{border-radius:0 12px 12px 0;}
+.dsc-seg-b.on{background:#D9641B;color:#FFFFFF;}
 /* 单项折扣要说清楚打在哪一件上，不然店员按下 Done 才发现打错行 */
 .dsc-target{font-size:20px;color:#4A4848;font-family:"Noto Sans SC",sans-serif;min-height:26px;}
 .price-cancel-btn,.price-done-btn{width:100%;height:85px;border-radius:16px;border:none;font-weight:700;font-size:36px;color:#FFFFFF;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
