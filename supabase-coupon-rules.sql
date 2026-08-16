@@ -39,11 +39,11 @@ create table if not exists public.coupon_rules (
   -- order_paid      订单付款完成时（含柜台收款、在线支付到账）
   -- birthday_month  生日月（要靠 rpc_admin_run_birthday_coupons 触发，见文件末尾）
   trigger_event  text not null,
-  -- 条件，jsonb。留空 = 无条件。支持的 key 见 _coupon_cond_ok，加新条件不用改表结构：
-  --   min_spend            数字   本单金额（已扣手续费）要 ≥ 这个数
-  --   mode                 文本   dinein / takeaway / delivery，限定用餐方式
-  --   first_order_only     true   只在会员的第一单发
-  --   level_sort_order_gte 整数   会员等级的排序号要 ≥ 这个数
+  -- 条件，jsonb。留空 = 无条件。形状是一串「字段 · 运算符 · 值」的比较：
+  --   {"all":[{"field":"amount","op":">=","value":100},
+  --           {"field":"mode","op":"==","value":"delivery"}]}
+  --   可用字段由 _coupon_facts 算出来（本单金额/用餐方式/历史消费/等级/星期几…），
+  --   运算符 >= <= > < == != in not_in。all = 全部满足。
   conditions     jsonb not null default '{}'::jsonb,
   per_member_limit int not null default 1,               -- 每人最多领几张；0 = 不限
   total_limit    int,                                    -- 这条规则总共最多发几张；null = 不限
@@ -68,50 +68,123 @@ create policy coupon_rules_anon_read on public.coupon_rules for select to anon u
 drop policy if exists coupon_rules_anon_write on public.coupon_rules;
 create policy coupon_rules_anon_write on public.coupon_rules for all to anon using (true) with check (true);
 
--- ── 2) 条件判断 ────────────────────────────────────────────────────────────
---    条件放 jsonb 而不是一堆列：以后要加「只给外卖」「只给 Lv2 以上」这种玩法，
---    在这个函数里加一个 if 就行，不用改表、不用动前端存量数据。
-create or replace function public._coupon_cond_ok(p_cond jsonb, p_member_id uuid, p_ctx jsonb)
-returns boolean
+-- ── 2) 条件：通用「事实 + 比较」引擎 ────────────────────────────────────────
+--    刻意不把条件写成一堆写死的 if：那样每加一种玩法都要改后端。
+--    改成先把这个会员/这次事件的所有「事实」算成一个 jsonb，规则就是一串
+--    {字段, 运算符, 值} 的比较。店员在 POS 上自由组合，不用再找人改代码。
+--
+--    conditions 的形状：
+--      {"all": [ {"field":"amount","op":">=","value":100},
+--                {"field":"mode","op":"==","value":"delivery"},
+--                {"field":"weekday","op":"in","value":[6,7]} ]}
+--    all = 全部满足（AND）。空数组 / 空对象 = 无条件。
+-- 旧版是 _coupon_cond_ok(jsonb, uuid, jsonb)，跟新版签名不同，create or replace 替换不掉，
+-- 会留下一个没人调用的僵尸函数。显式删掉，免得以后读代码的人以为还有两套条件逻辑。
+drop function if exists public._coupon_cond_ok(jsonb, uuid, jsonb);
+
+create or replace function public._coupon_facts(p_member_id uuid, p_ctx jsonb)
+returns jsonb
 language plpgsql
 stable
 security definer
 set search_path = public, extensions
 as $$
-declare n int;
+declare m record; v_cnt int; v_sum numeric; v_now timestamptz;
+begin
+  v_now := now() at time zone 'Asia/Kuala_Lumpur';
+
+  select mm.*, coalesce(l.sort_order, 0) as lvl_sort
+    into m
+    from public.members mm
+    left join public.member_levels l on l.id = mm.level_id
+   where mm.id = p_member_id;
+
+  -- 历史完成餐单数 / 消费总额（充值单、预约单、作废单都不算）
+  select count(*), coalesce(sum(greatest(coalesce(o.total,0) - coalesce(o.admin_fee,0), 0)), 0)
+    into v_cnt, v_sum
+    from public.orders o
+   where o.member_id = p_member_id
+     and coalesce(o.status,'') in ('paid','preparing','ready','done')
+     and coalesce(o.ta_mode,'') not in ('recharge','reservation');
+
+  return jsonb_build_object(
+    -- 本次事件（下单类事件才有值）
+    'amount',              coalesce((p_ctx->>'amount')::numeric, 0),
+    'mode',                coalesce(p_ctx->>'mode', ''),
+    'pay_method',          coalesce(p_ctx->>'pay_method', ''),
+    'is_first_order',      case when v_cnt = 1 then 1 else 0 end,
+    -- 会员画像
+    'order_count',         v_cnt,
+    'total_spent',         v_sum,
+    'level_sort_order',    coalesce(m.lvl_sort, 0),
+    'xp',                  coalesce(m.xp, 0),
+    'coins',               coalesce(m.coins, 0),
+    'wallet_balance',      coalesce(m.wallet_balance, 0),
+    'days_since_register', coalesce(extract(day from (now() - m.created_at))::int, 0),
+    'birthday_month',      case when m.birthday is null then 0
+                                else extract(month from m.birthday)::int end,
+    -- 时间（用马来西亚时区，跟营业日一个口径）
+    'weekday',             case when extract(isodow from v_now)::int is null then 0
+                                else extract(isodow from v_now)::int end,   -- 1=周一 … 7=周日
+    'hour',                extract(hour from v_now)::int,
+    'month',               extract(month from v_now)::int
+  );
+end;
+$$;
+
+--    单条比较。数字比数字，文本比文本，in / not_in 的 value 是数组。
+create or replace function public._coupon_cmp(p_fact jsonb, p_op text, p_val jsonb)
+returns boolean
+language plpgsql
+immutable
+as $$
+declare a numeric; b numeric; sa text; sb text;
+begin
+  if p_fact is null or p_val is null then return false; end if;
+  sa := trim(both '"' from p_fact::text);
+  sb := trim(both '"' from p_val::text);
+
+  if p_op in ('in','not_in') then
+    if jsonb_typeof(p_val) <> 'array' then return false; end if;
+    -- 数组里逐个比字符串形态，数字和文本都能用
+    if exists (select 1 from jsonb_array_elements(p_val) e
+                where trim(both '"' from e::text) = sa)
+    then return p_op = 'in'; else return p_op = 'not_in'; end if;
+  end if;
+
+  -- 两边都能当数字就按数字比（避免 '9' > '10' 这种字符串陷阱）
+  begin a := sa::numeric; b := sb::numeric; exception when others then a := null; end;
+
+  if a is not null and b is not null then
+    return case p_op
+      when '>=' then a >= b when '<=' then a <= b
+      when '>'  then a >  b when '<'  then a <  b
+      when '==' then a =  b when '!=' then a <> b
+      else false end;
+  end if;
+
+  return case p_op
+    when '==' then sa =  sb
+    when '!=' then sa <> sb
+    else false end;   -- 文本不支持大小比较
+end;
+$$;
+
+create or replace function public._coupon_cond_ok(p_cond jsonb, p_facts jsonb)
+returns boolean
+language plpgsql
+immutable
+as $$
+declare it jsonb;
 begin
   if p_cond is null or p_cond = '{}'::jsonb then return true; end if;
+  if jsonb_typeof(p_cond->'all') <> 'array' then return true; end if;
 
-  -- 满额门槛：跟本次事件带来的金额比（下单类事件才有 amount）
-  if p_cond ? 'min_spend' then
-    if coalesce((p_ctx->>'amount')::numeric, -1) < (p_cond->>'min_spend')::numeric then
+  for it in select * from jsonb_array_elements(p_cond->'all') loop
+    if not public._coupon_cmp(p_facts -> (it->>'field'), it->>'op', it->'value') then
       return false;
     end if;
-  end if;
-
-  -- 用餐方式
-  if coalesce(p_cond->>'mode', '') <> '' then
-    if coalesce(p_ctx->>'mode', '') <> (p_cond->>'mode') then return false; end if;
-  end if;
-
-  -- 只在第一单发。算的是「已经完成的餐单数」，充值单和预约单不算。
-  if coalesce((p_cond->>'first_order_only')::boolean, false) then
-    select count(*) into n from public.orders o
-     where o.member_id = p_member_id
-       and coalesce(o.status,'') in ('paid','preparing','ready','done')
-       and coalesce(o.ta_mode,'') not in ('recharge','reservation');
-    if n <> 1 then return false; end if;
-  end if;
-
-  -- 会员等级门槛（按 member_levels.sort_order，跟 POS 等级管理那张表一致）
-  if p_cond ? 'level_sort_order_gte' then
-    select coalesce(l.sort_order, 0) into n
-      from public.members m
-      left join public.member_levels l on l.id = m.level_id
-     where m.id = p_member_id;
-    if coalesce(n, 0) < (p_cond->>'level_sort_order_gte')::int then return false; end if;
-  end if;
-
+  end loop;
   return true;
 end;
 $$;
@@ -123,9 +196,11 @@ language plpgsql
 security definer
 set search_path = public, extensions
 as $$
-declare v_id uuid; r record; c record; v_have int; v_n int := 0;
+declare v_id uuid; r record; c record; v_have int; v_n int := 0; v_facts jsonb;
 begin
   if p_member_id is null or coalesce(p_event,'') = '' then return 0; end if;
+  -- 事实只算一次，所有规则共用（每条规则各算一遍会重复扫 orders 表）
+  v_facts := public._coupon_facts(p_member_id, coalesce(p_ctx, '{}'::jsonb));
 
   for v_id in
     select cr.id from public.coupon_rules cr
@@ -153,7 +228,7 @@ begin
       if v_have >= r.per_member_limit then continue; end if;
     end if;
 
-    if not public._coupon_cond_ok(r.conditions, p_member_id, p_ctx) then continue; end if;
+    if not public._coupon_cond_ok(r.conditions, v_facts) then continue; end if;
 
     insert into public.member_coupons(member_id, coupon_id, status, expires_at, source_rule_id)
       values (p_member_id, r.coupon_id, 'unused', public._coupon_expiry(c.valid_days), r.id);
@@ -221,7 +296,8 @@ begin
 
   begin
     perform public._coupon_fire('order_paid', new.member_id,
-      jsonb_build_object('amount', v_amt, 'mode', v_mode, 'order_id', new.id));
+      jsonb_build_object('amount', v_amt, 'mode', v_mode,
+                        'pay_method', coalesce(new.pay_method,''), 'order_id', new.id));
   exception when others then
     raise warning '下单发券失败（已忽略，不影响订单）：%', sqlerrm;
   end;
