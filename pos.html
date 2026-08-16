@@ -457,6 +457,12 @@ input.pdt-chip{border:none;outline:none;font-family:"Noto Sans SC",sans-serif;te
 .price-bottom-row{display:flex;gap:24px;align-items:flex-end;justify-content:center;}
 .price-numpad{display:grid;grid-template-columns:repeat(3,100px);grid-template-rows:repeat(4,100px);gap:20px;}
 .price-btn-col{display:flex;flex-direction:column;gap:25px;width:150px;flex-shrink:0;}
+.dsc-seg-row{display:flex;gap:24px;justify-content:space-between;}
+.dsc-seg{display:flex;gap:0;background:#FFFFD5;border-radius:14px;overflow:hidden;border:2px solid #8D0505;}
+.dsc-seg-b{border:none;background:transparent;color:#8D0505;font-weight:700;font-size:22px;padding:12px 22px;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
+.dsc-seg-b.on{background:#8D0505;color:#FFDE5B;}
+/* 单项折扣要说清楚打在哪一件上，不然店员按下 Done 才发现打错行 */
+.dsc-target{font-size:20px;color:#4A4848;font-family:"Noto Sans SC",sans-serif;min-height:26px;}
 .price-cancel-btn,.price-done-btn{width:100%;height:85px;border-radius:16px;border:none;font-weight:700;font-size:36px;color:#FFFFFF;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
 .price-cancel-btn{background:#8D0505;}
 .price-done-btn{background:#1D7715;}
@@ -861,6 +867,11 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
         <span id="cartDiscName"></span>
         <span><b id="cartDiscAmt">-RM 0.00</b><button class="cf-disc-x" onclick="posClearCoupon()">✕</button></span>
 </div>
+      <!-- 手动折扣：跟券那一行分开显示，因为两者可以同时存在，合成一行就看不出钱少在哪 -->
+      <div class="cf-disc" id="cartManDiscRow" style="display:none">
+        <span id="cartManDiscName"></span>
+        <span><b id="cartManDiscAmt">-RM 0.00</b><button class="cf-disc-x" onclick="posClearDiscount()">✕</button></span>
+</div>
       <div class="cf-row1">
         <div class="cf-total-lbl">Total</div>
         <div class="cf-total-rm" id="cartRM">RM 0</div>
@@ -886,6 +897,7 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
     <div class="ta-mbtns">
       <button class="ta-mbtn" onclick="posOpenVoucher()">Voucher<span class="ta-badge" id="ctVoucherBadge" style="display:none">0</span></button>
       <button class="ta-mbtn" onclick="posOpenTopup()">Top up</button>
+      <button class="ta-mbtn" onclick="posOpenDiscount()">Discount</button>
 </div>
 </div>
 
@@ -1003,6 +1015,36 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       <div class="price-btn-col">
         <button class="price-cancel-btn" onclick="closePricePanel()">Cancel</button>
         <button class="price-done-btn" onclick="confirmPriceEdit()">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DISCOUNT MODAL：套 Price Panel 同一套视觉（.price-panel/.pnb），
+     上面多一排切换：整单 / 单项、百分比 / 现金 -->
+<div class="modal-bg" id="dscBg" onclick="if(event.target===this)closeDiscount()">
+  <div class="price-panel">
+    <div class="dsc-seg-row">
+      <div class="dsc-seg">
+        <button class="dsc-seg-b" id="dscScopeOrder" onclick="setDscScope('order')">整单</button>
+        <button class="dsc-seg-b" id="dscScopeItem"  onclick="setDscScope('item')">单项</button>
+      </div>
+      <div class="dsc-seg">
+        <button class="dsc-seg-b" id="dscTypePct"   onclick="setDscType('percent')">百分比 %</button>
+        <button class="dsc-seg-b" id="dscTypeFixed" onclick="setDscType('fixed')">现金 RM</button>
+      </div>
+    </div>
+    <div class="dsc-target" id="dscTarget"></div>
+    <div class="price-amount-row">
+      <div class="price-lbl" id="dscLbl">折扣</div>
+      <div class="price-disp"><div class="pdt-divider"></div><input class="pdt-chip" id="dscVal" type="text" inputmode="decimal" autocomplete="off" value="0"></div>
+    </div>
+    <div class="price-bottom-row">
+      <div class="price-numpad" id="dscNumpad"></div>
+      <div class="price-btn-col">
+        <button class="price-cancel-btn" style="background:#4A4848" onclick="posClearDiscount();closeDiscount()">清除</button>
+        <button class="price-cancel-btn" onclick="closeDiscount()">Cancel</button>
+        <button class="price-done-btn" onclick="confirmDiscount()">Done</button>
       </div>
     </div>
   </div>
@@ -1887,7 +1929,7 @@ function focusPinInput(){ try{ document.getElementById('pinInput').focus(); }cat
 })();
 
 /* ── INIT ── */
-function initPOS(){renderCart();updPend();updDlv();buildNumpad();buildPriceNumpad();
+function initPOS(){renderCart();updPend();updDlv();buildNumpad();buildPriceNumpad(); buildDscNumpad();
   // 预热收据标题字体（收据平时隐藏，字体不会自动加载）——首次打印也能立刻用上 Pattaya
   try{ if(document.fonts&&document.fonts.load){ document.fonts.load('22px "PattayaRC"'); document.fonts.load('12px "PlexRC"'); document.fonts.load('700 20px "PlexRC"'); } }catch(e){}
 }
@@ -2195,13 +2237,16 @@ function renderCart(){
   // 券可能因购物车变动而失效（不满门槛/指定甜品被删），失效就自动撤销
   if(_posCoupon && !_posCouponOk(_posCoupon, sub)) _posCoupon=null;
   var disc=_posCoupon?_posCouponDisc(_posCoupon, sub):0;
-  var tot=Math.max(0, sub-disc);
-  _renderCartDisc(disc);
+  // 手动折扣（整单/单项）跟券是两回事，可以同时存在。券仍按原始小计判门槛和算折扣——
+  // 改成按打折后的小计判，会让本来能用的券突然用不了，那是另一个行为变更。
+  var man=_manualDisc();
+  var tot=Math.max(0, sub-man.total-disc);
+  _renderCartDisc(disc); _renderManDisc();
   var el=document.getElementById('cartItems');
   var empty=document.getElementById('cartEmpty');
   if(selIdx>=cart.length) selIdx=-1;
   if(!cart.length){
-    _posCoupon=null; _renderCartDisc(0);
+    _posCoupon=null; _posOrderDisc=null; _renderCartDisc(0); _renderManDisc();
     empty.style.display='flex';el.style.display='none';
     document.getElementById('cartRM').textContent='RM 0';
     document.getElementById('cartCnt').textContent='0 Items';
@@ -2418,6 +2463,115 @@ function confirmPriceEdit(){
   closePricePanel();
   showN('已改价');
 }
+/* ══════════ DISCOUNT PANEL ══════════
+   套 Price Panel 的视觉（.price-panel/.pnb），上面多一排切换：
+     范围  整单 order / 单项 item（单项打在购物栏选中的那一行上）
+     方式  百分比 percent / 现金 fixed
+
+   为什么单项折扣挂在 cart[i] 上而不是记个下标：下标会随删行/加行错位，
+   打给 A 的折扣会莫名跑到 B 头上。挂在行对象上，行没了折扣自然也没了。 */
+var dscInput='', _dscScope='order', _dscType='percent';
+var _posOrderDisc=null;     // {type:'percent'|'fixed', value:number}
+function buildDscNumpad(){
+  var nums=['1','2','3','4','5','6','7','8','9','⌫','0','.'];
+  var np=document.getElementById('dscNumpad'); if(!np) return;
+  np.innerHTML=nums.map(function(n){
+    var cls=n==='⌫'?'pnb pnb-del':'pnb';
+    return'<button class="'+cls+'" data-key="'+n+'">'+(n==='⌫'?'✕':n)+'</button>';
+  }).join('');
+  np.addEventListener('pointerdown',function(e){
+    var btn=e.target.closest('.pnb'); if(!btn) return;
+    e.preventDefault(); dscNumpadPress(btn.dataset.key);
+  });
+}
+function dscNumpadPress(v){
+  if(v==='⌫') dscInput=dscInput.slice(0,-1);
+  else if(v==='.'){ if(dscInput.indexOf('.')<0) dscInput+= (dscInput?'.':'0.'); }
+  else if(dscInput.length>=6) return;
+  else dscInput+=v;
+  var el=document.getElementById('dscVal'); if(el && el.value!==dscInput) el.value=dscInput||'0';
+}
+function setDscScope(v){ _dscScope=v; _dscSync(); }
+function setDscType(v){ _dscType=v; _dscSync(); }
+function _dscSync(){
+  document.getElementById('dscScopeOrder').classList.toggle('on', _dscScope==='order');
+  document.getElementById('dscScopeItem').classList.toggle('on', _dscScope==='item');
+  document.getElementById('dscTypePct').classList.toggle('on', _dscType==='percent');
+  document.getElementById('dscTypeFixed').classList.toggle('on', _dscType==='fixed');
+  document.getElementById('dscLbl').textContent = _dscType==='percent' ? '折扣 %' : '折扣 RM';
+  // 单项模式一定要显示打在哪一行，不然按下 Done 才发现打错了
+  var t=document.getElementById('dscTarget');
+  if(_dscScope==='item'){
+    t.textContent = (selIdx>=0 && cart[selIdx])
+      ? ('打在：' + cart[selIdx].name + '（RM ' + (cart[selIdx].qty*cart[selIdx].price).toFixed(2) + '）')
+      : '⚠ 还没选商品 —— 先在购物栏点一行，再按单项';
+  } else {
+    t.textContent = '打在整单商品小计上';
+  }
+}
+function posOpenDiscount(){
+  if(_reviewGuard()) return;
+  if(!cart.length){ showN('购物车是空的'); return; }
+  // 已经打过折就把原来的值带出来，方便改；单项优先看选中那行
+  var cur=(_dscScope==='item' && selIdx>=0 && cart[selIdx] && cart[selIdx].disc) ? cart[selIdx].disc
+        : (_posOrderDisc || null);
+  if(cur){ _dscType=cur.type; dscInput=String(cur.value); } else { dscInput=''; }
+  document.getElementById('dscVal').value=dscInput||'0';
+  _dscSync();
+  document.getElementById('dscBg').classList.add('show');
+  try{ var el=document.getElementById('dscVal'); el.focus(); el.select(); }catch(e){}
+}
+function closeDiscount(){ document.getElementById('dscBg').classList.remove('show'); }
+function confirmDiscount(){
+  var v=parseFloat(dscInput||document.getElementById('dscVal').value);
+  if(!v || v<=0){ showN('请输入折扣数值'); return; }
+  if(_dscType==='percent' && v>100){ showN('百分比不能超过 100'); return; }
+  if(_dscScope==='item'){
+    if(selIdx<0 || !cart[selIdx]){ showN('先在购物栏点一行商品，再打单项折扣'); return; }
+    cart[selIdx].disc={type:_dscType, value:v};
+  } else {
+    _posOrderDisc={type:_dscType, value:v};
+  }
+  renderCart(); closeDiscount();
+  showN('已打折：'+(_dscType==='percent'?(v+'%'):('RM '+v.toFixed(2)))+(_dscScope==='item'?'（单项）':'（整单）'));
+}
+/* 清除：单项模式清选中那行，整单模式清整单；两个都想清就切过去各按一次 */
+function posClearDiscount(){
+  if(_dscScope==='item' && selIdx>=0 && cart[selIdx]){ delete cart[selIdx].disc; }
+  else { _posOrderDisc=null; }
+  renderCart(); showN('已清除折扣');
+}
+/* 单项折扣金额：百分比按该行小计算，现金直接减但不超过该行小计 */
+function _itemDiscOf(it){
+  if(!it || !it.disc) return 0;
+  var line=it.qty*it.price;
+  var d=it.disc.type==='percent' ? line*it.disc.value/100 : it.disc.value;
+  return Math.min(Math.max(d,0), line);
+}
+/* 整单折扣：打在「扣掉单项折扣之后」的小计上，不然两种折扣叠起来会超过应收 */
+function _orderDiscOf(afterItem){
+  if(!_posOrderDisc) return 0;
+  var d=_posOrderDisc.type==='percent' ? afterItem*_posOrderDisc.value/100 : _posOrderDisc.value;
+  return Math.min(Math.max(d,0), afterItem);
+}
+function _manualDisc(){
+  var sub=cart.reduce(function(s,it){return s+it.qty*it.price;},0);
+  var itemD=cart.reduce(function(s,it){return s+_itemDiscOf(it);},0);
+  var orderD=_orderDiscOf(Math.max(0, sub-itemD));
+  return {item:itemD, order:orderD, total:Math.round((itemD+orderD)*100)/100};
+}
+function _renderManDisc(){
+  var row=document.getElementById('cartManDiscRow'); if(!row) return;
+  var d=_manualDisc();
+  if(d.total<=0){ row.style.display='none'; return; }
+  row.style.display='flex';
+  var names=cart.filter(function(it){return it.disc;}).map(function(it){return it.name;});
+  var lbl=[];
+  if(d.order>0) lbl.push('整单折扣');
+  if(d.item>0)  lbl.push(names.length===1?('单项：'+names[0]):('单项折扣 ×'+names.length));
+  document.getElementById('cartManDiscName').textContent=lbl.join(' + ');
+  document.getElementById('cartManDiscAmt').textContent='-RM '+d.total.toFixed(2);
+}
 function printCurrent(){
   if(!cart.length){showN('购物车是空的');return;}
   var tot=cart.reduce(function(s,it){return s+it.qty*it.price;},0);
@@ -2532,7 +2686,7 @@ function confirmPayment(){
     items:cart.map(function(i){return{name:i.name,name_cn:i.name_cn,price:i.price,qty:i.qty,specs:i.specs||[],flavor:i.specText||i.flavor||""};}),
     total:payTotalAmount,payMethod:payMethod,tender:tender,change:change,
     couponId:(_posCoupon?_posCoupon.id:null),
-    discount:(_posCoupon?_posCouponDisc(_posCoupon, cart.reduce(function(s,it){return s+it.qty*it.price;},0)):0),
+    discount:Math.round(((_posCoupon?_posCouponDisc(_posCoupon, cart.reduce(function(s,it){return s+it.qty*it.price;},0)):0) + _manualDisc().total)*100)/100,
     tableName:tbl,customerName:cust,source:'pos',status:'paid',
     memberId:(_posMember?_posMember.id:null),   // 绑了会员才会在 markPaid/结账后结算 XP+Coin
     taMode:taMode?'dine-in':'takeaway'};
