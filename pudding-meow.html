@@ -1337,7 +1337,8 @@
   .addr-grid{ flex-shrink:0; display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:20px; box-sizing:border-box; }
   .addr-field{ position:relative; grid-column:span 1; height:45px; background:#FFF; border-radius:12px; box-shadow:0 0 4px rgba(217,217,217,.5); box-sizing:border-box; overflow:hidden; }
   .addr-field.span2{ grid-column:span 2; }
-  .addr-form-screen.guest .addr-field.mem-only{ display:none; }
+  /* 游客和会员用同一张表：以前游客版藏掉门牌/邮编/城市，结果 Lalamove 拿到的地址比会员单粗一截，
+     骑手照样得打电话问门牌。表单一样，只有底下的按钮不同（游客「确认」用一次，会员「保存」进地址簿）。 */
   .addr-prof{ position:absolute; right:16px; top:50%; transform:translateY(-50%); cursor:pointer; }
   .addr-field input{ position:absolute; inset:0; width:100%; height:100%; border:none; outline:none; background:transparent; font-size:14px; color:var(--muted); font-family:"Noto Sans SC",sans-serif; padding:18px 20px 4px; box-sizing:border-box; }
   .addr-field .lbl{ position:absolute; left:20px; top:14px; font-size:14px; color:#726F6F; font-family:"Noto Sans SC",sans-serif; pointer-events:none; transition:top .12s,font-size .12s; }
@@ -2243,11 +2244,11 @@
       <button class="addr-locate-btn" id="addrLocateBtn" onclick="addrLocate()">使用我的定位 Use My Location</button>
     </div>
     <div class="addr-grid">
-      <div class="addr-field span2 mem-only"><input id="afLabel" type="text" placeholder=" "><label class="lbl">地点名称（e.g. Home, Office）</label></div>
-      <div class="addr-field span2 mem-only"><input id="afUnit" type="text" placeholder=" " oninput="_addrCheckValid()"><label class="lbl">单位号/门牌号<span class="req">*</span></label></div>
-      <div class="addr-field span2"><input id="afAddress" type="text" placeholder=" " oninput="_addrCheckValid()"><label class="lbl">地址<span class="req">*</span></label></div>
-      <div class="addr-field mem-only"><input id="afPostcode" type="text" inputmode="numeric" placeholder=" " oninput="_addrCheckValid()"><label class="lbl">邮政编码<span class="req">*</span></label></div>
-      <div class="addr-field mem-only"><input id="afCity" type="text" placeholder=" " oninput="_addrCheckValid()"><label class="lbl">城市<span class="req">*</span></label></div>
+      <div class="addr-field span2"><input id="afLabel" type="text" placeholder=" "><label class="lbl">地点名称（e.g. Home, Office）</label></div>
+      <div class="addr-field span2"><input id="afUnit" type="text" placeholder=" " oninput="_addrCheckValid()"><label class="lbl">单位号/门牌号<span class="req">*</span></label></div>
+      <div class="addr-field span2"><input id="afAddress" type="text" placeholder=" " oninput="_addrCheckValid()"><label class="lbl">街道、小区<span class="req">*</span></label></div>
+      <div class="addr-field"><input id="afPostcode" type="text" inputmode="numeric" placeholder=" " oninput="_addrCheckValid()"><label class="lbl">邮政编码<span class="req">*</span></label></div>
+      <div class="addr-field"><input id="afCity" type="text" placeholder=" " oninput="_addrCheckValid()"><label class="lbl">城市<span class="req">*</span></label></div>
       <div class="addr-field"><input id="afRecipient" type="text" placeholder=" " oninput="_addrCheckValid()"><label class="lbl">收件人姓名<span class="req">*</span></label></div>
       <div class="addr-field"><input id="afPhone" type="text" inputmode="tel" placeholder=" " oninput="_addrCheckValid()"><label class="lbl">手机号码<span class="req">*</span></label></div>
       <div class="addr-field span2"><input id="afRemarks" type="text" placeholder=" "><label class="lbl">备注</label></div>
@@ -3273,9 +3274,8 @@ function openAddrForm(editAddr){
   var _tt=document.getElementById('addrFormTitle'); if(_tt) _tt.textContent = editAddr ? '编辑地址' : '新收货地址';
   document.getElementById('addrSearch').value='';
   // pin 用仓库里的 logo.svg（HTML 里已静态设 src），不再用首页 PNG 覆盖
-  // 游客（未登录）：精简表单 + 「确认」；会员：完整表单 + 「保存」到地址簿
+  // 游客和会员是同一张表单，只有底下的按钮不同：游客「确认」（只用这一次），会员「保存」（进地址簿）
   var _isGuest=!(_memberId && _memberToken && db);
-  document.getElementById('addrFormScreen').classList.toggle('guest', _isGuest);
   document.getElementById('addrSaveBtn').textContent = _isGuest ? '确认' : '保存';
   document.getElementById('addrLocStat').textContent='';
   document.getElementById('addrSearchBox').classList.remove('has-text');   // 重置搜索框到「空」态（放大镜）
@@ -3438,12 +3438,15 @@ function _acComp(comps, type){
   var m=(comps||[]).find(function(c){ return (c.types||[]).indexOf(type)>=0; });
   return m ? (m.long_name||m.longText||m.short_name||m.shortText||'') : '';
 }
-/* 街道行：只要「大厦名 / 街道 / 小区」这一段，门牌、邮编、城市、国家都有自己的框。
+/* 「街道、小区」栏：大厦名 / 街道 / 小区（Taman、Bandar…）这一段，门牌、邮编、城市、国家都有自己的框。
    leadNum 是「有单位号时被挤出来的门牌号」——公寓那种 subpremise=5 / street_number=12，
-   单位号栏放 5，12 就得跟着街道走（「12 Jalan X」），否则这个号码哪都不剩。 */
+   单位号栏放 5，12 就得跟着街道走（「12 Jalan X」），否则这个号码哪都不剩。
+   小区那一段 Google 在马来西亚会挂在四个 type 里的任意一个（同一条路搜和定位回来的还可能不一样），
+   所以逐个兜底找，找不到才算没有。 */
 function _addrStreetLine(comps, leadNum){
   var route=_acComp(comps,'route'), premise=_acComp(comps,'premise');
-  var area=_acComp(comps,'neighborhood') || _acComp(comps,'sublocality_level_1') || _acComp(comps,'sublocality');
+  var area=_acComp(comps,'neighborhood') || _acComp(comps,'sublocality_level_1')
+        || _acComp(comps,'sublocality')   || _acComp(comps,'sublocality_level_2');
   var parts=[], seen={};
   [premise, (leadNum ? (leadNum+' '+route).trim() : route), area].forEach(function(x){
     x=(x||'').trim();
@@ -3497,10 +3500,8 @@ function _addrReverseFill(lat, lng){
   });
 }
 function _addrCheckValid(){
-  var isGuest=!(_memberId && _memberToken && db);
-  var need = isGuest ? ['afAddress','afRecipient','afPhone']   // 游客只要 地址/收件人/手机
-                     : ['afUnit','afAddress','afPostcode','afCity','afRecipient','afPhone'];
   // 只按红*必填项判定：填完就可用（坐标由地图中心兜底，见 saveAddrForm，不再卡按钮）
+  var need = ['afUnit','afAddress','afPostcode','afCity','afRecipient','afPhone'];
   var ok=need.every(function(id){ return document.getElementById(id).value.trim(); });
   var btn=document.getElementById('addrSaveBtn');
   btn.disabled=!ok; btn.classList.toggle('disabled', !ok);
@@ -3515,8 +3516,7 @@ function saveAddrForm(){
   var v=function(id){ return document.getElementById(id).value.trim(); };
   var isGuest=!(_memberId && _memberToken && db);
   var unit=v('afUnit'), address=v('afAddress'), postcode=v('afPostcode'), city=v('afCity'), recipient=v('afRecipient'), phone=v('afPhone');
-  if(!address||!recipient||!phone) return;             // 两种模式都必填
-  if(!isGuest && (!unit||!postcode||!city)) return;    // 单位号/邮编/城市只有会员必填
+  if(!unit||!address||!postcode||!city||!recipient||!phone) return;   // 游客和会员一样，六项都必填
   var label=v('afLabel'), remarks=v('afRemarks');
   var lat=_addrLocateCoords?_addrLocateCoords.lat:null, lng=_addrLocateCoords?_addrLocateCoords.lng:null;
 
