@@ -1305,8 +1305,12 @@
   /* 搜索框（443:422）：外壳浮顶，内含胶囊 + 联想下拉；兜底模式隐藏 */
   .addr-search-wrap{ display:none; }
   .addr-search{ display:flex; align-items:center; justify-content:space-between; height:45px; margin:0; padding:8px 20px; background:#fff; border-radius:12px; box-shadow:0 0 2px rgba(217,217,217,.5); box-sizing:border-box; }
-  .addr-search-inp{ flex:1; min-width:0; border:none; outline:none; background:transparent; font-size:14px; color:var(--muted); caret-color:var(--red); font-family:"Noto Sans SC",sans-serif; text-overflow:ellipsis; -webkit-appearance:none; appearance:none; }
-  .addr-search-inp::-webkit-search-cancel-button,.addr-search-inp::-webkit-search-decoration{ -webkit-appearance:none; display:none; }
+  /* 单行 <textarea wrap="off">，不是 <input>：<input> 的文字超出后只能靠光标带着走，
+     手指在里面横滑是滑不动的，选中一条长地址就只剩开头那一截读不全。textarea 是真的
+     滚动容器，横滑就能把整条地址拉出来看。视觉上还是那一行：rows=1 + 定死 29px 行高、
+     white-space:pre 不折行、竖向溢出藏掉、滚动条藏掉。 */
+  .addr-search-inp{ flex:1; min-width:0; border:none; outline:none; background:transparent; font-size:14px; line-height:29px; height:29px; padding:0; margin:0; color:var(--muted); caret-color:var(--red); font-family:"Noto Sans SC",sans-serif; white-space:pre; overflow-x:auto; overflow-y:hidden; resize:none; scrollbar-width:none; -webkit-appearance:none; appearance:none; }
+  .addr-search-inp::-webkit-scrollbar{ display:none; }
   .addr-search-inp::placeholder{ color:var(--muted); opacity:1; }
   .addr-search-ico{ width:24px; height:24px; flex-shrink:0; margin-left:12px; cursor:pointer; }
   .addr-ico-clear{ display:none; }
@@ -2227,13 +2231,13 @@
       <div class="addr-map-canvas" id="addrMapCanvas"></div>
       <!-- 搜索框 (Figma 443:422)：4 态 —— 空/聚焦=放大镜，输入=✕清除+自定义联想下拉，已选=回显地址 -->
       <div class="addr-search-wrap" id="addrSearchWrap">
-        <!-- 曾经把它改成 contenteditable，想躲掉键盘上方那条「∧ ∨ ✓」导航栏——没躲掉
-             （那条栏还在，说明它不是浏览器按「表单控件」加的），却带来了新毛病：
-             contenteditable 上 blur() 收不掉安卓的输入法，点完联想键盘赖着不走。
-             所以退回普通 <input>。读写仍走 _addrSearchGet/_addrSearchSet，免得再散回一堆 .value。
-             不包 <form> 是上一版留下的，无害：回车在 keydown 里接。 -->
+        <!-- 单行 textarea（wrap=off），不是 input：选中一条长地址后要能手指横滑读完整条，
+             而 <input> 里的横滑滑不动。曾经还试过 contenteditable，想躲掉键盘上方那条
+             「∧ ∨ ✓」导航栏——没躲掉（说明那条栏不是浏览器按表单控件加的），反而害得
+             blur() 收不掉安卓输入法，已撤。读写一律走 _addrSearchGet/_addrSearchSet。
+             不包 <form>，回车在 keydown 里接（textarea 的回车默认是换行，必须拦）。 -->
         <div class="addr-search" id="addrSearchBox">
-          <input class="addr-search-inp" id="addrSearch" type="search" placeholder="搜索地址" autocomplete="off" enterkeyhint="search" oninput="_addrSuggest()" onfocus="_addrSuggest()" onblur="_addrSuggBlur()" onkeydown="if(event.key==='Enter')_addrSearchSubmit(event)">
+          <textarea class="addr-search-inp" id="addrSearch" rows="1" wrap="off" placeholder="搜索地址" autocomplete="off" enterkeyhint="search" oninput="_addrSuggest()" onfocus="_addrSuggest()" onblur="_addrSuggBlur()" onkeydown="if(event.key==='Enter')_addrSearchSubmit(event)"></textarea>
           <svg class="addr-search-ico addr-ico-search" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
           <svg class="addr-search-ico addr-ico-clear" viewBox="0 0 24 24" onclick="_addrClearSearch()" role="button" aria-label="清除"><circle cx="12" cy="12" r="10" fill="#8D0505"/><path d="M15 9l-6 6M9 9l6 6" stroke="#FFFFD5" stroke-width="2" stroke-linecap="round"/></svg>
         </div>
@@ -3386,19 +3390,24 @@ function _addrEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c
 var _ADDR_PIN_ICO='<svg class="addr-sugg-ico" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg>';
 /* 「当前位置」用准星图标，跟地图右下角那颗定位钮同一个图形——顾客一眼认得出是同一件事 */
 var _ADDR_LOC_ICO='<svg class="addr-sugg-ico" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="1.6" fill="#8D0505" stroke="none"/><path d="M12 1.6V4.4M12 19.6v2.8M1.6 12H4.4M19.6 12h2.8"/></svg>';
-/* 搜索框的读写统一走这两个（曾经是 contenteditable，改回 input 后留着，免得 .value 又散一地） */
+/* 搜索框的读写统一走这两个，别在别处直接写 .value */
 function _addrSearchGet(){
   var el=document.getElementById('addrSearch');
-  return el ? String(el.value||'').trim() : '';
+  return el ? String(el.value||'').replace(/\s+/g,' ').trim() : '';
 }
 function _addrSearchSet(v){
   var el=document.getElementById('addrSearch'); if(!el) return;
   v=String(v==null?'':v);
   el.value=v;
+  el.scrollLeft=0;              // 回显长地址时从头看起，不是停在上一次滑到的位置
   document.getElementById('addrSearchBox').classList.toggle('has-text', !!v);
 }
 function _addrSuggest(){
   var box=document.getElementById('addrSearchBox');
+  // 它是 textarea：粘贴进来的多行地址压成一行，否则第二行被 overflow 藏起来，
+  // 顾客以为自己没粘上
+  var el=document.getElementById('addrSearch');
+  if(el && /[\r\n]/.test(el.value)) el.value=el.value.replace(/[\r\n]+/g,' ');
   var q=_addrSearchGet();
   box.classList.toggle('has-text', !!q);                   // 有字→显示 ✕，无字→显示放大镜
   // 空框（刚聚焦）或没 Places：下拉里也留着「当前位置」那一行，顾客懒得打字就点它
