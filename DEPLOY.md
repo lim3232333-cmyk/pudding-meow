@@ -141,6 +141,14 @@ Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-mall-catego
 
 **不跑也不会坏**：商城继续用内置的四段（限定 / 现金回扣·折扣 / 免邮 / 合作），只是不能自己加。
 
+### 「我的券」也显示券面图（想让顾客手上的券带图才跑）
+
+Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-my-coupon-image.sql`** → **Run**。前置是 v3 + `supabase-coupon-mall-category.sql`。
+
+小程序「积分商城 → 我的卷」那一页，每张券上面那块 128 高的券面用的就是你在 POS 传的那张「商城卡片图」。这份脚本只是把这一列带给顾客端。
+
+**不跑也不会坏**：从商城兑来的券照样有图（前端会去商城列表里回查）。看不到图的只有**商城已下架的券**，和**不是从商城来的券** —— 注册赠券、兑换码领的、客诉补发的。没图就是默认券面：大字面额 + 探出来的喵。
+
 ### 手续费费率（想把 HitPay 手续费转嫁给顾客才跑）
 
 Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-admin-fee.sql`** 全部内容 → **Run**。
