@@ -5715,9 +5715,52 @@ function saveCpn(){
   if(_cpnImgUploading){ showN('图片上传中，请稍候…'); _cpnImgUploading.then(go).catch(function(){}); return; }
   go();
 }
+/* 删券模板。
+   member_coupons（顾客手里的券实例）对 coupons 有外键且**不是** cascade——这是对的：
+   已使用的券是真实消费记录，不能因为店家删了模板就凭空消失。规则和兑换码是 cascade，
+   跟着走没问题。
+   原来这里直接 delete，一旦发过券就被数据库拦下，弹一句英文外键报错，
+   店员看着就像「点了没反应」。现在先数一遍，按三种情况说人话： */
 function delCpn(id){
-  if(!confirm('确定删除该优惠券模板？已发出去的券不受影响。'))return;
-  db.from('coupons').delete().eq('id',id).then(function(res){if(res.error){showN(''+res.error.message);return;}showN('已删除');loadLoyaltyCoupons();}).catch(function(e){showN('网络错误');});
+  if(!db){ showN('未连接云端'); return; }
+  var c=(_loyaltyCoupons||[]).find(function(x){return x.id===id;});
+  var nm=(c&&c.name)||'这张券';
+  db.from('member_coupons').select('id,status').eq('coupon_id',id).then(function(res){
+    if(res.error){ showN('查不到发放情况：'+_rpcErr(res.error)); return; }
+    var rows=res.data||[];
+    var used=rows.filter(function(r){return r.status==='used';}).length;
+    var live=rows.length-used;
+
+    // 有人用掉过 → 不给删。那是消费记录，删了对不上账
+    if(used>0){
+      alert('「'+nm+'」已经有 '+used+' 张被顾客用掉了。\n\n'
+           +'那是真实的消费记录，删掉会让交易明细对不上账，所以不能删。\n\n'
+           +'想让它别再发、别再被用，请改用「改」→ 取消勾选「启用」。停用之后：\n'
+           +'· 不会再自动发放，也不会出现在积分商城\n'
+           +'· 顾客手里没用的那些也用不了了');
+      return;
+    }
+    // 只发出去过、还没人用 → 说清楚会一并收回，再删
+    if(live>0){
+      if(!confirm('「'+nm+'」已经发出去 '+live+' 张，还没有人用。\n\n'
+                 +'删除会连这 '+live+' 张一起收回（顾客的券会消失）。\n'
+                 +'只是想停用的话，请改用「改」→ 取消「启用」。\n\n确定删除？')) return;
+      db.from('member_coupons').delete().eq('coupon_id',id).then(function(r2){
+        if(r2.error){ showN('收回券失败：'+_rpcErr(r2.error)); return; }
+        _reallyDelCpn(id);
+      }).catch(function(e){ showN('网络错误'); });
+      return;
+    }
+    // 一张都没发过 → 直接删
+    if(!confirm('确定删除「'+nm+'」？它名下的发放规则和兑换码会一并删除。')) return;
+    _reallyDelCpn(id);
+  }).catch(function(e){ showN('网络错误'); });
+}
+function _reallyDelCpn(id){
+  db.from('coupons').delete().eq('id',id).then(function(res){
+    if(res.error){ showN('删除失败：'+_rpcErr(res.error)); return; }
+    showN('已删除'); loadLoyaltyCoupons();
+  }).catch(function(e){ showN('网络错误'); });
 }
 function openCpnIssue(id,name){
   _cpnIssueId=id;

@@ -12,6 +12,20 @@
 --  留空 = 不分区，掉进商城最后的「其他好礼」那一段，不会消失。
 -- ============================================================================
 
+-- 前置检查：这份脚本依赖 v2 加的几列。缺了就在这里说人话，
+-- 而不是等下面 create function 时报一句看不懂的 column does not exist。
+do $$
+begin
+  if not exists (select 1 from information_schema.columns
+                  where table_schema='public' and table_name='coupons' and column_name='applies_to') then
+    raise exception '请先跑 supabase-coupon-v2.sql —— 这份脚本依赖它加的 applies_to / max_discount / channels 几列';
+  end if;
+  if not exists (select 1 from information_schema.columns
+                  where table_schema='public' and table_name='coupon_rules' and column_name='coin_price') then
+    raise exception '请先跑 supabase-coupon-v2.sql —— coupon_rules 还没有 coin_price 列';
+  end if;
+end $$;
+
 alter table public.coupons
   add column if not exists mall_category text,
   --  商城卡片上半部那块图（230×98 的位置）。店家在 POS 上传，存 Storage 的公开 URL。
@@ -26,8 +40,14 @@ comment on column public.coupons.mall_image_url is
 comment on column public.coupons.mall_category is
   '积分商城的分区：limited(限定) / cashback(现金回扣·折扣) / free_ship(免邮) / partner(合作)。null = 不分区，排在「其他好礼」。';
 
--- 商城列表要把分区带出去。返回的列变了，create or replace 改不动，得先删——
+-- 商城列表要把分区和图带出去。返回的列变了，create or replace 改不动，得先删——
 -- 这一条已经栽过一次（cannot change return type of existing function）。
+--
+-- ⚠ 「先删再建」中间失败会不会把函数删了没建回来？在 Supabase 的 SQL Editor 里不会：
+--   它把整段脚本包在一个事务里跑，任何一句失败就整段回滚（这一点是实测出来的——
+--   一次失败之后，连最前面的 alter table 都没落地）。所以这里不再自己写
+--   begin/commit：在已经开着的事务里再 begin 只会警告，而中途 commit 反而会把
+--   编辑器那个外层事务提前提交掉，后面的语句就跑在事务外了。
 drop function if exists public.rpc_list_mall_coupons();
 create or replace function public.rpc_list_mall_coupons()
 returns table(
