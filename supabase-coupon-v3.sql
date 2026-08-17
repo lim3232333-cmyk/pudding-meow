@@ -16,6 +16,31 @@
 --    得先想清楚叠加顺序和总折扣上限，那是另一个决定，不该顺手做掉。
 -- ============================================================================
 
+-- ── 0) 先清掉要重建的那几个函数的所有旧版本 ─────────────────────────────────
+--     create or replace 改不了 OUT 参数（返回的列），会直接报
+--     「cannot change return type of existing function」。
+--     而且这几个函数这次要多加参数（p_mode / p_delivery_fee），加了默认值之后
+--     新旧两个版本会同时存在：旧的 5 参精确匹配、新的 6 参靠默认值也匹配，
+--     调用时报 ambiguous。所以按**函数名**把所有重载一次删干净，再重建。
+--     不用 cascade：真有别的对象依赖它们，宁可在这里报错也别静默删掉。
+do $$
+declare r record;
+begin
+  for r in
+    select p.oid::regprocedure as sig
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       -- ⚠ 只能列本脚本后面会**重建**的那几个。列了不重建的（如 rpc_list_mall_coupons、
+       --   rpc_redeem_coupon、rpc_admin_issue_coupon —— 那三个是 v2 建的）就等于
+       --   跑完 v3 把积分商城和后台发券删掉了。
+       and p.proname in ('_coupon_calc','rpc_preview_coupon','rpc_consume_coupon',
+                         'rpc_get_my_coupons','rpc_pos_member_coupons')
+  loop
+    execute 'drop function if exists ' || r.sig;
+  end loop;
+end $$;
+
 -- ── A) 兑换码 ───────────────────────────────────────────────────────────────
 --    通用码和一次性码是同一张表的两种 kind，不另开一张表：两者的校验逻辑
 --    （时间窗、总量、每人限领）一模一样，分表就要写两遍，迟早改漏一边。
@@ -103,7 +128,6 @@ $$;
 -- ── 核心：算折扣（加上免运费 / 时段 / 星期）─────────────────────────────────
 --    签名多了 p_delivery_fee。免运费券抵的是配送费，不能拿商品小计去封顶它，
 --    否则一张 RM0 商品 + RM8 运费的单会被 least(disc, subtotal) 削成 0。
-drop function if exists public._coupon_calc(uuid, uuid, numeric, uuid[], text);
 create or replace function public._coupon_calc(
   p_member_id uuid, p_member_coupon_id uuid, p_subtotal numeric,
   p_item_ids uuid[], p_mode text default null, p_delivery_fee numeric default 0)
@@ -321,6 +345,13 @@ end;
 $$;
 
 -- ── D) 使用报表 ─────────────────────────────────────────────────────────────
+--    报表要 join orders.coupon_id。那两列本来是 supabase-coupon-apply.sql 加的，
+--    但「哪些旧脚本跑过」在每家店可能不一样，这里自己补一次（幂等），
+--    免得报表在少跑过一个脚本的库上直接报 column does not exist。
+alter table public.orders
+  add column if not exists coupon_id uuid references public.member_coupons(id),
+  add column if not exists discount  numeric not null default 0;
+
 --    发了多少 / 用了多少 / 核销率 / 带来多少营业额。
 --    营业额用 orders.total 减掉 admin_fee（手续费是代收转付给 HitPay 的，不是店家的钱），
 --    跟仪表盘、月报一个口径 —— 三处不一致的话同一天会读出三个数。
@@ -367,7 +398,6 @@ end;
 $$;
 
 -- ── 顾客端 / POS 读券：把时段限制一起带出去 ─────────────────────────────────
-drop function if exists public.rpc_get_my_coupons(uuid, text);
 create or replace function public.rpc_get_my_coupons(p_member_id uuid, p_session_token text)
 returns table(
   id uuid, coupon_id uuid, name text, type text, value numeric, min_spend numeric,
@@ -397,7 +427,6 @@ begin
 end;
 $$;
 
-drop function if exists public.rpc_pos_member_coupons(uuid);
 create or replace function public.rpc_pos_member_coupons(p_member_id uuid)
 returns table(
   id uuid, coupon_id uuid, name text, type text, value numeric, min_spend numeric,
