@@ -1044,7 +1044,7 @@
   .pm-card.off{ filter:drop-shadow(0 2px 2px rgba(0,0,0,.15)) grayscale(.5); opacity:.6; }
   .pm-empty{ text-align:center; padding:48px 20px; font-size:13px; color:var(--muted); }
   /* 兑换码输入条：跟券卡片同宽，贴在「我的券」列表最上面 */
-  .pm-code-box{ display:flex; gap:8px; margin:0 0 12px; }
+  .pm-code-box{ display:flex; gap:8px; margin:0; }
   .pm-code-box input{ flex:1; min-width:0; height:38px; border:1.5px solid #E7DFC9; border-radius:10px;
     padding:0 12px; font-size:13px; font-family:"Noto Sans SC",sans-serif; color:var(--muted);
     background:#fff; outline:none; text-transform:uppercase; }
@@ -1054,38 +1054,43 @@
     font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
   .pm-use-btn{ margin-top:8px; background:var(--yellow); color:var(--red); border:none; border-radius:999px; padding:5px 16px; font-size:12px; font-weight:700; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }
   .pm-use-no{ display:inline-block; margin-top:8px; font-size:10.5px; opacity:.75; }
-  /* ===== 积分商城券卡（Figma 869:1128 / 869:1132）：100px 票根 + 白色主体，商城/结算/我的三态共用。
-     票根：现金券深红配 $、百分比券配 %、甜品券黄底配商品图；左缘锯齿孔用 mask 挖。
-     主体三行：标题 16 / 满减条件 12 / 日期 10（右下角）；右侧按态放 兑换按钮 / 打勾 / 状态字。 */
-  .pm-item-card,.pm-my-card{ display:flex; width:100%; min-height:100px; border-radius:12px; box-sizing:border-box; box-shadow:0 4px 8px rgba(0,0,0,.2); overflow:hidden; }
+  /* ===== 我的券（Figma 1124:1572）：竖版卡 —— 上面 128 高的券面，下面白条写券名 + 还剩几天。
+     跟商城那张卡是同一套语言（上图 + 下白条），只是撑满整行、券面高一些；原来那张
+     100px 票根 + 右侧文字的横版卡整张换掉了。
+     券面优先放店家给这张券传的图（mall_image_url，可以是 SVG），没传就是默认券面：
+     左边大字面额、右边探出半只喵。结算页挑券时右上角压一个勾。 */
+  .pm-mine{ display:flex; flex-direction:column; gap:24px; padding:0 24px; }
+  .pm-my-card{ display:flex; flex-direction:column; filter:drop-shadow(0 2px 2px rgba(0,0,0,.25)); }
   .pm-my-card[onclick]{ cursor:pointer; }
-  .pm-item-card.dim,.pm-my-card.dim{ opacity:.5; cursor:default; }
-  .pm-my-stub{ position:relative; width:100px; flex-shrink:0; align-self:stretch; background:var(--red);
-    display:flex; align-items:center; justify-content:center; background-size:cover; background-position:center;
-    -webkit-mask:radial-gradient(circle 3.5px at left center, transparent 3.5px, #000 4px) left top/100% 12.5px repeat-y;
-            mask:radial-gradient(circle 3.5px at left center, transparent 3.5px, #000 4px) left top/100% 12.5px repeat-y; }
-  .pm-my-stub.dessert{ background:var(--yellow); }
-  /* 现金/百分比券：票根用上传的锯齿红图（自带半圆孔），关掉 CSS 挖孔，避免叠两层 */
-  .pm-my-stub.cash{ background:url('voucher%20side.svg') center/100% 100% no-repeat; -webkit-mask:none; mask:none; }
-  .pm-my-stub-art{ width:70px; height:66px; }
-  .pm-my-stub-sym{ font-size:44px; font-weight:700; color:var(--yellow); line-height:1; }
-  .pm-my-main{ position:relative; flex:1; min-width:0; background:#fff; box-sizing:border-box; padding:12px 16px;
-    display:flex; flex-direction:column; justify-content:center; gap:8px; }
-  .pm-my-name{ font-size:16px; font-weight:500; color:var(--red); word-break:break-word; padding-right:56px; }
-  .pm-my-cond{ font-size:12px; color:#4A4848; }
-  /* 我的/结算态：标题+满减在上、日期推到卡片底部（左下），避开右侧的勾（稿子 869:1125/1126） */
-  .pm-my-main.mine{ justify-content:flex-start; }
-  .pm-my-validity{ font-size:12px; color:#4A4848; padding-right:36px; word-break:break-word; }
-  .pm-my-main.mine .pm-my-validity{ margin-top:auto; }
-  .pm-my-coin{ display:flex; align-items:center; gap:8px; }
-  .pm-my-coin b{ font-size:14px; font-weight:500; color:var(--red); }
-  .pm-my-date{ position:absolute; right:16px; bottom:8px; font-size:10px; color:#4A4848; text-align:right; }
+  /* 用过的、过期的、这一单用不了的：压暗但不藏起来——顾客得看得见自己手上有哪些券 */
+  .pm-my-card.dim{ filter:drop-shadow(0 2px 2px rgba(0,0,0,.15)) grayscale(.6); opacity:.55; }
+  .pm-my-face{ position:relative; height:128px; box-sizing:border-box; padding:0 32px; overflow:hidden;
+    border-radius:12px 12px 0 0; background:var(--red); display:flex; align-items:center; }
+  .pm-my-face.dessert{ background:var(--yellow); }
+  .pm-my-face-img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }
+  .pm-my-val{ position:relative; z-index:1; display:flex; align-items:flex-start; gap:16px;
+    color:#fff; font-weight:900; line-height:1.05; white-space:nowrap; }
+  .pm-my-val .u{ font-size:24px; }
+  .pm-my-val .n{ font-size:84px; }
+  .pm-my-val .w{ font-size:40px; }
+  /* 喵占券面右边那半块，下半截被券面裁掉——稿子里它本来就是 234×213 塞进 128 高的框里。
+     位置按稿子的比例给（左 155/345、宽 234/345），这样换机型不会跑位。 */
+  .pm-my-mascot{ position:absolute; left:44.9%; top:6px; width:67.8%; height:auto; pointer-events:none; }
+  /* 甜品券：黄底 + 甜品图居中，大字留给白条上的券名，免得同一句话写两遍 */
+  .pm-my-stub-art{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:110px; height:auto; }
+  .pm-my-bot{ background:#fff; border-radius:0 0 12px 12px; box-sizing:border-box; min-height:46px;
+    padding:4px 12px; display:flex; flex-direction:column; justify-content:center; gap:4px; }
+  .pm-my-name{ font-size:14px; font-weight:700; color:var(--muted); word-break:break-word; }
+  .pm-my-meta{ display:flex; align-items:baseline; gap:8px; font-size:12px; font-weight:500; color:var(--muted); }
+  .pm-my-cond{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pm-my-left{ margin-left:auto; flex-shrink:0; text-align:right; }
+  .pm-my-left b{ font-weight:700; color:var(--red); }
+  .pm-my-why{ margin-left:auto; flex-shrink:0; text-align:right; color:var(--red); }
+  /* 勾垫一层白底：未选中那张图是深红描边的空心圈，直接压在深红券面上等于看不见 */
+  .pm-my-tickwrap{ position:absolute; right:12px; top:12px; z-index:2; display:flex;
+    padding:2px; background:#fff; border-radius:999px; }
+  .pm-my-tick{ width:22px; height:22px; flex-shrink:0; }
   .pm-my-paw{ width:25px; height:25px; flex-shrink:0; }
-  .pm-my-redeem{ position:absolute; right:16px; top:50%; transform:translateY(-50%); background:var(--red); color:var(--cream2); border:none; border-radius:999px; width:52px; height:25px; font-size:14px; font-weight:500; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
-  .pm-my-redeem:disabled{ opacity:.45; cursor:not-allowed; }
-  .pm-my-tickwrap{ position:absolute; right:16px; top:50%; transform:translateY(-50%); display:flex; }
-  .pm-my-tick{ width:20px; height:20px; flex-shrink:0; }
-  .pm-my-why{ position:absolute; right:16px; top:50%; transform:translateY(-50%); font-size:10.5px; color:var(--red); opacity:.75; max-width:80px; text-align:right; }
 
   /* ===== 会员：幸运抽奖 Lucky Draw ===== */
   .ld-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:var(--cream2); z-index:300; display:none; flex-direction:column; overflow-y:auto; }
@@ -6540,16 +6545,46 @@ function _pmImg(c){
   if(c.menu_item_image) return '<div class="pm-item-img" style="background-image:url(\''+_esc(c.menu_item_image)+'\');background-size:cover;background-position:center"></div>';
   return '<div class="pm-item-img pm-item-img-logo"><img alt=""><span>'+_pmValTxt(c)+'</span></div>';
 }
-/* 券卡票根（100px）：甜品券=黄底+商品图/甜品图；现金券=深红+$；百分比券=深红+% —— 跟稿子一致 */
-function _pmStub(c){
-  if(c.type==='dessert'){
-    return c.menu_item_image
-      ? '<div class="pm-my-stub dessert" style="background-image:url(\''+_esc(c.menu_item_image)+'\');background-size:cover;background-position:center;background-repeat:no-repeat"></div>'
-      : '<div class="pm-my-stub dessert">'+_dessertArt()+'</div>';
-  }
-  return '<div class="pm-my-stub cash"><span class="pm-my-stub-sym">'+(c.type==='percent_off'?'%':'$')+'</span></div>';
+/* 券面上的大字（Figma 1124:1572 是「RM 1」）：百分比券把单位挪到数字后面，
+   免运费券没有数字就写一行字。金额去掉没意义的小数（RM 1 而不是 RM 1.00）——
+   这块字有 84px，两位小数会把喵挤出券面。 */
+function _pmFaceVal(c){
+  var num=String(Math.round(Number(c.value||0)*100)/100);
+  if(c.type==='percent_off')   return '<div class="pm-my-val"><span class="n">'+num+'</span><span class="u">%</span></div>';
+  if(c.type==='free_delivery') return '<div class="pm-my-val"><span class="w">免运费</span></div>';
+  return '<div class="pm-my-val"><span class="u">RM</span><span class="n">'+num+'</span></div>';
 }
-function _pmDateTxt(c){ return c.expires_at ? ('有效期至 '+new Date(c.expires_at).toLocaleDateString()) : '永久有效'; }
+/* 券面的图。默认跟商城卡是**同一张母图**（mall_image_url，可以是 SVG）——两个槽位
+   比例只差 13%，母图按 680×270 画、重要内容留在中间 630×250，两处 cover 各切掉
+   3% 出血就够了；让店家每张券传两遍，迟早有一张忘了传，漏的比切掉 3% 难看得多。
+   voucher_image_url 是**可选覆盖**，只有哪张券在券包里确实不好看时店家才补一张。
+   rpc_get_my_coupons 早先两列都不返回，所以再按 coupon_id 去商城列表里回查一次——
+   没跑 supabase-my-coupon-image.sql 的店，商城里换到的券照样有图。
+   都查不到才退回商品图，再没有就是默认券面（大字 + 喵）。 */
+function _pmMyImg(c){
+  if(c.voucher_image_url) return c.voucher_image_url;
+  if(c.mall_image_url) return c.mall_image_url;
+  var item=(_mallItems||[]).find(function(x){ return x.id===c.coupon_id; });
+  if(item && item.mall_image_url) return item.mall_image_url;
+  return c.menu_item_image || '';
+}
+/* 白条右边那行。已用/已过期直接写状态，比算天数有用；没到期日的券写「永久有效」。
+   ⚠ 返回的是 HTML（天数要加粗标红），调用处不要再 _esc 一遍。 */
+function _pmLeftTxt(c){
+  if(c.status==='used')    return '已使用';
+  if(c.status==='expired') return '已过期';
+  if(!c.expires_at)        return '永久有效';
+  var d=Math.ceil((new Date(c.expires_at).getTime()-Date.now())/86400000);
+  return d<=0 ? '今天到期' : ('Left <b>'+d+'</b> days');
+}
+/* 白条左半行：只写门槛/限定商品。无门槛就留空——稿子这一行本来只有右边的天数，
+   多写一句「无门槛」是废话；但有门槛的必须写，否则顾客不知道券为什么用不了。 */
+function _pmCondShort(c){
+  var s=[];
+  if(c.type!=='dessert' && c.menu_item_name) s.push('仅 '+c.menu_item_name+'（一份）');
+  if(Number(c.min_spend)>0) s.push('满 RM'+Number(c.min_spend).toFixed(2));
+  return s.join(' · ');
+}
 /* 商城的券卡（Figma 1121:1488）：230 宽，上面 98 高的图，下面白条一行券名 + 右侧 Paw Coin 价。
    整张卡可点＝兑换，不再单独放「兑换」按钮——卡只有 230 宽，塞个按钮就没地方写名字了。
    Coin 不够的不藏起来，只压暗：藏了顾客就不知道攒到多少能换什么。 */
@@ -6610,19 +6645,7 @@ function _tickSvg(on){
       +'<circle cx="10" cy="10" r="9.25" stroke="#8D0505" stroke-width="1.5"/></svg>';
 }
 function _dessertArt(){ return '<svg class="pm-my-stub-art" aria-hidden="true" viewBox="0 0 70 66" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M70 58.08C70 62.4541 54.33 66 35 66C15.67 66 0 62.4541 0 58.08C0 53.7059 15.67 50.16 35 50.16C54.33 50.16 70 53.7059 70 58.08Z" fill="#FFDE5B"/><path d="M65.5696 57.64C65.5696 60.7991 52.0815 63.36 35.443 63.36C18.8046 63.36 5.31646 60.7991 5.31646 57.64C5.31646 54.4809 18.8046 51.92 35.443 51.92C52.0815 51.92 65.5696 54.4809 65.5696 57.64Z" fill="#E1B401"/><path d="M14.0667 28.728C14.7927 23.3651 19.4376 19.36 24.9311 19.36H46.841C52.3345 19.36 56.9795 23.3651 57.7055 28.728L61.0903 53.7293C61.5283 56.965 58.9725 59.84 55.658 59.84H16.1141C12.7997 59.84 10.2438 56.965 10.6819 53.7293L14.0667 28.728Z" fill="#FFFFD5"/><path d="M14.0411 28.6946C14.7823 23.3467 19.4205 19.36 24.901 19.36H47.0778C52.4782 19.36 57.0739 23.2341 57.9072 28.489L59.1317 39.2627C59.1317 39.2627 50.9569 41.6004 47.5317 35.2147C43.6853 28.0437 41.0239 42.9733 33.1459 41.6004C28.6061 40.8092 25.7223 33.0586 21.1577 33.7086C16.1404 34.4231 12.2522 41.6004 12.2522 41.6004L14.0411 28.6946Z" fill="#9F3D0A"/><path d="M52.2785 20.24C52.2785 23.1561 45.1377 25.52 36.3291 25.52C27.5205 25.52 20.3797 23.1561 20.3797 20.24C20.3797 17.3239 27.5205 14.96 36.3291 14.96C45.1377 14.96 52.2785 17.3239 52.2785 20.24Z" fill="white"/><path d="M35.9725 0C44.9627 0 48.8079 18.48 47.483 19.8C45.2748 22 26.6686 21.9914 24.462 19.8C22.2555 17.6086 26.9823 0 35.9725 0Z" fill="#D41534"/><path d="M31.8987 6.16C31.8987 6.64601 31.7004 7.04 31.4557 7.04C31.211 7.04 31.0127 6.64601 31.0127 6.16C31.0127 5.67399 31.211 5.28 31.4557 5.28C31.7004 5.28 31.8987 5.67399 31.8987 6.16Z" fill="#FFFFD5"/><path d="M36.3291 6.16C36.3291 6.64601 36.1308 7.04 35.8861 7.04C35.6414 7.04 35.443 6.64601 35.443 6.16C35.443 5.67399 35.6414 5.28 35.8861 5.28C36.1308 5.28 36.3291 5.67399 36.3291 6.16Z" fill="#FFFFD5"/><path d="M33.6709 2.64C33.6709 3.12601 33.4725 3.52 33.2278 3.52C32.9832 3.52 32.7848 3.12601 32.7848 2.64C32.7848 2.15399 32.9832 1.76 33.2278 1.76C33.4725 1.76 33.6709 2.15399 33.6709 2.64Z" fill="#FFFFD5"/><path d="M38.1013 2.64C38.1013 3.12601 37.9029 3.52 37.6582 3.52C37.4135 3.52 37.2152 3.12601 37.2152 2.64C37.2152 2.15399 37.4135 1.76 37.6582 1.76C37.9029 1.76 38.1013 2.15399 38.1013 2.64Z" fill="#FFFFD5"/><path d="M43.4177 9.68C43.4177 10.166 43.2194 10.56 42.9747 10.56C42.73 10.56 42.5316 10.166 42.5316 9.68C42.5316 9.19399 42.73 8.8 42.9747 8.8C43.2194 8.8 43.4177 9.19399 43.4177 9.68Z" fill="#FFFFD5"/><path d="M38.9873 9.68C38.9873 10.166 38.789 10.56 38.5443 10.56C38.2996 10.56 38.1013 10.166 38.1013 9.68C38.1013 9.19399 38.2996 8.8 38.5443 8.8C38.789 8.8 38.9873 9.19399 38.9873 9.68Z" fill="#FFFFD5"/><path d="M33.6709 9.68C33.6709 10.166 33.4725 10.56 33.2278 10.56C32.9832 10.56 32.7848 10.166 32.7848 9.68C32.7848 9.19399 32.9832 8.8 33.2278 8.8C33.4725 8.8 33.6709 9.19399 33.6709 9.68Z" fill="#FFFFD5"/><path d="M36.3291 14.08C36.3291 14.566 36.1308 14.96 35.8861 14.96C35.6414 14.96 35.443 14.566 35.443 14.08C35.443 13.594 35.6414 13.2 35.8861 13.2C36.1308 13.2 36.3291 13.594 36.3291 14.08Z" fill="#FFFFD5"/><path d="M32.7848 18.48C32.7848 18.966 32.5865 19.36 32.3418 19.36C32.0971 19.36 31.8987 18.966 31.8987 18.48C31.8987 17.994 32.0971 17.6 32.3418 17.6C32.5865 17.6 32.7848 17.994 32.7848 18.48Z" fill="#FFFFD5"/><path d="M29.2405 9.68C29.2405 10.166 29.0422 10.56 28.7975 10.56C28.5528 10.56 28.3544 10.166 28.3544 9.68C28.3544 9.19399 28.5528 8.8 28.7975 8.8C29.0422 8.8 29.2405 9.19399 29.2405 9.68Z" fill="#FFFFD5"/><path d="M45.1899 17.6C45.1899 18.086 44.9915 18.48 44.7468 18.48C44.5022 18.48 44.3038 18.086 44.3038 17.6C44.3038 17.114 44.5022 16.72 44.7468 16.72C44.9915 16.72 45.1899 17.114 45.1899 17.6Z" fill="#FFFFD5"/><path d="M41.6456 14.08C41.6456 14.566 41.4472 14.96 41.2025 14.96C40.9579 14.96 40.7595 14.566 40.7595 14.08C40.7595 13.594 40.9579 13.2 41.2025 13.2C41.4472 13.2 41.6456 13.594 41.6456 14.08Z" fill="#FFFFD5"/><path d="M26.5823 17.6C26.5823 18.086 26.3839 18.48 26.1392 18.48C25.8946 18.48 25.6962 18.086 25.6962 17.6C25.6962 17.114 25.8946 16.72 26.1392 16.72C26.3839 16.72 26.5823 17.114 26.5823 17.6Z" fill="#FFFFD5"/><path d="M31.0127 14.08C31.0127 14.566 30.8143 14.96 30.5696 14.96C30.3249 14.96 30.1266 14.566 30.1266 14.08C30.1266 13.594 30.3249 13.2 30.5696 13.2C30.8143 13.2 31.0127 13.594 31.0127 14.08Z" fill="#FFFFD5"/><path d="M26.5823 13.2C26.5823 13.686 26.3839 14.08 26.1392 14.08C25.8946 14.08 25.6962 13.686 25.6962 13.2C25.6962 12.714 25.8946 12.32 26.1392 12.32C26.3839 12.32 26.5823 12.714 26.5823 13.2Z" fill="#FFFFD5"/><path d="M46.076 13.2C46.076 13.686 45.8776 14.08 45.6329 14.08C45.3882 14.08 45.1899 13.686 45.1899 13.2C45.1899 12.714 45.3882 12.32 45.6329 12.32C45.8776 12.32 46.076 12.714 46.076 13.2Z" fill="#FFFFD5"/><path d="M41.6456 6.16C41.6456 6.64601 41.4472 7.04 41.2025 7.04C40.9579 7.04 40.7595 6.64601 40.7595 6.16C40.7595 5.67399 40.9579 5.28 41.2025 5.28C41.4472 5.28 41.6456 5.67399 41.6456 6.16Z" fill="#FFFFD5"/><path d="M38.9873 18.48C38.9873 18.966 38.789 19.36 38.5443 19.36C38.2996 19.36 38.1013 18.966 38.1013 18.48C38.1013 17.994 38.2996 17.6 38.5443 17.6C38.789 17.6 38.9873 17.994 38.9873 18.48Z" fill="#FFFFD5"/></svg>'; }
-/* 券面左边票根上的符号：现金券 $、百分比券 %。甜品券不放符号，放商品图 */
-function _pmStubSym(mc){ return mc.type==='percent_off' ? '%' : '$'; }
-/* 「我的」那张卡第二行：优先显示当初花的 Paw Coin（从商城列表按 coupon_id 对回去，
-   省一次 SQL 迁移）；商城已经下架、查不到价的，就改显示有效期——总比空着强。 */
-function _pmMineSub(mc){
-  var item=(_mallItems||[]).find(function(x){ return x.id===mc.coupon_id; });
-  if(item && Number(item.coin_price)>0) return _pawSvg()+'<span>'+item.coin_price+'  Paw Coins</span>';
-  var exp='永久有效';
-  if(mc.expires_at){ try{ exp=new Date(mc.expires_at).toLocaleDateString()+' 到期'; }catch(e){ exp=''; } }
-  return '<span>'+_esc(exp)+'</span>';
-}
 function _pmMineHtml(mc){
-  var ST={unused:'未使用',used:'已使用',expired:'已过期'};
   // 打钩只在「从结算页点进来挑券」时出现。直接从积分商城进「我的」是翻看券包，
   // 没有正在下的单，摆个勾会让人以为点了就生效了。
   var picking = _pmFromCheckout;
@@ -6631,28 +6654,26 @@ function _pmMineHtml(mc){
   var u = _couponUsable(mc, sub, _ckDeliveryFee());
   var usable = mc.status==='unused' && (!hasCart || u.ok);
   var picked = picking && !!(_ckCoupon && _ckCoupon.id===mc.id);
-  var right;
-  if(picking){
-    // 挑券模式：能用给勾，不能用写明原因，别让顾客点了才知道
-    right = usable ? _tickSvg(picked)
-      : '<span class="pm-my-why">'+_esc(mc.status!=='unused' ? (ST[mc.status]||mc.status) : u.why)+'</span>';
-  } else {
-    // 翻看模式：只标已使用/已过期，没用过的右边留白
-    right = mc.status==='unused' ? '' : '<span class="pm-my-why">'+_esc(ST[mc.status]||mc.status)+'</span>';
-  }
   var dim = mc.status!=='unused' || (picking && !usable);
   var clickable = picking && usable;
-  // 挑券态给「打勾」，翻看态用过/过期给状态字，其余右侧留白；三行=标题/满减/日期，跟稿子一致
-  var rightEl = right
-    ? (right.indexOf('pm-my-tick')>=0 ? '<div class="pm-my-tickwrap">'+right+'</div>' : right)
-    : '';
+  var img=_pmMyImg(mc), dessert = !img && mc.type==='dessert';
+  var face = img      ? '<img class="pm-my-face-img" src="'+_esc(img)+'" alt="">'
+           : dessert  ? _dessertArt()
+                      : '<img class="pm-my-mascot" src="logo.svg" alt="">'+_pmFaceVal(mc);
+  // 挑券态能用的压一个勾在券面右上角；不能用的把原因写在白条右边，
+  // 顶掉「还剩几天」——点了才知道用不了最气人，天数这时候不重要
+  var tick = (picking && usable) ? '<div class="pm-my-tickwrap">'+_tickSvg(picked)+'</div>' : '';
+  var why = (picking && !usable && mc.status==='unused') ? u.why : '';
+  var right = why ? '<span class="pm-my-why">'+_esc(why)+'</span>'
+                  : '<span class="pm-my-left">'+_pmLeftTxt(mc)+'</span>';
+  // 用不了的原因本身就把门槛说了（「需满 RM20.00」），左边再写一遍「满 RM20.00」是重复
+  var cond = why ? '' : _pmCondShort(mc);
   return'<div class="pm-my-card'+(dim?' dim':'')+'"'+(clickable?(' onclick="pmPickCoupon(\''+mc.id+'\')"'):'')+'>'
-    +_pmStub(mc)
-    +'<div class="pm-my-main mine">'
+    +'<div class="pm-my-face'+(dessert?' dessert':'')+'">'+face+tick+'</div>'
+    +'<div class="pm-my-bot">'
     +'<div class="pm-my-name">'+_esc(mc.name)+'</div>'
-    +'<div class="pm-my-cond">'+_couponCondTxt(mc)+'</div>'
-    +'<div class="pm-my-validity">'+_esc(_pmDateTxt(mc))+'</div>'   // 我的/结算态：日期左对齐、跟在满减下方（稿子 869:1125/1126），非右下角
-    +rightEl+'</div></div>';
+    +'<div class="pm-my-meta"><span class="pm-my-cond">'+_esc(cond)+'</span>'+right+'</div>'
+    +'</div></div>';
 }
 /* 点卡＝选这张券。一单只能用一张，所以再点一次是取消，选别的会换掉。
    只有从结算页进来才走得到这里，选完直接回结算页——等价于原来那个「使用」按钮。 */
@@ -6681,12 +6702,13 @@ function renderPointsMallList(){
   if(_pmTab==='mine'){
     // 兑换码入口放在「我的券」顶部：顾客拿到一串码（海报/小票/客服补偿）第一反应
     // 就是来这一页找地方输，放商城那一侧反而找不到
-    box.innerHTML='<div class="pm-code-box">'
+    box.innerHTML='<div class="pm-mine"><div class="pm-code-box">'
       +'<input id="pmCodeInp" placeholder="输入兑换码领券" autocapitalize="characters" autocomplete="off"'
       +' onkeydown="if(event.key===\'Enter\')pmRedeemCode()">'
       +'<button onclick="pmRedeemCode()">兑换</button></div>'
       +(_myCoupons.length ? _myCoupons.map(_pmMineHtml).join('')
-                          : '<div class="pm-empty">还没有优惠券，去上面兑换一张吧</div>');
+                          : '<div class="pm-empty">还没有优惠券，去上面兑换一张吧</div>')
+      +'</div>';
     return;
   }
   box.innerHTML = _mallItems.length ? _pmSectionsHtml(_mallItems)
