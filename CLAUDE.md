@@ -111,6 +111,8 @@ A rule is `trigger_event` + `conditions`(jsonb) + `per_member_limit` + `total_li
 
 `rpc_admin_coupon_stats()` 的「带来营业额」用 `total - admin_fee`，跟仪表盘和月报同一个口径——三处不一致的话同一天会读出三个数。
 
+**删券模板要分三种情况** — `member_coupons` 对 `coupons` 的外键**不是** `on delete cascade`（`coupon_rules` 和 `coupon_codes` 是）。这是对的：已使用的券是真实消费记录，不能因为店家删了模板就凭空消失。但原来的 `delCpn` 直接 `delete`，一旦发过券就被数据库拦下、弹一句英文外键报错，店员看着像「点了没反应」。现在先数一遍 `member_coupons`：有 `used` 的**拒绝删除**并指路「改用停用」；只有 `unused` 的，说清楚会连券一起收回再删；一张没发过的直接删。
+
 `rpc_admin_issue_coupon` 现在**必须指定会员**：留空群发是对按下按钮那一刻的会员拍快照，明天注册的新人拿不到 —— 正是规则层要解决的问题。POS 的「发放」按钮只留客诉补偿用的单人补发。
 
 ### 邀请中心 (Figma 645:796 / 646:870)
