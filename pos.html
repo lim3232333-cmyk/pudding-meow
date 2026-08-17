@@ -1499,6 +1499,7 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
         <option value="fixed_off">现金兑换 · 现金折扣（减 RM）</option>
         <option value="percent_off">现金兑换 · 百分比折扣（打折）</option>
         <option value="dessert">甜品兑换（换指定商品）</option>
+        <option value="free_delivery">免运费（抵配送费，仅外卖）</option>
       </select>
       <!-- 适用范围：整单 / 指定商品（可多选）/ 指定分类。取代旧的「绑一个商品」 -->
       <div id="cpnScopeWrap">
@@ -1539,6 +1540,22 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       <label class="mfl">最低消费门槛</label>
       <div class="mfh">留空/0 = 无门槛。门槛看整单小计，跟适用范围/类型无关（甜品券也能设「满 RMxx 才能换」）</div>
       <input class="mfi" id="cpnMinSpend" type="number" step="0.1" placeholder="0">
+      <label class="mfl">可用时段</label>
+      <div class="mfh">全不勾 = 不限星期。时段留空 = 不限钟点；14 到 17 表示 14:00–16:59。起点大于终点表示跨夜（如 21 到 2）</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;font-size:13px">
+        <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" class="cpnDay" value="1" style="width:auto;margin:0"> 一</label>
+        <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" class="cpnDay" value="2" style="width:auto;margin:0"> 二</label>
+        <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" class="cpnDay" value="3" style="width:auto;margin:0"> 三</label>
+        <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" class="cpnDay" value="4" style="width:auto;margin:0"> 四</label>
+        <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" class="cpnDay" value="5" style="width:auto;margin:0"> 五</label>
+        <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" class="cpnDay" value="6" style="width:auto;margin:0"> 六</label>
+        <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" class="cpnDay" value="7" style="width:auto;margin:0"> 日</label>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <input class="mfi" id="cpnHourFrom" type="number" min="0" max="23" placeholder="起 0-23" style="flex:1;margin:0">
+        <span style="font-size:13px;color:#4A4848">到</span>
+        <input class="mfi" id="cpnHourTo" type="number" min="0" max="23" placeholder="止 0-23" style="flex:1;margin:0">
+      </div>
       <label class="mfl">有效期 *</label>
       <select class="mfi" id="cpnExpMode" onchange="cpnSyncExp()">
         <option value="days">期限内（发放后 N 天）</option>
@@ -5007,12 +5024,17 @@ function saveRef(){
 
 /* ---- 优惠券管理：模板 CRUD + 发放 + 已发放列表（核销）---- */
 var _loyaltyCoupons=[], _loyaltyMemberCoupons=[], _cpnEditId=null, _cpnIssueId=null;
-var _couponRules=[], _cprCouponId=null, _cprEditId=null;
+var _couponRules=[], _cprCouponId=null, _cprEditId=null, _couponCodes=[], _couponStats=[];
 function loadLoyaltyCoupons(){
   Promise.all([
     db.from('coupons').select('*').then(function(res){ if(!res.error) _loyaltyCoupons=res.data||[]; }),
     db.from('coupon_rules').select('*').then(function(res){ if(!res.error) _couponRules=res.data||[]; }),
-    db.rpc('rpc_admin_list_member_coupons',{p_search:null}).then(function(res){ if(!res.error) _loyaltyMemberCoupons=res.data||[]; })
+    db.rpc('rpc_admin_list_member_coupons',{p_search:null}).then(function(res){ if(!res.error) _loyaltyMemberCoupons=res.data||[]; }),
+    // 兑换码和报表所需的表跑了 supabase-coupon-v3.sql 才有；没跑就当没有，
+    // 别让整页跟着挂掉——店家可能只跑到 v2
+    db.from('coupon_codes').select('*').order('created_at',{ascending:false})
+      .then(function(res){ _couponCodes=res.error?[]:(res.data||[]); }),
+    db.rpc('rpc_admin_coupon_stats').then(function(res){ _couponStats=res.error?[]:(res.data||[]); })
   ]).then(function(){ renderLoyaltyCouponsBody(); }).catch(function(e){});
 }
 /* 券面文案：兑换券显示商品名，折扣券按现金/百分比两种显示，
@@ -5022,13 +5044,17 @@ function _cpnValTxt(c){
   var what=ap.scope==='items' ? ((ap.ids||[]).map(_menuName).filter(Boolean).join('、')||'指定商品')
          : ap.scope==='cats'  ? ((ap.codes||[]).map(catName).filter(Boolean).join('、')||'指定分类')
          : '';
+  if(c.type==='free_delivery'){
+    return c.max_discount!=null ? ('免运费，最多 RM'+Number(c.max_discount).toFixed(2)) : '免运费';
+  }
   if(c.type==='dessert') return '兑换：'+esc(what);
   var off=c.type==='percent_off' ? (c.value+'% OFF') : ('RM'+c.value+' OFF');
   if(c.type==='percent_off' && c.max_discount!=null) off+='，最多减 RM'+Number(c.max_discount).toFixed(2);
   return what ? (esc(what)+' '+off) : off;
 }
 function _menuName(id){ var r=(_menuRows||[]).find(function(x){return String(x.id)===String(id);}); return r?r.name:''; }
-var _CPN_TYPE_CN={fixed_off:'现金折扣',percent_off:'百分比折扣',dessert:'甜品兑换'};
+var _CPN_TYPE_CN={fixed_off:'现金折扣',percent_off:'百分比折扣',dessert:'甜品兑换',free_delivery:'免运费'};
+var _CPN_DAY_CN=['','一','二','三','四','五','六','日'];
 var _CPN_CH_CN={dinein:'堂食',pickup:'自取',delivery:'外卖'};
 /* 使用限制一栏：渠道 + 固定期限。留空就是不限，别拿一堆「不限」占版面 */
 function _cpnLimitTxt(c){
@@ -5039,6 +5065,12 @@ function _cpnLimitTxt(c){
   }
   if(c.valid_from||c.valid_until){
     out.push((c.valid_from?d(c.valid_from):'')+'~'+(c.valid_until?d(c.valid_until):''));
+  }
+  if(Array.isArray(c.usable_days) && c.usable_days.length){
+    out.push('周'+c.usable_days.map(function(x){return _CPN_DAY_CN[Number(x)]||x;}).join('、'));
+  }
+  if(c.usable_hours && c.usable_hours.from!=null){
+    out.push(c.usable_hours.from+':00–'+c.usable_hours.to+':00');
   }
   return out.length?out.join('<br>'):'<span style="color:#4A4848">不限</span>';
 }
@@ -5087,7 +5119,146 @@ function renderLoyaltyCouponsBody(){
     });
   }
   html+='</tbody></table></div>';
+  html+=_cpnCodesHtml()+_cpnStatsHtml();
   body.innerHTML=html;
+}
+/* ══════════ 兑换码 ══════════
+   通用码（一串大家都能用，靠总量和每人限领控量）和一次性码（一人一码，用完即废）
+   是同一张表的两种 kind：校验逻辑完全一样，分开写迟早改漏一边。
+   码一律服务端生成 + 存大写，前端不自己造码——撞号了只会静默少发几张。 */
+function _cpnCodesHtml(){
+  var codes=_couponCodes||[];
+  var nameOf=function(id){ var c=(_loyaltyCoupons||[]).find(function(x){return x.id===id;}); return c?c.name:'（券已删）'; };
+  var h='<div class="tx-card" style="margin-bottom:18px"><div class="tx-ch"><h3>兑换码</h3>'
+    +'<div><button onclick="openCcNew()" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:12px;margin-right:6px">＋ 通用码</button>'
+    +'<button onclick="openCcGen()" style="border:none;background:#D9641B;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:12px">批量生成一次性码</button></div></div>'
+    +'<table><thead><tr><th>码</th><th>对应券</th><th>类型</th><th>已用/上限</th><th>每人限领</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+  if(!codes.length){
+    h+='<tr><td colspan="7" style="text-align:center;padding:26px;color:#4A4848">还没有兑换码。'
+      +'跑过 <b>supabase-coupon-v3.sql</b> 之后才能用这一块</td></tr>';
+  } else {
+    var pub=codes.filter(function(c){return c.kind!=='unique';});
+    var uniq=codes.filter(function(c){return c.kind==='unique';});
+    pub.forEach(function(c){
+      h+='<tr'+(c.enabled?'':' style="opacity:.5"')+'><td><b style="font-family:monospace;font-size:14px">'+esc(c.code)+'</b></td>'
+        +'<td>'+esc(nameOf(c.coupon_id))+'</td><td>通用</td>'
+        +'<td>'+(c.used_count||0)+' / '+(c.max_uses==null?'不限':c.max_uses)+'</td>'
+        +'<td>'+(c.per_member_limit>0?c.per_member_limit:'不限')+'</td>'
+        +'<td>'+(c.enabled?'<span style="color:#1D7715">启用</span>':'<span style="color:#8D0505">停用</span>')+'</td>'
+        +'<td style="white-space:nowrap">'
+        +'<button onclick="ccToggle(\''+c.id+'\','+(c.enabled?'false':'true')+')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">'+(c.enabled?'停用':'启用')+'</button>'
+        +'<button onclick="ccDel(\''+c.id+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">删</button>'
+        +'</td></tr>';
+    });
+    // 一次性码一批可能上千串，全列出来会把页面撑爆——按批次折成一行，要用再导出
+    var batches={};
+    uniq.forEach(function(c){ var k=(c.batch||'（无批次）')+'||'+c.coupon_id; (batches[k]=batches[k]||[]).push(c); });
+    Object.keys(batches).forEach(function(k){
+      var arr=batches[k], b=arr[0], used=arr.filter(function(x){return (x.used_count||0)>0;}).length;
+      h+='<tr><td><b>'+esc(b.batch||'（无批次）')+'</b></td>'
+        +'<td>'+esc(nameOf(b.coupon_id))+'</td><td>一次性 ×'+arr.length+'</td>'
+        +'<td>'+used+' / '+arr.length+'</td><td>1</td><td>—</td>'
+        +'<td><button onclick="ccExport(\''+esc(b.batch||'')+'\',\''+b.coupon_id+'\')" style="border:none;background:#FFDE5B;color:#8D0505;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">导出</button></td></tr>';
+    });
+  }
+  return h+'</tbody></table></div>';
+}
+/* ══════════ 使用报表 ══════════
+   营业额跟仪表盘、月报同一个口径（扣掉手续费）——三处不一致的话，
+   同一天会读出三个数，店家没法对账。 */
+function _cpnStatsHtml(){
+  var st=_couponStats||[];
+  var h='<div class="tx-card"><div class="tx-ch"><h3>券的使用情况</h3></div>'
+    +'<table><thead><tr><th>券名</th><th>类型</th><th>已发</th><th>已用</th><th>未用</th><th>已过期</th><th>核销率</th><th>折出去</th><th>带来营业额</th><th>订单数</th></tr></thead><tbody>';
+  if(!st.length){
+    h+='<tr><td colspan="10" style="text-align:center;padding:26px;color:#4A4848">还没有数据。'
+      +'跑过 <b>supabase-coupon-v3.sql</b> 之后才有这一块</td></tr>';
+  } else {
+    st.forEach(function(r){
+      h+='<tr><td><b>'+esc(r.name)+'</b></td><td>'+(_CPN_TYPE_CN[r.type]||esc(r.type||''))+'</td>'
+        +'<td>'+r.issued+'</td><td>'+r.used+'</td><td>'+r.unused+'</td><td>'+r.expired+'</td>'
+        +'<td><b>'+Number(r.use_rate||0).toFixed(1)+'%</b></td>'
+        +'<td style="color:#8D0505">-RM '+Number(r.discount_total||0).toFixed(2)+'</td>'
+        +'<td style="color:#1D7715"><b>RM '+Number(r.revenue_total||0).toFixed(2)+'</b></td>'
+        +'<td>'+r.order_count+'</td></tr>';
+    });
+  }
+  return h+'</tbody></table><div style="padding:10px 14px;font-size:12px;color:#4A4848">'
+    +'「带来营业额」= 用了这张券的订单总额（已扣掉支付手续费，跟仪表盘同口径）。'
+    +'核销率低说明券发出去没人用，可以改门槛或有效期再试。</div></div>';
+}
+/* 兑换码的增删改。用原生 prompt 而不是再画一个模态框：
+   这几个动作店家一年用不了几次，为它们各做一张表单不划算。 */
+function _ccPickCoupon(){
+  var list=(_loyaltyCoupons||[]).filter(function(c){return c.enabled;});
+  if(!list.length){ showN('先建一张优惠券'); return null; }
+  var msg='选择要绑定的优惠券（输入序号）：\n'+list.map(function(c,i){return (i+1)+'. '+c.name;}).join('\n');
+  var n=parseInt(prompt(msg,'1'),10);
+  if(isNaN(n)||n<1||n>list.length) return null;
+  return list[n-1];
+}
+function _ccReload(){
+  db.from('coupon_codes').select('*').order('created_at',{ascending:false}).then(function(r){
+    _couponCodes=r.error?[]:(r.data||[]); renderLoyaltyCouponsBody();
+  });
+}
+function openCcNew(){
+  if(!db){ showN('未连接云端'); return; }
+  var c=_ccPickCoupon(); if(!c) return;
+  var code=(prompt('通用码（顾客要输的那串，字母数字，如 PUDDING10）','')||'').trim();
+  if(!code){ return; }
+  var maxRaw=(prompt('总共最多能被用几次？留空 = 不限','100')||'').trim();
+  var max=maxRaw===''?null:parseInt(maxRaw,10);
+  if(max!=null && (isNaN(max)||max<1)){ showN('总量要么留空，要么填 ≥1'); return; }
+  var perRaw=(prompt('每人最多领几张？0 = 不限','1')||'').trim();
+  var per=parseInt(perRaw,10); if(isNaN(per)||per<0) per=1;
+  db.from('coupon_codes').insert({coupon_id:c.id, code:code.toUpperCase(), kind:'public',
+    max_uses:max, per_member_limit:per}).then(function(res){
+    if(res.error){
+      // 唯一索引建在 upper(code) 上，撞号在这里就会被拒
+      showN(String(res.error.message||'').indexOf('duplicate')>=0 ? '这串码已经存在了' : ('保存失败：'+_rpcErr(res.error)));
+      return;
+    }
+    showN('已建好：'+code.toUpperCase()); _ccReload();
+  }).catch(function(e){ showN('网络错误'); });
+}
+function openCcGen(){
+  if(!db){ showN('未连接云端'); return; }
+  var c=_ccPickCoupon(); if(!c) return;
+  var n=parseInt(prompt('生成多少串一次性码？（最多 2000）','100'),10);
+  if(isNaN(n)||n<1||n>2000){ showN('请填 1–2000'); return; }
+  var prefix=(prompt('码的前缀（可留空，如 CNY）','')||'').trim();
+  var batch=(prompt('批次名（自己认得就行，如「2026新春」）','')||'').trim();
+  db.rpc('rpc_admin_gen_codes',{p_coupon_id:c.id, p_count:n, p_prefix:prefix,
+    p_batch:batch||null, p_per_member_limit:1}).then(function(res){
+    if(res.error){ showN('生成失败：'+_rpcErr(res.error)); return; }
+    showN('已生成 '+((res.data||[]).length)+' 串'); _ccReload();
+  }).catch(function(e){ showN('网络错误'); });
+}
+/* 导出成 CSV 下载：一次性码要发给顾客/合作方，总得有个搬出去的办法 */
+function ccExport(batch, couponId){
+  var rows=(_couponCodes||[]).filter(function(c){
+    return c.kind==='unique' && c.coupon_id===couponId && (c.batch||'')===(batch||'');
+  });
+  if(!rows.length){ showN('这一批没有码'); return; }
+  var csv='code,used\n'+rows.map(function(c){ return c.code+','+((c.used_count||0)>0?'1':'0'); }).join('\n');
+  var a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\ufeff'+encodeURIComponent(csv);   // BOM：Excel 打开中文才不乱码
+  a.download='codes-'+(batch||'batch')+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+function ccToggle(id, on){
+  db.from('coupon_codes').update({enabled:on}).eq('id',id).then(function(res){
+    if(res.error){ showN('操作失败：'+_rpcErr(res.error)); return; }
+    _ccReload();
+  }).catch(function(e){ showN('网络错误'); });
+}
+function ccDel(id){
+  if(!confirm('删掉这串兑换码？已经用它领过券的顾客不受影响。')) return;
+  db.from('coupon_codes').delete().eq('id',id).then(function(res){
+    if(res.error){ showN('删除失败：'+_rpcErr(res.error)); return; }
+    showN('已删除'); _ccReload();
+  }).catch(function(e){ showN('网络错误'); });
 }
 /* ══════════ 发放规则（三层模型的中间层）══════════
    券模板（面额/门槛/有效期）→ **发放规则**（什么事件触发·什么条件·限领几张）→ 券实例。
@@ -5336,15 +5507,19 @@ function cpnSyncType(){
   var type=document.getElementById('cpnType').value;
   var isDessert=type==='dessert';
   // 甜品券天生就是单品券（要换的就是那件商品），所以范围下拉只给现金/百分比券看
-  var scope=isDessert?'items':document.getElementById('cpnScope').value;
-  var isItem=scope==='items', isCat=scope==='cats';
-  document.getElementById('cpnScopeWrap').style.display=isDessert?'none':'block';
+  var isFree=type==='free_delivery';
+  var scope=isDessert?'items':(isFree?'order':document.getElementById('cpnScope').value);
+  var isItem=scope==='items'&&!isFree, isCat=scope==='cats'&&!isFree;
+  // 免运费券抵的是配送费，跟买了什么无关，所以适用范围和优惠数值都不适用
+  document.getElementById('cpnScopeWrap').style.display=(isDessert||isFree)?'none':'block';
   document.getElementById('cpnItemWrap').style.display=isItem?'block':'none';
   document.getElementById('cpnCatWrap').style.display=isCat?'block':'none';
   document.getElementById('cpnItemLbl').textContent=isDessert?'兑换商品 *':'打折商品 *';
-  document.getElementById('cpnValueWrap').style.display=isDessert?'none':'block';
-  // 封顶只对百分比券有意义：现金券的面额本身就是上限
-  document.getElementById('cpnCapWrap').style.display=(type==='percent_off')?'block':'none';
+  document.getElementById('cpnValueWrap').style.display=(isDessert||isFree)?'none':'block';
+  // 封顶：百分比券是「最多减多少」，免运费券是「最多免多少运费」，现金券不需要
+  document.getElementById('cpnCapWrap').style.display=(type==='percent_off'||isFree)?'block':'none';
+  var capLbl=document.querySelector('#cpnCapWrap .mfl');
+  if(capLbl) capLbl.textContent=isFree?'最多免多少运费':'最高抵扣（封顶）';
   var one=isItem||isCat;
   document.getElementById('cpnValueLbl').textContent=
     type==='percent_off' ? (one?'折扣百分比 *（20 = 这件商品减 20%）':'折扣百分比 *（20 = 减 20%）')
@@ -5377,6 +5552,11 @@ function openCpn(id){
   cpnSyncExp();
   document.getElementById('cpnValidFrom').value=_toLocalInput(c&&c.valid_from);
   document.getElementById('cpnValidUntil').value=_toLocalInput(c&&c.valid_until);
+  var days=(c&&Array.isArray(c.usable_days))?c.usable_days.map(String):[];
+  document.querySelectorAll('.cpnDay').forEach(function(cb){ cb.checked=days.indexOf(cb.value)>=0; });
+  var hh=(c&&c.usable_hours)||null;
+  document.getElementById('cpnHourFrom').value=(hh&&hh.from!=null)?hh.from:'';
+  document.getElementById('cpnHourTo').value=(hh&&hh.to!=null)?hh.to:'';
   var chs=(c&&Array.isArray(c.channels))?c.channels:[];
   document.getElementById('cpnChDinein').checked   = chs.indexOf('dinein')>=0;
   document.getElementById('cpnChPickup').checked   = chs.indexOf('pickup')>=0;
@@ -5406,32 +5586,46 @@ function saveCpn(){
   var name=document.getElementById('cpnName').value.trim();
   if(!name){showN('请填写优惠券名称');return;}
   var type=document.getElementById('cpnType').value;
-  var isDessert=type==='dessert';
-  // 甜品券天生就是「指定商品」；现金/百分比券由适用范围决定
-  var scope=isDessert?'items':document.getElementById('cpnScope').value;
+  var isDessert=type==='dessert', isFree=type==='free_delivery';
+  // 甜品券天生就是「指定商品」；免运费券只作用在配送费上，跟商品无关
+  var scope=isDessert?'items':(isFree?'order':document.getElementById('cpnScope').value);
   var value=parseFloat(document.getElementById('cpnValue').value);
   var applies={scope:scope};
-  if(scope==='items'){
+  if(scope==='items'&&!isFree){
     applies.ids=_cpnMultiVals(document.getElementById('cpnMenuItem'));
     if(!applies.ids.length){showN(isDessert?'请选择要兑换的商品':'请选择要打折的商品');return;}
-  } else if(scope==='cats'){
+  } else if(scope==='cats'&&!isFree){
     applies.codes=_cpnMultiVals(document.getElementById('cpnCats'));
     if(!applies.codes.length){showN('请选择适用分类');return;}
   }
-  if(!isDessert && (isNaN(value)||value<=0)){showN('优惠数值无效');return;}
+  if(!isDessert && !isFree && (isNaN(value)||value<=0)){showN('优惠数值无效');return;}
   var forever=document.getElementById('cpnExpMode').value==='forever';
   var validDays=parseInt(document.getElementById('cpnValidDays').value);
   if(!forever && (!validDays||validDays<1)){showN('请填写有效天数');return;}
   var capRaw=document.getElementById('cpnMaxDisc').value.trim();
-  var cap=(type==='percent_off'&&capRaw!=='')?parseFloat(capRaw):null;
+  var cap=((type==='percent_off'||isFree)&&capRaw!=='')?parseFloat(capRaw):null;
   if(cap!=null && (isNaN(cap)||cap<0)){showN('封顶金额无效');return;}
   var chs=[];
   if(document.getElementById('cpnChDinein').checked)   chs.push('dinein');
   if(document.getElementById('cpnChPickup').checked)   chs.push('pickup');
   if(document.getElementById('cpnChDelivery').checked) chs.push('delivery');
+  var dys=[];
+  document.querySelectorAll('.cpnDay').forEach(function(cb){ if(cb.checked) dys.push(Number(cb.value)); });
+  var hf=document.getElementById('cpnHourFrom').value.trim();
+  var ht=document.getElementById('cpnHourTo').value.trim();
+  var hours=null;
+  if(hf!=='' || ht!==''){
+    if(hf===''||ht===''){ showN('可用时段的起止要一起填'); return; }
+    var a=parseInt(hf,10), b=parseInt(ht,10);
+    if(isNaN(a)||isNaN(b)||a<0||a>23||b<0||b>23){ showN('可用时段要填 0-23 的整点'); return; }
+    hours={from:a, to:b};
+  }
+  if(isFree) chs=['delivery'];   // 免运费券只在外卖单上有意义，不让店家勾错
   var payload={
     name:name, type:type,
-    value:isDessert?0:value,
+    value:(isDessert||isFree)?0:value,
+    usable_days:dys.length?dys:null,      // null = 不限星期
+    usable_hours:hours,                   // null = 不限钟点
     min_spend:(parseFloat(document.getElementById('cpnMinSpend').value)||0),
     valid_days:forever?null:validDays,   // null = 永久有效
     enabled:document.getElementById('cpnEnabled').checked,

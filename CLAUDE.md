@@ -97,6 +97,14 @@ A rule is `trigger_event` + `conditions`(jsonb) + `per_member_limit` + `total_li
 
 **三处重复配置已经合并掉**，别再往旧的那份写：`coupons.coin_price` → `coupon_rules`（`trigger_event='coin_redeem'` + `coin_price`，于是兑换终于也有了每人限领/总量/领取条件）；`coupons.issue_from/issue_until` → `coupon_rules.starts_at/ends_at`；`coupons.menu_item_id` → `applies_to`。旧列都还在表上（不删，免得没刷新的前端读到 undefined 就崩），但迁移之后一律置空，只有 `applies_to` 是单个商品时才回填 `menu_item_id` 给旧前端看。
 
+**兑换码、免运费券、时段限制、使用报表** (`supabase-coupon-v3.sql`). 兑换码的两种形态是**同一张 `coupon_codes` 表的两个 `kind`**——`public`（一串大家都能用，靠 `max_uses` + `per_member_limit` 控量）和 `unique`（一人一码，`max_uses` 恒为 1）。分两张表就要把「时间窗 / 总量 / 每人限领」的校验写两遍，迟早改漏一边。码存**大写**且唯一索引建在 `upper(code)` 上，否则能建出两条只差大小写的码；一次性码由 `rpc_admin_gen_codes` **在服务端生成**（前端自造撞号只会静默少发几张），字符集去掉了 `0/O/1/I/L`——印在小票上顾客会看混。撞号自动重摇，连摇 20 次仍撞就报错让店家加长前缀。
+
+**免运费券抵的是配送费，所以走 `_coupon_calc` 里单独一条路**，`return` 在适用范围判断之前。走通用那条会被结尾的 `least(disc, p_subtotal)` 削掉：一张 RM0 商品 + RM8 运费的单会算出 0。`p_delivery_fee` 因此要一路从结算页传到服务端。`max_discount` 在这里的含义是「最多免多少运费」，POS 的封顶输入框会跟着改标签。一单只能用一张券，所以免运费券会**占掉**那唯一的名额——真要和折扣券叠加，得先定叠加顺序和总折扣上限，那是另一个决定。
+
+**时段限制按马来西亚时区判**（`_coupon_day_ok` / `_coupon_hour_ok`），跟营业日、每周任务一个口径。`usable_hours` 的 `from > to` 表示**跨夜**（21→2 = 晚 9 点到凌晨 2 点），`from == to` 当作不限而不是「只有那一秒」——否则店家手滑填成一样就把券锁死了。前端 `_cpnTimeWhy()` 复制同一套判断，注意 JS 的 `getDay()` 周日是 0 而服务端 `isodow` 是 7。
+
+`rpc_admin_coupon_stats()` 的「带来营业额」用 `total - admin_fee`，跟仪表盘和月报同一个口径——三处不一致的话同一天会读出三个数。
+
 `rpc_admin_issue_coupon` 现在**必须指定会员**：留空群发是对按下按钮那一刻的会员拍快照，明天注册的新人拿不到 —— 正是规则层要解决的问题。POS 的「发放」按钮只留客诉补偿用的单人补发。
 
 ### 邀请中心 (Figma 645:796 / 646:870)
