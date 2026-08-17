@@ -12,6 +12,20 @@
 --  留空 = 不分区，掉进商城最后的「其他好礼」那一段，不会消失。
 -- ============================================================================
 
+-- 前置检查：这份脚本依赖 v2 加的几列。缺了就在这里说人话，
+-- 而不是等下面 create function 时报一句看不懂的 column does not exist。
+do $$
+begin
+  if not exists (select 1 from information_schema.columns
+                  where table_schema='public' and table_name='coupons' and column_name='applies_to') then
+    raise exception '请先跑 supabase-coupon-v2.sql —— 这份脚本依赖它加的 applies_to / max_discount / channels 几列';
+  end if;
+  if not exists (select 1 from information_schema.columns
+                  where table_schema='public' and table_name='coupon_rules' and column_name='coin_price') then
+    raise exception '请先跑 supabase-coupon-v2.sql —— coupon_rules 还没有 coin_price 列';
+  end if;
+end $$;
+
 alter table public.coupons
   add column if not exists mall_category text,
   --  商城卡片上半部那块图（230×98 的位置）。店家在 POS 上传，存 Storage 的公开 URL。
@@ -26,8 +40,14 @@ comment on column public.coupons.mall_image_url is
 comment on column public.coupons.mall_category is
   '积分商城的分区：limited(限定) / cashback(现金回扣·折扣) / free_ship(免邮) / partner(合作)。null = 不分区，排在「其他好礼」。';
 
--- 商城列表要把分区带出去。返回的列变了，create or replace 改不动，得先删——
+-- 商城列表要把分区和图带出去。返回的列变了，create or replace 改不动，得先删——
 -- 这一条已经栽过一次（cannot change return type of existing function）。
+--
+-- ⚠ 「先删再建」必须包在一个事务里。不包的话，重建那一步只要失败一次
+--   （顺序跑错、前置脚本没跑、少了某一列…），函数就**被删掉且没建回来**，
+--   顾客一进积分商城就报错。包起来失败会整体回滚，库里那一份原封不动。
+begin;
+
 drop function if exists public.rpc_list_mall_coupons();
 create or replace function public.rpc_list_mall_coupons()
 returns table(
@@ -60,6 +80,8 @@ end;
 $$;
 
 grant execute on function public.rpc_list_mall_coupons() to anon;
+
+commit;
 
 select count(*) as 商城在售券,
        count(*) filter (where mall_category is not null)  as 已分区,
