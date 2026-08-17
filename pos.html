@@ -5118,7 +5118,11 @@ function _cpnLimitTxt(c){
 /* 商城售价现在挂在 coin_redeem 规则上，不再是券模板的列 */
 function _cpnCoinTxt(c){
   var r=_cprOf(c.id).find(function(x){return x.trigger_event==='coin_redeem' && x.enabled;});
-  return (r&&r.coin_price)?('<b>'+r.coin_price+' Coin</b>'):'<span style="color:#4A4848">未上架</span>';
+  // 上架与否看 coin_price 是不是 null —— 0 是「上架了，免费领」，不是「没上架」。
+  // 写成 (r && r.coin_price) 的话 0 是 falsy，免费券会显示成「未上架」
+  if(!r || r.coin_price==null) return '<span style="color:#4A4848">未上架</span>';
+  return Number(r.coin_price)===0 ? '<b style="color:#1D7715">免费领</b>'
+                                  : ('<b>'+r.coin_price+' Coin</b>');
 }
 function renderLoyaltyCouponsBody(){
   var body=document.getElementById('loyaltyBody'); if(!body) return;
@@ -5539,7 +5543,7 @@ function _cprForm(){
     +'<label>触发事件<br><select id="cprEvent" onchange="_cprSyncEvent()" style="'+inp+';width:130px">'
       + Object.keys(_CPR_EVENT).map(function(k){ return '<option value="'+k+'"'+(ev===k?' selected':'')+'>'+_CPR_EVENT[k]+'</option>'; }).join('')
     +'</select></label>'
-    +'<label id="cprCoinWrap" style="display:'+(ev==='coin_redeem'?'block':'none')+'">兑换价 Coin<br><input id="cprCoin" type="number" min="1" value="'+(r.coin_price!=null?r.coin_price:'')+'" placeholder="如 100" style="'+inp+';width:100px"></label>'
+    +'<label id="cprCoinWrap" style="display:'+(ev==='coin_redeem'?'block':'none')+'">兑换价 Coin<br><input id="cprCoin" type="number" min="0" value="'+(r.coin_price!=null?r.coin_price:'')+'" placeholder="如 100，填 0 = 免费领" style="'+inp+';width:100px"></label>'
     +'<label>每人限领<br><input id="cprPer" type="number" min="0" value="'+(r.per_member_limit!=null?r.per_member_limit:1)+'" style="'+inp+';width:80px"></label>'
     +'<label>总量上限<br><input id="cprTotal" type="number" min="1" value="'+(r.total_limit!=null?r.total_limit:'')+'" placeholder="不限" style="'+inp+';width:90px"></label>'
     +'<label style="align-self:center"><input id="cprEnabled" type="checkbox"'+(r.enabled===false?'':' checked')+'> 启用</label>'
@@ -5592,8 +5596,12 @@ function cprSave(){
   var ev=document.getElementById('cprEvent').value;
   var coin=null;
   if(ev==='coin_redeem'){
+    // 「有没有上架」看 coin_price 是不是 null，「要多少钱」看数值 —— 所以 0 是合法的
+    // （免运费券、新人礼这种就是上架了但不要钱），只有留空/填错才算没填
     coin=parseInt(document.getElementById('cprCoin').value,10);
-    if(isNaN(coin)||coin<1){ showN('积分商城兑换要填兑换价（Coin）'); return; }
+    if(isNaN(coin)||coin<0){ showN('积分商城兑换要填兑换价（Coin）；免费领填 0'); return; }
+    // 0 Coin 时「每人限领」是唯一的闸门：免费又不限领，顾客连点就能无限领券
+    if(coin===0 && per===0){ showN('0 Coin 的券必须设「每人限领」（填 1 就好）—— 免费又不限领，顾客连点就能无限领'); return; }
   }
   var payload={ coupon_id:_cprCouponId, name:document.getElementById('cprName').value.trim()||null,
     trigger_event:ev, conditions:{all:all}, coin_price:coin,

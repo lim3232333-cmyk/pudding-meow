@@ -1040,6 +1040,8 @@
   .pm-card-coin{ display:flex; align-items:center; justify-content:flex-end; gap:4px; }
   .pm-card-coin i{ width:20px; height:20px; background:url('Paw%20Coin.svg') center/contain no-repeat; flex-shrink:0; }
   .pm-card-coin b{ font-size:14px; font-weight:700; color:var(--muted); }
+  /* 0 Coin 的券：写「免费领」而不是爪印 + 0，并且用深红标出来——它本来就该最显眼 */
+  .pm-card-coin.free b{ color:var(--red); }
   /* 买不起的券不藏起来——藏了顾客不知道攒到多少能换什么，只把它压暗 */
   .pm-card.off{ filter:drop-shadow(0 2px 2px rgba(0,0,0,.15)) grayscale(.5); opacity:.6; }
   .pm-empty{ text-align:center; padding:48px 20px; font-size:13px; color:var(--muted); }
@@ -6588,8 +6590,13 @@ function _pmCondShort(c){
 /* 商城的券卡（Figma 1121:1488）：230 宽，上面 98 高的图，下面白条一行券名 + 右侧 Paw Coin 价。
    整张卡可点＝兑换，不再单独放「兑换」按钮——卡只有 230 宽，塞个按钮就没地方写名字了。
    Coin 不够的不藏起来，只压暗：藏了顾客就不知道攒到多少能换什么。 */
+/* 0 Coin = 免费领（免运费券、新人礼这种）。这时候画一个爪印再写个「0」很怪——
+   看着像坏了；直接写「免费领」。上架与否由服务端按 coin_price 是不是 null 判，
+   到这里的都是上架的，所以只需要分 0 和非 0。 */
+function _pmIsFree(c){ return Number(c.coin_price||0)===0; }
 function _pmItemHtml(c){
-  var afford=!_memberProfile || (_memberProfile.coins||0) >= c.coin_price;
+  var free=_pmIsFree(c);
+  var afford=free || !_memberProfile || (_memberProfile.coins||0) >= c.coin_price;
   // 优先用店家给这张券单独传的图（可以是 SVG，矢量不糊）；没有才退回绑定商品的图
   var src = c.mall_image_url || c.menu_item_image;
   var img = src ? '<img src="'+_esc(src)+'" alt="">'
@@ -6598,7 +6605,8 @@ function _pmItemHtml(c){
     +'<div class="pm-card-img">'+img+'</div>'
     +'<div class="pm-card-bot">'
     +'<div class="pm-card-name">'+_esc(c.name)+'</div>'
-    +'<div class="pm-card-coin"><i></i><b>'+c.coin_price+'</b></div>'
+    +(free ? '<div class="pm-card-coin free"><b>免费领</b></div>'
+           : '<div class="pm-card-coin"><i></i><b>'+c.coin_price+'</b></div>')
     +'</div></div>';
 }
 /* 商城分区。分区由店家在 POS 上维护（mall_categories 表）+ 每张券选一个
@@ -6765,11 +6773,12 @@ function redeemMallCoupon(id){
   var c=_mallItems.find(function(x){return x.id===id;});
   if(!c) return;
   if(!db || !_memberId || !_memberToken){ alert('请先登录会员'); return; }
+  var free=_pmIsFree(c);
   // 只在确实拿到了会员资料时才本地预检；资料没加载出来就别拦，交给服务端判定（它才是权威）
-  if(_memberProfile && (_memberProfile.coins||0) < c.coin_price){
+  if(!free && _memberProfile && (_memberProfile.coins||0) < c.coin_price){
     alert('Coin 不足：需要 '+c.coin_price+'，当前 '+(_memberProfile.coins||0)); return;
   }
-  if(!confirm('用 '+c.coin_price+' Coin 兑换「'+c.name+'」？')) return;
+  if(!confirm(free ? ('免费领取「'+c.name+'」？') : ('用 '+c.coin_price+' Coin 兑换「'+c.name+'」？'))) return;
   db.rpc('rpc_redeem_coupon',{p_member_id:_memberId,p_session_token:_memberToken,p_coupon_id:id}).then(function(res){
     if(res.error){ alert('兑换失败：'+res.error.message); return; }
     // 服务端已扣币发券，这里重新拉一次余额和券列表
@@ -6777,7 +6786,7 @@ function redeemMallCoupon(id){
       document.getElementById('pmCoinBalance').textContent=(_memberProfile&&_memberProfile.coins)||0;
       return loadMallData();
     }).then(function(){
-      alert('兑换成功！可在「我的」里查看');
+      alert((free?'领取成功':'兑换成功')+'！可在「我的卷」里查看');
       try{ renderProfileScreen(); }catch(e){}
     });
   }).catch(function(e){ alert('网络错误，请重试'); });

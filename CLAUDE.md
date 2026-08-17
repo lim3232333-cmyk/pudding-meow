@@ -103,6 +103,10 @@ A rule is `trigger_event` + `conditions`(jsonb) + `per_member_limit` + `total_li
 
 卡片整张可点即兑换（230 宽塞不下一个按钮还留得住券名），Coin 不够的**压暗而不隐藏** —— 藏了顾客就不知道攒到多少能换什么。
 
+**0 Coin = 免费领**（`supabase-coupon-free-claim.sql`）。原来兑换价必须 > 0，因为 `coalesce(coin_price,0) > 0` 这一个判断同时兼了两件事——「有没有上架到商城」和「要花多少 Coin」——挤在一起，「上架了但不要钱」就表达不出来（免运费券、新人礼、节日券全是这种）。拆开：**上架与否看 `coin_price` 是不是 null**，**价钱看它的数值**。前端三处都得跟着改口径，`(r && r.coin_price)` 这种写法会把 0 当成 falsy，免费券显示成「未上架」。列表按 `coin_price` 升序，免费的自然排最前，本来就该最显眼。
+
+**0 Coin 时「每人限领」是唯一的闸门** —— 免费又不限领，顾客连点就能无限领券。所以 `_coupon_rule_guard()`（`coupon_rules` 的 before insert/update 触发器）直接拒绝 `coin_price = 0 且 per_member_limit = 0` 的组合，POS 保存前也拦一次。拦在**配置端**而不是等顾客兑换时才报错：那是拿顾客的脸去接店家的配置失误。`rpc_redeem_coupon` 在 `coin_price = 0` 时整段跳过扣币——不锁会员行、不写 `delta = 0` 的流水，对账时那种 0 的行只会让人以为出过 bug。
+
 **我的券（Figma 1124:1572）** — 券包和商城是同一套卡片语言（上图 + 下白条），只是**竖版铺满一行**：券面 345×128（两边各 24，卡间距 24），下面白条两行 —— 券名（14 粗）+ 右下角 `Left <b>N</b> days`。原来那张「100px 锯齿票根 + 右侧三行文字」的横版卡整张换掉了，`_pmStub()` / `.pm-my-stub*` 跟着删。券面优先放 **`coupons.mall_image_url`**（`object-fit:cover`，SVG 不糊），没有才是默认券面：左边大字面额（`RM` 24 + 数字 84，百分比券把单位挪到数字后面，免运费券写一行字）+ 右边探出来的 `logo.svg`，喵按稿子的比例定位（左 155/345、宽 234/345），下半截被券面裁掉。甜品券没有图时是**黄底 + 甜品图居中、不写大字** —— 券名在白条上已经写了一遍。
 
 `rpc_get_my_coupons` 一直没返回 `mall_image_url`（`supabase-my-coupon-image.sql` 补上），所以前端还留了一条兜底：按 `coupon_id` 去 `_mallItems` 里回查图。不跑那份迁移也不会坏，只是**商城已下架、或压根不是从商城来的券**（注册赠券 / 兑换码 / 客诉补发）看不到券面图。

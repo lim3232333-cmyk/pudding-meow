@@ -160,6 +160,16 @@ Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-my-coupon-i
 
 券编辑页最后还有一格「**券面图（选填）**」：平时不用填。哪张券在顾客券包里构图确实不好看，才单独补一张 345×128（2 倍图 690×256）。留空就用上面那张母图。
 
+### 积分商城「0 Coin 免费领」（想白送券才跑）
+
+Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-coupon-free-claim.sql`** → **Run**。前置是 v2 + `supabase-coupon-mall-category.sql`。
+
+跑完之后，规则里的「兑换价 Coin」可以填 **0** —— 顾客在商城里看到的是「**免费领**」（不是爪印 + 0），点一下就进券包，不扣任何 Coin。免运费券、新人礼、节日发的券都是这种。免费的券自动排在商城最前面。
+
+⚠ **0 Coin 的规则必须填「每人限领」**（填 1 就好）。免费又不限领，顾客连点就能无限领券 —— POS 会拦，数据库也会拦。
+
+**不跑也不会坏**：兑换价继续只能填 ≥1，就是没法白送。
+
 ### 手续费费率（想把 HitPay 手续费转嫁给顾客才跑）
 
 Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-admin-fee.sql`** 全部内容 → **Run**。
