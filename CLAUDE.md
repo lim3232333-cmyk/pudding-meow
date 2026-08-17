@@ -82,6 +82,23 @@ A rule is `trigger_event` + `conditions`(jsonb) + `per_member_limit` + `total_li
 
 `birthday_month` has no scheduler (Supabase free tier has no cron) — `rpc_admin_run_birthday_coupons()` exists to be called manually or wired to a Routine later; it is safe to run repeatedly because `per_member_limit` still applies.
 
+**发放条件 ≠ 使用限制** (`supabase-coupon-v2.sql`). The first cut expressed everything on the issuing side, so a coupon whose rule said 「只发给外卖顾客」 was still redeemable on a dine-in order — and 「20% OFF」 on a RM200 bill took RM40 off, because nothing capped it. Redemption limits now live on the **coupon template** and are enforced in `_coupon_calc` (the server is the authority; both front ends duplicate the same checks only to grey the coupon out early):
+
+| 列 | 作用 |
+|---|---|
+| `max_discount` | 百分比券封顶（ZUS 券面上的 `capped at RM10`）。现金券不需要——面额本身就是上限 |
+| `channels` | 可用的用餐方式 `dinein`/`pickup`/`delivery`；null/`[]` = 不限 |
+| `valid_from` / `valid_until` | 绝对有效期，和 `valid_days`（发放后 N 天）**取先到的那个** |
+| `applies_to` | `{"scope":"order"}` / `{"scope":"items","ids":[]}` / `{"scope":"cats","codes":[]}`，取代旧的单个 `menu_item_id` |
+
+`channels` 的字面量跟 `currentMode` / `sales_channels.code` 一致（`pickup`），但发放条件里的 `mode` 事实历史上用 `takeaway` —— `_coupon_norm_mode()` 把两者归一，两边都能喂进去。`p_mode` 传空时**不拦**：旧版前端不会传，宁可放过也不要把付得起的顾客挡在门外。
+
+单品/分类券仍然只打**一份**（沿用旧口径），命中多件时取**单价最高**的那一份 —— 服务端 `_coupon_item_price` 用 `max(price)`，两个前端也必须取最大，否则结算页显示的折扣跟实际扣的对不上。购物车行上没有分类，只有商品 id，所以前端要回 `_menuRawRows` / `_menuRows` 查 `cat`/`subcat`；照着购物车行读会让分类券在前端永远匹配不上，而服务端却匹配得上。
+
+**三处重复配置已经合并掉**，别再往旧的那份写：`coupons.coin_price` → `coupon_rules`（`trigger_event='coin_redeem'` + `coin_price`，于是兑换终于也有了每人限领/总量/领取条件）；`coupons.issue_from/issue_until` → `coupon_rules.starts_at/ends_at`；`coupons.menu_item_id` → `applies_to`。旧列都还在表上（不删，免得没刷新的前端读到 undefined 就崩），但迁移之后一律置空，只有 `applies_to` 是单个商品时才回填 `menu_item_id` 给旧前端看。
+
+`rpc_admin_issue_coupon` 现在**必须指定会员**：留空群发是对按下按钮那一刻的会员拍快照，明天注册的新人拿不到 —— 正是规则层要解决的问题。POS 的「发放」按钮只留客诉补偿用的单人补发。
+
 ### 邀请中心 (Figma 645:796 / 646:870)
 Full-screen `#ivScreen` reached from the member grid, where it took 会员明细's slot per Figma 207:104. **会员明细 deliberately has no entry point right now** — `openMemberDetail()` and its page are still there, but the shop wants to decide later where it should live, so don't invent one. Rewards are settled **only when the invited friend completes their first order** — registering alone pays nothing, otherwise a pile of throwaway signups farms coins. One settlement pays three parties: the inviter, the friend themselves, and the inviter's inviter (二级, derived from `members.referred_by`, no extra table). `referrals.first_order_rewarded` is grabbed as the idempotency lock (`UPDATE … RETURNING … INTO` + `FOUND`), so a retried HitPay webhook can't double-pay.
 

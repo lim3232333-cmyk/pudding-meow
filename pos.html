@@ -1500,22 +1500,40 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
         <option value="percent_off">现金兑换 · 百分比折扣（打折）</option>
         <option value="dessert">甜品兑换（换指定商品）</option>
       </select>
-      <!-- 现金/百分比券：整单打折，还是只对某一件商品打折 -->
+      <!-- 适用范围：整单 / 指定商品（可多选）/ 指定分类。取代旧的「绑一个商品」 -->
       <div id="cpnScopeWrap">
         <label class="mfl">适用范围 *</label>
         <select class="mfi" id="cpnScope" onchange="cpnSyncType()">
           <option value="order">整单（按购物车小计算）</option>
-          <option value="item">指定单品（只打那件商品，一份）</option>
+          <option value="items">指定商品（车里有其中任一件就能用）</option>
+          <option value="cats">指定分类（如所有饮料）</option>
         </select>
       </div>
-      <!-- 甜品券绑兑换的商品；单品券绑打折的商品。核销时店员不会认错 -->
       <div id="cpnItemWrap" style="display:none">
         <label class="mfl" id="cpnItemLbl">兑换商品 *</label>
-        <div class="mfh" id="cpnItemHint" style="display:none">顾客买多份也只打一份，取购物车里最便宜的那份</div>
-        <select class="mfi" id="cpnMenuItem"></select>
+        <div class="mfh" id="cpnItemHint">按住 Ctrl / ⌘ 可多选。顾客买多份也只打一份，命中多件时打最贵的那份</div>
+        <select class="mfi" id="cpnMenuItem" multiple size="8" style="height:auto"></select>
+      </div>
+      <div id="cpnCatWrap" style="display:none">
+        <label class="mfl">适用分类 *</label>
+        <div class="mfh">按住 Ctrl / ⌘ 可多选。子分类也能单独选（如只打奶茶，不打咖啡）</div>
+        <select class="mfi" id="cpnCats" multiple size="8" style="height:auto"></select>
       </div>
       <div id="cpnValueWrap">
         <label class="mfl" id="cpnValueLbl">优惠数值 *</label><input class="mfi" id="cpnValue" type="number" step="0.1" placeholder="0">
+      </div>
+      <!-- 百分比券封顶：不设的话「20% OFF」用在 RM200 的单上就是减 RM40 -->
+      <div id="cpnCapWrap" style="display:none">
+        <label class="mfl">最高抵扣（封顶）</label>
+        <div class="mfh">留空 = 不封顶。券面上写「8折，最多减 RM10」就填 10 —— 不填的话大单会打掉很多钱</div>
+        <input class="mfi" id="cpnMaxDisc" type="number" step="0.1" min="0" placeholder="留空＝不封顶">
+      </div>
+      <label class="mfl">可用的用餐方式</label>
+      <div class="mfh">全不勾 = 不限。这是「使用限制」，跟发放规则里的条件不是一回事：那边管发给谁，这里管能在哪种单上用</div>
+      <div style="display:flex;gap:14px;margin-bottom:10px;font-size:13px">
+        <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" id="cpnChDinein" style="width:auto;margin:0"> 堂食</label>
+        <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" id="cpnChPickup" style="width:auto;margin:0"> 自取</label>
+        <label style="display:flex;align-items:center;gap:5px"><input type="checkbox" id="cpnChDelivery" style="width:auto;margin:0"> 外卖</label>
       </div>
       <!-- 最低消费门槛：所有类型都能设（含甜品券），门槛按整单小计判，不随类型隐藏 -->
       <label class="mfl">最低消费门槛</label>
@@ -1529,15 +1547,13 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       <div id="cpnDaysWrap">
         <label class="mfl">有效天数</label><input class="mfi" id="cpnValidDays" type="number" step="1" min="1" placeholder="30">
       </div>
-      <label class="mfl">发放时间</label>
-      <div class="mfh">控制「什么时候能拿到这张券」（商城上架/后台发放）。两个都留空 = 不限时间。与上面的「有效期」不同，有效期管的是拿到之后多久过期</div>
+      <label class="mfl">固定使用期限</label>
+      <div class="mfh">活动券用这个：不管几号领的，到期日都一样（如统一 12/31 过期）。两个都留空 = 只看上面的有效天数。两边都填 = 哪个先到算哪个</div>
       <div style="display:flex;gap:8px">
-        <input class="mfi" id="cpnIssueFrom" type="datetime-local" style="flex:1">
-        <input class="mfi" id="cpnIssueUntil" type="datetime-local" style="flex:1">
+        <input class="mfi" id="cpnValidFrom" type="datetime-local" style="flex:1">
+        <input class="mfi" id="cpnValidUntil" type="datetime-local" style="flex:1">
       </div>
-      <label class="mfl">积分商城售价（Coin）</label>
-      <div class="mfh">填了才会出现在小程序积分商城；留空/0 = 不在商城出售，只能后台手动发放</div>
-      <input class="mfi" id="cpnCoinPrice" type="number" step="1" min="0" placeholder="留空＝不上架">
+      <div class="mfh" style="margin-top:-4px">积分商城售价搬到「规则」里了 —— 在规则里选「积分商城兑换」，就能顺便设每人限兑几张、总共放多少张、什么等级才能兑</div>
       <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="cpnEnabled" checked style="width:auto;margin:0;"> 启用（停用后不能再发放）</label>
       <button class="mfs" onclick="saveCpn()">保存 Save</button>
 </div>
@@ -3528,41 +3544,61 @@ function _renderPosVoucher(list){
    立刻核销的话，店员取消这单券就白烧了。 */
 var _posCoupon=null;
 function _posCartSub(){ return cart.reduce(function(s,it){return s+it.qty*it.price;},0); }
-function _posCartHas(menuItemId){ return cart.some(function(it){ return it.id===menuItemId; }); }
-/* 购物车里这件商品「一份」的价钱。同一件商品可能因规格加价出现好几行，
-   取最便宜那份——服务端算的是 menu_items 的基础价，取最低才不会前端显示得比实际多减 */
-function _posItemPrice(menuItemId){
-  var p=null;
-  // 用基础价，不用含规格加价的行价——服务端 _coupon_calc 查的是 menu_items.price，
-  // 两边口径要一致：顾客加了料不该多抵。
-  cart.forEach(function(it){ if(it.id===menuItemId){
-    var v=Number(it.basePrice!=null?it.basePrice:it.price)||0; if(p===null||v<p) p=v; } });
-  return p||0;
+/* 适用范围，跟小程序 _cpnApplies 同一份逻辑；老数据退回旧的 menu_item_id */
+function _posApplies(v){
+  if(v && v.applies_to && v.applies_to.scope) return v.applies_to;
+  if(v && v.menu_item_id) return {scope:'items', ids:[v.menu_item_id]};
+  return {scope:'order'};
 }
-/* 绑了商品的券＝单品券：甜品券抵全价，现金/百分比券只打那一份 */
-function _posCouponItem(v){ return !!v.menu_item_id; }
-function _posCouponOk(v, sub){
-  if(sub==null) sub=_posCartSub();
-  if(sub < (Number(v.min_spend)||0)) return false;
-  if(_posCouponItem(v) && !_posCartHas(v.menu_item_id)) return false;
-  return true;
+function _posCouponItem(v){ return _posApplies(v).scope!=='order'; }
+/* 购物车行上只有商品 id，没有分类 —— 回原始菜单行去查，
+   不然「所有饮料 8 折」在收银台永远匹配不上，服务端却能匹配，两边对不上账 */
+function _posItemCats(id){
+  var r=(_menuRows||[]).find(function(x){ return String(x.id)===String(id); });
+  return r ? [r.cat, r.subcat] : [];
 }
+/* 购物车里符合这张券的那「一份」的价钱，null = 车里没有符合的。
+   ⚠ 命中多件取最贵那份，跟服务端 _coupon_item_price 的 max(price) 一个口径。
+   ⚠ 用基础价不用行价：服务端查的是 menu_items.price，顾客加了料不该多抵。 */
+function _posItemPrice(v){
+  var ap=_posApplies(v), p=null;
+  var hit=function(it){
+    if(ap.scope==='items') return (ap.ids||[]).map(String).indexOf(String(it.id))>=0;
+    if(ap.scope==='cats'){
+      var codes=(ap.codes||[]).map(String);
+      return _posItemCats(it.id).some(function(x){ return x && codes.indexOf(String(x))>=0; });
+    }
+    return false;
+  };
+  cart.forEach(function(it){ if(hit(it)){
+    var x=Number(it.basePrice!=null?it.basePrice:it.price)||0; if(p===null||x>p) p=x; } });
+  return p;
+}
+/* 收银台的用餐方式：T/A 切换那颗（taMode 是布尔，true = 堂食）。POS 不下外卖单 */
+function _posMode(){ return taMode ? 'dinein' : 'pickup'; }
+var _CPN_CH_CN={dinein:'堂食',pickup:'自取',delivery:'外卖'};
 function _posCouponWhy(v, sub){
+  if(sub==null) sub=_posCartSub();
+  if(v.valid_from && new Date(v.valid_from) > new Date()){
+    return new Date(v.valid_from).toLocaleDateString()+' 起可用';
+  }
+  if(Array.isArray(v.channels) && v.channels.length && v.channels.indexOf(_posMode())<0){
+    return '仅限'+v.channels.map(function(x){return _CPN_CH_CN[x]||x;}).join('/')+'使用';
+  }
   if(sub < (Number(v.min_spend)||0)) return '需满 RM'+Number(v.min_spend).toFixed(2);
-  if(_posCouponItem(v) && !_posCartHas(v.menu_item_id)) return '购物车没有'+(v.menu_item_name||'该商品');
+  if(_posCouponItem(v) && _posItemPrice(v)===null) return '购物车没有'+(v.menu_item_name||'适用商品');
   return '';
 }
+function _posCouponOk(v, sub){ return !_posCouponWhy(v, sub); }
 function _posCouponDisc(v, sub){
   if(sub==null) sub=_posCartSub();
-  var d=0;
-  if(_posCouponItem(v)){
-    var price=_posItemPrice(v.menu_item_id);
-    if(v.type==='dessert') d=price;
-    else if(v.type==='percent_off') d=Math.round(price*(Number(v.value)||0))/100;
-    else d=Math.min(Number(v.value)||0, price);
+  var d=0, price=_posCouponItem(v)?_posItemPrice(v):null;
+  if(v.type==='dessert'){ d=price||0; }
+  else if(v.type==='percent_off'){
+    d=Math.round((price!=null?price:sub)*(Number(v.value)||0))/100;
+    if(v.max_discount!=null) d=Math.min(d, Number(v.max_discount)||0);   // 封顶
   }
-  else if(v.type==='percent_off'){ d=Math.round(sub*(Number(v.value)||0))/100; }
-  else { d=Number(v.value)||0; }
+  else { d=Number(v.value)||0; if(price!=null) d=Math.min(d, price); }
   return Math.min(Math.max(d,0), sub);
 }
 function _renderCartDisc(disc){
@@ -4979,28 +5015,42 @@ function loadLoyaltyCoupons(){
     db.rpc('rpc_admin_list_member_coupons',{p_search:null}).then(function(res){ if(!res.error) _loyaltyMemberCoupons=res.data||[]; })
   ]).then(function(){ renderLoyaltyCouponsBody(); }).catch(function(e){});
 }
-/* 券面文案：甜品券显示兑换的商品名，现金券按现金/百分比两种显示，
-   绑了商品的现金/百分比券要把商品名带上——不然「20% OFF」看不出是整单还是单品 */
+/* 券面文案：兑换券显示商品名，折扣券按现金/百分比两种显示，
+   带封顶的百分比券要把封顶写出来——「20% OFF」看不出大单会打掉多少 */
 function _cpnValTxt(c){
-  if(c.type==='dessert') return '兑换：'+esc(c.menu_item_name||_menuName(c.menu_item_id)||'指定商品');
+  var ap=_cpnAppliesOf(c);
+  var what=ap.scope==='items' ? ((ap.ids||[]).map(_menuName).filter(Boolean).join('、')||'指定商品')
+         : ap.scope==='cats'  ? ((ap.codes||[]).map(catName).filter(Boolean).join('、')||'指定分类')
+         : '';
+  if(c.type==='dessert') return '兑换：'+esc(what);
   var off=c.type==='percent_off' ? (c.value+'% OFF') : ('RM'+c.value+' OFF');
-  return c.menu_item_id ? (esc(c.menu_item_name||_menuName(c.menu_item_id)||'指定商品')+' '+off) : off;
+  if(c.type==='percent_off' && c.max_discount!=null) off+='，最多减 RM'+Number(c.max_discount).toFixed(2);
+  return what ? (esc(what)+' '+off) : off;
 }
-function _menuName(id){ var r=(_menuRows||[]).find(function(x){return x.id===id;}); return r?r.name:''; }
+function _menuName(id){ var r=(_menuRows||[]).find(function(x){return String(x.id)===String(id);}); return r?r.name:''; }
 var _CPN_TYPE_CN={fixed_off:'现金折扣',percent_off:'百分比折扣',dessert:'甜品兑换'};
-/* 发放窗口文案，并标出当前是否在窗口内 */
-function _cpnIssueTxt(c){
+var _CPN_CH_CN={dinein:'堂食',pickup:'自取',delivery:'外卖'};
+/* 使用限制一栏：渠道 + 固定期限。留空就是不限，别拿一堆「不限」占版面 */
+function _cpnLimitTxt(c){
   var d=function(s){ try{ return new Date(s).toLocaleDateString(); }catch(e){ return '?'; } };
-  if(!c.issue_from && !c.issue_until) return '<span style="color:#4A4848">不限</span>';
-  var now=Date.now();
-  var live=(!c.issue_from||now>=new Date(c.issue_from).getTime())&&(!c.issue_until||now<=new Date(c.issue_until).getTime());
-  var txt=(c.issue_from?d(c.issue_from):'不限')+' ~ '+(c.issue_until?d(c.issue_until):'不限');
-  return txt+(live?'':'<br><span style="color:#8D0505">（当前不可发放）</span>');
+  var out=[];
+  if(Array.isArray(c.channels) && c.channels.length){
+    out.push('仅 '+c.channels.map(function(x){return _CPN_CH_CN[x]||x;}).join('/'));
+  }
+  if(c.valid_from||c.valid_until){
+    out.push((c.valid_from?d(c.valid_from):'')+'~'+(c.valid_until?d(c.valid_until):''));
+  }
+  return out.length?out.join('<br>'):'<span style="color:#4A4848">不限</span>';
+}
+/* 商城售价现在挂在 coin_redeem 规则上，不再是券模板的列 */
+function _cpnCoinTxt(c){
+  var r=_cprOf(c.id).find(function(x){return x.trigger_event==='coin_redeem' && x.enabled;});
+  return (r&&r.coin_price)?('<b>'+r.coin_price+' Coin</b>'):'<span style="color:#4A4848">未上架</span>';
 }
 function renderLoyaltyCouponsBody(){
   var body=document.getElementById('loyaltyBody'); if(!body) return;
   var html='<div style="display:flex;justify-content:flex-end;margin-bottom:14px"><button onclick="openCpn()" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:700;font-size:13px">＋ 新增优惠券</button></div>';
-  html+='<div class="tx-card" style="margin-bottom:18px"><div class="tx-ch"><h3>优惠券模板</h3></div><table><thead><tr><th>名称</th><th>类型</th><th>优惠</th><th>门槛</th><th>有效期</th><th>发放时间</th><th>商城售价</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+  html+='<div class="tx-card" style="margin-bottom:18px"><div class="tx-ch"><h3>优惠券模板</h3></div><table><thead><tr><th>名称</th><th>类型</th><th>优惠</th><th>门槛</th><th>有效期</th><th>使用限制</th><th>商城售价</th><th>状态</th><th>操作</th></tr></thead><tbody>';
   if(!_loyaltyCoupons.length){ html+='<tr><td colspan="9" style="text-align:center;padding:30px;color:#4A4848">暂无优惠券</td></tr>'; }
   else{
     _loyaltyCoupons.forEach(function(c){
@@ -5008,8 +5058,8 @@ function renderLoyaltyCouponsBody(){
         +'<td>'+(_CPN_TYPE_CN[c.type]||esc(c.type||''))+'</td><td>'+_cpnValTxt(c)+'</td>'
         +'<td>'+(c.min_spend>0?('满 RM'+c.min_spend):'无门槛')+'</td>'
         +'<td>'+(Number(c.valid_days)>0?(c.valid_days+' 天'):'<b>永久</b>')+'</td>'
-        +'<td style="font-size:12px">'+_cpnIssueTxt(c)+'</td>'
-        +'<td>'+(c.coin_price?('<b>'+c.coin_price+' Coin</b>'):'<span style="color:#4A4848">未上架</span>')+'</td>'
+        +'<td style="font-size:12px">'+_cpnLimitTxt(c)+'</td>'
+        +'<td>'+_cpnCoinTxt(c)+'</td>'
         +'<td>'+(c.enabled?'<span style="color:#1D7715">启用</span>':'<span style="color:#8D0505">停用</span>')+'</td>'
         +'<td style="white-space:nowrap">'
         +'<button onclick="openCpnIssue(\''+c.id+'\',\''+esc(c.name)+'\')" style="border:none;background:#FFDE5B;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">发放</button>'
@@ -5047,7 +5097,7 @@ function renderLoyaltyCouponsBody(){
        {"all":[{"field":"amount","op":">=","value":100}, ...]}
    后端 _coupon_facts 把这个会员/这次事件的所有事实算成一个 jsonb，_coupon_cond_ok
    逐条比。所以下面这张字段表就是店里能用的全部条件——想怎么组合都行，不用改代码。 */
-var _CPR_EVENT={register:'注册即送', order_paid:'下单付款后', birthday_month:'生日月'};
+var _CPR_EVENT={register:'注册即送', order_paid:'下单付款后', birthday_month:'生日月', coin_redeem:'积分商城兑换'};
 /* ev 留空 = 任何事件都能用；写了就只在那些事件下出现（注册时没有「本单金额」这回事） */
 var _CPR_FIELDS=[
   {k:'amount',             t:'本单金额 RM',        type:'num',  ev:['order_paid']},
@@ -5184,6 +5234,7 @@ function _cprForm(){
     +'<label>触发事件<br><select id="cprEvent" onchange="_cprSyncEvent()" style="'+inp+';width:130px">'
       + Object.keys(_CPR_EVENT).map(function(k){ return '<option value="'+k+'"'+(ev===k?' selected':'')+'>'+_CPR_EVENT[k]+'</option>'; }).join('')
     +'</select></label>'
+    +'<label id="cprCoinWrap" style="display:'+(ev==='coin_redeem'?'block':'none')+'">兑换价 Coin<br><input id="cprCoin" type="number" min="1" value="'+(r.coin_price!=null?r.coin_price:'')+'" placeholder="如 100" style="'+inp+';width:100px"></label>'
     +'<label>每人限领<br><input id="cprPer" type="number" min="0" value="'+(r.per_member_limit!=null?r.per_member_limit:1)+'" style="'+inp+';width:80px"></label>'
     +'<label>总量上限<br><input id="cprTotal" type="number" min="1" value="'+(r.total_limit!=null?r.total_limit:'')+'" placeholder="不限" style="'+inp+';width:90px"></label>'
     +'<label style="align-self:center"><input id="cprEnabled" type="checkbox"'+(r.enabled===false?'':' checked')+'> 启用</label>'
@@ -5206,6 +5257,8 @@ function _cprSyncEvent(){
   var ev=document.getElementById('cprEvent').value;
   _cprCond=_cprCond.filter(function(c){ var f=_cprField(c.field); return !f||!f.ev||f.ev.indexOf(ev)>=0; });
   document.getElementById('cprCondBox').innerHTML=_cprCondRows();
+  // 兑换价只有「积分商城兑换」用得上
+  var cw=document.getElementById('cprCoinWrap'); if(cw) cw.style.display=(ev==='coin_redeem')?'block':'none';
 }
 function cprSave(){
   if(!db){ showN('未连接云端'); return; }
@@ -5231,8 +5284,14 @@ function cprSave(){
   var totRaw=document.getElementById('cprTotal').value.trim();
   var tot=totRaw===''?null:parseInt(totRaw);
   if(tot!=null && (isNaN(tot)||tot<1)){ showN('总量上限要么留空，要么填 ≥1 的整数'); return; }
+  var ev=document.getElementById('cprEvent').value;
+  var coin=null;
+  if(ev==='coin_redeem'){
+    coin=parseInt(document.getElementById('cprCoin').value,10);
+    if(isNaN(coin)||coin<1){ showN('积分商城兑换要填兑换价（Coin）'); return; }
+  }
   var payload={ coupon_id:_cprCouponId, name:document.getElementById('cprName').value.trim()||null,
-    trigger_event:document.getElementById('cprEvent').value, conditions:{all:all},
+    trigger_event:ev, conditions:{all:all}, coin_price:coin,
     per_member_limit:per, total_limit:tot, enabled:document.getElementById('cprEnabled').checked };
   var q=_cprEditId ? db.from('coupon_rules').update(payload).eq('id',_cprEditId)
                    : db.from('coupon_rules').insert(payload);
@@ -5276,16 +5335,30 @@ function cpnSyncExp(){
 function cpnSyncType(){
   var type=document.getElementById('cpnType').value;
   var isDessert=type==='dessert';
-  // 甜品券天生就是单品券，没有「整单」这个选项，所以范围下拉只给现金/百分比券看
-  var isItem=isDessert||document.getElementById('cpnScope').value==='item';
+  // 甜品券天生就是单品券（要换的就是那件商品），所以范围下拉只给现金/百分比券看
+  var scope=isDessert?'items':document.getElementById('cpnScope').value;
+  var isItem=scope==='items', isCat=scope==='cats';
   document.getElementById('cpnScopeWrap').style.display=isDessert?'none':'block';
   document.getElementById('cpnItemWrap').style.display=isItem?'block':'none';
+  document.getElementById('cpnCatWrap').style.display=isCat?'block':'none';
   document.getElementById('cpnItemLbl').textContent=isDessert?'兑换商品 *':'打折商品 *';
-  document.getElementById('cpnItemHint').style.display=isDessert?'none':'block';
   document.getElementById('cpnValueWrap').style.display=isDessert?'none':'block';
+  // 封顶只对百分比券有意义：现金券的面额本身就是上限
+  document.getElementById('cpnCapWrap').style.display=(type==='percent_off')?'block':'none';
+  var one=isItem||isCat;
   document.getElementById('cpnValueLbl').textContent=
-    type==='percent_off' ? (isItem?'折扣百分比 *（20 = 这件商品减 20%）':'折扣百分比 *（20 = 减 20%）')
-                         : (isItem?'优惠金额 RM *（超过商品单价按单价算）':'优惠金额 RM *');
+    type==='percent_off' ? (one?'折扣百分比 *（20 = 这件商品减 20%）':'折扣百分比 *（20 = 减 20%）')
+                         : (one?'优惠金额 RM *（超过商品单价按单价算）':'优惠金额 RM *');
+}
+/* applies_to 读写：{"scope":"order"} | {"scope":"items","ids":[]} | {"scope":"cats","codes":[]} */
+function _cpnAppliesOf(c){
+  if(c && c.applies_to && c.applies_to.scope) return c.applies_to;
+  // 老数据还没跑迁移时的兜底：menu_item_id 就是「指定商品」
+  if(c && c.menu_item_id) return {scope:'items', ids:[c.menu_item_id]};
+  return {scope:'order'};
+}
+function _cpnMultiVals(sel){
+  return Array.prototype.filter.call(sel.options, function(o){return o.selected;}).map(function(o){return o.value;});
 }
 function openCpn(id){
   _cpnEditId=id||null;
@@ -5293,23 +5366,38 @@ function openCpn(id){
   document.getElementById('cpnTitle').textContent=id?'编辑优惠券':'新增优惠券';
   document.getElementById('cpnName').value=c?c.name:'';
   document.getElementById('cpnType').value=c?c.type:'fixed_off';
-  document.getElementById('cpnScope').value=(c&&c.type!=='dessert'&&c.menu_item_id)?'item':'order';
+  var ap=_cpnAppliesOf(c);
+  document.getElementById('cpnScope').value=(c&&c.type==='dessert')?'items':(ap.scope||'order');
   document.getElementById('cpnValue').value=c?c.value:'';
+  document.getElementById('cpnMaxDisc').value=(c&&c.max_discount!=null)?c.max_discount:'';
   document.getElementById('cpnMinSpend').value=c?c.min_spend:0;
   var forever=!!c && !(Number(c.valid_days)>0);
   document.getElementById('cpnExpMode').value=forever?'forever':'days';
   document.getElementById('cpnValidDays').value=(c&&Number(c.valid_days)>0)?c.valid_days:30;
   cpnSyncExp();
-  document.getElementById('cpnCoinPrice').value=(c&&c.coin_price)?c.coin_price:'';
-  document.getElementById('cpnIssueFrom').value=_toLocalInput(c&&c.issue_from);
-  document.getElementById('cpnIssueUntil').value=_toLocalInput(c&&c.issue_until);
+  document.getElementById('cpnValidFrom').value=_toLocalInput(c&&c.valid_from);
+  document.getElementById('cpnValidUntil').value=_toLocalInput(c&&c.valid_until);
+  var chs=(c&&Array.isArray(c.channels))?c.channels:[];
+  document.getElementById('cpnChDinein').checked   = chs.indexOf('dinein')>=0;
+  document.getElementById('cpnChPickup').checked   = chs.indexOf('pickup')>=0;
+  document.getElementById('cpnChDelivery').checked = chs.indexOf('delivery')>=0;
   document.getElementById('cpnEnabled').checked=c?c.enabled:true;
-  // 商品下拉用收银台已经加载好的菜单，不再另外请求
-  var opts='<option value="">— 请选择商品 —</option>';
+  // 商品/分类下拉用收银台已经加载好的菜单和分类，不再另外请求
+  var ids=(ap.scope==='items'&&Array.isArray(ap.ids))?ap.ids.map(String):[];
+  var opts='';
   (_menuRows||[]).slice().sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);}).forEach(function(r){
-    opts+='<option value="'+r.id+'"'+((c&&c.menu_item_id===r.id)?' selected':'')+'>'+esc(r.name)+(r.en?(' / '+esc(r.en)):'')+'</option>';
+    opts+='<option value="'+r.id+'"'+((ids.indexOf(String(r.id))>=0)?' selected':'')+'>'+esc(r.name)+(r.en?(' / '+esc(r.en)):'')+'</option>';
   });
   document.getElementById('cpnMenuItem').innerHTML=opts;
+  var codes=(ap.scope==='cats'&&Array.isArray(ap.codes))?ap.codes.map(String):[];
+  var copt='';
+  catTops().forEach(function(t){
+    copt+='<option value="'+esc(t.code)+'"'+((codes.indexOf(String(t.code))>=0)?' selected':'')+'>'+esc(catName(t.code))+'</option>';
+    catSubs(t.code).forEach(function(s){
+      copt+='<option value="'+esc(s.code)+'"'+((codes.indexOf(String(s.code))>=0)?' selected':'')+'>　└ '+esc(catName(s.code))+'</option>';
+    });
+  });
+  document.getElementById('cpnCats').innerHTML=copt;
   cpnSyncType();
   document.getElementById('cpnBg').classList.add('show');
 }
@@ -5319,26 +5407,41 @@ function saveCpn(){
   if(!name){showN('请填写优惠券名称');return;}
   var type=document.getElementById('cpnType').value;
   var isDessert=type==='dessert';
-  // 甜品券必绑商品；现金/百分比券绑不绑取决于适用范围（绑了＝只打那件商品）
-  var isItem=isDessert||document.getElementById('cpnScope').value==='item';
+  // 甜品券天生就是「指定商品」；现金/百分比券由适用范围决定
+  var scope=isDessert?'items':document.getElementById('cpnScope').value;
   var value=parseFloat(document.getElementById('cpnValue').value);
-  var menuItemId=document.getElementById('cpnMenuItem').value||null;
-  if(isItem && !menuItemId){showN(isDessert?'请选择要兑换的商品':'请选择要打折的商品');return;}
+  var applies={scope:scope};
+  if(scope==='items'){
+    applies.ids=_cpnMultiVals(document.getElementById('cpnMenuItem'));
+    if(!applies.ids.length){showN(isDessert?'请选择要兑换的商品':'请选择要打折的商品');return;}
+  } else if(scope==='cats'){
+    applies.codes=_cpnMultiVals(document.getElementById('cpnCats'));
+    if(!applies.codes.length){showN('请选择适用分类');return;}
+  }
   if(!isDessert && (isNaN(value)||value<=0)){showN('优惠数值无效');return;}
   var forever=document.getElementById('cpnExpMode').value==='forever';
   var validDays=parseInt(document.getElementById('cpnValidDays').value);
   if(!forever && (!validDays||validDays<1)){showN('请填写有效天数');return;}
-  var coinRaw=document.getElementById('cpnCoinPrice').value.trim();
+  var capRaw=document.getElementById('cpnMaxDisc').value.trim();
+  var cap=(type==='percent_off'&&capRaw!=='')?parseFloat(capRaw):null;
+  if(cap!=null && (isNaN(cap)||cap<0)){showN('封顶金额无效');return;}
+  var chs=[];
+  if(document.getElementById('cpnChDinein').checked)   chs.push('dinein');
+  if(document.getElementById('cpnChPickup').checked)   chs.push('pickup');
+  if(document.getElementById('cpnChDelivery').checked) chs.push('delivery');
   var payload={
     name:name, type:type,
     value:isDessert?0:value,
     min_spend:(parseFloat(document.getElementById('cpnMinSpend').value)||0),
     valid_days:forever?null:validDays,   // null = 永久有效
     enabled:document.getElementById('cpnEnabled').checked,
-    coin_price:coinRaw===''?null:(parseInt(coinRaw,10)||0),
-    issue_from:_fromLocalInput(document.getElementById('cpnIssueFrom').value),
-    issue_until:_fromLocalInput(document.getElementById('cpnIssueUntil').value),
-    menu_item_id:isItem?menuItemId:null
+    max_discount:cap,
+    channels:chs.length?chs:null,        // null = 不限
+    valid_from:_fromLocalInput(document.getElementById('cpnValidFrom').value),
+    valid_until:_fromLocalInput(document.getElementById('cpnValidUntil').value),
+    applies_to:applies,
+    // 只有「指定单个商品」时才回填旧列，让还没刷新的旧前端也能显示对
+    menu_item_id:(scope==='items'&&applies.ids.length===1)?applies.ids[0]:null
   };
   var q=_cpnEditId?db.from('coupons').update(payload).eq('id',_cpnEditId):db.from('coupons').insert(payload);
   q.then(function(res){if(res.error){showN(''+res.error.message);return;}showN('已保存');closeCpn();loadLoyaltyCoupons();}).catch(function(e){showN('网络错误');});
@@ -5359,15 +5462,13 @@ function doCpnIssue(){
   var doIssue=function(memberId){
     db.rpc('rpc_admin_issue_coupon',{p_coupon_id:_cpnIssueId,p_member_id:memberId||null}).then(function(res){
       if(res.error){showN(''+res.error.message);return;}
-      showN('已发放给 '+(res.data||0)+' 位会员');
+      showN('已补发 '+(res.data||0)+' 张');
       closeCpnIssue();loadLoyaltyCoupons();
     }).catch(function(e){showN('网络错误');});
   };
-  if(!phone){
-    if(!confirm('确定要发放给全体会员吗？')) return;
-    doIssue(null);
-    return;
-  }
+  // 群发已经取消：那是对按下按钮那一刻的会员拍快照，明天注册的新人拿不到。
+  // 要给一批人发，去「规则」里设触发事件；这里只留客诉补偿用的单人补发。
+  if(!phone){ showN('请填手机号。要给一批人发券请用「规则」，不要群发'); return; }
   db.rpc('rpc_admin_list_members',{p_search:phone}).then(function(res){
     if(res.error||!res.data||!res.data.length){showN('找不到该手机号的会员');return;}
     var m=res.data.find(function(x){return x.phone===phone;})||res.data[0];

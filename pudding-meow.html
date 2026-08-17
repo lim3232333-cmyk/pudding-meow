@@ -4398,40 +4398,67 @@ function _cartItemIds(){
   return Object.values(cart).map(function(c){ return c.id; }).filter(Boolean);
 }
 function _cartSubtotal(){ var s=0; Object.values(cart).forEach(function(c){ s+=c.qty*c.price; }); return s; }
-/* 绑了商品的券＝单品券：甜品券抵掉那一份的全价，现金/百分比券只打那一份 */
-function _couponItem(mc){ return !!mc.menu_item_id; }
-/* 购物车里这件商品「一份」的价钱。规格加价会让同一商品出现好几行，取最便宜那份——
-   服务端按 menu_items 的基础价算，取最低才不会显示得比实际多减 */
-function _cartItemPrice(menuItemId){
-  var p=null;
-  // 用基础价，不用含规格加价的行价——服务端 _coupon_calc 查的是 menu_items.price，
-  // 两边口径要一致：顾客加了料不该多抵。
-  Object.values(cart).forEach(function(c){ if(c.id===menuItemId){
-    var v=Number(c.basePrice!=null?c.basePrice:c.price)||0; if(p===null||v<p) p=v; } });
-  return p||0;
+/* 适用范围：{"scope":"order"} | {"scope":"items","ids":[]} | {"scope":"cats","codes":[]}
+   老数据（还没跑 supabase-coupon-v2.sql）退回旧的 menu_item_id */
+function _cpnApplies(mc){
+  if(mc && mc.applies_to && mc.applies_to.scope) return mc.applies_to;
+  if(mc && mc.menu_item_id) return {scope:'items', ids:[mc.menu_item_id]};
+  return {scope:'order'};
 }
-/* 这张券在当前购物车能不能用 */
+function _couponItem(mc){ return _cpnApplies(mc).scope!=='order'; }
+/* 购物车行上只有商品 id，没有分类 —— 分类得回原始菜单行去查，
+   不然「所有饮料 8 折」这种券在前端永远匹配不上（服务端却能匹配，两边就对不上账了） */
+function _itemCats(id){
+  var r=(_menuRawRows||[]).find(function(x){ return String(x.id)===String(id); });
+  return r ? [r.cat, r.subcat] : [];
+}
+/* 购物车里符合这张券的那「一份」的价钱。
+   ⚠ 命中多件时取最贵的一份，跟服务端 _coupon_item_price 的 max(price) 一个口径——
+     两边不一致的话，结算页显示的折扣会跟实际扣的对不上。
+   ⚠ 用基础价不用行价：服务端查的是 menu_items.price，顾客加了料不该多抵。 */
+function _cartItemPrice(mc){
+  var ap=_cpnApplies(mc), p=null;
+  var hit=function(c){
+    if(ap.scope==='items') return (ap.ids||[]).map(String).indexOf(String(c.id))>=0;
+    if(ap.scope==='cats'){
+      var codes=(ap.codes||[]).map(String);
+      return _itemCats(c.id).some(function(x){ return x && codes.indexOf(String(x))>=0; });
+    }
+    return false;
+  };
+  Object.values(cart).forEach(function(c){ if(hit(c)){
+    var v=Number(c.basePrice!=null?c.basePrice:c.price)||0; if(p===null||v>p) p=v; } });
+  return p;   // null = 车里没有符合的商品
+}
+var _CPN_CH_CN={dinein:'堂食',pickup:'自取',delivery:'外卖'};
+/* 这张券在当前购物车 + 当前用餐方式下能不能用。
+   每一条都要跟服务端 _coupon_calc 对齐：这里只是提前灰掉，真正说了算的是服务端。 */
 function _couponUsable(mc, sub){
   if(!mc || mc.status!=='unused') return {ok:false, why:'已使用或已失效'};
   if(mc.expires_at && new Date(mc.expires_at) < new Date()) return {ok:false, why:'已过期'};
+  if(mc.valid_from && new Date(mc.valid_from) > new Date()){
+    return {ok:false, why:new Date(mc.valid_from).toLocaleDateString()+' 起可用'};
+  }
+  if(Array.isArray(mc.channels) && mc.channels.length && mc.channels.indexOf(currentMode)<0){
+    return {ok:false, why:'仅限'+mc.channels.map(function(x){return _CPN_CH_CN[x]||x;}).join('/')+'使用'};
+  }
   if(sub < (Number(mc.min_spend)||0)) return {ok:false, why:'需满 RM'+Number(mc.min_spend).toFixed(2)};
-  if(mc.type==='dessert' && !mc.menu_item_id) return {ok:false, why:'未绑定商品'};
-  if(_couponItem(mc) && _cartItemIds().indexOf(mc.menu_item_id)<0){
-    return {ok:false, why:'购物车没有'+(mc.menu_item_name||'该商品')};
+  if(_couponItem(mc) && _cartItemPrice(mc)===null){
+    return {ok:false, why:'购物车没有'+(mc.menu_item_name||'适用商品')};
   }
   return {ok:true};
 }
 function _couponDiscount(mc, sub){
-  var d=0;
-  if(_couponItem(mc)){
-    var price=_cartItemPrice(mc.menu_item_id);
-    if(mc.type==='dessert') d=price;
-    else if(mc.type==='percent_off') d=Math.round(price*(Number(mc.value)||0))/100;
-    else d=Math.min(Number(mc.value)||0, price);
+  var d=0, price=_couponItem(mc)?_cartItemPrice(mc):null;
+  if(mc.type==='dessert'){
+    d=price||0;
   } else if(mc.type==='percent_off'){
-    d=Math.round(sub*(Number(mc.value)||0))/100;
+    d=Math.round((price!=null?price:sub)*(Number(mc.value)||0))/100;
+    // 封顶：不封的话「20% OFF」用在大单上会打掉很多钱
+    if(mc.max_discount!=null) d=Math.min(d, Number(mc.max_discount)||0);
   } else {
     d=Number(mc.value)||0;
+    if(price!=null) d=Math.min(d, price);   // 单品现金券不倒贴
   }
   return Math.min(Math.max(d,0), sub);
 }
@@ -4520,7 +4547,8 @@ function confirmOrder(){
     var _oid='o'+Date.now();
     db.rpc('rpc_consume_coupon',{p_member_id:_memberId, p_session_token:_memberToken,
       p_member_coupon_id:_ckCoupon.id, p_order_id:_oid,
-      p_subtotal:_cartSubtotal(), p_item_ids:_cartItemIds()}).then(function(res){
+      p_subtotal:_cartSubtotal(), p_item_ids:_cartItemIds(),
+      p_mode:currentMode}).then(function(res){
       if(res.error){ alert('优惠券用不了：'+res.error.message); _ckCoupon=null; renderCheckout(); return; }
       _doConfirmOrder(Number(res.data)||0, _ckCoupon.id, _oid);
     }).catch(function(e){ console.error('rpc_consume_coupon', e); alert('网络错误，请重试'); });
