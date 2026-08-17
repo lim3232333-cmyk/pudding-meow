@@ -1345,9 +1345,15 @@
   /* 游客和会员用同一张表：以前游客版藏掉门牌/邮编/城市，结果 Lalamove 拿到的地址比会员单粗一截，
      骑手照样得打电话问门牌。表单一样，只有底下的按钮不同（游客「确认」用一次，会员「保存」进地址簿）。 */
   .addr-prof{ position:absolute; right:16px; top:50%; transform:translateY(-50%); cursor:pointer; }
-  .addr-field input{ position:absolute; inset:0; width:100%; height:100%; border:none; outline:none; background:transparent; font-size:14px; color:var(--muted); font-family:"Noto Sans SC",sans-serif; padding:18px 20px 4px; box-sizing:border-box; }
+  .addr-field input,.addr-field textarea{ position:absolute; inset:0; width:100%; height:100%; border:none; outline:none; background:transparent; font-size:14px; color:var(--muted); font-family:"Noto Sans SC",sans-serif; padding:18px 20px 4px; box-sizing:border-box; }
+  /* 「街道、小区」是单行 textarea（wrap=off）而不是 input：拆出来的街道行经常比框长，
+     input 里的文字横滑滑不动，只能读到开头。textarea 是滚动容器，手指一滑就能读完。
+     外观仍是那一行：定死行高、不折行、竖向溢出和滚动条都藏掉。 */
+  .addr-field textarea{ line-height:23px; resize:none; white-space:pre; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; }
+  .addr-field textarea::-webkit-scrollbar{ display:none; }
   .addr-field .lbl{ position:absolute; left:20px; top:14px; font-size:14px; color:#726F6F; font-family:"Noto Sans SC",sans-serif; pointer-events:none; transition:top .12s,font-size .12s; }
-  .addr-field input:focus ~ .lbl, .addr-field input:not(:placeholder-shown) ~ .lbl{ top:6px; font-size:10px; }
+  .addr-field input:focus ~ .lbl, .addr-field input:not(:placeholder-shown) ~ .lbl,
+  .addr-field textarea:focus ~ .lbl, .addr-field textarea:not(:placeholder-shown) ~ .lbl{ top:6px; font-size:10px; }
   .addr-field .req{ color:var(--red); margin-left:2px; }
   .addr-field:focus-within{ box-shadow:0 0 0 1px var(--red), 0 0 4px rgba(141,5,5,.4); }
   /* 确认/保存按钮：完全照结算页「立即支付」(.ck-paybtn) —— sticky 悬浮底部、361 宽、45 高、圆角12、红底白字、14px 粗体、同款投影；align-self 居中（本页是 stretch，结算页父级是 center） */
@@ -2255,7 +2261,7 @@
     <div class="addr-grid">
       <div class="addr-field span2"><input id="afLabel" type="text" placeholder=" "><label class="lbl">地点名称（e.g. Home, Office）</label></div>
       <div class="addr-field span2"><input id="afUnit" type="text" placeholder=" " oninput="_addrCheckValid()"><label class="lbl">单位号/门牌号<span class="req">*</span></label></div>
-      <div class="addr-field span2"><input id="afAddress" type="text" placeholder=" " oninput="_addrCheckValid()"><label class="lbl">街道、小区<span class="req">*</span></label></div>
+      <div class="addr-field span2"><textarea id="afAddress" rows="1" wrap="off" placeholder=" " oninput="_addrCheckValid()" onkeydown="if(event.key==='Enter')event.preventDefault()"></textarea><label class="lbl">街道、小区<span class="req">*</span></label></div>
       <div class="addr-field"><input id="afPostcode" type="text" inputmode="numeric" placeholder=" " oninput="_addrCheckValid()"><label class="lbl">邮政编码<span class="req">*</span></label></div>
       <div class="addr-field"><input id="afCity" type="text" placeholder=" " oninput="_addrCheckValid()"><label class="lbl">城市<span class="req">*</span></label></div>
       <div class="addr-field"><input id="afRecipient" type="text" placeholder=" " oninput="_addrCheckValid()"><label class="lbl">收件人姓名<span class="req">*</span></label></div>
@@ -3421,13 +3427,33 @@ function _addrSuggest(){
 function _addrRenderSugg(preds){
   var sugg=document.getElementById('addrSugg');
   var gen=++_addrSuggGen;
-  sugg.innerHTML = '<div class="addr-sugg-row" onmousedown="event.preventDefault()" onclick="_addrUseCurrentLoc()">'
+  // 交互挂在 pointerup 上而不是 click：iOS 键盘弹着的时候，落在页面上的第一下常常被
+  // 系统吃掉（只用来收键盘/把页面滚回视野），click 要点第二下才来——顾客的体验就是
+  // 「按一次没反应，按两次才关」。pointerup 第一下就到。
+  // click 仍然留着（桌面鼠标 / 没有 Pointer Events 的浏览器），两个都触发也不会做两次：
+  // _addrCloseSugg 会把 _addrSuggGen 加一，晚到的那个 gen 对不上，直接被挡掉。
+  var act=function(call){
+    return ' onmousedown="event.preventDefault()"'
+         + ' onpointerdown="_addrTapStart(event)"'
+         + ' onpointerup="_addrTapEnd(event)&&' + call + '"'
+         + ' onclick="' + call + '"';
+  };
+  sugg.innerHTML = '<div class="addr-sugg-row"' + act('_addrUseCurrentLoc('+gen+')') + '>'
       + _ADDR_LOC_ICO + '<div class="addr-sugg-txt">当前位置 <span class="addr-sugg-en">Current location</span></div></div>'
     + (preds||[]).slice(0,5).map(function(p,i){
         var t=(p.text && p.text.text) || (p.mainText && p.mainText.text) || '';
-        return '<div class="addr-sugg-row" onmousedown="event.preventDefault()" onclick="_addrPickSugg('+i+','+gen+')">'+_ADDR_PIN_ICO+'<div class="addr-sugg-txt">'+_addrEsc(t)+'</div></div>';
+        return '<div class="addr-sugg-row"' + act('_addrPickSugg('+i+','+gen+')') + '>'+_ADDR_PIN_ICO+'<div class="addr-sugg-txt">'+_addrEsc(t)+'</div></div>';
       }).join('');
   sugg.classList.add('show');
+}
+/* 手指按下时记一个落点，抬起时超过 12px 就当成「在滑动」，不算点选——
+   不然想滚一下下拉/地图，手一抬就选中了一条地址。 */
+var _addrTapPt=null;
+function _addrTapStart(e){ _addrTapPt={x:e.clientX, y:e.clientY}; }
+function _addrTapEnd(e){
+  var p=_addrTapPt; _addrTapPt=null;
+  if(!p) return true;
+  return Math.abs(e.clientX-p.x)<12 && Math.abs(e.clientY-p.y)<12;
 }
 function _addrFetchSuggest(q){
   var req={ input:q, includedRegionCodes:['my'], language:'zh-CN' };
@@ -3451,9 +3477,12 @@ function _addrFetchSuggest(q){
     _addrPreds=[]; _addrRenderSugg([]);
   });
 }
-/* 下拉第一行：直接走 GPS 定位那条路（反查会把街道/邮编/城市一起填上） */
-function _addrUseCurrentLoc(){
+/* 下拉第一行：直接走 GPS 定位那条路（反查会把街道/邮编/城市一起填上）。
+   gen 的作用跟 _addrPickSugg 一样：挡掉 pointerup 之后补来的那个 click。 */
+function _addrUseCurrentLoc(gen){
+  var stale = (gen!=null && gen!==_addrSuggGen);   // 同上：必须在 _addrCloseSugg 之前判
   _addrCloseSugg();
+  if(stale) return;
   addrLocate();
 }
 function _addrClearSearch(){
@@ -3467,8 +3496,11 @@ function _addrClearSearch(){
    少了这一步，选中一条之后那个迟到的响应回来会再调一次 _addrRenderSugg，
    下拉「自己又打开了」——顾客看到的就是「点了没关」。 */
 function _addrCancelSugg(){ clearTimeout(_addrSuggTimer); _addrSuggSeq++; }
-/* 收干净：关下拉 + 掐请求 + 收键盘。blur 连 activeElement 一起收 */
+/* 收干净：关下拉 + 掐请求 + 收键盘。blur 连 activeElement 一起收。
+   顺手把 _addrSuggGen 加一：pointerup 处理完之后随之而来的那个 click 就对不上号了，
+   同一下点击不会被当成两下（见 _addrRenderSugg）。 */
 function _addrCloseSugg(){
+  _addrSuggGen++;
   _addrCancelSugg();
   clearTimeout(_addrSuggBlurTimer);
   var sugg=document.getElementById('addrSugg'); sugg.classList.remove('show'); sugg.innerHTML='';
@@ -3484,13 +3516,15 @@ function _addrSearchSubmit(e){
   return false;
 }
 function _addrPickSugg(i, gen){
-  // 收键盘、关下拉、掐掉还在飞的联想请求——这三件先做，且不管这一下认不认。
-  // 顺序很关键：迟到的那个响应回来会重新 _addrRenderSugg 把下拉再打开，
-  // 所以必须先 _addrCancelSugg 作废它，光 remove('show') 是关不住的。
+  // gen 对不上 = 这一批下拉已经被新结果换掉了（或者是 pointerup 之后补来的那个 click）：
+  // 手指按的是旧列表上的位置，认下去就等于随机挑一个地方。
+  // 必须在 _addrCloseSugg 之前判——它自己会把 _addrSuggGen 加一。
+  var stale = (gen!=null && gen!==_addrSuggGen);
+  // 收键盘、关下拉、掐掉还在飞的联想请求——不管认不认都先做，界面不能卡着。
+  // 掐请求这一步不能省：迟到的那个响应回来会重新 _addrRenderSugg 把下拉再打开，
+  // 光 remove('show') 是关不住的。
   _addrCloseSugg();
-  // gen 对不上 = 这一批下拉已经被新结果换掉了，手指按的是旧列表上的位置：
-  // 认下去就等于随机挑一个地方，宁可不响应（但 UI 已经收干净了，不会卡着）。
-  if(gen!=null && gen!==_addrSuggGen) return;
+  if(stale) return;
   var pred=_addrPreds[i]; if(!pred || !pred.toPlace) return;
   var place=pred.toPlace();
   place.fetchFields({fields:['location','formattedAddress','addressComponents','displayName']}).then(function(){
@@ -3531,20 +3565,32 @@ function _addrStreetLine(comps, leadNum){
 }
 function _addrNorm(s){ return String(s==null?'':s).toLowerCase().replace(/[^a-z0-9一-龥]/g,''); }
 /* 兜底：组件里拆不出街道行时，退回去切 formatted_address，
-   把已经有独立输入框的那几段（邮编行/城市/国家/门牌号/店名）逐段丢掉 */
-function _addrTrimFull(full, pc, city, unit, name){
-  if(!full) return '';
+   把已经有独立输入框的那几段（邮编行/城市/国家/门牌号/店名）逐段丢掉。
+   返回还剩下的段（数组），调用方决定怎么用。 */
+function _addrTrimSegs(full, pc, city, unit, name, state){
+  if(!full) return [];
   var norm=_addrNorm;
-  return String(full).split(',').map(function(s){ return s.trim(); }).filter(function(s){
+  var segs=String(full).split(',').map(function(s){ return s.trim(); }).filter(function(s){
     if(!s) return false;
-    if(/^malaysia$/i.test(s)) return false;                       // 国家没有对应的框
+    if(/^malaysia$|^马来西亚$/i.test(s)) return false;             // 国家没有对应的框
     if(pc && s.indexOf(pc)>=0) return false;                      // 「75200 Melaka」这种整段丢掉
     if(city && norm(s)===norm(city)) return false;
+    if(state && norm(s)===norm(state)) return false;              // 州也没有框
     if(unit && (norm(s)===norm(unit) || norm(s)==='no'+norm(unit))) return false;   // 「No K5」也要认出来
     if(name && norm(s)===norm(name)) return false;                // 店名/楼名有自己的框（地点名称）
     return true;
-  }).join('，');
+  });
+  // 我们向 Google 要的是 zh-CN，所以完整地址的最后一段常是中文的州名（「…, 75200 Melaka, 马六甲」）。
+  // 它跟城市框里的「Melaka」是同一个地方，字符串却对不上，只能按位置认：
+  // 纯中文、又排在最后一段的，就是州。中文名的小区不会排在城市和州后面，所以只动最后一段。
+  if(segs.length>1 && /^[一-龥]{2,8}$/.test(segs[segs.length-1])) segs.pop();
+  return segs;
 }
+function _addrTrimFull(full, pc, city, unit, name){ return _addrTrimSegs(full, pc, city, unit, name).join('，'); }
+/* 门牌号长什么样：1 / K5 / A-12-3 / No. 12 / Lot 5。
+   刻意收得很紧——只认「最多两个字母 + 数字」这种，「Jalan KPKS 3」「Taman Kota Laksamana」
+   都不会被当成门牌吃掉。 */
+var _ADDR_HOUSE_RE=/^(?:no\.?\s*|lot\s*|unit\s*)?[a-z]{0,2}[-\s]?\d+(?:[-\s]?\d+)*[a-z]?$/i;
 /* place.displayName 有时是真的店名/楼名（「Menara Pudding」「布丁喵 Kota Syahbandar」），
    有时只是「12 Jalan Merdeka」这种门牌+路名。后者不是名字，写进「地点名称」只会让地址簿里
    躺着一条以路名命名的记录。所以：纯数字、等于门牌号、或者名字里含着路名的，一律不当名字。 */
@@ -3606,7 +3652,17 @@ function _fillAddrFromComponents(comps, full, opts){
   if(!route && !premise) street='';
   // 刻意不再有「整条原样塞进去」那一档：那会让街道栏变成一条含门牌+邮编+城市+店名
   // 的长句，看着就是「没拆」。切完还是空就留空，让 _addrFillMissing 用坐标反查一份回来。
-  if(!street) street=_addrTrimFull(full, pc, city, unit, name);
+  if(!street){
+    var segs=_addrTrimSegs(full, pc, city, unit, name, _acComp(comps,'administrative_area_level_1'));
+    // 组件里没有 street_number，但完整地址第一段就是门牌（「K5, Jalan KPKS 1, …」
+    // 「…, 1, Jalan KPKS 3, …」）——那一段属于门牌号框，留在街道行里就是没拆干净。
+    // 只动第一段，且后面必须还有内容，免得把唯一的一段搬走、街道栏反而空了。
+    if(!unit && segs.length>1 && _ADDR_HOUSE_RE.test(segs[0])){
+      unit=segs.shift();
+      set('afUnit', unit);
+    }
+    street=segs.join('，');
+  }
   set('afAddress', street);
 }
 /* 补漏：联想选中的那个 place 常常缺门牌/邮编（POI 结果尤其），缺了必填框就是空的。
