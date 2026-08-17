@@ -22,6 +22,29 @@
 --  由本脚本重建的函数只认新的那一份。一件事只能有一个地方管，否则迟早对不上。
 -- ============================================================================
 
+-- ── 0) 先清掉要重建的那几个函数的所有旧版本 ─────────────────────────────────
+--     create or replace 改不了 OUT 参数（返回的列），会直接报
+--     「cannot change return type of existing function」。
+--     而且这几个函数这次要多加参数（p_mode / p_delivery_fee），加了默认值之后
+--     新旧两个版本会同时存在：旧的 5 参精确匹配、新的 6 参靠默认值也匹配，
+--     调用时报 ambiguous。所以按**函数名**把所有重载一次删干净，再重建。
+--     不用 cascade：真有别的对象依赖它们，宁可在这里报错也别静默删掉。
+do $$
+declare r record;
+begin
+  for r in
+    select p.oid::regprocedure as sig
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname in ('_coupon_calc','rpc_preview_coupon','rpc_consume_coupon',
+                         'rpc_list_mall_coupons','rpc_get_my_coupons','rpc_pos_member_coupons',
+                         'rpc_redeem_coupon','rpc_admin_issue_coupon')
+  loop
+    execute 'drop function if exists ' || r.sig;
+  end loop;
+end $$;
+
 -- ── 1) 券模板：新增使用限制相关的列 ─────────────────────────────────────────
 alter table public.coupons
   --  百分比券的封顶金额。null = 不封顶（旧行为）。
@@ -177,7 +200,6 @@ $$;
 -- ── 7) 核心：算折扣（加上封顶 / 渠道 / 生效日 / 适用范围）───────────────────
 --     签名多了 p_mode。旧签名显式删掉——留着会变成没人调用的僵尸函数，
 --     以后读代码的人会以为有两套折扣逻辑。
-drop function if exists public._coupon_calc(uuid, uuid, numeric, uuid[]);
 create or replace function public._coupon_calc(
   p_member_id uuid, p_member_coupon_id uuid, p_subtotal numeric,
   p_item_ids uuid[], p_mode text default null)
@@ -401,7 +423,6 @@ $$;
 -- ── 11) 顾客端「我的优惠券」：把新字段一起带出去 ─────────────────────────────
 --      小程序要靠这些字段在结算页把「这张券在当前用餐方式下不可用」提前灰掉，
 --      而不是等顾客点了才被服务端拒绝。
-drop function if exists public.rpc_get_my_coupons(uuid, text);
 create or replace function public.rpc_get_my_coupons(p_member_id uuid, p_session_token text)
 returns table(
   id uuid, coupon_id uuid, name text, type text, value numeric, min_spend numeric,
@@ -430,7 +451,6 @@ end;
 $$;
 
 -- ── 12) POS 收银台读会员的券：同样带上新字段 ───────────────────────────────
-drop function if exists public.rpc_pos_member_coupons(uuid);
 create or replace function public.rpc_pos_member_coupons(p_member_id uuid)
 returns table(
   id uuid, coupon_id uuid, name text, type text, value numeric, min_spend numeric,

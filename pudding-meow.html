@@ -1022,6 +1022,15 @@
   .pm-tab.active::after{ content:''; position:absolute; left:50%; bottom:0; transform:translateX(-50%); width:80px; height:2px; background:var(--yellow); }
   .pm-body{ position:relative; z-index:2; margin-top:22px; padding:0 16px calc(34px + env(safe-area-inset-bottom, 0px)); display:flex; flex-direction:column; gap:12px; }
   .pm-empty{ text-align:center; padding:48px 20px; font-size:13px; color:var(--muted); }
+  /* 兑换码输入条：跟券卡片同宽，贴在「我的券」列表最上面 */
+  .pm-code-box{ display:flex; gap:8px; margin:0 0 12px; }
+  .pm-code-box input{ flex:1; min-width:0; height:38px; border:1.5px solid #E7DFC9; border-radius:10px;
+    padding:0 12px; font-size:13px; font-family:"Noto Sans SC",sans-serif; color:var(--muted);
+    background:#fff; outline:none; text-transform:uppercase; }
+  .pm-code-box input:focus{ border-color:var(--red); }
+  .pm-code-box button{ flex:0 0 auto; height:38px; padding:0 18px; border:none; border-radius:10px;
+    background:var(--red); color:#FFF; font-size:13px; font-weight:700;
+    font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
   .pm-use-btn{ margin-top:8px; background:var(--yellow); color:var(--red); border:none; border-radius:999px; padding:5px 16px; font-size:12px; font-weight:700; cursor:pointer; font-family:"Noto Sans SC",sans-serif; }
   .pm-use-no{ display:inline-block; margin-top:8px; font-size:10.5px; opacity:.75; }
   /* ===== 积分商城券卡（Figma 869:1128 / 869:1132）：100px 票根 + 白色主体，商城/结算/我的三态共用。
@@ -4368,8 +4377,8 @@ function renderCheckout(){
   var sub=0; Object.values(cart).forEach(function(c){ sub+=c.qty*c.price; });
   var fee=isDv?(_deliveryInfo.fee||0):0;
   // 选中的券若已不适用（改了购物车导致不满门槛/甜品没了），自动取消，避免算出不该有的折扣
-  if(_ckCoupon && _couponUsable(_ckCoupon, sub).ok===false) _ckCoupon=null;
-  var disc=_ckCoupon?_couponDiscount(_ckCoupon, sub):0;
+  if(_ckCoupon && _couponUsable(_ckCoupon, sub, fee).ok===false) _ckCoupon=null;
+  var disc=_ckCoupon?_couponDiscount(_ckCoupon, sub, fee):0;
   // 手续费按「顾客真正要付的钱」算，所以先把应付额结出来，再往上加
   var payable=Math.max(0, sub+fee-disc);
   var afee=_adminFee(selectedPay, payable);
@@ -4396,6 +4405,10 @@ function renderCheckout(){
 var _ckCoupon=null;
 function _cartItemIds(){
   return Object.values(cart).map(function(c){ return c.id; }).filter(Boolean);
+}
+/* 当前这一单的配送费：只有外卖才有。免运费券要拿它来算能抵多少 */
+function _ckDeliveryFee(){
+  return (currentMode==='delivery' && _deliveryInfo) ? (Number(_deliveryInfo.fee)||0) : 0;
 }
 function _cartSubtotal(){ var s=0; Object.values(cart).forEach(function(c){ s+=c.qty*c.price; }); return s; }
 /* 适用范围：{"scope":"order"} | {"scope":"items","ids":[]} | {"scope":"cats","codes":[]}
@@ -4431,24 +4444,57 @@ function _cartItemPrice(mc){
   return p;   // null = 车里没有符合的商品
 }
 var _CPN_CH_CN={dinein:'堂食',pickup:'自取',delivery:'外卖'};
-/* 这张券在当前购物车 + 当前用餐方式下能不能用。
+var _CPN_DAY_CN=['','一','二','三','四','五','六','日'];
+/* 时段/星期：跟服务端 _coupon_day_ok / _coupon_hour_ok 同一套判断。
+   服务端按马来西亚时区判，顾客手机也在这个时区，所以直接用本地时间。 */
+function _cpnTimeWhy(mc){
+  var now=new Date();
+  var days=mc.usable_days;
+  if(Array.isArray(days) && days.length){
+    var isodow=now.getDay()===0?7:now.getDay();      // JS 周日是 0，服务端用 1–7
+    if(days.map(Number).indexOf(isodow)<0){
+      return '仅周'+days.map(function(d){return _CPN_DAY_CN[Number(d)]||d;}).join('、')+'可用';
+    }
+  }
+  var hh=mc.usable_hours;
+  if(hh && hh.from!=null && hh.to!=null){
+    var a=Number(hh.from), b=Number(hh.to), h=now.getHours();
+    var ok = (a===b) ? true : (a<b ? (h>=a&&h<b) : (h>=a||h<b));   // a>b = 跨夜
+    if(!ok) return '仅 '+a+':00–'+b+':00 可用';
+  }
+  return '';
+}
+/* 这张券在当前购物车 + 当前用餐方式 + 当前时间下能不能用。
    每一条都要跟服务端 _coupon_calc 对齐：这里只是提前灰掉，真正说了算的是服务端。 */
-function _couponUsable(mc, sub){
+function _couponUsable(mc, sub, fee){
   if(!mc || mc.status!=='unused') return {ok:false, why:'已使用或已失效'};
   if(mc.expires_at && new Date(mc.expires_at) < new Date()) return {ok:false, why:'已过期'};
   if(mc.valid_from && new Date(mc.valid_from) > new Date()){
     return {ok:false, why:new Date(mc.valid_from).toLocaleDateString()+' 起可用'};
   }
+  var tw=_cpnTimeWhy(mc); if(tw) return {ok:false, why:tw};
   if(Array.isArray(mc.channels) && mc.channels.length && mc.channels.indexOf(currentMode)<0){
     return {ok:false, why:'仅限'+mc.channels.map(function(x){return _CPN_CH_CN[x]||x;}).join('/')+'使用'};
   }
   if(sub < (Number(mc.min_spend)||0)) return {ok:false, why:'需满 RM'+Number(mc.min_spend).toFixed(2)};
+  // 免运费券抵的是配送费，跟购物车里有什么无关；没有运费可抵就别让顾客白白用掉一张
+  if(mc.type==='free_delivery'){
+    if(currentMode!=='delivery') return {ok:false, why:'只能用在外卖单'};
+    if(!(Number(fee)>0)) return {ok:false, why:'这一单没有配送费'};
+    return {ok:true};
+  }
   if(_couponItem(mc) && _cartItemPrice(mc)===null){
     return {ok:false, why:'购物车没有'+(mc.menu_item_name||'适用商品')};
   }
   return {ok:true};
 }
-function _couponDiscount(mc, sub){
+function _couponDiscount(mc, sub, fee){
+  // 免运费券：抵配送费，不能拿商品小计封顶它（RM0 商品 + RM8 运费会被削成 0）
+  if(mc.type==='free_delivery'){
+    var f=Number(fee)||0;
+    if(mc.max_discount!=null) f=Math.min(f, Number(mc.max_discount)||0);
+    return Math.max(f,0);
+  }
   var d=0, price=_couponItem(mc)?_cartItemPrice(mc):null;
   if(mc.type==='dessert'){
     d=price||0;
@@ -4475,7 +4521,7 @@ function _ckRenderCouponRow(disc){
 function useCouponForOrder(mcId){
   var mc=_myCoupons.find(function(x){ return x.id===mcId; });
   if(!mc) return;
-  var u=_couponUsable(mc, _cartSubtotal());
+  var u=_couponUsable(mc, _cartSubtotal(), _ckDeliveryFee());
   if(!u.ok){ alert('这张券现在用不了：'+u.why); return; }
   _ckCoupon=mc;
   closePointsMall();
@@ -4548,7 +4594,7 @@ function confirmOrder(){
     db.rpc('rpc_consume_coupon',{p_member_id:_memberId, p_session_token:_memberToken,
       p_member_coupon_id:_ckCoupon.id, p_order_id:_oid,
       p_subtotal:_cartSubtotal(), p_item_ids:_cartItemIds(),
-      p_mode:currentMode}).then(function(res){
+      p_mode:currentMode, p_delivery_fee:_ckDeliveryFee()}).then(function(res){
       if(res.error){ alert('优惠券用不了：'+res.error.message); _ckCoupon=null; renderCheckout(); return; }
       _doConfirmOrder(Number(res.data)||0, _ckCoupon.id, _oid);
     }).catch(function(e){ console.error('rpc_consume_coupon', e); alert('网络错误，请重试'); });
@@ -6532,7 +6578,7 @@ function _pmMineHtml(mc){
   var picking = _pmFromCheckout;
   // 购物车是空的就别拿满额门槛去判，否则带门槛的券会全部置灰，顾客以为券坏了
   var sub=_cartSubtotal(), hasCart=sub>0;
-  var u = _couponUsable(mc, sub);
+  var u = _couponUsable(mc, sub, _ckDeliveryFee());
   var usable = mc.status==='unused' && (!hasCart || u.ok);
   var picked = picking && !!(_ckCoupon && _ckCoupon.id===mc.id);
   var right;
@@ -6566,7 +6612,7 @@ function pmPickCoupon(mcId){
   if(_ckCoupon && _ckCoupon.id===mcId){ _ckCoupon=null; renderPointsMallList(); return; }
   if(mc.status!=='unused'){ alert('这张券已经用过或已失效'); return; }
   var sub=_cartSubtotal();
-  var u=_couponUsable(mc, sub);
+  var u=_couponUsable(mc, sub, _ckDeliveryFee());
   if(sub>0 && !u.ok){ alert('这张券现在用不了：'+u.why); return; }
   _ckCoupon=mc;
   if(_pmFromCheckout){ closePointsMall(); renderCheckout(); return; }
@@ -6583,9 +6629,14 @@ function renderPointsMallList(){
     return;
   }
   if(_pmTab==='mine'){
-    box.innerHTML=_myCoupons.length
-      ? _myCoupons.map(_pmMineHtml).join('')
-      : '<div class="pm-empty">还没有优惠券，去上面兑换一张吧</div>';
+    // 兑换码入口放在「我的券」顶部：顾客拿到一串码（海报/小票/客服补偿）第一反应
+    // 就是来这一页找地方输，放商城那一侧反而找不到
+    box.innerHTML='<div class="pm-code-box">'
+      +'<input id="pmCodeInp" placeholder="输入兑换码领券" autocapitalize="characters" autocomplete="off"'
+      +' onkeydown="if(event.key===\'Enter\')pmRedeemCode()">'
+      +'<button onclick="pmRedeemCode()">兑换</button></div>'
+      +(_myCoupons.length ? _myCoupons.map(_pmMineHtml).join('')
+                          : '<div class="pm-empty">还没有优惠券，去上面兑换一张吧</div>');
     return;
   }
   var list=_mallItems.filter(function(c){ return _pmTab==='all' || _pmCatOf(c)===_pmTab; });
@@ -6594,6 +6645,28 @@ function renderPointsMallList(){
   if(brandLogo && brandLogo.src){
     document.querySelectorAll('.pm-item-img-logo img').forEach(function(img){ if(!img.src) img.src=brandLogo.src; });
   }
+}
+/* 输兑换码领券。码的校验（有没有、用完没、限领几张）全在服务端 rpc_redeem_code，
+   前端只负责把字面上的空格去掉、按钮防连点 —— 连点两次会真的领两张，
+   因为每人限领是按已领张数数的，两个请求可能都还没写进去。 */
+var _pmCodeBusy=false;
+function pmRedeemCode(){
+  if(_pmCodeBusy) return;
+  var inp=document.getElementById('pmCodeInp'); if(!inp) return;
+  var code=(inp.value||'').trim();
+  if(!code){ alert('请输入兑换码'); return; }
+  if(!(db && _memberId && _memberToken)){ alert('请先登录会员'); return; }
+  _pmCodeBusy=true;
+  db.rpc('rpc_redeem_code',{p_member_id:_memberId, p_session_token:_memberToken, p_code:code})
+    .then(function(res){
+      _pmCodeBusy=false;
+      if(res.error){ alert('兑换失败：'+(res.error.message||'请检查兑换码')); return; }
+      var row=(res.data&&res.data[0])||null;
+      inp.value='';
+      alert('领取成功：'+((row&&row.coupon_name)||'优惠券'));
+      loadMallData();         // 重新拉一次「我的券」，新券才会出现在列表里
+    })
+    .catch(function(e){ _pmCodeBusy=false; console.error('rpc_redeem_code',e); alert('网络错误，请重试'); });
 }
 function selectPmTab(cat, el){
   _pmTab = cat;
