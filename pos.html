@@ -1583,13 +1583,7 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       <input type="file" id="cpnImgFile" accept="image/svg+xml,image/png,image/jpeg,image/webp" style="display:none" onchange="cpnPickImage(event)">
       <label class="mfl">积分商城分区</label>
       <div class="mfh">商城首页按这个分区横向排券。留空 = 排在最后的「其他好礼」里，不会消失。<br>「限定」「合作」是营销概念，系统猜不出来，得你自己选</div>
-      <select class="mfi" id="cpnMallCat">
-        <option value="">— 不分区（其他好礼）—</option>
-        <option value="limited">限定</option>
-        <option value="cashback">现金回扣/折扣</option>
-        <option value="free_ship">免邮</option>
-        <option value="partner">合作</option>
-      </select>
+      <select class="mfi" id="cpnMallCat"></select>
       <div class="mfh" style="margin-top:-4px">积分商城售价搬到「规则」里了 —— 在规则里选「积分商城兑换」，就能顺便设每人限兑几张、总共放多少张、什么等级才能兑</div>
       <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="cpnEnabled" checked style="width:auto;margin:0;"> 启用（停用后不能再发放）</label>
       <button class="mfs" onclick="saveCpn()">保存 Save</button>
@@ -5044,7 +5038,7 @@ function saveRef(){
 
 /* ---- 优惠券管理：模板 CRUD + 发放 + 已发放列表（核销）---- */
 var _loyaltyCoupons=[], _loyaltyMemberCoupons=[], _cpnEditId=null, _cpnIssueId=null;
-var _couponRules=[], _cprCouponId=null, _cprEditId=null, _couponCodes=[], _couponStats=[];
+var _couponRules=[], _cprCouponId=null, _cprEditId=null, _couponCodes=[], _couponStats=[], _mallCats=[];
 function loadLoyaltyCoupons(){
   Promise.all([
     db.from('coupons').select('*').then(function(res){ if(!res.error) _loyaltyCoupons=res.data||[]; }),
@@ -5054,7 +5048,11 @@ function loadLoyaltyCoupons(){
     // 别让整页跟着挂掉——店家可能只跑到 v2
     db.from('coupon_codes').select('*').order('created_at',{ascending:false})
       .then(function(res){ _couponCodes=res.error?[]:(res.data||[]); }),
-    db.rpc('rpc_admin_coupon_stats').then(function(res){ _couponStats=res.error?[]:(res.data||[]); })
+    db.rpc('rpc_admin_coupon_stats').then(function(res){ _couponStats=res.error?[]:(res.data||[]); }),
+    // 商城分区：跑了 supabase-mall-categories.sql 才有这张表；没跑就退回写死的四段
+    db.from('mall_categories').select('*').order('sort_order').then(function(res){
+      _mallCats = res.error ? [] : (res.data||[]);
+    })
   ]).then(function(){ renderLoyaltyCouponsBody(); }).catch(function(e){});
 }
 /* 券面文案：兑换券显示商品名，折扣券按现金/百分比两种显示，
@@ -5139,7 +5137,7 @@ function renderLoyaltyCouponsBody(){
     });
   }
   html+='</tbody></table></div>';
-  html+=_cpnCodesHtml()+_cpnStatsHtml();
+  html+=_mcatHtml()+_cpnCodesHtml()+_cpnStatsHtml();
   body.innerHTML=html;
 }
 /* ══════════ 兑换码 ══════════
@@ -5206,6 +5204,99 @@ function _cpnStatsHtml(){
   return h+'</tbody></table><div style="padding:10px 14px;font-size:12px;color:#4A4848">'
     +'「带来营业额」= 用了这张券的订单总额（已扣掉支付手续费，跟仪表盘同口径）。'
     +'核销率低说明券发出去没人用，可以改门槛或有效期再试。</div></div>';
+}
+/* 商城分区。跟菜单分类、销售方式一个模式：表里维护，code 建后锁定。
+   表还没建（没跑 supabase-mall-categories.sql）时退回原来写死的四段，
+   这样没跑迁移的库照样能用，只是不能自己加。 */
+var MALL_CAT_FALLBACK=[{code:'limited',name:'限定'},{code:'cashback',name:'现金回扣/折扣'},
+                       {code:'free_ship',name:'免邮'},{code:'partner',name:'合作'}];
+function mallCats(){ return (_mallCats&&_mallCats.length)?_mallCats:MALL_CAT_FALLBACK; }
+function _mcatReload(){
+  db.from('mall_categories').select('*').order('sort_order').then(function(r){
+    _mallCats=r.error?[]:(r.data||[]); renderLoyaltyCouponsBody();
+  });
+}
+function _mcatHtml(){
+  var live=(_mallCats||[]);
+  var h='<div class="tx-card" style="margin-bottom:18px"><div class="tx-ch"><h3>积分商城分区</h3>'
+    +'<button onclick="mcatAdd()" style="border:none;background:#1D7715;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:12px">＋ 新增分区</button></div>'
+    +'<table><thead><tr><th>顺序</th><th>名称</th><th>代号</th><th>挂了几张券</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+  if(!live.length){
+    h+='<tr><td colspan="6" style="text-align:center;padding:26px;color:#4A4848">'
+      +'还没建分区表。跑一次 <b>supabase-mall-categories.sql</b> 就能自己增删改；'
+      +'在那之前商城用内置的四段（限定 / 现金回扣·折扣 / 免邮 / 合作）</td></tr>';
+  } else {
+    live.forEach(function(c){
+      var n=(_loyaltyCoupons||[]).filter(function(x){return x.mall_category===c.code;}).length;
+      h+='<tr'+(c.enabled?'':' style="opacity:.5"')+'><td>'+(c.sort_order||0)+'</td>'
+        +'<td><b>'+esc(c.name)+'</b></td>'
+        +'<td style="font-family:monospace;font-size:12px;color:#4A4848">'+esc(c.code)+'</td>'
+        +'<td>'+n+'</td>'
+        +'<td>'+(c.enabled?'<span style="color:#1D7715">显示</span>':'<span style="color:#8D0505">隐藏</span>')+'</td>'
+        +'<td style="white-space:nowrap">'
+        +'<button onclick="mcatEdit(\''+c.id+'\')" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">改</button>'
+        +'<button onclick="mcatToggle(\''+c.id+'\','+(c.enabled?'false':'true')+')" style="border:none;background:#FFDE5B;color:#8D0505;border-radius:6px;padding:4px 10px;margin-right:4px;cursor:pointer;font-size:12px;font-weight:700">'+(c.enabled?'隐藏':'显示')+'</button>'
+        +'<button onclick="mcatDel(\''+c.id+'\')" style="border:none;background:#8D0505;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700">删</button>'
+        +'</td></tr>';
+    });
+  }
+  return h+'</tbody></table><div style="padding:10px 14px;font-size:12px;color:#4A4848">'
+    +'顺序小的排在商城上面。「隐藏」= 商城不显示这一段，但券的归属还留着，随时能再打开。<br>'
+    +'没选分区的券会排在最后的「其他好礼」里 —— 那一段是自动的，不用也不能在这里建。</div></div>';
+}
+function mcatAdd(){
+  if(!db){ showN('未连接云端'); return; }
+  if(!_mallCats.length){ showN('请先跑 supabase-mall-categories.sql'); return; }
+  var name=(prompt('分区名称（顾客在商城里看到的，如「中秋限定」）','')||'').trim();
+  if(!name) return;
+  // code 建后不能改（券存的就是它），所以建的时候要认真填
+  var code=(prompt('分区代号（英文/数字，建好之后不能再改）','')||'').trim().toLowerCase();
+  if(!code){ return; }
+  if(!/^[a-z0-9_]+$/.test(code)){ showN('代号只能用小写字母、数字、下划线'); return; }
+  var so=parseInt(prompt('排序（数字小的排在上面）','50'),10); if(isNaN(so)) so=50;
+  db.from('mall_categories').insert({code:code,name:name,sort_order:so}).then(function(res){
+    if(res.error){
+      showN(String(res.error.message||'').indexOf('duplicate')>=0 ? '这个代号已经有了' : ('保存失败：'+_rpcErr(res.error)));
+      return;
+    }
+    showN('已新增'); _mcatReload();
+  }).catch(function(e){ showN('网络错误'); });
+}
+function mcatEdit(id){
+  var c=(_mallCats||[]).find(function(x){return x.id===id;}); if(!c) return;
+  var name=(prompt('分区名称（代号 '+c.code+' 不能改，改了会把已归类的券打散）', c.name)||'').trim();
+  if(!name) return;
+  var so=parseInt(prompt('排序（数字小的排在上面）', c.sort_order||0),10); if(isNaN(so)) so=c.sort_order||0;
+  db.from('mall_categories').update({name:name,sort_order:so}).eq('id',id).then(function(res){
+    if(res.error){ showN('保存失败：'+_rpcErr(res.error)); return; }
+    showN('已保存'); _mcatReload();
+  }).catch(function(e){ showN('网络错误'); });
+}
+function mcatToggle(id,on){
+  db.from('mall_categories').update({enabled:on}).eq('id',id).then(function(res){
+    if(res.error){ showN('操作失败：'+_rpcErr(res.error)); return; }
+    _mcatReload();
+  }).catch(function(e){ showN('网络错误'); });
+}
+function mcatDel(id){
+  var c=(_mallCats||[]).find(function(x){return x.id===id;}); if(!c) return;
+  var n=(_loyaltyCoupons||[]).filter(function(x){return x.mall_category===c.code;}).length;
+  // 删分区不该把券也弄没：先把挂在上面的券摘下来，它们会落到「其他好礼」
+  var msg=n>0 ? ('删除分区「'+c.name+'」？\n\n挂在它下面的 '+n+' 张券不会被删，会移到「其他好礼」那一段。')
+              : ('删除分区「'+c.name+'」？它下面没有券。');
+  if(!confirm(msg)) return;
+  var go=function(){
+    db.from('mall_categories').delete().eq('id',id).then(function(res){
+      if(res.error){ showN('删除失败：'+_rpcErr(res.error)); return; }
+      showN('已删除'); _mcatReload(); loadLoyaltyCoupons();
+    }).catch(function(e){ showN('网络错误'); });
+  };
+  if(n>0){
+    db.from('coupons').update({mall_category:null}).eq('mall_category',c.code).then(function(r2){
+      if(r2.error){ showN('移动券失败：'+_rpcErr(r2.error)); return; }
+      go();
+    }).catch(function(e){ showN('网络错误'); });
+  } else go();
 }
 /* 兑换码的增删改。用原生 prompt 而不是再画一个模态框：
    这几个动作店家一年用不了几次，为它们各做一张表单不划算。 */
@@ -5623,7 +5714,17 @@ function openCpn(id){
   document.getElementById('cpnChDinein').checked   = chs.indexOf('dinein')>=0;
   document.getElementById('cpnChPickup').checked   = chs.indexOf('pickup')>=0;
   document.getElementById('cpnChDelivery').checked = chs.indexOf('delivery')>=0;
-  document.getElementById('cpnMallCat').value=(c&&c.mall_category)?c.mall_category:'';
+  // 分区下拉从 mall_categories 现拉（店家自己维护的），不写死
+  var curCat=(c&&c.mall_category)||'';
+  var catOpts='<option value="">— 不分区（其他好礼）—</option>';
+  mallCats().forEach(function(mc){
+    catOpts+='<option value="'+esc(mc.code)+'"'+(curCat===mc.code?' selected':'')+'>'+esc(mc.name)+(mc.enabled===false?'（已隐藏）':'')+'</option>';
+  });
+  // 券挂在一个已经被删掉的分区上时，保住它的值，别在保存时被悄悄清空
+  if(curCat && !mallCats().some(function(mc){return mc.code===curCat;})){
+    catOpts+='<option value="'+esc(curCat)+'" selected>'+esc(curCat)+'（分区已删除）</option>';
+  }
+  document.getElementById('cpnMallCat').innerHTML=catOpts;
   _cpnImgUrl=(c&&c.mall_image_url)||null; _cpnImgUploading=null;
   document.getElementById('cpnImgStat').textContent='';
   document.getElementById('cpnImgFile').value='';
