@@ -5118,11 +5118,10 @@ function _cpnLimitTxt(c){
 /* 商城售价现在挂在 coin_redeem 规则上，不再是券模板的列 */
 function _cpnCoinTxt(c){
   var r=_cprOf(c.id).find(function(x){return x.trigger_event==='coin_redeem' && x.enabled;});
-  // 上架与否看 coin_price 是不是 null —— 0 是「上架了，免费领」，不是「没上架」。
+  // 上架与否看 coin_price 是不是 null —— 0 是「上架了，0 Coin 就能领」，不是「没上架」。
   // 写成 (r && r.coin_price) 的话 0 是 falsy，免费券会显示成「未上架」
   if(!r || r.coin_price==null) return '<span style="color:#4A4848">未上架</span>';
-  return Number(r.coin_price)===0 ? '<b style="color:#1D7715">免费领</b>'
-                                  : ('<b>'+r.coin_price+' Coin</b>');
+  return '<b>'+r.coin_price+' Coin</b>';
 }
 function renderLoyaltyCouponsBody(){
   var body=document.getElementById('loyaltyBody'); if(!body) return;

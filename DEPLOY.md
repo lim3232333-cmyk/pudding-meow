@@ -164,7 +164,7 @@ Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-my-coupon-i
 
 Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-coupon-free-claim.sql`** → **Run**。前置是 v2 + `supabase-coupon-mall-category.sql`。
 
-跑完之后，规则里的「兑换价 Coin」可以填 **0** —— 顾客在商城里看到的是「**免费领**」（不是爪印 + 0），点一下就进券包，不扣任何 Coin。免运费券、新人礼、节日发的券都是这种。免费的券自动排在商城最前面。
+跑完之后，规则里的「兑换价 Coin」可以填 **0** —— 顾客在商城里看到的就是「爪印 **0**」，点一下就进券包，不扣任何 Coin。免运费券、新人礼、节日发的券都是这种。免费的券自动排在商城最前面。
 
 ⚠ **0 Coin 的规则必须填「每人限领」**（填 1 就好）。免费又不限领，顾客连点就能无限领券 —— POS 会拦，数据库也会拦。
 
