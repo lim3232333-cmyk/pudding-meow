@@ -1570,17 +1570,40 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
         <input class="mfi" id="cpnValidFrom" type="datetime-local" style="flex:1">
         <input class="mfi" id="cpnValidUntil" type="datetime-local" style="flex:1">
       </div>
-      <label class="mfl">商城卡片图</label>
-      <div class="mfh">积分商城里这张券上半部那块图（230×98）。<b>建议传 SVG</b>——矢量图放多大都清晰。<br>
-        照片没法做成 SVG，那种请传 <b>2 倍图 460×196</b>（或 3 倍 690×294），不然在手机高清屏上会糊。<br>
-        留空 = 用券绑定商品的图；再没有就是纯色块 + 爪印</div>
+      <label class="mfl">券的图</label>
+      <div class="mfh">同一张图会用在两个地方，两处比例差 13%，所以是<b>一张母图 + 安全区</b>，不是做两套：<br>
+        · 设计稿按 <b>680×270</b>（2 倍图），<b>重要的东西（字、logo、主体）放中间 630×250</b>，外面那一圈当作随时会被切掉；<br>
+        · <b>能传 SVG 就传 SVG</b>——矢量放多大都清晰，也没有 2 倍图这回事。照片没法做成 SVG，那就按 680×270 传；<br>
+        · 留空 = 用券绑定商品的图，再没有就是默认券面（大字面额 + 探出来的喵）。<br>
+        <a href="coupon-image-template.svg" target="_blank" style="color:#8D0505;font-weight:700">↓ 下载带安全区的设计模板（SVG）</a></div>
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:10px">
+        <svg viewBox="0 0 680 270" style="width:170px;height:67px;flex-shrink:0;border-radius:8px" aria-label="安全区示意">
+          <rect width="680" height="270" rx="14" fill="#8D0505"/>
+          <rect x="25" y="10" width="630" height="250" rx="8" fill="none" stroke="#FFDE5B" stroke-width="7" stroke-dasharray="20 16"/>
+          <text x="340" y="128" text-anchor="middle" font-size="52" font-weight="700" fill="#FFDE5B">安全区</text>
+          <text x="340" y="186" text-anchor="middle" font-size="44" fill="#FFDE5B">630 × 250</text>
+        </svg>
+        <div style="font-size:12px;color:#4A4848;line-height:1.7">
+          外圈那一圈是<b>出血</b>：商城卡（230×98）会切掉左右各 3%，券面（345×128）会切掉上下各 3%。<br>
+          把重要内容放进虚线框里，两处就都完整。
+        </div>
+      </div>
       <div id="cpnImgBox" style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
         <div id="cpnImgPrev" style="width:115px;height:49px;border-radius:8px;background:#8D0505;background-size:cover;background-position:center;flex-shrink:0"></div>
-        <button type="button" onclick="document.getElementById('cpnImgFile').click()" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;font-size:12px">上传图片</button>
-        <button type="button" onclick="cpnImgClear()" style="border:none;background:#eee;color:#4A4848;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:12px">清除</button>
+        <button type="button" onclick="document.getElementById('cpnImgFile').click()" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;font-size:12px">上传母图</button>
+        <button type="button" onclick="cpnImgClear('mall')" style="border:none;background:#eee;color:#4A4848;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:12px">清除</button>
         <span id="cpnImgStat" style="font-size:12px;color:#4A4848"></span>
       </div>
-      <input type="file" id="cpnImgFile" accept="image/svg+xml,image/png,image/jpeg,image/webp" style="display:none" onchange="cpnPickImage(event)">
+      <input type="file" id="cpnImgFile" accept="image/svg+xml,image/png,image/jpeg,image/webp" style="display:none" onchange="cpnPickImage('mall',event)">
+      <label class="mfl">券面图（选填，只在「我的券」用）</label>
+      <div class="mfh">上面那张母图两处都够用，<b>这一格平时不用填</b>。哪张券在顾客券包里构图确实不好看，才单独补一张 345×128（2 倍图 690×256）。留空 = 用上面那张</div>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
+        <div id="cpnVImgPrev" style="width:115px;height:43px;border-radius:8px;background:#8D0505;background-size:cover;background-position:center;flex-shrink:0"></div>
+        <button type="button" onclick="document.getElementById('cpnVImgFile').click()" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;font-size:12px">上传券面图</button>
+        <button type="button" onclick="cpnImgClear('voucher')" style="border:none;background:#eee;color:#4A4848;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:12px">清除</button>
+        <span id="cpnVImgStat" style="font-size:12px;color:#4A4848"></span>
+      </div>
+      <input type="file" id="cpnVImgFile" accept="image/svg+xml,image/png,image/jpeg,image/webp" style="display:none" onchange="cpnPickImage('voucher',event)">
       <label class="mfl">积分商城分区</label>
       <div class="mfh">商城首页按这个分区横向排券。留空 = 排在最后的「其他好礼」里，不会消失。<br>「限定」「合作」是营销概念，系统猜不出来，得你自己选</div>
       <select class="mfi" id="cpnMallCat"></select>
@@ -5640,41 +5663,50 @@ function cpnSyncType(){
    ⚠ 刻意**不复用**商品图那条路：那条会把图画进 canvas 再导出 PNG（为了裁成统一比例），
      canvas 一碰 SVG 就把它栅格化了，矢量的意义全没。这里原样上传，
      显示时交给 CSS object-fit:cover 去裁，SVG 才能保持清晰。 */
-var _cpnImgUrl=null, _cpnImgUploading=null;
+/* 券的图有两个槽位：mall = 商城卡（230×98）、voucher = 券面（345×128）。
+   默认**只传 mall 这一张母图**，两处都用它 —— 两个槽位比例只差 13%，
+   按 680×270 设计、重要内容留在中间 630×250，两边各切掉 3% 出血就够了。
+   让店家每张券传两遍，迟早有一张忘了传，漏的那张比切掉 3% 难看得多。
+   voucher 是**可选覆盖**，只有哪张券在券包里确实不好看时才补。
+   两个槽位共用一套上传逻辑，靠 k 区分——写两份迟早改漏一边。 */
+var _cpnImg={ mall:{url:null, up:null}, voucher:{url:null, up:null} };
+var _CPN_IMG_EL={ mall:   {prev:'cpnImgPrev',  stat:'cpnImgStat',  file:'cpnImgFile'},
+                  voucher:{prev:'cpnVImgPrev', stat:'cpnVImgStat', file:'cpnVImgFile'} };
 var CPN_IMG_BUCKET='menu-images';   // 复用已有的公开桶，省一次建桶配置
-function cpnImgClear(){
-  _cpnImgUrl=null; _cpnImgUploading=null;
-  document.getElementById('cpnImgPrev').style.backgroundImage='';
-  document.getElementById('cpnImgStat').textContent='';
-  document.getElementById('cpnImgFile').value='';
+function cpnImgClear(k){
+  k=k||'mall'; _cpnImg[k].url=null; _cpnImg[k].up=null;
+  var el=_CPN_IMG_EL[k];
+  document.getElementById(el.prev).style.backgroundImage='';
+  document.getElementById(el.stat).textContent='';
+  document.getElementById(el.file).value='';
 }
-function _cpnImgShow(url){
-  document.getElementById('cpnImgPrev').style.backgroundImage = url ? ("url('"+url+"')") : '';
+function _cpnImgShow(k, url){
+  document.getElementById(_CPN_IMG_EL[k].prev).style.backgroundImage = url ? ("url('"+url+"')") : '';
 }
-function cpnPickImage(ev){
+function cpnPickImage(k, ev){
   var file=ev.target.files&&ev.target.files[0]; if(!file) return;
   if(!db){ showN('未连接云端，图片无法上传'); return; }
   var isSvg = file.type==='image/svg+xml' || /\.svg$/i.test(file.name||'');
-  var stat=document.getElementById('cpnImgStat');
+  var stat=document.getElementById(_CPN_IMG_EL[k].stat);
   stat.textContent='上传中…';
   // 本地先预览，不等上传完——店家能立刻看出选错没有
-  try{ _cpnImgShow(URL.createObjectURL(file)); }catch(e){}
+  try{ _cpnImgShow(k, URL.createObjectURL(file)); }catch(e){}
   var ext=(file.name&&file.name.split('.').pop()||(isSvg?'svg':'png')).toLowerCase();
   var path='coupon/'+Date.now()+'-'+Math.random().toString(36).slice(2)+'.'+ext;
-  _cpnImgUploading = db.storage.from(CPN_IMG_BUCKET)
+  _cpnImg[k].up = db.storage.from(CPN_IMG_BUCKET)
     .upload(path, file, {upsert:true, cacheControl:'3600', contentType:file.type||undefined})
     .then(function(res){
       if(res.error) throw res.error;
-      _cpnImgUrl = db.storage.from(CPN_IMG_BUCKET).getPublicUrl(path).data.publicUrl;
-      _cpnImgShow(_cpnImgUrl);
+      _cpnImg[k].url = db.storage.from(CPN_IMG_BUCKET).getPublicUrl(path).data.publicUrl;
+      _cpnImgShow(k, _cpnImg[k].url);
       stat.textContent = isSvg ? 'SVG ✓ 矢量，不会糊' : '已上传';
-      _cpnImgUploading=null;
-      return _cpnImgUrl;
+      _cpnImg[k].up=null;
+      return _cpnImg[k].url;
     })
     .catch(function(e){
       console.error('券图上传失败', e);
       stat.textContent='上传失败'; showN('图片上传失败：'+_rpcErr(e));
-      _cpnImgUploading=null; _cpnImgUrl=null; _cpnImgShow('');
+      _cpnImg[k].up=null; _cpnImg[k].url=null; _cpnImgShow(k,'');
       throw e;
     });
 }
@@ -5725,10 +5757,13 @@ function openCpn(id){
     catOpts+='<option value="'+esc(curCat)+'" selected>'+esc(curCat)+'（分区已删除）</option>';
   }
   document.getElementById('cpnMallCat').innerHTML=catOpts;
-  _cpnImgUrl=(c&&c.mall_image_url)||null; _cpnImgUploading=null;
-  document.getElementById('cpnImgStat').textContent='';
-  document.getElementById('cpnImgFile').value='';
-  _cpnImgShow(_cpnImgUrl);
+  ['mall','voucher'].forEach(function(k){
+    _cpnImg[k].url = (c && (k==='mall'?c.mall_image_url:c.voucher_image_url)) || null;
+    _cpnImg[k].up  = null;
+    document.getElementById(_CPN_IMG_EL[k].stat).textContent='';
+    document.getElementById(_CPN_IMG_EL[k].file).value='';
+    _cpnImgShow(k, _cpnImg[k].url);
+  });
   document.getElementById('cpnEnabled').checked=c?c.enabled:true;
   // 商品/分类下拉用收银台已经加载好的菜单和分类，不再另外请求
   var ids=(ap.scope==='items'&&Array.isArray(ap.ids))?ap.ids.map(String):[];
@@ -5800,20 +5835,40 @@ function saveCpn(){
     max_discount:cap,
     channels:chs.length?chs:null,        // null = 不限
     mall_category:document.getElementById('cpnMallCat').value||null,
-    mall_image_url:_cpnImgUrl||null,
+    mall_image_url:_cpnImg.mall.url||null,
+    voucher_image_url:_cpnImg.voucher.url||null,
     valid_from:_fromLocalInput(document.getElementById('cpnValidFrom').value),
     valid_until:_fromLocalInput(document.getElementById('cpnValidUntil').value),
     applies_to:applies,
     // 只有「指定单个商品」时才回填旧列，让还没刷新的旧前端也能显示对
     menu_item_id:(scope==='items'&&applies.ids.length===1)?applies.ids[0]:null
   };
-  // 图还在传就等它——不等的话 payload 里的 mall_image_url 还是 null，图白传了
+  // 图还在传就等它（两个槽位都要等）——不等的话 payload 里的 url 还是 null，图白传了
   var go=function(){
-    payload.mall_image_url=_cpnImgUrl||null;
+    payload.mall_image_url=_cpnImg.mall.url||null;
+    payload.voucher_image_url=_cpnImg.voucher.url||null;
     var q=_cpnEditId?db.from('coupons').update(payload).eq('id',_cpnEditId):db.from('coupons').insert(payload);
-    q.then(function(res){if(res.error){showN(''+res.error.message);return;}showN('已保存');closeCpn();loadLoyaltyCoupons();}).catch(function(e){showN('网络错误');});
+    q.then(function(res){
+      if(res.error){
+        // 没跑 supabase-my-coupon-image.sql 的库还没有 voucher_image_url 这一列。
+        // 券面图是选填的，不该因为它保存不了整张券——去掉这一列重试一次。
+        if(payload.voucher_image_url!==undefined && /voucher_image_url/.test(res.error.message||'')){
+          delete payload.voucher_image_url;
+          var q2=_cpnEditId?db.from('coupons').update(payload).eq('id',_cpnEditId):db.from('coupons').insert(payload);
+          q2.then(function(r2){
+            if(r2.error){showN(''+r2.error.message);return;}
+            showN('已保存（券面图那一列还没建，先跳过——去跑 supabase-my-coupon-image.sql）');
+            closeCpn(); loadLoyaltyCoupons();
+          }).catch(function(e){showN('网络错误');});
+          return;
+        }
+        showN(''+res.error.message);return;
+      }
+      showN('已保存');closeCpn();loadLoyaltyCoupons();
+    }).catch(function(e){showN('网络错误');});
   };
-  if(_cpnImgUploading){ showN('图片上传中，请稍候…'); _cpnImgUploading.then(go).catch(function(){}); return; }
+  var pending=[_cpnImg.mall.up,_cpnImg.voucher.up].filter(Boolean);
+  if(pending.length){ showN('图片上传中，请稍候…'); Promise.all(pending).then(go).catch(function(){}); return; }
   go();
 }
 /* 删券模板。

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="270" viewBox="0 0 680 270">
+  <title>布丁喵 · 券图模板（母图 680×270，安全区 630×250）</title>
+  <desc>把设计画在这张画布上，重要内容（字、logo、主体）放进虚线框里。
+商城卡 230×98 会切掉左右各 3%，券面 345×128 会切掉上下各 3%。
+导出时请删掉本文件里的参考线图层（id=guides）。</desc>
+
+  <!-- 你的设计放这里：整块 680×270 都会被用到，只是边缘会被切 -->
+  <g id="artwork">
+    <rect width="680" height="270" fill="#8D0505"/>
+  </g>
+
+  <!-- ↓↓↓ 参考线，导出前删掉这一整组 ↓↓↓ -->
+  <g id="guides" font-family="'Noto Sans SC',sans-serif">
+    <!-- 商城卡 230×98 的可见范围：按高度铺满，左右各切 3.4% -->
+    <rect x="23" y="0" width="634" height="270" fill="none" stroke="#B6F3FF" stroke-width="4" stroke-dasharray="10 8" opacity=".85"/>
+    <!-- 券面 345×128 的可见范围：按宽度铺满，上下各切 3.3% -->
+    <rect x="0" y="9" width="680" height="252" fill="none" stroke="#FFDE5B" stroke-width="4" stroke-dasharray="10 8" opacity=".85"/>
+    <!-- 两者的交集 = 安全区 -->
+    <rect x="25" y="10" width="630" height="250" fill="none" stroke="#FFFFFF" stroke-width="6"/>
+    <text x="340" y="120" text-anchor="middle" font-size="34" font-weight="700" fill="#FFFFFF">安全区 630 × 250</text>
+    <text x="340" y="158" text-anchor="middle" font-size="20" fill="#FFFFFF">字、logo、主体放这里面</text>
+    <text x="340" y="188" text-anchor="middle" font-size="17" fill="#B6F3FF">蓝线＝商城卡 230×98 的可见范围</text>
+    <text x="340" y="212" text-anchor="middle" font-size="17" fill="#FFDE5B">黄线＝券面 345×128 的可见范围</text>
+    <text x="340" y="243" text-anchor="middle" font-size="16" fill="#FFFFFF" opacity=".8">导出前删掉 guides 这一组</text>
+  </g>
+</svg>

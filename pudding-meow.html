@@ -6554,11 +6554,15 @@ function _pmFaceVal(c){
   if(c.type==='free_delivery') return '<div class="pm-my-val"><span class="w">免运费</span></div>';
   return '<div class="pm-my-val"><span class="u">RM</span><span class="n">'+num+'</span></div>';
 }
-/* 券面的图：店家给这张券单独传的那张优先（mall_image_url，可以是 SVG）。
-   rpc_get_my_coupons 早先不返回这一列，所以再按 coupon_id 去商城列表里回查一次——
+/* 券面的图。默认跟商城卡是**同一张母图**（mall_image_url，可以是 SVG）——两个槽位
+   比例只差 13%，母图按 680×270 画、重要内容留在中间 630×250，两处 cover 各切掉
+   3% 出血就够了；让店家每张券传两遍，迟早有一张忘了传，漏的比切掉 3% 难看得多。
+   voucher_image_url 是**可选覆盖**，只有哪张券在券包里确实不好看时店家才补一张。
+   rpc_get_my_coupons 早先两列都不返回，所以再按 coupon_id 去商城列表里回查一次——
    没跑 supabase-my-coupon-image.sql 的店，商城里换到的券照样有图。
    都查不到才退回商品图，再没有就是默认券面（大字 + 喵）。 */
 function _pmMyImg(c){
+  if(c.voucher_image_url) return c.voucher_image_url;
   if(c.mall_image_url) return c.mall_image_url;
   var item=(_mallItems||[]).find(function(x){ return x.id===c.coupon_id; });
   if(item && item.mall_image_url) return item.mall_image_url;
