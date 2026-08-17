@@ -37,9 +37,11 @@ begin
       from pg_proc p
       join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public'
-       and p.proname in ('_coupon_calc','rpc_preview_coupon','rpc_consume_coupon',
-                         'rpc_list_mall_coupons','rpc_get_my_coupons','rpc_pos_member_coupons',
-                         'rpc_redeem_coupon','rpc_admin_issue_coupon')
+       and p.proname in ('_coupon_calc', '_coupon_expiry', '_coupon_expiry_for',
+                         '_coupon_fire', '_coupon_item_price', '_coupon_norm_mode',
+                         'rpc_admin_issue_coupon', 'rpc_consume_coupon', 'rpc_get_my_coupons',
+                         'rpc_list_mall_coupons', 'rpc_pos_member_coupons', 'rpc_preview_coupon',
+                         'rpc_redeem_coupon')
   loop
     execute 'drop function if exists ' || r.sig;
   end loop;

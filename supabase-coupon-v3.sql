@@ -34,8 +34,10 @@ begin
        -- ⚠ 只能列本脚本后面会**重建**的那几个。列了不重建的（如 rpc_list_mall_coupons、
        --   rpc_redeem_coupon、rpc_admin_issue_coupon —— 那三个是 v2 建的）就等于
        --   跑完 v3 把积分商城和后台发券删掉了。
-       and p.proname in ('_coupon_calc','rpc_preview_coupon','rpc_consume_coupon',
-                         'rpc_get_my_coupons','rpc_pos_member_coupons')
+       and p.proname in ('_coupon_calc', '_coupon_day_ok', '_coupon_hour_ok',
+                         'rpc_admin_coupon_stats', 'rpc_admin_gen_codes', 'rpc_consume_coupon',
+                         'rpc_get_my_coupons', 'rpc_pos_member_coupons', 'rpc_preview_coupon',
+                         'rpc_redeem_code')
   loop
     execute 'drop function if exists ' || r.sig;
   end loop;
