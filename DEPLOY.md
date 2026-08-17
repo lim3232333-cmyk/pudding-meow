@@ -114,6 +114,12 @@ Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-coupon-v3.s
 
 ⚠ 一单**只能用一张券**。所以顾客用了免运费券就不能再用折扣券，反之亦然。
 
+### 积分商城分区（想让商城首页按「限定/现金回扣/免邮/合作」分排才跑）
+
+Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-coupon-mall-category.sql`** → **Run**。前置是 v2。
+
+跑完之后，POS 建券/改券时多一个「**积分商城分区**」下拉，四选一或留空。小程序的积分商城首页就按这四段横向排券，留空的排在最后的「其他好礼」里（不会消失）。**不跑也不会坏**：所有券都会落在「其他好礼」那一段。
+
 ### 手续费费率（想把 HitPay 手续费转嫁给顾客才跑）
 
 Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-admin-fee.sql`** 全部内容 → **Run**。

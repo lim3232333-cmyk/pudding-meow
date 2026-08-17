@@ -1570,6 +1570,15 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
         <input class="mfi" id="cpnValidFrom" type="datetime-local" style="flex:1">
         <input class="mfi" id="cpnValidUntil" type="datetime-local" style="flex:1">
       </div>
+      <label class="mfl">积分商城分区</label>
+      <div class="mfh">商城首页按这个分区横向排券。留空 = 排在最后的「其他好礼」里，不会消失。<br>「限定」「合作」是营销概念，系统猜不出来，得你自己选</div>
+      <select class="mfi" id="cpnMallCat">
+        <option value="">— 不分区（其他好礼）—</option>
+        <option value="limited">限定</option>
+        <option value="cashback">现金回扣/折扣</option>
+        <option value="free_ship">免邮</option>
+        <option value="partner">合作</option>
+      </select>
       <div class="mfh" style="margin-top:-4px">积分商城售价搬到「规则」里了 —— 在规则里选「积分商城兑换」，就能顺便设每人限兑几张、总共放多少张、什么等级才能兑</div>
       <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="cpnEnabled" checked style="width:auto;margin:0;"> 启用（停用后不能再发放）</label>
       <button class="mfs" onclick="saveCpn()">保存 Save</button>
@@ -5561,6 +5570,7 @@ function openCpn(id){
   document.getElementById('cpnChDinein').checked   = chs.indexOf('dinein')>=0;
   document.getElementById('cpnChPickup').checked   = chs.indexOf('pickup')>=0;
   document.getElementById('cpnChDelivery').checked = chs.indexOf('delivery')>=0;
+  document.getElementById('cpnMallCat').value=(c&&c.mall_category)?c.mall_category:'';
   document.getElementById('cpnEnabled').checked=c?c.enabled:true;
   // 商品/分类下拉用收银台已经加载好的菜单和分类，不再另外请求
   var ids=(ap.scope==='items'&&Array.isArray(ap.ids))?ap.ids.map(String):[];
@@ -5631,6 +5641,7 @@ function saveCpn(){
     enabled:document.getElementById('cpnEnabled').checked,
     max_discount:cap,
     channels:chs.length?chs:null,        // null = 不限
+    mall_category:document.getElementById('cpnMallCat').value||null,
     valid_from:_fromLocalInput(document.getElementById('cpnValidFrom').value),
     valid_until:_fromLocalInput(document.getElementById('cpnValidUntil').value),
     applies_to:applies,

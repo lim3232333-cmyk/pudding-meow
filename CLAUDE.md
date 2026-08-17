@@ -97,6 +97,8 @@ A rule is `trigger_event` + `conditions`(jsonb) + `per_member_limit` + `total_li
 
 **三处重复配置已经合并掉**，别再往旧的那份写：`coupons.coin_price` → `coupon_rules`（`trigger_event='coin_redeem'` + `coin_price`，于是兑换终于也有了每人限领/总量/领取条件）；`coupons.issue_from/issue_until` → `coupon_rules.starts_at/ends_at`；`coupons.menu_item_id` → `applies_to`。旧列都还在表上（不删，免得没刷新的前端读到 undefined 就崩），但迁移之后一律置空，只有 `applies_to` 是单个商品时才回填 `menu_item_id` 给旧前端看。
 
+**积分商城首页（Figma 816:1064）** — 标签条从红色头部里挪到下面的米色条上，只剩 **兑好礼 / 我的卷** 两个（设计稿的第三个「赚积分」店家暂时不做）。兑好礼按分区横排：`限定 / 现金回扣·折扣 / 免邮 / 合作 / 其他好礼`，每段一排 230px 宽的卡横向滑动（上图 98 高 + 下白条：券名 + 右侧 Paw Coin 价）。分区来自 **`coupons.mall_category`，由店家在 POS 上选**，不是从券的类型推的 —— 「限定」和「合作」本来就是营销概念，同一张券这个月放限定、下个月放合作，系统猜不出来；能推的只有免邮，但为了一件事只有一个地方管，四个分区一律走这一列。没选的落到「其他好礼」，**不会消失**。空分区整段不渲染，免得留一个光秃秃的标题。卡片整张可点即兑换（230 宽塞不下一个按钮还留得住券名），Coin 不够的**压暗而不隐藏** —— 藏了顾客就不知道攒到多少能换什么。
+
 **兑换码、免运费券、时段限制、使用报表** (`supabase-coupon-v3.sql`). 兑换码的两种形态是**同一张 `coupon_codes` 表的两个 `kind`**——`public`（一串大家都能用，靠 `max_uses` + `per_member_limit` 控量）和 `unique`（一人一码，`max_uses` 恒为 1）。分两张表就要把「时间窗 / 总量 / 每人限领」的校验写两遍，迟早改漏一边。码存**大写**且唯一索引建在 `upper(code)` 上，否则能建出两条只差大小写的码；一次性码由 `rpc_admin_gen_codes` **在服务端生成**（前端自造撞号只会静默少发几张），字符集去掉了 `0/O/1/I/L`——印在小票上顾客会看混。撞号自动重摇，连摇 20 次仍撞就报错让店家加长前缀。
 
 **免运费券抵的是配送费，所以走 `_coupon_calc` 里单独一条路**，`return` 在适用范围判断之前。走通用那条会被结尾的 `least(disc, p_subtotal)` 削掉：一张 RM0 商品 + RM8 运费的单会算出 0。`p_delivery_fee` 因此要一路从结算页传到服务端。`max_discount` 在这里的含义是「最多免多少运费」，POS 的封顶输入框会跟着改标签。一单只能用一张券，所以免运费券会**占掉**那唯一的名额——真要和折扣券叠加，得先定叠加顺序和总折扣上限，那是另一个决定。
