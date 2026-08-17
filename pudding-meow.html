@@ -6566,16 +6566,26 @@ function _pmItemHtml(c){
     +'<div class="pm-card-coin"><i></i><b>'+c.coin_price+'</b></div>'
     +'</div></div>';
 }
-/* 商城分区。分区由店家在 POS 上选（coupons.mall_category），不是从券的类型推的——
-   「限定」「合作」本来就是营销概念，系统猜不出来。没选的掉进「其他好礼」，不会消失。 */
-var _PM_SECS=[['limited','限定'],['cashback','现金回扣/折扣'],['free_ship','免邮'],['partner','合作'],[null,'其他好礼']];
+/* 商城分区。分区由店家在 POS 上维护（mall_categories 表）+ 每张券选一个
+   （coupons.mall_category），不是从券的类型推的——「限定」「合作」本来就是营销概念，
+   系统猜不出来。没选的掉进「其他好礼」，不会消失。
+   表还没建（没跑 supabase-mall-categories.sql）或离线时，退回原来写死的四段。 */
+var _PM_SEC_FALLBACK=[['limited','限定'],['cashback','现金回扣/折扣'],['free_ship','免邮'],['partner','合作']];
+var _mallCats=[];
+function _pmSecs(){
+  var live=(_mallCats||[]).filter(function(c){ return c.enabled!==false; })
+    .map(function(c){ return [c.code, c.name]; });
+  // 「其他好礼」永远挂在最后，且不是表里的一行——做成一行的话，店家一删它，
+  // 那些没分区的券就从商城上消失了，那不是删一个分类该有的后果。
+  return (live.length?live:_PM_SEC_FALLBACK).concat([[null,'其他好礼']]);
+}
 function _pmSectionsHtml(list){
-  var used={}, html='';
-  _PM_SECS.forEach(function(sec){
+  var secs=_pmSecs(), used={}, html='';
+  secs.forEach(function(sec){
     var code=sec[0];
     var arr=list.filter(function(c){
       var mc=c.mall_category||null;
-      return code===null ? !mc || !_PM_SECS.some(function(x){return x[0]===mc;}) : mc===code;
+      return code===null ? !mc || !secs.some(function(x){return x[0]===mc;}) : mc===code;
     });
     if(!arr.length) return;                       // 空分区整段不出现，别留一个光秃秃的标题
     arr.forEach(function(c){ used[c.id]=1; });
@@ -6722,7 +6732,10 @@ function loadMallData(){
   _mallLoading=true; _mallErr=null; renderPointsMallList();
   return Promise.all([
     db.rpc('rpc_list_mall_coupons').then(function(r){ if(r.error){ _mallErr=r.error; console.error('rpc_list_mall_coupons:',r.error); } else _mallItems=r.data||[]; }),
-    db.rpc('rpc_get_my_coupons',{p_member_id:_memberId,p_session_token:_memberToken}).then(function(r){ if(r.error){ _mallErr=r.error; console.error('rpc_get_my_coupons:',r.error); } else _myCoupons=r.data||[]; })
+    db.rpc('rpc_get_my_coupons',{p_member_id:_memberId,p_session_token:_memberToken}).then(function(r){ if(r.error){ _mallErr=r.error; console.error('rpc_get_my_coupons:',r.error); } else _myCoupons=r.data||[]; }),
+    // 分区表是店家维护的；没跑那个迁移就读不到，_pmSecs() 会退回写死的四段
+    db.from('mall_categories').select('code,name,enabled,sort_order').order('sort_order')
+      .then(function(r){ _mallCats = r.error ? [] : (r.data||[]); })
   ]).then(function(){ _mallLoading=false; renderPointsMallList(); })
    .catch(function(e){ _mallErr=e; console.error('loadMallData:',e); _mallLoading=false; renderPointsMallList(); });
 }
