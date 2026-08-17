@@ -13,8 +13,16 @@
 -- ============================================================================
 
 alter table public.coupons
-  add column if not exists mall_category text;
+  add column if not exists mall_category text,
+  --  商城卡片上半部那块图（230×98 的位置）。店家在 POS 上传，存 Storage 的公开 URL。
+  --  ⚠ 支持 SVG：矢量图放大不糊，店家自己设计的图形/字体应该传 SVG。
+  --    照片没法做成 SVG，那种传 2 倍图（460×196）。
+  --    所以这块的上传**不能**复用商品图那条路——那条要过 canvas 裁剪，
+  --    canvas 会把 SVG 栅格化成 PNG，等于白传。
+  add column if not exists mall_image_url text;
 
+comment on column public.coupons.mall_image_url is
+  '积分商城卡片上半部的图（230×98 位置）。支持 SVG（矢量不糊）；照片请传 2 倍图。留空则退回券绑定商品的图，再没有就是纯色块 + 爪印。';
 comment on column public.coupons.mall_category is
   '积分商城的分区：limited(限定) / cashback(现金回扣·折扣) / free_ship(免邮) / partner(合作)。null = 不分区，排在「其他好礼」。';
 
@@ -25,7 +33,8 @@ create or replace function public.rpc_list_mall_coupons()
 returns table(
   id uuid, name text, type text, value numeric, min_spend numeric,
   valid_days int, coin_price int, menu_item_id uuid, menu_item_name text, menu_item_image text,
-  max_discount numeric, channels jsonb, applies_to jsonb, rule_id uuid, mall_category text)
+  max_discount numeric, channels jsonb, applies_to jsonb, rule_id uuid,
+  mall_category text, mall_image_url text)
 language plpgsql
 security definer
 set search_path = public
@@ -35,7 +44,7 @@ begin
   select c.id, c.name, c.type, c.value, c.min_spend, c.valid_days, r.coin_price,
          c.menu_item_id, mi.name, mi.image_url,
          c.max_discount, c.channels, coalesce(c.applies_to,'{"scope":"order"}'::jsonb), r.id,
-         c.mall_category
+         c.mall_category, c.mall_image_url
     from public.coupons c
     join public.coupon_rules r on r.coupon_id = c.id
                               and r.trigger_event = 'coin_redeem'
@@ -53,5 +62,6 @@ $$;
 grant execute on function public.rpc_list_mall_coupons() to anon;
 
 select count(*) as 商城在售券,
-       count(*) filter (where mall_category is not null) as 已分区
+       count(*) filter (where mall_category is not null)  as 已分区,
+       count(*) filter (where mall_image_url is not null) as 已放图
   from public.coupons where enabled;

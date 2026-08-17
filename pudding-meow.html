@@ -6555,9 +6555,10 @@ function _pmDateTxt(c){ return c.expires_at ? ('有效期至 '+new Date(c.expire
    Coin 不够的不藏起来，只压暗：藏了顾客就不知道攒到多少能换什么。 */
 function _pmItemHtml(c){
   var afford=!_memberProfile || (_memberProfile.coins||0) >= c.coin_price;
-  var img = c.menu_item_image
-    ? '<img src="'+_esc(c.menu_item_image)+'" alt="">'
-    : '<span class="pm-card-mark">'+_pawSvg()+'</span>';
+  // 优先用店家给这张券单独传的图（可以是 SVG，矢量不糊）；没有才退回绑定商品的图
+  var src = c.mall_image_url || c.menu_item_image;
+  var img = src ? '<img src="'+_esc(src)+'" alt="">'
+                : '<span class="pm-card-mark">'+_pawSvg()+'</span>';
   return '<div class="pm-card'+(afford?'':' off')+'" onclick="redeemMallCoupon(\''+c.id+'\')">'
     +'<div class="pm-card-img">'+img+'</div>'
     +'<div class="pm-card-bot">'
