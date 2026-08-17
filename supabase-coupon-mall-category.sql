@@ -43,11 +43,11 @@ comment on column public.coupons.mall_category is
 -- 商城列表要把分区和图带出去。返回的列变了，create or replace 改不动，得先删——
 -- 这一条已经栽过一次（cannot change return type of existing function）。
 --
--- ⚠ 「先删再建」必须包在一个事务里。不包的话，重建那一步只要失败一次
---   （顺序跑错、前置脚本没跑、少了某一列…），函数就**被删掉且没建回来**，
---   顾客一进积分商城就报错。包起来失败会整体回滚，库里那一份原封不动。
-begin;
-
+-- ⚠ 「先删再建」中间失败会不会把函数删了没建回来？在 Supabase 的 SQL Editor 里不会：
+--   它把整段脚本包在一个事务里跑，任何一句失败就整段回滚（这一点是实测出来的——
+--   一次失败之后，连最前面的 alter table 都没落地）。所以这里不再自己写
+--   begin/commit：在已经开着的事务里再 begin 只会警告，而中途 commit 反而会把
+--   编辑器那个外层事务提前提交掉，后面的语句就跑在事务外了。
 drop function if exists public.rpc_list_mall_coupons();
 create or replace function public.rpc_list_mall_coupons()
 returns table(
@@ -80,8 +80,6 @@ end;
 $$;
 
 grant execute on function public.rpc_list_mall_coupons() to anon;
-
-commit;
 
 select count(*) as 商城在售券,
        count(*) filter (where mall_category is not null)  as 已分区,
