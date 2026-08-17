@@ -1570,6 +1570,26 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
         <input class="mfi" id="cpnValidFrom" type="datetime-local" style="flex:1">
         <input class="mfi" id="cpnValidUntil" type="datetime-local" style="flex:1">
       </div>
+      <label class="mfl">商城卡片图</label>
+      <div class="mfh">积分商城里这张券上半部那块图（230×98）。<b>建议传 SVG</b>——矢量图放多大都清晰。<br>
+        照片没法做成 SVG，那种请传 <b>2 倍图 460×196</b>（或 3 倍 690×294），不然在手机高清屏上会糊。<br>
+        留空 = 用券绑定商品的图；再没有就是纯色块 + 爪印</div>
+      <div id="cpnImgBox" style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
+        <div id="cpnImgPrev" style="width:115px;height:49px;border-radius:8px;background:#8D0505;background-size:cover;background-position:center;flex-shrink:0"></div>
+        <button type="button" onclick="document.getElementById('cpnImgFile').click()" style="border:none;background:#B6F3FF;color:#8D0505;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;font-size:12px">上传图片</button>
+        <button type="button" onclick="cpnImgClear()" style="border:none;background:#eee;color:#4A4848;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:12px">清除</button>
+        <span id="cpnImgStat" style="font-size:12px;color:#4A4848"></span>
+      </div>
+      <input type="file" id="cpnImgFile" accept="image/svg+xml,image/png,image/jpeg,image/webp" style="display:none" onchange="cpnPickImage(event)">
+      <label class="mfl">积分商城分区</label>
+      <div class="mfh">商城首页按这个分区横向排券。留空 = 排在最后的「其他好礼」里，不会消失。<br>「限定」「合作」是营销概念，系统猜不出来，得你自己选</div>
+      <select class="mfi" id="cpnMallCat">
+        <option value="">— 不分区（其他好礼）—</option>
+        <option value="limited">限定</option>
+        <option value="cashback">现金回扣/折扣</option>
+        <option value="free_ship">免邮</option>
+        <option value="partner">合作</option>
+      </select>
       <div class="mfh" style="margin-top:-4px">积分商城售价搬到「规则」里了 —— 在规则里选「积分商城兑换」，就能顺便设每人限兑几张、总共放多少张、什么等级才能兑</div>
       <label class="mfl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="cpnEnabled" checked style="width:auto;margin:0;"> 启用（停用后不能再发放）</label>
       <button class="mfs" onclick="saveCpn()">保存 Save</button>
@@ -5525,6 +5545,48 @@ function cpnSyncType(){
     type==='percent_off' ? (one?'折扣百分比 *（20 = 这件商品减 20%）':'折扣百分比 *（20 = 减 20%）')
                          : (one?'优惠金额 RM *（超过商品单价按单价算）':'优惠金额 RM *');
 }
+/* 券的商城卡片图。
+   ⚠ 刻意**不复用**商品图那条路：那条会把图画进 canvas 再导出 PNG（为了裁成统一比例），
+     canvas 一碰 SVG 就把它栅格化了，矢量的意义全没。这里原样上传，
+     显示时交给 CSS object-fit:cover 去裁，SVG 才能保持清晰。 */
+var _cpnImgUrl=null, _cpnImgUploading=null;
+var CPN_IMG_BUCKET='menu-images';   // 复用已有的公开桶，省一次建桶配置
+function cpnImgClear(){
+  _cpnImgUrl=null; _cpnImgUploading=null;
+  document.getElementById('cpnImgPrev').style.backgroundImage='';
+  document.getElementById('cpnImgStat').textContent='';
+  document.getElementById('cpnImgFile').value='';
+}
+function _cpnImgShow(url){
+  document.getElementById('cpnImgPrev').style.backgroundImage = url ? ("url('"+url+"')") : '';
+}
+function cpnPickImage(ev){
+  var file=ev.target.files&&ev.target.files[0]; if(!file) return;
+  if(!db){ showN('未连接云端，图片无法上传'); return; }
+  var isSvg = file.type==='image/svg+xml' || /\.svg$/i.test(file.name||'');
+  var stat=document.getElementById('cpnImgStat');
+  stat.textContent='上传中…';
+  // 本地先预览，不等上传完——店家能立刻看出选错没有
+  try{ _cpnImgShow(URL.createObjectURL(file)); }catch(e){}
+  var ext=(file.name&&file.name.split('.').pop()||(isSvg?'svg':'png')).toLowerCase();
+  var path='coupon/'+Date.now()+'-'+Math.random().toString(36).slice(2)+'.'+ext;
+  _cpnImgUploading = db.storage.from(CPN_IMG_BUCKET)
+    .upload(path, file, {upsert:true, cacheControl:'3600', contentType:file.type||undefined})
+    .then(function(res){
+      if(res.error) throw res.error;
+      _cpnImgUrl = db.storage.from(CPN_IMG_BUCKET).getPublicUrl(path).data.publicUrl;
+      _cpnImgShow(_cpnImgUrl);
+      stat.textContent = isSvg ? 'SVG ✓ 矢量，不会糊' : '已上传';
+      _cpnImgUploading=null;
+      return _cpnImgUrl;
+    })
+    .catch(function(e){
+      console.error('券图上传失败', e);
+      stat.textContent='上传失败'; showN('图片上传失败：'+_rpcErr(e));
+      _cpnImgUploading=null; _cpnImgUrl=null; _cpnImgShow('');
+      throw e;
+    });
+}
 /* applies_to 读写：{"scope":"order"} | {"scope":"items","ids":[]} | {"scope":"cats","codes":[]} */
 function _cpnAppliesOf(c){
   if(c && c.applies_to && c.applies_to.scope) return c.applies_to;
@@ -5561,6 +5623,11 @@ function openCpn(id){
   document.getElementById('cpnChDinein').checked   = chs.indexOf('dinein')>=0;
   document.getElementById('cpnChPickup').checked   = chs.indexOf('pickup')>=0;
   document.getElementById('cpnChDelivery').checked = chs.indexOf('delivery')>=0;
+  document.getElementById('cpnMallCat').value=(c&&c.mall_category)?c.mall_category:'';
+  _cpnImgUrl=(c&&c.mall_image_url)||null; _cpnImgUploading=null;
+  document.getElementById('cpnImgStat').textContent='';
+  document.getElementById('cpnImgFile').value='';
+  _cpnImgShow(_cpnImgUrl);
   document.getElementById('cpnEnabled').checked=c?c.enabled:true;
   // 商品/分类下拉用收银台已经加载好的菜单和分类，不再另外请求
   var ids=(ap.scope==='items'&&Array.isArray(ap.ids))?ap.ids.map(String):[];
@@ -5631,14 +5698,22 @@ function saveCpn(){
     enabled:document.getElementById('cpnEnabled').checked,
     max_discount:cap,
     channels:chs.length?chs:null,        // null = 不限
+    mall_category:document.getElementById('cpnMallCat').value||null,
+    mall_image_url:_cpnImgUrl||null,
     valid_from:_fromLocalInput(document.getElementById('cpnValidFrom').value),
     valid_until:_fromLocalInput(document.getElementById('cpnValidUntil').value),
     applies_to:applies,
     // 只有「指定单个商品」时才回填旧列，让还没刷新的旧前端也能显示对
     menu_item_id:(scope==='items'&&applies.ids.length===1)?applies.ids[0]:null
   };
-  var q=_cpnEditId?db.from('coupons').update(payload).eq('id',_cpnEditId):db.from('coupons').insert(payload);
-  q.then(function(res){if(res.error){showN(''+res.error.message);return;}showN('已保存');closeCpn();loadLoyaltyCoupons();}).catch(function(e){showN('网络错误');});
+  // 图还在传就等它——不等的话 payload 里的 mall_image_url 还是 null，图白传了
+  var go=function(){
+    payload.mall_image_url=_cpnImgUrl||null;
+    var q=_cpnEditId?db.from('coupons').update(payload).eq('id',_cpnEditId):db.from('coupons').insert(payload);
+    q.then(function(res){if(res.error){showN(''+res.error.message);return;}showN('已保存');closeCpn();loadLoyaltyCoupons();}).catch(function(e){showN('网络错误');});
+  };
+  if(_cpnImgUploading){ showN('图片上传中，请稍候…'); _cpnImgUploading.then(go).catch(function(){}); return; }
+  go();
 }
 function delCpn(id){
   if(!confirm('确定删除该优惠券模板？已发出去的券不受影响。'))return;

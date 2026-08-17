@@ -1006,8 +1006,7 @@
   /* ===== 会员：积分商城 Points Mall ===== */
   .pm-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:var(--cream2); z-index:361;   /* 高于结算页 345：结算页点优惠卷会把商城叠上来 */ display:none; flex-direction:column; overflow-y:auto; }
   .pm-screen.show{ display:flex; }
-  .pm-hero{ position:relative; width:100%; height:196px; background:var(--red); flex-shrink:0; }
-  .pm-hero-divider{ position:absolute; left:0; top:198px; width:100%; height:2px; background:var(--blue); z-index:1; }
+  .pm-hero{ position:relative; width:100%; height:170px; background:var(--red); flex-shrink:0; }
   .pm-back{ position:absolute; left:16px; top:19px; width:10px; height:15px; cursor:pointer; }
   .pm-back svg{ width:100%; height:100%; }
   .pm-hero-title{ position:absolute; left:0; right:0; top:14px; text-align:center; font-weight:700; font-size:20px; color:var(--cream2); pointer-events:none; }
@@ -1016,11 +1015,33 @@
   .pm-balance-row{ display:flex; align-items:center; gap:4px; }
   .pm-coin{ width:25px; height:25px; background:url('Paw%20Coin.svg') center/contain no-repeat; flex-shrink:0; }
   .pm-balance-value{ font-weight:700; font-size:32px; line-height:38px; color:#fff; }
-  .pm-tabs{ position:absolute; left:0; top:176px; width:100%; height:22px; box-sizing:border-box; padding:0 24px; display:flex; align-items:flex-start; justify-content:space-between; z-index:2; }
-  .pm-tab{ position:relative; flex:1; height:100%; text-align:center; font-size:12px; font-weight:500; color:var(--cream2); cursor:pointer; }
-  .pm-tab.active{ color:var(--yellow); }
-  .pm-tab.active::after{ content:''; position:absolute; left:50%; bottom:0; transform:translateX(-50%); width:80px; height:2px; background:var(--yellow); }
-  .pm-body{ position:relative; z-index:2; margin-top:22px; padding:0 16px calc(34px + env(safe-area-inset-bottom, 0px)); display:flex; flex-direction:column; gap:12px; }
+  /* 标签条（816:1198）：挪出红色头部，坐在米色底上。整条一根细线，选中那一格上面压一段粗的红线 */
+  .pm-tabs{ position:relative; width:100%; margin-top:8px; padding-bottom:8px; flex-shrink:0;
+    display:flex; align-items:center; border-bottom:2px solid rgba(141,5,5,.15); }
+  .pm-tab{ position:relative; flex:1; text-align:center; font-size:12px; font-weight:500; color:var(--muted); cursor:pointer; }
+  .pm-tab.active{ color:var(--red); font-weight:700; }
+  .pm-tab.active::after{ content:''; position:absolute; left:0; right:0; bottom:-10px; height:2px; background:var(--red); }
+  .pm-body{ position:relative; z-index:2; margin-top:24px; padding:0 0 calc(34px + env(safe-area-inset-bottom, 0px)); display:flex; flex-direction:column; gap:24px; }
+  /* 分区（1121:1394）：标题 + 一排横滑的卡。左右各留 16 的内边距，但滚动条要通到屏幕边，
+     所以内边距给到滚动容器里，不是给外面那层——不然滑到底会空出一截。 */
+  .pm-sec{ display:flex; flex-direction:column; gap:16px; }
+  .pm-sec-title{ padding:0 16px; font-size:14px; font-weight:700; color:var(--red); }
+  .pm-row{ display:flex; gap:16px; overflow-x:auto; padding:0 16px 4px; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+  .pm-row::-webkit-scrollbar{ display:none; }
+  /* 卡片（1121:1488）：230 宽，上图 98 高、下白条；整卡一个 0 2px 2px 的投影 */
+  .pm-card{ flex:0 0 230px; width:230px; display:flex; flex-direction:column;
+    filter:drop-shadow(0 2px 2px rgba(0,0,0,.25)); cursor:pointer; }
+  .pm-card-img{ height:98px; border-radius:12px 12px 0 0; background:var(--red); overflow:hidden;
+    display:flex; align-items:center; justify-content:center; }
+  .pm-card-img img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .pm-card-img .pm-card-mark{ width:46px; height:46px; opacity:.9; }
+  .pm-card-bot{ background:#fff; border-radius:0 0 12px 12px; padding:4px 12px; display:flex; flex-direction:column; gap:4px; }
+  .pm-card-name{ font-size:14px; font-weight:700; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pm-card-coin{ display:flex; align-items:center; justify-content:flex-end; gap:4px; }
+  .pm-card-coin i{ width:20px; height:20px; background:url('Paw%20Coin.svg') center/contain no-repeat; flex-shrink:0; }
+  .pm-card-coin b{ font-size:14px; font-weight:700; color:var(--muted); }
+  /* 买不起的券不藏起来——藏了顾客不知道攒到多少能换什么，只把它压暗 */
+  .pm-card.off{ filter:drop-shadow(0 2px 2px rgba(0,0,0,.15)) grayscale(.5); opacity:.6; }
   .pm-empty{ text-align:center; padding:48px 20px; font-size:13px; color:var(--muted); }
   /* 兑换码输入条：跟券卡片同宽，贴在「我的券」列表最上面 */
   .pm-code-box{ display:flex; gap:8px; margin:0 0 12px; }
@@ -1745,13 +1766,11 @@
         <div class="pm-balance-label">我的 Paw Coin</div>
         <div class="pm-balance-row"><span class="pm-coin"></span><span class="pm-balance-value" id="pmCoinBalance">0</span></div>
 </div>
-      <div class="pm-hero-divider"></div>
-      <div class="pm-tabs" id="pmTabs">
-        <div class="pm-tab active" data-cat="all" onclick="selectPmTab('all',this)">全部</div>
-        <div class="pm-tab" data-cat="coupon" onclick="selectPmTab('coupon',this)">优惠卷</div>
-        <div class="pm-tab" data-cat="dessert" onclick="selectPmTab('dessert',this)">甜品兑换</div>
-        <div class="pm-tab" data-cat="mine" onclick="selectPmTab('mine',this)">我的</div>
 </div>
+    <!-- 标签条在红色头部外面（设计稿 816:1198）。「赚积分」那一栏暂时不做，所以只有两个 -->
+    <div class="pm-tabs" id="pmTabs">
+      <div class="pm-tab active" data-cat="all" onclick="selectPmTab('all',this)">兑好礼</div>
+      <div class="pm-tab" data-cat="mine" onclick="selectPmTab('mine',this)">我的卷</div>
 </div>
     <div class="pm-body" id="pmList"></div>
 </div>
@@ -6502,7 +6521,6 @@ function loadWalletLedger(){
    商品就是优惠券模板本身：POS「优惠券管理」里填了「积分商城售价（Coin）」的券会出现在这里。
    兑换走 rpc_redeem_coupon（服务端扣币发券，前端不碰余额），兑到的券进「我的」。 */
 var _pmTab='all', _mallItems=[], _myCoupons=[], _mallLoading=false;
-function _pmCatOf(c){ return c.type==='dessert' ? 'dessert' : 'coupon'; }
 /* 券面文案：甜品券显示兑换的商品，现金券分现金/百分比。
    绑了商品的现金/百分比券是单品券，得把商品名带上，不然看不出是整单还是单品 */
 function _pmValTxt(c){
@@ -6532,17 +6550,39 @@ function _pmStub(c){
   return '<div class="pm-my-stub cash"><span class="pm-my-stub-sym">'+(c.type==='percent_off'?'%':'$')+'</span></div>';
 }
 function _pmDateTxt(c){ return c.expires_at ? ('有效期至 '+new Date(c.expires_at).toLocaleDateString()) : '永久有效'; }
-/* 商城态（In shop）：票根 + 标题 + 满减 + Paw Coin 价 + 右侧「兑换」按钮 + 右下日期 */
+/* 商城的券卡（Figma 1121:1488）：230 宽，上面 98 高的图，下面白条一行券名 + 右侧 Paw Coin 价。
+   整张卡可点＝兑换，不再单独放「兑换」按钮——卡只有 230 宽，塞个按钮就没地方写名字了。
+   Coin 不够的不藏起来，只压暗：藏了顾客就不知道攒到多少能换什么。 */
 function _pmItemHtml(c){
   var afford=!_memberProfile || (_memberProfile.coins||0) >= c.coin_price;
-  return '<div class="pm-my-card">'+_pmStub(c)
-    +'<div class="pm-my-main">'
-    +'<div class="pm-my-name">'+_esc(c.name)+'</div>'
-    +'<div class="pm-my-cond">'+_couponCondTxt(c)+'</div>'
-    +'<div class="pm-my-coin">'+_pawSvg()+'<b>'+c.coin_price+'</b></div>'
-    +'<div class="pm-my-date">'+_esc(_pmDateTxt(c))+'</div>'
-    +'<button class="pm-my-redeem"'+(afford?'':' disabled')+' onclick="redeemMallCoupon(\''+c.id+'\')">兑换</button>'
+  // 优先用店家给这张券单独传的图（可以是 SVG，矢量不糊）；没有才退回绑定商品的图
+  var src = c.mall_image_url || c.menu_item_image;
+  var img = src ? '<img src="'+_esc(src)+'" alt="">'
+                : '<span class="pm-card-mark">'+_pawSvg()+'</span>';
+  return '<div class="pm-card'+(afford?'':' off')+'" onclick="redeemMallCoupon(\''+c.id+'\')">'
+    +'<div class="pm-card-img">'+img+'</div>'
+    +'<div class="pm-card-bot">'
+    +'<div class="pm-card-name">'+_esc(c.name)+'</div>'
+    +'<div class="pm-card-coin"><i></i><b>'+c.coin_price+'</b></div>'
     +'</div></div>';
+}
+/* 商城分区。分区由店家在 POS 上选（coupons.mall_category），不是从券的类型推的——
+   「限定」「合作」本来就是营销概念，系统猜不出来。没选的掉进「其他好礼」，不会消失。 */
+var _PM_SECS=[['limited','限定'],['cashback','现金回扣/折扣'],['free_ship','免邮'],['partner','合作'],[null,'其他好礼']];
+function _pmSectionsHtml(list){
+  var used={}, html='';
+  _PM_SECS.forEach(function(sec){
+    var code=sec[0];
+    var arr=list.filter(function(c){
+      var mc=c.mall_category||null;
+      return code===null ? !mc || !_PM_SECS.some(function(x){return x[0]===mc;}) : mc===code;
+    });
+    if(!arr.length) return;                       // 空分区整段不出现，别留一个光秃秃的标题
+    arr.forEach(function(c){ used[c.id]=1; });
+    html+='<div class="pm-sec"><div class="pm-sec-title">'+_esc(sec[1])+'</div>'
+        + '<div class="pm-row">'+arr.map(_pmItemHtml).join('')+'</div></div>';
+  });
+  return html;
 }
 /* 「我的」：已兑到手的券。未使用的排在前面 */
 var _pmFromCheckout=false;
@@ -6639,8 +6679,8 @@ function renderPointsMallList(){
                           : '<div class="pm-empty">还没有优惠券，去上面兑换一张吧</div>');
     return;
   }
-  var list=_mallItems.filter(function(c){ return _pmTab==='all' || _pmCatOf(c)===_pmTab; });
-  box.innerHTML = list.length ? list.map(_pmItemHtml).join('') : '<div class="pm-empty">暂无可兑换的商品</div>';
+  box.innerHTML = _mallItems.length ? _pmSectionsHtml(_mallItems)
+                                    : '<div class="pm-empty">暂无可兑换的商品</div>';
   var brandLogo=document.getElementById('brandLogoImg');
   if(brandLogo && brandLogo.src){
     document.querySelectorAll('.pm-item-img-logo img').forEach(function(img){ if(!img.src) img.src=brandLogo.src; });
