@@ -1035,11 +1035,6 @@
     display:flex; align-items:center; justify-content:center; }
   .pm-card-img img{ width:100%; height:100%; object-fit:cover; display:block; }
   .pm-card-img .pm-card-mark{ width:46px; height:46px; opacity:.9; }
-  /* 券绑定商品的图（没传券图时的退路）：那是菜单那条路裁出来的 380×310 方图，
-     cover 进 2.35 的槽位会把布丁的头尾切掉。所以整张放进去（contain）+ 黄底居中，
-     跟稿子里甜品券的券面一个语言。店家自己传的券图不走这条，它本来就是按槽位画的 */
-  .pm-card-img.item{ background:var(--yellow); padding:6px; box-sizing:border-box; }
-  .pm-card-img.item img{ object-fit:contain; }
   .pm-card-bot{ background:#fff; border-radius:0 0 12px 12px; padding:4px 12px; display:flex; flex-direction:column; gap:4px; }
   .pm-card-name{ font-size:14px; font-weight:700; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .pm-card-coin{ display:flex; align-items:center; justify-content:flex-end; gap:4px; }
@@ -1073,9 +1068,6 @@
     border-radius:12px 12px 0 0; background:var(--red); display:flex; align-items:center; }
   .pm-my-face.dessert{ background:var(--yellow); }
   .pm-my-face-img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }
-  /* 商品图（没传券图时的退路）：380×310 的方图，cover 进 2.70 的券面会把布丁的
-     头尾切掉一大半。整张放进去、黄底居中，跟甜品券的券面一个语言 */
-  .pm-my-face-img.item{ object-fit:contain; padding:8px; box-sizing:border-box; }
   .pm-my-val{ position:relative; z-index:1; display:flex; align-items:flex-start; gap:16px;
     color:#fff; font-weight:900; line-height:1.05; white-space:nowrap; }
   .pm-my-val .u{ font-size:24px; }
@@ -6569,14 +6561,15 @@ function _pmFaceVal(c){
    rpc_get_my_coupons 早先两列都不返回，所以再按 coupon_id 去商城列表里回查一次——
    没跑 supabase-my-coupon-image.sql 的店，商城里换到的券照样有图。
    都查不到才退回商品图，再没有就是默认券面（大字 + 喵）。
-   返回 {src, item}：`item` 表示这是商品图而不是店家画的券图 —— 商品图是 380×310
-   的方图，得 contain 居中放，不能像券图那样 cover 铺满（会切掉头尾）。 */
+   返回 {src, pos}：pos 是取景位置，跟图一起走 —— 从商城列表回查到的那张，
+   位置也要用商城那一行的，不然同一张图在两个页面切的地方不一样。 */
 function _pmMyImg(c){
-  if(c.voucher_image_url) return {src:c.voucher_image_url, item:false};
-  if(c.mall_image_url)    return {src:c.mall_image_url, item:false};
+  var pos=_pmImgPos(c.image_pos);
+  if(c.voucher_image_url) return {src:c.voucher_image_url, pos:pos};
+  if(c.mall_image_url)    return {src:c.mall_image_url, pos:pos};
   var it=(_mallItems||[]).find(function(x){ return x.id===c.coupon_id; });
-  if(it && it.mall_image_url) return {src:it.mall_image_url, item:false};
-  return {src:c.menu_item_image||'', item:!!c.menu_item_image};
+  if(it && it.mall_image_url) return {src:it.mall_image_url, pos:_pmImgPos(it.image_pos||c.image_pos)};
+  return {src:c.menu_item_image||'', pos:pos};
 }
 /* 白条右边那行。已用/已过期直接写状态，比算天数有用；没到期日的券写「永久有效」。
    ⚠ 返回的是 HTML（天数要加粗标红），调用处不要再 _esc 一遍。 */
@@ -6598,19 +6591,23 @@ function _pmCondShort(c){
 /* 商城的券卡（Figma 1121:1488）：230 宽，上面 98 高的图，下面白条一行券名 + 右侧 Paw Coin 价。
    整张卡可点＝兑换，不再单独放「兑换」按钮——卡只有 230 宽，塞个按钮就没地方写名字了。
    Coin 不够的不藏起来，只压暗：藏了顾客就不知道攒到多少能换什么。 */
+/* 券图的取景位置（coupons.image_pos，店家在 POS 上拖出来的）。图一律 cover 铺满，
+   切哪一块由这个值决定 —— 商品图是 380×310 的方图，塞进 2.35 / 2.70 的槽位必然
+   要切掉一大半，居中未必是布丁最好看的那一半，所以交给店家自己定。
+   这个值会进 inline style，所以只认「数字% 数字%」，别的一律当没设过。 */
+function _pmImgPos(v){
+  return (typeof v==='string' && /^\d{1,3}% \d{1,3}%$/.test(v)) ? v : '50% 50%';
+}
 /* 0 Coin 的券就写「爪印 + 0」，不另外写「免费领」——价格这一格永远是同一种写法，
    顾客一眼扫过去比的是数字，0 本身就说明了它免费。 */
 function _pmItemHtml(c){
   var afford=!_memberProfile || (_memberProfile.coins||0) >= c.coin_price;
-  // 优先用店家给这张券单独传的图（可以是 SVG，矢量不糊）；没有才退回绑定商品的图。
-  // 商品图是 380×310 的方图（菜单那条路裁的），塞进 2.35 的槽位 cover 会把布丁的
-  // 头尾切掉，所以这种图走 contain + 黄底居中，跟稿子里甜品券的券面一致
-  var src = c.mall_image_url, isItem=false;
-  if(!src && c.menu_item_image){ src=c.menu_item_image; isItem=true; }
-  var img = src ? '<img src="'+_esc(src)+'" alt="">'
+  // 优先用店家给这张券单独传的图（可以是 SVG，矢量不糊）；没有才退回绑定商品的图
+  var src = c.mall_image_url || c.menu_item_image;
+  var img = src ? '<img src="'+_esc(src)+'" alt="" style="object-position:'+_pmImgPos(c.image_pos)+'">'
                 : '<span class="pm-card-mark">'+_pawSvg()+'</span>';
   return '<div class="pm-card'+(afford?'':' off')+'" onclick="redeemMallCoupon(\''+c.id+'\')">'
-    +'<div class="pm-card-img'+(isItem?' item':'')+'">'+img+'</div>'
+    +'<div class="pm-card-img">'+img+'</div>'
     +'<div class="pm-card-bot">'
     +'<div class="pm-card-name">'+_esc(c.name)+'</div>'
     +'<div class="pm-card-coin"><i></i><b>'+c.coin_price+'</b></div>'
@@ -6672,10 +6669,10 @@ function _pmMineHtml(mc){
   var dim = mc.status!=='unused' || (picking && !usable);
   var clickable = picking && usable;
   var im=_pmMyImg(mc);
-  // 黄底用在两种情况：商品图（要 contain 居中，深红底衬商品照片很脏），
-  // 和没有任何图的甜品券（黄底 + 甜品插画，稿子就是这样）
-  var yellow = im.item || (!im.src && mc.type==='dessert');
-  var face = im.src ? '<img class="pm-my-face-img'+(im.item?' item':'')+'" src="'+_esc(im.src)+'" alt="">'
+  // 一张图都没有的甜品券才走黄底 + 甜品插画（稿子就是这样）；有图的一律 cover 铺满，
+  // 切哪一块看 image_pos，店家在 POS 上自己拖
+  var yellow = !im.src && mc.type==='dessert';
+  var face = im.src ? '<img class="pm-my-face-img" src="'+_esc(im.src)+'" alt="" style="object-position:'+im.pos+'">'
            : yellow ? _dessertArt()
                     : '<img class="pm-my-mascot" src="logo.svg" alt="">'+_pmFaceVal(mc);
   // 挑券态能用的压一个勾在券面右上角；不能用的把原因写在白条右边，
