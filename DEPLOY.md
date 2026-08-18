@@ -198,6 +198,18 @@ Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-coupon-limi
 
 **不跑也不会坏**：限领继续按终身算，跟现在一样。
 
+### 券的「使用说明」（想在券详情页写一段话才跑）
+
+Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-coupon-description.sql`** → **Run**。前置是 `supabase-coupon-free-claim.sql` + `supabase-coupon-image-pos.sql`（脚本开头有硬检查）。
+
+顾客现在点一张券会进**详情页**：券面 + Redeem Coins / Validity / Min. Spend / Method / Terms and Condition + 底部一颗大按钮（商城是「兑换」，券包是「使用」）。
+
+跑完之后，券编辑页多一格「**使用说明**」，写的话会显示在券面下面那一段（如「买一送一怎么用：…」）。留空就不显示这一段。
+
+条款那三条是通用文本，写死在程序里，不用你填。
+
+**不跑也不会坏**：详情页照常显示，只是没有那一段说明。
+
 ### 手续费费率（想把 HitPay 手续费转嫁给顾客才跑）
 
 Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-admin-fee.sql`** 全部内容 → **Run**。

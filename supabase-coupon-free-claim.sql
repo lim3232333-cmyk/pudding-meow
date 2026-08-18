@@ -59,7 +59,8 @@ create trigger coupon_rules_guard
 --    这种「重跑一份旧脚本把新功能悄悄抹掉」是这个项目最难查的一类 bug，
 --    所以列一旦被任何一份脚本用到，每一份重建这个函数的脚本都要带着它。
 alter table public.coupons
-  add column if not exists image_pos text;
+  add column if not exists image_pos text,
+  add column if not exists description text;
 
 drop function if exists public.rpc_list_mall_coupons();
 create or replace function public.rpc_list_mall_coupons()
@@ -67,7 +68,7 @@ returns table(
   id uuid, name text, type text, value numeric, min_spend numeric,
   valid_days int, coin_price int, menu_item_id uuid, menu_item_name text, menu_item_image text,
   max_discount numeric, channels jsonb, applies_to jsonb, rule_id uuid,
-  mall_category text, mall_image_url text, image_pos text)
+  mall_category text, mall_image_url text, image_pos text, description text)
 language plpgsql
 security definer
 set search_path = public
@@ -77,7 +78,7 @@ begin
   select c.id, c.name, c.type, c.value, c.min_spend, c.valid_days, r.coin_price,
          c.menu_item_id, mi.name, mi.image_url,
          c.max_discount, c.channels, coalesce(c.applies_to,'{"scope":"order"}'::jsonb), r.id,
-         c.mall_category, c.mall_image_url, c.image_pos
+         c.mall_category, c.mall_image_url, c.image_pos, c.description
     from public.coupons c
     join public.coupon_rules r on r.coupon_id = c.id
                               and r.trigger_event = 'coin_redeem'

@@ -1501,6 +1501,9 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
     <div class="mm-hd"><h3 id="cpnTitle">新增优惠券</h3><button class="mm-cl" onclick="closeCpn()">✕</button></div>
     <div class="mm-body">
       <label class="mfl">优惠券名称 *</label><input class="mfi" id="cpnName" placeholder="如：新人优惠券">
+      <label class="mfl">使用说明</label>
+      <div class="mfh">顾客点开这张券时，显示在券面下方（如「买一送一怎么用：」）。留空就不显示这一段</div>
+      <textarea class="mfi" id="cpnDesc" rows="2" placeholder="选填，一两句话说清楚怎么用" style="height:auto;resize:vertical"></textarea>
       <label class="mfl">类型 *</label>
       <select class="mfi" id="cpnType" onchange="cpnSyncType()">
         <option value="fixed_off">现金兑换 · 现金折扣（减 RM）</option>
@@ -5891,6 +5894,7 @@ function openCpn(id){
     document.getElementById(_CPN_IMG_EL[k].file).value='';
     _cpnImgShow(k, _cpnImg[k].url);
   });
+  document.getElementById('cpnDesc').value=(c&&c.description)||'';
   _cpnPos=_cpnPosParse(c&&c.image_pos);
   document.getElementById('cpnEnabled').checked=c?c.enabled:true;
   // 商品/分类下拉用收银台已经加载好的菜单和分类，不再另外请求
@@ -5968,6 +5972,7 @@ function saveCpn(){
     voucher_image_url:_cpnImg.voucher.url||null,
     // 居中就存 null：没动过的券不必在库里留一行 '50% 50%'，顾客端默认也是居中
     image_pos:(_cpnPos.x===50&&_cpnPos.y===50)?null:(_cpnPos.x+'% '+_cpnPos.y+'%'),
+    description:document.getElementById('cpnDesc').value.trim()||null,
     valid_from:_fromLocalInput(document.getElementById('cpnValidFrom').value),
     valid_until:_fromLocalInput(document.getElementById('cpnValidUntil').value),
     applies_to:applies,
@@ -5978,7 +5983,8 @@ function saveCpn(){
   // 不该因为少一列整张券都存不下来——报错点名哪一列，就去掉哪一列重试。
   // 一列一列地退，而不是一次全删：只缺一列时另一列还是要存进去的。
   var CPN_OPT_COLS={ voucher_image_url:'supabase-my-coupon-image.sql',
-                     image_pos:'supabase-coupon-image-pos.sql' };
+                     image_pos:'supabase-coupon-image-pos.sql',
+                     description:'supabase-coupon-description.sql' };
   var dropped=[];
   var send=function(){
     var q=_cpnEditId?db.from('coupons').update(payload).eq('id',_cpnEditId):db.from('coupons').insert(payload);

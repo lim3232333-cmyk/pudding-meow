@@ -1,44 +1,40 @@
 -- ============================================================================
---  布丁喵 — 券图的取景位置（店家自己拖，决定图被切掉哪一块）
+--  布丁喵 — 券的「使用说明」（详情页券面下面那一段）
 --  用法：Supabase Dashboard → SQL Editor → New query → 整段粘贴 → Run。
 --        跑一次就好，可以重复跑（幂等）。
---  前置：supabase-my-coupon-image.sql、**supabase-coupon-free-claim.sql**
---        ⚠ 顺序不能反：free-claim 也会重建 rpc_list_mall_coupons，
---          先跑这份再跑它，image_pos 会被它的旧版本盖掉。下面有硬检查。
+--  前置：**supabase-coupon-free-claim.sql** 和 **supabase-coupon-image-pos.sql**
+--        （这两份也会重建下面这两个函数，跑在这份后面会把 description 盖掉。
+--          下面有硬检查。）
 --
---  券图一律 cover 铺满两个槽位（商城卡 230×98 = 2.35、券面 345×128 = 2.70），
---  比例对不上就必然要切掉一部分。原来切的永远是正中间那一块——可券绑定的商品图
---  是菜单那条路裁出来的 380×310 方图，居中未必是布丁最好看的那一半。
+--  顾客点开一张券会进详情页（Figma 869:1584 / 1144:1382）。稿子里券面下面
+--  有一句「How to Get a free item:」—— 那是店家对这张券自己的说明，
+--  「买一送一怎么用」这种话只有店家写得出来，系统猜不出来，所以是一列文本。
 --
---  image_pos 存的就是 CSS 的 object-position（`'50% 35%'`），店家在 POS 上
---  两个真实尺寸的预览框里拖出来。null = 居中，跟以前一样。
---
---  为什么不做成「给券再裁一张图」：裁要过 canvas，canvas 一碰 SVG 就把它栅格化
---  （这一点在券图上传那里已经栽过一次）；而且裁一次就把原图的其余部分永久丢了，
---  换个槽位比例又得重裁。存一个位置则是无损的，SVG 也照样能拖。
+--  条款（Terms and Condition）不在这里：那三条是通用法律文本，写死在前端。
 -- ============================================================================
 
 do $$
 begin
-  if not exists (select 1 from information_schema.columns
-                  where table_schema='public' and table_name='coupons' and column_name='voucher_image_url') then
-    raise exception '请先跑 supabase-my-coupon-image.sql —— coupons 还没有 voucher_image_url 列';
-  end if;
   if not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                   where n.nspname='public' and p.proname='_coupon_rule_guard') then
-    raise exception '请先跑 supabase-coupon-free-claim.sql —— 它也会重建 rpc_list_mall_coupons，跑在这份后面会把 image_pos 盖掉';
+    raise exception '请先跑 supabase-coupon-free-claim.sql';
+  end if;
+  if not exists (select 1 from information_schema.columns
+                  where table_schema='public' and table_name='coupons' and column_name='image_pos') then
+    raise exception '请先跑 supabase-coupon-image-pos.sql —— coupons 还没有 image_pos 列';
   end if;
 end $$;
 
 alter table public.coupons
-  add column if not exists image_pos text,
   add column if not exists description text;
-comment on column public.coupons.image_pos is
-  '券图的取景位置，就是 CSS object-position（如 ''50% 35%''）。图一律 cover 铺满，这个值决定切掉哪一块。null = 居中。';
+comment on column public.coupons.description is
+  '券详情页上券面下面那一段说明（如「买一送一怎么用：…」）。留空则那一段不显示。条款是通用文本，写死在前端，不在这里。';
 
--- ── 商城列表：把取景位置带出去 ──────────────────────────────────────────────
---  where 沿用 supabase-coupon-free-claim.sql 那版（coin_price is not null，
---  0 = 免费领），只是多返回一列。
+-- ── 商城列表 ───────────────────────────────────────────────────────────────
+--  ⚠ 每一份重建这个函数的脚本都必须带齐所有列（mall_category / mall_image_url /
+--    image_pos / description）。少带一列，就等于「重跑一份旧脚本把新功能悄悄
+--    抹掉」——这个项目已经栽过一次：兑好礼的图不跟着取景走，而券包跟着走，
+--    因为那两页读的是不同的函数。
 drop function if exists public.rpc_list_mall_coupons();
 create or replace function public.rpc_list_mall_coupons()
 returns table(
@@ -70,7 +66,7 @@ begin
 end;
 $$;
 
--- ── 我的券：同上 ───────────────────────────────────────────────────────────
+-- ── 我的券 ─────────────────────────────────────────────────────────────────
 drop function if exists public.rpc_get_my_coupons(uuid, text);
 create or replace function public.rpc_get_my_coupons(p_member_id uuid, p_session_token text)
 returns table(
@@ -93,7 +89,8 @@ begin
   select mc.id, mc.coupon_id, c.name, c.type, c.value, c.min_spend,
          mc.status, mc.issued_at, mc.expires_at, mi.name, mi.image_url,
          c.max_discount, c.channels, coalesce(c.applies_to,'{"scope":"order"}'::jsonb), c.valid_from,
-         c.usable_days, c.usable_hours, c.mall_image_url, c.voucher_image_url, c.image_pos, c.description
+         c.usable_days, c.usable_hours, c.mall_image_url, c.voucher_image_url,
+         c.image_pos, c.description
     from public.member_coupons mc
     join public.coupons c on c.id = mc.coupon_id
     left join public.menu_items mi on mi.id = c.menu_item_id
@@ -105,11 +102,9 @@ $$;
 grant execute on function public.rpc_list_mall_coupons() to anon;
 grant execute on function public.rpc_get_my_coupons(uuid, text) to anon;
 
--- 对账：哪些券调过取景
+-- 对账：哪些券写了说明
 select name as 券名,
-       coalesce(image_pos, '50% 50%（居中）') as 取景,
-       (mall_image_url is not null) as 有商城图,
-       (voucher_image_url is not null) as 有券面图
+       case when description is null or description = '' then '（没写）' else description end as 使用说明
   from public.coupons
  where enabled
- order by (image_pos is not null) desc, name;
+ order by (description is not null) desc, name;
