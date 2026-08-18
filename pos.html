@@ -713,6 +713,13 @@ tr.tx-sel td{background:rgba(141,5,5,.06);}
 .mfi:focus{border-color:#8D0505;}
 .mfs{width:100%;height:44px;background:#8D0505;color:#FFDE5B;border:none;border-radius:10px;font-weight:700;font-size:16px;cursor:pointer;font-family:"Noto Sans SC",sans-serif;}
 .mfh{font-size:11px;color:#4A4848;margin:-10px 0 14px;}
+/* 券图取景：两个按真实槽位大小画的预览框，在里面拖就是在挪图。
+   touch-action:none 是必须的——不写的话手指一动就被当成滚页面，拖不动 */
+.cpn-pos{position:relative;border-radius:8px;overflow:hidden;background:#8D0505;
+  background-size:cover;background-repeat:no-repeat;cursor:grab;touch-action:none;user-select:none;}
+.cpn-pos:active{cursor:grabbing;}
+.cpn-pos.empty::after{content:'还没有图';position:absolute;inset:0;display:flex;align-items:center;
+  justify-content:center;color:#FFFFD5;font-size:12px;opacity:.7;}
 /* MENU ITEM PANEL — 1:1 还原后台加新品/编辑设计 */
 .mi-box{background:#fff;border-radius:16px;width:480px;max-height:88vh;overflow-y:auto;box-shadow:0 0 20px rgba(141,5,5,.5);}
 .mi-body{padding:19px;}
@@ -1513,7 +1520,7 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
       <div id="cpnItemWrap" style="display:none">
         <label class="mfl" id="cpnItemLbl">兑换商品 *</label>
         <div class="mfh" id="cpnItemHint">按住 Ctrl / ⌘ 可多选。顾客买多份也只打一份，命中多件时打最贵的那份</div>
-        <select class="mfi" id="cpnMenuItem" multiple size="8" style="height:auto"></select>
+        <select class="mfi" id="cpnMenuItem" multiple size="8" style="height:auto" onchange="_cpnPosRender()"></select>
       </div>
       <div id="cpnCatWrap" style="display:none">
         <label class="mfl">适用分类 *</label>
@@ -1604,6 +1611,23 @@ details.mi-spec-count[open]>summary::after{content:'▴';}
         <span id="cpnVImgStat" style="font-size:12px;color:#4A4848"></span>
       </div>
       <input type="file" id="cpnVImgFile" accept="image/svg+xml,image/png,image/jpeg,image/webp" style="display:none" onchange="cpnPickImage('voucher',event)">
+      <label class="mfl">取景（拖动调整）</label>
+      <div class="mfh">图一律<b>铺满</b>两个槽位，比例不一样就必然要切掉一部分。<b>在下面两个框里拖</b>就能决定切哪一块 —— 商品图是 380×310 的方图，居中未必是布丁最好看的那一半。<br>
+        两个框都是<b>实际尺寸</b>：上面是券面 345×128，下面是商城卡 230×98，看到什么顾客就看到什么</div>
+      <div style="margin-bottom:10px">
+        <div id="cpnPosV" class="cpn-pos" style="width:345px;height:128px" onpointerdown="_cpnPosDown(event)"></div>
+        <div style="font-size:11px;color:#8a7f7f;margin:3px 0 8px">券面（我的券）345×128</div>
+        <div style="display:flex;gap:12px;align-items:flex-end">
+          <div>
+            <div id="cpnPosM" class="cpn-pos" style="width:230px;height:98px" onpointerdown="_cpnPosDown(event)"></div>
+            <div style="font-size:11px;color:#8a7f7f;margin-top:3px">商城卡（兑好礼）230×98</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;padding-bottom:18px">
+            <button type="button" onclick="cpnPosReset()" style="border:none;background:#eee;color:#4A4848;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:12px">回到居中</button>
+            <span id="cpnPosVal" style="font-size:11px;color:#8a7f7f"></span>
+          </div>
+        </div>
+      </div>
       <label class="mfl">积分商城分区</label>
       <div class="mfh">商城首页按这个分区横向排券。留空 = 排在最后的「其他好礼」里，不会消失。<br>「限定」「合作」是营销概念，系统猜不出来，得你自己选</div>
       <select class="mfi" id="cpnMallCat"></select>
@@ -5118,7 +5142,10 @@ function _cpnLimitTxt(c){
 /* 商城售价现在挂在 coin_redeem 规则上，不再是券模板的列 */
 function _cpnCoinTxt(c){
   var r=_cprOf(c.id).find(function(x){return x.trigger_event==='coin_redeem' && x.enabled;});
-  return (r&&r.coin_price)?('<b>'+r.coin_price+' Coin</b>'):'<span style="color:#4A4848">未上架</span>';
+  // 上架与否看 coin_price 是不是 null —— 0 是「上架了，0 Coin 就能领」，不是「没上架」。
+  // 写成 (r && r.coin_price) 的话 0 是 falsy，免费券会显示成「未上架」
+  if(!r || r.coin_price==null) return '<span style="color:#4A4848">未上架</span>';
+  return '<b>'+r.coin_price+' Coin</b>';
 }
 function renderLoyaltyCouponsBody(){
   var body=document.getElementById('loyaltyBody'); if(!body) return;
@@ -5539,7 +5566,7 @@ function _cprForm(){
     +'<label>触发事件<br><select id="cprEvent" onchange="_cprSyncEvent()" style="'+inp+';width:130px">'
       + Object.keys(_CPR_EVENT).map(function(k){ return '<option value="'+k+'"'+(ev===k?' selected':'')+'>'+_CPR_EVENT[k]+'</option>'; }).join('')
     +'</select></label>'
-    +'<label id="cprCoinWrap" style="display:'+(ev==='coin_redeem'?'block':'none')+'">兑换价 Coin<br><input id="cprCoin" type="number" min="1" value="'+(r.coin_price!=null?r.coin_price:'')+'" placeholder="如 100" style="'+inp+';width:100px"></label>'
+    +'<label id="cprCoinWrap" style="display:'+(ev==='coin_redeem'?'block':'none')+'">兑换价 Coin<br><input id="cprCoin" type="number" min="0" value="'+(r.coin_price!=null?r.coin_price:'')+'" placeholder="如 100，填 0 = 免费领" style="'+inp+';width:100px"></label>'
     +'<label>每人限领<br><input id="cprPer" type="number" min="0" value="'+(r.per_member_limit!=null?r.per_member_limit:1)+'" style="'+inp+';width:80px"></label>'
     +'<label>总量上限<br><input id="cprTotal" type="number" min="1" value="'+(r.total_limit!=null?r.total_limit:'')+'" placeholder="不限" style="'+inp+';width:90px"></label>'
     +'<label style="align-self:center"><input id="cprEnabled" type="checkbox"'+(r.enabled===false?'':' checked')+'> 启用</label>'
@@ -5592,8 +5619,12 @@ function cprSave(){
   var ev=document.getElementById('cprEvent').value;
   var coin=null;
   if(ev==='coin_redeem'){
+    // 「有没有上架」看 coin_price 是不是 null，「要多少钱」看数值 —— 所以 0 是合法的
+    // （免运费券、新人礼这种就是上架了但不要钱），只有留空/填错才算没填
     coin=parseInt(document.getElementById('cprCoin').value,10);
-    if(isNaN(coin)||coin<1){ showN('积分商城兑换要填兑换价（Coin）'); return; }
+    if(isNaN(coin)||coin<0){ showN('积分商城兑换要填兑换价（Coin）；免费领填 0'); return; }
+    // 0 Coin 时「每人限领」是唯一的闸门：免费又不限领，顾客连点就能无限领券
+    if(coin===0 && per===0){ showN('0 Coin 的券必须设「每人限领」（填 1 就好）—— 免费又不限领，顾客连点就能无限领'); return; }
   }
   var payload={ coupon_id:_cprCouponId, name:document.getElementById('cprName').value.trim()||null,
     trigger_event:ev, conditions:{all:all}, coin_price:coin,
@@ -5682,6 +5713,7 @@ function cpnImgClear(k){
 }
 function _cpnImgShow(k, url){
   document.getElementById(_CPN_IMG_EL[k].prev).style.backgroundImage = url ? ("url('"+url+"')") : '';
+  try{ _cpnPosRender(); }catch(e){}   // 取景预览跟着换图，不然拖的还是上一张
 }
 function cpnPickImage(k, ev){
   var file=ev.target.files&&ev.target.files[0]; if(!file) return;
@@ -5709,6 +5741,70 @@ function cpnPickImage(k, ev){
       _cpnImg[k].up=null; _cpnImg[k].url=null; _cpnImgShow(k,'');
       throw e;
     });
+}
+/* ── 券图取景 ──────────────────────────────────────────────────────────────
+   图一律 cover 铺满两个槽位（商城卡 2.35 / 券面 2.70），比例对不上就要切。
+   切哪一块存在 coupons.image_pos（`'50% 35%'`，就是 CSS 的 object-position），
+   店家在两个真实尺寸的预览框里拖出来 —— 商品图是 380×310 的方图，居中未必是
+   布丁最好看的那一半，与其我们猜，不如给他一双手。
+   注意换算：拖 1px 图就该动 1px，所以百分比的变化量是 dx / 溢出的那部分宽度，
+   不是 dx / 框宽 —— 后者在图只比框大一点点时会拖得飞快，大很多时又几乎拖不动。 */
+var _cpnPos={x:50,y:50}, _cpnPosDrag=null;
+var _CPN_POS_BOX={ cpnPosV:{w:345,h:128}, cpnPosM:{w:230,h:98} };
+function _cpnPosParse(v){
+  var m=/^(\d{1,3})% (\d{1,3})%$/.exec(v||'');
+  return m ? {x:+m[1], y:+m[2]} : {x:50, y:50};
+}
+function _cpnPosSrc(k){
+  // 券面优先用券面图，商城卡优先用商城图；都没有就退回券绑定商品的图——
+  // 跟顾客端那条链子一致，不然这里拖的是一张顾客根本看不到的图
+  if(k==='cpnPosV' && _cpnImg.voucher.url) return _cpnImg.voucher.url;
+  if(_cpnImg.mall.url) return _cpnImg.mall.url;
+  // 退回券绑定商品的图：只在「指定单个商品」时才有一张确定的图
+  var sel=document.getElementById('cpnMenuItem');
+  var ids=sel?_cpnMultiVals(sel):[];
+  var mi=(ids.length===1)?(_menuRows||[]).find(function(r){return String(r.id)===String(ids[0]);}):null;
+  return (mi&&mi.image_url)||'';
+}
+function _cpnPosRender(){
+  var val=_cpnPos.x+'% '+_cpnPos.y+'%', any=false;
+  Object.keys(_CPN_POS_BOX).forEach(function(k){
+    var el=document.getElementById(k); if(!el) return;
+    var src=_cpnPosSrc(k);
+    if(src) any=true;
+    el.style.backgroundImage = src?("url('"+src+"')"):'';
+    el.style.backgroundPosition = val;
+    el.classList.toggle('empty', !src);
+  });
+  var v=document.getElementById('cpnPosVal'); if(v) v.textContent=any?val:'';
+}
+function cpnPosReset(){ _cpnPos={x:50,y:50}; _cpnPosRender(); }
+function _cpnPosDown(ev){
+  var el=ev.currentTarget; if(el.classList.contains('empty')) return;
+  var box=_CPN_POS_BOX[el.id]; if(!box) return;
+  var img=new Image(); img.src=_cpnPosSrc(el.id);
+  // naturalWidth 为 0（SVG 没写死尺寸、或图还没解码）时按框的比例算，
+  // 溢出量就是 0，拖不动也不会算出 NaN 把位置写坏
+  var nw=img.naturalWidth||box.w, nh=img.naturalHeight||box.h;
+  var scale=Math.max(box.w/nw, box.h/nh);          // cover
+  _cpnPosDrag={ x:ev.clientX, y:ev.clientY,
+                overX:Math.max(0, nw*scale-box.w), overY:Math.max(0, nh*scale-box.h),
+                px:_cpnPos.x, py:_cpnPos.y };
+  try{ el.setPointerCapture(ev.pointerId); }catch(e){}
+  el.onpointermove=_cpnPosMove; el.onpointerup=el.onpointercancel=_cpnPosUp;
+  ev.preventDefault();
+}
+function _cpnPosMove(ev){
+  var d=_cpnPosDrag; if(!d) return;
+  // 手指往下拖 = 图跟着往下走 = 露出更上面那部分 = 百分比变小，所以是减号
+  if(d.overX>0) _cpnPos.x=Math.min(100, Math.max(0, Math.round(d.px-(ev.clientX-d.x)/d.overX*100)));
+  if(d.overY>0) _cpnPos.y=Math.min(100, Math.max(0, Math.round(d.py-(ev.clientY-d.y)/d.overY*100)));
+  _cpnPosRender();
+}
+function _cpnPosUp(ev){
+  _cpnPosDrag=null;
+  var el=ev.currentTarget; el.onpointermove=null; el.onpointerup=el.onpointercancel=null;
+  try{ el.releasePointerCapture(ev.pointerId); }catch(e){}
 }
 /* applies_to 读写：{"scope":"order"} | {"scope":"items","ids":[]} | {"scope":"cats","codes":[]} */
 function _cpnAppliesOf(c){
@@ -5764,6 +5860,7 @@ function openCpn(id){
     document.getElementById(_CPN_IMG_EL[k].file).value='';
     _cpnImgShow(k, _cpnImg[k].url);
   });
+  _cpnPos=_cpnPosParse(c&&c.image_pos);
   document.getElementById('cpnEnabled').checked=c?c.enabled:true;
   // 商品/分类下拉用收银台已经加载好的菜单和分类，不再另外请求
   var ids=(ap.scope==='items'&&Array.isArray(ap.ids))?ap.ids.map(String):[];
@@ -5782,6 +5879,7 @@ function openCpn(id){
   });
   document.getElementById('cpnCats').innerHTML=copt;
   cpnSyncType();
+  _cpnPosRender();      // 商品下拉填好之后再画，否则退回商品图那条路查不到图
   document.getElementById('cpnBg').classList.add('show');
 }
 function closeCpn(){document.getElementById('cpnBg').classList.remove('show');}
@@ -5837,35 +5935,42 @@ function saveCpn(){
     mall_category:document.getElementById('cpnMallCat').value||null,
     mall_image_url:_cpnImg.mall.url||null,
     voucher_image_url:_cpnImg.voucher.url||null,
+    // 居中就存 null：没动过的券不必在库里留一行 '50% 50%'，顾客端默认也是居中
+    image_pos:(_cpnPos.x===50&&_cpnPos.y===50)?null:(_cpnPos.x+'% '+_cpnPos.y+'%'),
     valid_from:_fromLocalInput(document.getElementById('cpnValidFrom').value),
     valid_until:_fromLocalInput(document.getElementById('cpnValidUntil').value),
     applies_to:applies,
     // 只有「指定单个商品」时才回填旧列，让还没刷新的旧前端也能显示对
     menu_item_id:(scope==='items'&&applies.ids.length===1)?applies.ids[0]:null
   };
-  // 图还在传就等它（两个槽位都要等）——不等的话 payload 里的 url 还是 null，图白传了
-  var go=function(){
-    payload.mall_image_url=_cpnImg.mall.url||null;
-    payload.voucher_image_url=_cpnImg.voucher.url||null;
+  // 迁移没跑的库里没有这几列。它们都是锦上添花的（券面图、取景位置），
+  // 不该因为少一列整张券都存不下来——报错点名哪一列，就去掉哪一列重试。
+  // 一列一列地退，而不是一次全删：只缺一列时另一列还是要存进去的。
+  var CPN_OPT_COLS={ voucher_image_url:'supabase-my-coupon-image.sql',
+                     image_pos:'supabase-coupon-image-pos.sql' };
+  var dropped=[];
+  var send=function(){
     var q=_cpnEditId?db.from('coupons').update(payload).eq('id',_cpnEditId):db.from('coupons').insert(payload);
     q.then(function(res){
       if(res.error){
-        // 没跑 supabase-my-coupon-image.sql 的库还没有 voucher_image_url 这一列。
-        // 券面图是选填的，不该因为它保存不了整张券——去掉这一列重试一次。
-        if(payload.voucher_image_url!==undefined && /voucher_image_url/.test(res.error.message||'')){
-          delete payload.voucher_image_url;
-          var q2=_cpnEditId?db.from('coupons').update(payload).eq('id',_cpnEditId):db.from('coupons').insert(payload);
-          q2.then(function(r2){
-            if(r2.error){showN(''+r2.error.message);return;}
-            showN('已保存（券面图那一列还没建，先跳过——去跑 supabase-my-coupon-image.sql）');
-            closeCpn(); loadLoyaltyCoupons();
-          }).catch(function(e){showN('网络错误');});
-          return;
-        }
+        var miss=Object.keys(CPN_OPT_COLS).find(function(col){
+          return (col in payload) && new RegExp(col).test(res.error.message||'');
+        });
+        if(miss){ delete payload[miss]; dropped.push(miss); send(); return; }
         showN(''+res.error.message);return;
       }
-      showN('已保存');closeCpn();loadLoyaltyCoupons();
+      showN(dropped.length
+        ? ('已保存（'+dropped.join('、')+' 那一列还没建，先跳过——去跑 '
+           +dropped.map(function(c){return CPN_OPT_COLS[c];}).join('、')+'）')
+        : '已保存');
+      closeCpn();loadLoyaltyCoupons();
     }).catch(function(e){showN('网络错误');});
+  };
+  var go=function(){
+    // 上传可能在 payload 建好之后才完成，这里再取一次最终的 url
+    payload.mall_image_url=_cpnImg.mall.url||null;
+    payload.voucher_image_url=_cpnImg.voucher.url||null;
+    send();
   };
   var pending=[_cpnImg.mall.up,_cpnImg.voucher.up].filter(Boolean);
   if(pending.length){ showN('图片上传中，请稍候…'); Promise.all(pending).then(go).catch(function(){}); return; }
