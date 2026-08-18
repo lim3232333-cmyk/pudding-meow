@@ -5430,6 +5430,9 @@ function ccDel(id){
    后端 _coupon_facts 把这个会员/这次事件的所有事实算成一个 jsonb，_coupon_cond_ok
    逐条比。所以下面这张字段表就是店里能用的全部条件——想怎么组合都行，不用改代码。 */
 var _CPR_EVENT={register:'注册即送', order_paid:'下单付款后', birthday_month:'生日月', coin_redeem:'积分商城兑换'};
+/* 「每人限领」的计数周期。周期一过自动回满，所以「免邮券每周限领 2 张」不用每周
+   复制一张新券模板。口径跟营业日一致：day = 一个营业日，week = 营业周的周一到周日 */
+var _CPR_PERIOD={total:'终身', day:'每天', week:'每周', month:'每月'};
 /* ev 留空 = 任何事件都能用；写了就只在那些事件下出现（注册时没有「本单金额」这回事） */
 var _CPR_FIELDS=[
   {k:'amount',             t:'本单金额 RM',        type:'num',  ev:['order_paid']},
@@ -5490,7 +5493,10 @@ function _cprRender(){
         +'<td style="padding:7px 4px"><b>'+esc(r.name||'(未命名)')+'</b></td>'
         +'<td>'+(_CPR_EVENT[r.trigger_event]||esc(r.trigger_event))+'</td>'
         +'<td>'+_cprCondTxt(r)+'</td>'
-        +'<td>'+(r.per_member_limit>0?r.per_member_limit+' 张':'不限')+'</td>'
+        +'<td>'+(r.per_member_limit>0
+                 ? (r.per_member_limit+' 张'+((r.per_member_period&&r.per_member_period!=='total')
+                     ? ('/'+_CPR_PERIOD[r.per_member_period].replace('每','')) : ''))
+                 : '不限')+'</td>'
         +'<td>'+(r.total_limit!=null?r.total_limit+' 张':'不限')+'</td>'
         +'<td><b>'+(r.issued_count||0)+'</b></td>'
         +'<td>'+(r.enabled?'<span style="color:#1D7715">启用</span>':'<span style="color:#8D0505">停用</span>')+'</td>'
@@ -5567,9 +5573,20 @@ function _cprForm(){
       + Object.keys(_CPR_EVENT).map(function(k){ return '<option value="'+k+'"'+(ev===k?' selected':'')+'>'+_CPR_EVENT[k]+'</option>'; }).join('')
     +'</select></label>'
     +'<label id="cprCoinWrap" style="display:'+(ev==='coin_redeem'?'block':'none')+'">兑换价 Coin<br><input id="cprCoin" type="number" min="0" value="'+(r.coin_price!=null?r.coin_price:'')+'" placeholder="如 100，填 0 = 免费领" style="'+inp+';width:100px"></label>'
-    +'<label>每人限领<br><input id="cprPer" type="number" min="0" value="'+(r.per_member_limit!=null?r.per_member_limit:1)+'" style="'+inp+';width:80px"></label>'
+    +'<label>每人限领<br><input id="cprPer" type="number" min="0" value="'+(r.per_member_limit!=null?r.per_member_limit:1)+'" style="'+inp+';width:70px"></label>'
+    // 周期：终身 / 每天 / 每周 / 每月。有了这个就不用「每周复制一张一样的券模板」——
+    // 那样券包里会堆一排同名券，顾客分不清，统计也散了
+    +'<label>计数周期<br><select id="cprPeriod" style="'+inp+';width:92px">'
+      + Object.keys(_CPR_PERIOD).map(function(k){
+          return '<option value="'+k+'"'+((r.per_member_period||'total')===k?' selected':'')+'>'+_CPR_PERIOD[k]+'</option>'; }).join('')
+    +'</select></label>'
     +'<label>总量上限<br><input id="cprTotal" type="number" min="1" value="'+(r.total_limit!=null?r.total_limit:'')+'" placeholder="不限" style="'+inp+';width:90px"></label>'
     +'<label style="align-self:center"><input id="cprEnabled" type="checkbox"'+(r.enabled===false?'':' checked')+'> 启用</label>'
+    +'</div>'
+    +'<div style="font-size:11px;color:#8a7f7f;margin:-6px 0 12px">'
+      +'「每人限领 2 张 · 每周」= 每周都能再领 2 张，周期一过自动回满，<b>不用每周复制一张新券模板</b>。'
+      +'周一到周日按营业日算，跟每周任务同一个口径。<br>'
+      +'总量上限没有周期，它是「这批券一共印多少张」的意思。0 = 不限领'
     +'</div>'
     +'<div style="font-weight:700;color:#8D0505;font-size:13px;margin-bottom:6px">发放条件 '
       +'<button onclick="_cprAddCond()" style="border:none;background:#1D7715;color:#fff;border-radius:6px;padding:3px 10px;margin-left:6px;cursor:pointer;font-size:12px;font-weight:700">＋ 加一条</button>'
@@ -5628,15 +5645,29 @@ function cprSave(){
   }
   var payload={ coupon_id:_cprCouponId, name:document.getElementById('cprName').value.trim()||null,
     trigger_event:ev, conditions:{all:all}, coin_price:coin,
-    per_member_limit:per, total_limit:tot, enabled:document.getElementById('cprEnabled').checked };
-  var q=_cprEditId ? db.from('coupon_rules').update(payload).eq('id',_cprEditId)
-                   : db.from('coupon_rules').insert(payload);
-  q.then(function(res){
-    // 写失败必须吭声：静默失败的话你以为规则存好了，顾客那边一张券也不会发
-    if(res&&res.error){ console.error('coupon_rules save',res.error); showN('规则保存失败：'+_rpcErr(res.error)); return; }
-    _cprEditId=null; _cprCond=[]; showN('规则已保存');
-    db.from('coupon_rules').select('*').then(function(r2){ if(!r2.error) _couponRules=r2.data||[]; _cprRender(); renderLoyaltyCouponsBody(); });
-  }).catch(function(e){ console.error('coupon_rules save',e); showN('规则保存失败，请检查网络'); });
+    per_member_limit:per, per_member_period:document.getElementById('cprPeriod').value||'total',
+    total_limit:tot, enabled:document.getElementById('cprEnabled').checked };
+  var dropped=false;
+  var send=function(){
+    var q=_cprEditId ? db.from('coupon_rules').update(payload).eq('id',_cprEditId)
+                     : db.from('coupon_rules').insert(payload);
+    q.then(function(res){
+      // 写失败必须吭声：静默失败的话你以为规则存好了，顾客那边一张券也不会发
+      if(res&&res.error){
+        // 迁移没跑的库还没有 per_member_period 这一列。周期是锦上添花的，
+        // 去掉它重试一次，规则本身照样存下来（限领退回终身，跟以前一样）
+        if(!dropped && 'per_member_period' in payload && /per_member_period/.test(res.error.message||'')){
+          delete payload.per_member_period; dropped=true; send(); return;
+        }
+        console.error('coupon_rules save',res.error); showN('规则保存失败：'+_rpcErr(res.error)); return;
+      }
+      _cprEditId=null; _cprCond=[];
+      showN(dropped ? '规则已保存（计数周期那一列还没建，先按终身算——去跑 supabase-coupon-limit-period.sql）'
+                    : '规则已保存');
+      db.from('coupon_rules').select('*').then(function(r2){ if(!r2.error) _couponRules=r2.data||[]; _cprRender(); renderLoyaltyCouponsBody(); });
+    }).catch(function(e){ console.error('coupon_rules save',e); showN('规则保存失败，请检查网络'); });
+  };
+  send();
 }
 function cprDel(id){
   var r=_couponRules.find(function(x){return x.id===id;});
