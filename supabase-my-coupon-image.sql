@@ -48,7 +48,8 @@ comment on column public.coupons.voucher_image_url is
 --    哪怕那份还没跑。这份脚本是「可以重复跑」的，一旦在 image-pos 之后再跑一次，
 --    就会把这个函数换回没有 image_pos 的旧版，券包里的取景就悄悄失效了。
 alter table public.coupons
-  add column if not exists image_pos text;
+  add column if not exists image_pos text,
+  add column if not exists description text;
 
 drop function if exists public.rpc_get_my_coupons(uuid, text);
 create or replace function public.rpc_get_my_coupons(p_member_id uuid, p_session_token text)
@@ -58,7 +59,7 @@ returns table(
   menu_item_name text, menu_item_image text,
   max_discount numeric, channels jsonb, applies_to jsonb, valid_from timestamptz,
   usable_days jsonb, usable_hours jsonb, mall_image_url text, voucher_image_url text,
-  image_pos text)
+  image_pos text, description text)
 language plpgsql
 security definer
 set search_path = public
@@ -72,7 +73,7 @@ begin
   select mc.id, mc.coupon_id, c.name, c.type, c.value, c.min_spend,
          mc.status, mc.issued_at, mc.expires_at, mi.name, mi.image_url,
          c.max_discount, c.channels, coalesce(c.applies_to,'{"scope":"order"}'::jsonb), c.valid_from,
-         c.usable_days, c.usable_hours, c.mall_image_url, c.voucher_image_url, c.image_pos
+         c.usable_days, c.usable_hours, c.mall_image_url, c.voucher_image_url, c.image_pos, c.description
     from public.member_coupons mc
     join public.coupons c on c.id = mc.coupon_id
     left join public.menu_items mi on mi.id = c.menu_item_id

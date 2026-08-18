@@ -1092,6 +1092,55 @@
   .pm-my-tick{ width:22px; height:22px; flex-shrink:0; }
   .pm-my-paw{ width:25px; height:25px; flex-shrink:0; }
 
+  /* ===== 优惠券详情（Figma 869:1584 兑好礼 / 1144:1382 我的卷）
+     两页共用一套骨架：返回条 + 128 高的券面（跟卡片同一张脸）+ 一列信息块
+     + 钉在底部的一颗大按钮。差别只有标题、要不要「Redeem Coins」那一格、
+     以及按钮是「兑换」还是「使用」—— 做成两页会让两边的间距慢慢走样。 */
+  .cd-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw;
+    height:100%; background:var(--cream2); z-index:380; display:none; flex-direction:column; }
+  .cd-screen.show{ display:flex; }
+  .cd-top{ position:relative; height:34px; margin:16px 16px 0; flex-shrink:0; }
+  .cd-back{ position:absolute; left:0; top:5px; width:24px; height:24px; cursor:pointer; }
+  .cd-back svg{ width:100%; height:100%; display:block; }
+  .cd-title{ text-align:center; line-height:34px; font-size:20px; font-weight:700; color:var(--red); pointer-events:none; }
+  .cd-scroll{ flex:1; min-height:0; overflow-y:auto; }
+  /* 券面：跟卡片是同一张脸，只是铺满整行、不切圆角（稿子 y=66，高 128） */
+  .cd-face{ position:relative; height:128px; margin-top:16px; overflow:hidden;
+    background:var(--red); display:flex; align-items:center; padding:0 32px; box-sizing:border-box; }
+  .cd-face.dessert{ background:var(--yellow); }
+  .cd-body{ padding:16px 16px 24px; display:flex; flex-direction:column; gap:24px; }
+  /* 「Redeem Coins | Validity」两栏，中间一根竖线（稿子 1144:1279） */
+  .cd-two{ display:flex; align-items:center; justify-content:center; gap:16px; }
+  .cd-two>div{ flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .cd-two .cd-sep{ flex:0 0 1px; align-self:stretch; background:var(--red); }
+  .cd-blk{ display:flex; flex-direction:column; gap:8px; }
+  .cd-k{ font-size:14px; color:#000; }
+  .cd-v{ font-size:14px; color:var(--muted); word-break:break-word; }
+  .cd-coin{ display:flex; align-items:center; gap:4px; }
+  .cd-coin i{ width:20px; height:20px; background:url('Paw%20Coin.svg') center/contain no-repeat; flex-shrink:0; }
+  .cd-terms{ margin:0; padding-left:21px; font-size:14px; color:var(--muted); }
+  .cd-terms li{ margin-bottom:2px; }
+  /* 底部那颗按钮所在的条：米白底、上面两角 12 圆角，跟确认弹层是同一个容器语言 */
+  .cd-cta{ flex-shrink:0; background:var(--cream2); border-radius:12px 12px 0 0;
+    padding:11px 16px calc(11px + env(safe-area-inset-bottom, 0px)); }
+  .cd-btn{ width:100%; height:48px; border:none; border-radius:12px; background:var(--red);
+    color:var(--cream2); font-size:16px; font-weight:700; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
+  .cd-btn:disabled{ opacity:.45; cursor:not-allowed; }
+  .cd-btn.ghost{ background:transparent; color:var(--red); border:1px solid var(--red); }
+  /* 确认 / Coin 不够（Figma 1145:1812 / 1145:1813）：从底部升起来的一层，
+     用真的弹层而不是 confirm()——系统弹框上写不了爪印，也没法跟着这套配色 */
+  .cd-mask{ position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:390; display:none; }
+  .cd-mask.show{ display:block; }
+  .cd-sheet{ position:fixed; left:50%; bottom:0; transform:translateX(-50%); width:390px; max-width:100vw;
+    background:var(--cream2); border-radius:12px 12px 0 0; z-index:391; display:none;
+    flex-direction:column; align-items:center; gap:24px;
+    padding:24px 32px calc(14px + env(safe-area-inset-bottom, 0px)); box-sizing:border-box; }
+  .cd-sheet.show{ display:flex; }
+  .cd-ask{ display:flex; align-items:center; gap:16px; font-size:20px; font-weight:500; color:#000; }
+  .cd-ask .cd-coin i{ width:30px; height:30px; }
+  .cd-ask .cd-coin b{ font-size:20px; font-weight:500; color:var(--muted); }
+  .cd-sheet-btns{ display:flex; flex-direction:column; gap:16px; width:100%; }
+
   /* ===== 会员：幸运抽奖 Lucky Draw ===== */
   .ld-screen{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:390px; max-width:100vw; height:100%; background:var(--cream2); z-index:300; display:none; flex-direction:column; overflow-y:auto; }
   .ld-screen.show{ display:flex; }
@@ -1779,6 +1828,23 @@
 </div>
     <div class="pm-body" id="pmList"></div>
 </div>
+
+  <!-- 优惠券详情：兑好礼点一张券（Figma 869:1584）/ 我的卷点一张券（1144:1382）共用 -->
+  <div class="cd-screen" id="cdScreen">
+    <div class="cd-top">
+      <div class="cd-back" onclick="closeCouponDetail()">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</div>
+      <div class="cd-title" id="cdTitle">兑好礼</div>
+</div>
+    <div class="cd-scroll">
+      <div class="cd-face" id="cdFace"></div>
+      <div class="cd-body" id="cdBody"></div>
+</div>
+    <div class="cd-cta"><button class="cd-btn" id="cdCta" onclick="cdAction()">兑换</button></div>
+</div>
+  <div class="cd-mask" id="cdMask" onclick="closeCdSheet()"></div>
+  <div class="cd-sheet" id="cdSheet"></div>
 
   <!-- ============ Meow Club 幸运抽奖 ============ -->
   <div class="ld-screen" id="ldScreen">
@@ -6606,7 +6672,9 @@ function _pmItemHtml(c){
   var src = c.mall_image_url || c.menu_item_image;
   var img = src ? '<img src="'+_esc(src)+'" alt="" style="object-position:'+_pmImgPos(c.image_pos)+'">'
                 : '<span class="pm-card-mark">'+_pawSvg()+'</span>';
-  return '<div class="pm-card'+(afford?'':' off')+'" onclick="redeemMallCoupon(\''+c.id+'\')">'
+  // 点卡片先进详情页（稿子 869:1584），兑换的确认在那里；Coin 不够的也进得去——
+  // 看得到门槛和条款，才知道要不要攒
+  return '<div class="pm-card'+(afford?'':' off')+'" onclick="openMallCouponDetail(\''+c.id+'\')">'
     +'<div class="pm-card-img">'+img+'</div>'
     +'<div class="pm-card-bot">'
     +'<div class="pm-card-name">'+_esc(c.name)+'</div>'
@@ -6657,6 +6725,18 @@ function _tickSvg(on){
       +'<circle cx="10" cy="10" r="9.25" stroke="#8D0505" stroke-width="1.5"/></svg>';
 }
 function _dessertArt(){ return '<svg class="pm-my-stub-art" aria-hidden="true" viewBox="0 0 70 66" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M70 58.08C70 62.4541 54.33 66 35 66C15.67 66 0 62.4541 0 58.08C0 53.7059 15.67 50.16 35 50.16C54.33 50.16 70 53.7059 70 58.08Z" fill="#FFDE5B"/><path d="M65.5696 57.64C65.5696 60.7991 52.0815 63.36 35.443 63.36C18.8046 63.36 5.31646 60.7991 5.31646 57.64C5.31646 54.4809 18.8046 51.92 35.443 51.92C52.0815 51.92 65.5696 54.4809 65.5696 57.64Z" fill="#E1B401"/><path d="M14.0667 28.728C14.7927 23.3651 19.4376 19.36 24.9311 19.36H46.841C52.3345 19.36 56.9795 23.3651 57.7055 28.728L61.0903 53.7293C61.5283 56.965 58.9725 59.84 55.658 59.84H16.1141C12.7997 59.84 10.2438 56.965 10.6819 53.7293L14.0667 28.728Z" fill="#FFFFD5"/><path d="M14.0411 28.6946C14.7823 23.3467 19.4205 19.36 24.901 19.36H47.0778C52.4782 19.36 57.0739 23.2341 57.9072 28.489L59.1317 39.2627C59.1317 39.2627 50.9569 41.6004 47.5317 35.2147C43.6853 28.0437 41.0239 42.9733 33.1459 41.6004C28.6061 40.8092 25.7223 33.0586 21.1577 33.7086C16.1404 34.4231 12.2522 41.6004 12.2522 41.6004L14.0411 28.6946Z" fill="#9F3D0A"/><path d="M52.2785 20.24C52.2785 23.1561 45.1377 25.52 36.3291 25.52C27.5205 25.52 20.3797 23.1561 20.3797 20.24C20.3797 17.3239 27.5205 14.96 36.3291 14.96C45.1377 14.96 52.2785 17.3239 52.2785 20.24Z" fill="white"/><path d="M35.9725 0C44.9627 0 48.8079 18.48 47.483 19.8C45.2748 22 26.6686 21.9914 24.462 19.8C22.2555 17.6086 26.9823 0 35.9725 0Z" fill="#D41534"/><path d="M31.8987 6.16C31.8987 6.64601 31.7004 7.04 31.4557 7.04C31.211 7.04 31.0127 6.64601 31.0127 6.16C31.0127 5.67399 31.211 5.28 31.4557 5.28C31.7004 5.28 31.8987 5.67399 31.8987 6.16Z" fill="#FFFFD5"/><path d="M36.3291 6.16C36.3291 6.64601 36.1308 7.04 35.8861 7.04C35.6414 7.04 35.443 6.64601 35.443 6.16C35.443 5.67399 35.6414 5.28 35.8861 5.28C36.1308 5.28 36.3291 5.67399 36.3291 6.16Z" fill="#FFFFD5"/><path d="M33.6709 2.64C33.6709 3.12601 33.4725 3.52 33.2278 3.52C32.9832 3.52 32.7848 3.12601 32.7848 2.64C32.7848 2.15399 32.9832 1.76 33.2278 1.76C33.4725 1.76 33.6709 2.15399 33.6709 2.64Z" fill="#FFFFD5"/><path d="M38.1013 2.64C38.1013 3.12601 37.9029 3.52 37.6582 3.52C37.4135 3.52 37.2152 3.12601 37.2152 2.64C37.2152 2.15399 37.4135 1.76 37.6582 1.76C37.9029 1.76 38.1013 2.15399 38.1013 2.64Z" fill="#FFFFD5"/><path d="M43.4177 9.68C43.4177 10.166 43.2194 10.56 42.9747 10.56C42.73 10.56 42.5316 10.166 42.5316 9.68C42.5316 9.19399 42.73 8.8 42.9747 8.8C43.2194 8.8 43.4177 9.19399 43.4177 9.68Z" fill="#FFFFD5"/><path d="M38.9873 9.68C38.9873 10.166 38.789 10.56 38.5443 10.56C38.2996 10.56 38.1013 10.166 38.1013 9.68C38.1013 9.19399 38.2996 8.8 38.5443 8.8C38.789 8.8 38.9873 9.19399 38.9873 9.68Z" fill="#FFFFD5"/><path d="M33.6709 9.68C33.6709 10.166 33.4725 10.56 33.2278 10.56C32.9832 10.56 32.7848 10.166 32.7848 9.68C32.7848 9.19399 32.9832 8.8 33.2278 8.8C33.4725 8.8 33.6709 9.19399 33.6709 9.68Z" fill="#FFFFD5"/><path d="M36.3291 14.08C36.3291 14.566 36.1308 14.96 35.8861 14.96C35.6414 14.96 35.443 14.566 35.443 14.08C35.443 13.594 35.6414 13.2 35.8861 13.2C36.1308 13.2 36.3291 13.594 36.3291 14.08Z" fill="#FFFFD5"/><path d="M32.7848 18.48C32.7848 18.966 32.5865 19.36 32.3418 19.36C32.0971 19.36 31.8987 18.966 31.8987 18.48C31.8987 17.994 32.0971 17.6 32.3418 17.6C32.5865 17.6 32.7848 17.994 32.7848 18.48Z" fill="#FFFFD5"/><path d="M29.2405 9.68C29.2405 10.166 29.0422 10.56 28.7975 10.56C28.5528 10.56 28.3544 10.166 28.3544 9.68C28.3544 9.19399 28.5528 8.8 28.7975 8.8C29.0422 8.8 29.2405 9.19399 29.2405 9.68Z" fill="#FFFFD5"/><path d="M45.1899 17.6C45.1899 18.086 44.9915 18.48 44.7468 18.48C44.5022 18.48 44.3038 18.086 44.3038 17.6C44.3038 17.114 44.5022 16.72 44.7468 16.72C44.9915 16.72 45.1899 17.114 45.1899 17.6Z" fill="#FFFFD5"/><path d="M41.6456 14.08C41.6456 14.566 41.4472 14.96 41.2025 14.96C40.9579 14.96 40.7595 14.566 40.7595 14.08C40.7595 13.594 40.9579 13.2 41.2025 13.2C41.4472 13.2 41.6456 13.594 41.6456 14.08Z" fill="#FFFFD5"/><path d="M26.5823 17.6C26.5823 18.086 26.3839 18.48 26.1392 18.48C25.8946 18.48 25.6962 18.086 25.6962 17.6C25.6962 17.114 25.8946 16.72 26.1392 16.72C26.3839 16.72 26.5823 17.114 26.5823 17.6Z" fill="#FFFFD5"/><path d="M31.0127 14.08C31.0127 14.566 30.8143 14.96 30.5696 14.96C30.3249 14.96 30.1266 14.566 30.1266 14.08C30.1266 13.594 30.3249 13.2 30.5696 13.2C30.8143 13.2 31.0127 13.594 31.0127 14.08Z" fill="#FFFFD5"/><path d="M26.5823 13.2C26.5823 13.686 26.3839 14.08 26.1392 14.08C25.8946 14.08 25.6962 13.686 25.6962 13.2C25.6962 12.714 25.8946 12.32 26.1392 12.32C26.3839 12.32 26.5823 12.714 26.5823 13.2Z" fill="#FFFFD5"/><path d="M46.076 13.2C46.076 13.686 45.8776 14.08 45.6329 14.08C45.3882 14.08 45.1899 13.686 45.1899 13.2C45.1899 12.714 45.3882 12.32 45.6329 12.32C45.8776 12.32 46.076 12.714 46.076 13.2Z" fill="#FFFFD5"/><path d="M41.6456 6.16C41.6456 6.64601 41.4472 7.04 41.2025 7.04C40.9579 7.04 40.7595 6.64601 40.7595 6.16C40.7595 5.67399 40.9579 5.28 41.2025 5.28C41.4472 5.28 41.6456 5.67399 41.6456 6.16Z" fill="#FFFFD5"/><path d="M38.9873 18.48C38.9873 18.966 38.789 19.36 38.5443 19.36C38.2996 19.36 38.1013 18.966 38.1013 18.48C38.1013 17.994 38.2996 17.6 38.5443 17.6C38.789 17.6 38.9873 17.994 38.9873 18.48Z" fill="#FFFFD5"/></svg>'; }
+/* 券面（券包卡片和详情页共用同一张脸）。返回 {html, yellow}：
+   yellow 表示这张脸要黄底 —— 只有「一张图都没有的甜品券」才走那条（稿子如此）。
+   有图的一律 cover 铺满，切哪一块看 image_pos，店家在 POS 上自己拖。
+   卡片和详情页各画各的会慢慢走样，所以只有这一处在决定脸长什么样。 */
+function _pmFace(c){
+  var im=_pmMyImg(c);
+  var yellow = !im.src && c.type==='dessert';
+  var html = im.src ? '<img class="pm-my-face-img" src="'+_esc(im.src)+'" alt="" style="object-position:'+im.pos+'">'
+           : yellow ? _dessertArt()
+                    : '<img class="pm-my-mascot" src="logo.svg" alt="">'+_pmFaceVal(c);
+  return {html:html, yellow:yellow};
+}
 function _pmMineHtml(mc){
   // 打钩只在「从结算页点进来挑券」时出现。直接从积分商城进「我的」是翻看券包，
   // 没有正在下的单，摆个勾会让人以为点了就生效了。
@@ -6668,13 +6748,7 @@ function _pmMineHtml(mc){
   var picked = picking && !!(_ckCoupon && _ckCoupon.id===mc.id);
   var dim = mc.status!=='unused' || (picking && !usable);
   var clickable = picking && usable;
-  var im=_pmMyImg(mc);
-  // 一张图都没有的甜品券才走黄底 + 甜品插画（稿子就是这样）；有图的一律 cover 铺满，
-  // 切哪一块看 image_pos，店家在 POS 上自己拖
-  var yellow = !im.src && mc.type==='dessert';
-  var face = im.src ? '<img class="pm-my-face-img" src="'+_esc(im.src)+'" alt="" style="object-position:'+im.pos+'">'
-           : yellow ? _dessertArt()
-                    : '<img class="pm-my-mascot" src="logo.svg" alt="">'+_pmFaceVal(mc);
+  var f=_pmFace(mc), yellow=f.yellow, face=f.html;
   // 挑券态能用的压一个勾在券面右上角；不能用的把原因写在白条右边，
   // 顶掉「还剩几天」——点了才知道用不了最气人，天数这时候不重要
   var tick = (picking && usable) ? '<div class="pm-my-tickwrap">'+_tickSvg(picked)+'</div>' : '';
@@ -6683,12 +6757,140 @@ function _pmMineHtml(mc){
                   : '<span class="pm-my-left">'+_pmLeftTxt(mc)+'</span>';
   // 用不了的原因本身就把门槛说了（「需满 RM20.00」），左边再写一遍「满 RM20.00」是重复
   var cond = why ? '' : _pmCondShort(mc);
-  return'<div class="pm-my-card'+(dim?' dim':'')+'"'+(clickable?(' onclick="pmPickCoupon(\''+mc.id+'\')"'):'')+'>'
+  // 挑券态点一下就是选中（勾在券面上，多插一页反而慢）；平时点开是看详情（稿子 1144:1382）
+  var tap = clickable ? ' onclick="pmPickCoupon(\''+mc.id+'\')"'
+                      : (picking ? '' : ' onclick="openMyCouponDetail(\''+mc.id+'\')"');
+  return'<div class="pm-my-card'+(dim?' dim':'')+'"'+tap+'>'
     +'<div class="pm-my-face'+(yellow?' dessert':'')+'">'+face+tick+'</div>'
     +'<div class="pm-my-bot">'
     +'<div class="pm-my-name">'+_esc(mc.name)+'</div>'
     +'<div class="pm-my-meta"><span class="pm-my-cond">'+_esc(cond)+'</span>'+right+'</div>'
     +'</div></div>';
+}
+/* ===== 优惠券详情（Figma 869:1584 兑好礼 / 1144:1382 我的卷）=================
+   两页共用一套骨架，差别只有三处：标题、要不要「Redeem Coins」那一格、
+   底部按钮是「兑换」还是「使用」。做成两份代码，间距迟早走样。 */
+var _cdKind=null, _cdRow=null;
+/* 用餐方式：channels 空 = 三种都能用（跟服务端 _coupon_calc 的口径一致，
+   那边 p_mode 传空也是不拦的） */
+var _CD_CH={dinein:'Dine in', pickup:'Pick up', delivery:'Delivery'};
+function _cdMethod(c){
+  var ch=Array.isArray(c.channels)?c.channels:[];
+  if(!ch.length) return 'Dine in/ Pick up/ Delivery';
+  return ch.map(function(k){ return _CD_CH[k]||k; }).join('/ ');
+}
+function _cdMinSpend(c){ return Number(c.min_spend)>0 ? ('RM'+Number(c.min_spend).toFixed(2)) : '无门槛'; }
+/* 有效期。商城里的券还没发出去，说的是「领到之后管几天」；
+   券包里的那张已经有具体到期日了，说的是「还剩几天」——同一个词两种口径，
+   不能混：顾客看到的必须是对他当下有用的那个数 */
+function _cdValidity(c, kind){
+  if(kind==='mall') return c.valid_days ? (c.valid_days+' Days') : '永久有效';
+  if(c.status==='used')    return '已使用';
+  if(c.status==='expired') return '已过期';
+  if(!c.expires_at)        return '永久有效';
+  var d=Math.ceil((new Date(c.expires_at).getTime()-Date.now())/86400000);
+  return d<=0 ? '今天到期' : (d+' Days');
+}
+/* 条款是通用法律文本，三条写死（稿子就是这三条）。券自己的说明走 description，
+   由店家在 POS 上填——「买一送一怎么用」这种话只有店家写得出来。 */
+var _CD_TERMS=[
+  'Pudding Meow reserves the right to amend or cancel this voucher at any time without prior notice.',
+  'This voucher cannot be combined with other vouchers or promotions.',
+  'This voucher cannot be exchanged for cash or refunded.'
+];
+function _cdBlk(k, v){ return '<div class="cd-blk"><div class="cd-k">'+_esc(k)+'</div><div class="cd-v">'+_esc(v)+'</div></div>'; }
+function _cdRender(){
+  var c=_cdRow, kind=_cdKind; if(!c) return;
+  document.getElementById('cdTitle').textContent = kind==='mall' ? '兑好礼' : '优惠卷详情';
+  var f=_pmFace(c);
+  var faceEl=document.getElementById('cdFace');
+  faceEl.className='cd-face'+(f.yellow?' dessert':'');
+  faceEl.innerHTML=f.html;
+
+  var html='';
+  // 商城那一页把「要多少 Coin」和「有效期」并排放，中间一根竖线（稿子 1144:1279）
+  if(kind==='mall'){
+    html+='<div class="cd-two">'
+      +'<div><div class="cd-k">Redeem Coins</div>'
+        +'<div class="cd-coin"><i></i><span class="cd-v">'+_esc(String(c.coin_price))+'</span></div></div>'
+      +'<div class="cd-sep"></div>'
+      +'<div><div class="cd-k">Validity</div><div class="cd-v">'+_esc(_cdValidity(c,kind))+'</div></div>'
+      +'</div>';
+  } else {
+    // 券包那一页顶上是店家写的说明（稿子里的「How to Get a free item:」），没填就不占位
+    if(c.description) html+='<div class="cd-k" style="white-space:pre-wrap">'+_esc(c.description)+'</div>';
+    html+=_cdBlk('Validity', _cdValidity(c,kind));
+  }
+  if(kind==='mall' && c.description) html+='<div class="cd-k" style="white-space:pre-wrap">'+_esc(c.description)+'</div>';
+  html+=_cdBlk('Min. Spend', _cdMinSpend(c));
+  html+=_cdBlk('Method', _cdMethod(c));
+  html+='<div class="cd-blk"><div class="cd-k">Terms and Condition</div>'
+      +'<ol class="cd-terms">'+_CD_TERMS.map(function(t){ return '<li>'+_esc(t)+'</li>'; }).join('')+'</ol></div>';
+  document.getElementById('cdBody').innerHTML=html;
+
+  var btn=document.getElementById('cdCta');
+  if(kind==='mall'){ btn.textContent='兑换'; btn.disabled=false; }
+  else {
+    btn.textContent='使用';
+    // 用过 / 过期的券没有「使用」这回事，按钮压暗而不是藏起来——藏了顾客会以为页面坏了
+    btn.disabled = c.status!=='unused';
+  }
+}
+function openMallCouponDetail(id){
+  var c=(_mallItems||[]).find(function(x){ return x.id===id; }); if(!c) return;
+  _cdKind='mall'; _cdRow=c; _cdRender();
+  document.getElementById('cdScreen').classList.add('show');
+}
+function openMyCouponDetail(mcId){
+  var c=(_myCoupons||[]).find(function(x){ return x.id===mcId; }); if(!c) return;
+  _cdKind='mine'; _cdRow=c; _cdRender();
+  document.getElementById('cdScreen').classList.add('show');
+}
+function closeCouponDetail(){
+  closeCdSheet();
+  document.getElementById('cdScreen').classList.remove('show');
+  _cdKind=null; _cdRow=null;
+}
+function closeCdSheet(){
+  document.getElementById('cdMask').classList.remove('show');
+  document.getElementById('cdSheet').classList.remove('show');
+}
+function _cdOpenSheet(html){
+  document.getElementById('cdSheet').innerHTML=html;
+  document.getElementById('cdMask').classList.add('show');
+  document.getElementById('cdSheet').classList.add('show');
+}
+/* 确认弹层（Figma 1145:1812）和 Coin 不够（1145:1813）。
+   不用 confirm()：系统弹框里放不下爪印，也跟不上这套配色。 */
+function _cdAskRedeem(price){
+  _cdOpenSheet('<div class="cd-ask"><span>确认使用</span>'
+    +'<span class="cd-coin"><i></i><b>'+_esc(String(price))+'</b></span><span>兑换？</span></div>'
+    +'<div class="cd-sheet-btns">'
+    +'<button class="cd-btn" onclick="cdConfirmRedeem()">兑换</button>'
+    +'<button class="cd-btn ghost" onclick="closeCdSheet()">暂不</button></div>');
+}
+function _cdAskShort(need){
+  _cdOpenSheet('<div class="cd-ask"><span>还需要</span>'
+    +'<span class="cd-coin"><i></i><b>'+_esc(String(need))+'</b></span><span>才能兑换。</span></div>'
+    +'<div class="cd-sheet-btns"><button class="cd-btn" onclick="closeCdSheet()">OK</button></div>');
+}
+function cdAction(){
+  var c=_cdRow; if(!c) return;
+  if(_cdKind==='mall'){
+    if(!(db && _memberId && _memberToken)){ alert('请先登录会员'); return; }
+    var have=(_memberProfile&&_memberProfile.coins)||0, price=Number(c.coin_price)||0;
+    // 余额只在真的拿到了会员资料时才预检；没加载出来就交给服务端判（它才是权威）
+    if(_memberProfile && have<price){ _cdAskShort(price-have); return; }
+    _cdAskRedeem(price); return;
+  }
+  // 券包：从结算页进来的就是挑券，选完直接回结算页；平时点「使用」就去点单
+  if(_pmFromCheckout){ closeCouponDetail(); pmPickCoupon(c.id); return; }
+  closeCouponDetail(); closePointsMall(); switchTab('menu');
+}
+function cdConfirmRedeem(){
+  var c=_cdRow; if(!c) return;
+  closeCdSheet();
+  _doRedeemMall(c.id, function(){ closeCouponDetail(); });
 }
 /* 点卡＝选这张券。一单只能用一张，所以再点一次是取消，选别的会换掉。
    只有从结算页进来才走得到这里，选完直接回结算页——等价于原来那个「使用」按钮。 */
@@ -6776,17 +6978,15 @@ function loadMallData(){
   ]).then(function(){ _mallLoading=false; renderPointsMallList(); })
    .catch(function(e){ _mallErr=e; console.error('loadMallData:',e); _mallLoading=false; renderPointsMallList(); });
 }
-function redeemMallCoupon(id){
-  var c=_mallItems.find(function(x){return x.id===id;});
+/* 真正去兑换。确认那一步交给详情页的弹层（Figma 1145:1812），这里只管发请求——
+   拆开是因为 confirm() 弹不出爪印，也跟不上这套配色。 */
+function _doRedeemMall(id, done){
+  var c=(_mallItems||[]).find(function(x){return x.id===id;});
   if(!c) return;
   if(!db || !_memberId || !_memberToken){ alert('请先登录会员'); return; }
-  // 只在确实拿到了会员资料时才本地预检；资料没加载出来就别拦，交给服务端判定（它才是权威）
-  if(_memberProfile && (_memberProfile.coins||0) < c.coin_price){
-    alert('Coin 不足：需要 '+c.coin_price+'，当前 '+(_memberProfile.coins||0)); return;
-  }
-  if(!confirm('用 '+c.coin_price+' Coin 兑换「'+c.name+'」？')) return;
   db.rpc('rpc_redeem_coupon',{p_member_id:_memberId,p_session_token:_memberToken,p_coupon_id:id}).then(function(res){
     if(res.error){ alert('兑换失败：'+res.error.message); return; }
+    if(done) try{ done(); }catch(e){}
     // 服务端已扣币发券，这里重新拉一次余额和券列表
     return refreshMemberProfile().then(function(){
       document.getElementById('pmCoinBalance').textContent=(_memberProfile&&_memberProfile.coins)||0;
@@ -6818,6 +7018,8 @@ function openPointsMall(tab){
   });
 }
 function closePointsMall(){
+  // 详情页是叠在商城上面的，商城一关它就必须跟着关，否则会留一层挡住整个页面
+  closeCouponDetail();
   document.getElementById('pmScreen').classList.remove('show');
   _pmFromCheckout=false;
 }
