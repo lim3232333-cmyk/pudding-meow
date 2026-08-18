@@ -49,16 +49,25 @@ create trigger coupon_rules_guard
   for each row execute function public._coupon_rule_guard();
 
 -- ── 2) 商城列表：上架与否改看 coin_price 是不是 null ────────────────────────
---  返回的列跟 supabase-coupon-mall-category.sql 那版一模一样，只改了 where。
 --  仍然先 drop：库里可能还是更早那版（列少几个），create or replace 会报
 --  cannot change return type。
+--
+--  ⚠ 这里必须**带上 image_pos**（取景位置，supabase-coupon-image-pos.sql 加的），
+--    哪怕那份脚本还没跑。原因：这份脚本是「可以重复跑」的，而它一旦在
+--    image-pos 之后再跑一次，就会把商城列表函数换回没有 image_pos 的旧版——
+--    于是「我的卷」照常跟着取景走（它读的是另一个函数），**只有兑好礼不动**。
+--    这种「重跑一份旧脚本把新功能悄悄抹掉」是这个项目最难查的一类 bug，
+--    所以列一旦被任何一份脚本用到，每一份重建这个函数的脚本都要带着它。
+alter table public.coupons
+  add column if not exists image_pos text;
+
 drop function if exists public.rpc_list_mall_coupons();
 create or replace function public.rpc_list_mall_coupons()
 returns table(
   id uuid, name text, type text, value numeric, min_spend numeric,
   valid_days int, coin_price int, menu_item_id uuid, menu_item_name text, menu_item_image text,
   max_discount numeric, channels jsonb, applies_to jsonb, rule_id uuid,
-  mall_category text, mall_image_url text)
+  mall_category text, mall_image_url text, image_pos text)
 language plpgsql
 security definer
 set search_path = public
@@ -68,7 +77,7 @@ begin
   select c.id, c.name, c.type, c.value, c.min_spend, c.valid_days, r.coin_price,
          c.menu_item_id, mi.name, mi.image_url,
          c.max_discount, c.channels, coalesce(c.applies_to,'{"scope":"order"}'::jsonb), r.id,
-         c.mall_category, c.mall_image_url
+         c.mall_category, c.mall_image_url, c.image_pos
     from public.coupons c
     join public.coupon_rules r on r.coupon_id = c.id
                               and r.trigger_event = 'coin_redeem'
@@ -84,67 +93,82 @@ end;
 $$;
 
 -- ── 3) 兑换：0 Coin 不扣币、不写流水 ────────────────────────────────────────
---  签名和返回类型都没变，所以 create or replace 就够。
-create or replace function public.rpc_redeem_coupon(
-  p_member_id uuid, p_session_token text, p_coupon_id uuid)
-returns uuid
-language plpgsql
-security definer
-set search_path = public, extensions
-as $$
-declare
-  v_coupon record; v_rule record; v_coins int; v_new_id uuid; v_mine int;
+--  ⚠ 只有在 supabase-coupon-limit-period.sql **还没跑**时才重建它。那份脚本给
+--    rpc_redeem_coupon 加了「每人限领的计数周期」，这份是旧版；重复跑这份会
+--    把周期判断悄悄抹掉（跟上面 image_pos 一模一样的坑）。检测到那一列就跳过。
+do $guard$
 begin
-  perform public._auth_member(p_member_id, p_session_token);
+  if exists (select 1 from information_schema.columns
+              where table_schema='public' and table_name='coupon_rules'
+                and column_name='per_member_period') then
+    raise notice '已检测到 per_member_period —— supabase-coupon-limit-period.sql 跑过了，它那版 rpc_redeem_coupon 更新，这里跳过重建，不覆盖它';
+  else
+    execute $sql$
+      create or replace function public.rpc_redeem_coupon(
+        p_member_id uuid, p_session_token text, p_coupon_id uuid)
+      returns uuid
+      language plpgsql
+      security definer
+      set search_path = public, extensions
+      as $body$
+      declare
+        v_coupon record; v_rule record; v_coins int; v_new_id uuid; v_mine int;
+      begin
+        perform public._auth_member(p_member_id, p_session_token);
 
-  select * into v_coupon from public.coupons where id = p_coupon_id;
-  if v_coupon is null or not v_coupon.enabled then raise exception '该优惠券不存在或已下架'; end if;
+        select * into v_coupon from public.coupons where id = p_coupon_id;
+        if v_coupon is null or not v_coupon.enabled then raise exception '该优惠券不存在或已下架'; end if;
 
-  -- 锁住规则行再数：两次并发兑换会排队，后来的那次看得见前一次插进去的券
-  select * into v_rule from public.coupon_rules
-   where coupon_id = p_coupon_id and trigger_event = 'coin_redeem' and enabled
-   order by created_at limit 1
-   for update;
-  if v_rule is null or v_rule.coin_price is null then
-    raise exception '该优惠券未在积分商城出售';
-  end if;
-  if v_rule.starts_at is not null and now() < v_rule.starts_at then raise exception '兑换还没开始'; end if;
-  if v_rule.ends_at   is not null and now() > v_rule.ends_at   then raise exception '兑换已结束'; end if;
-  if v_rule.total_limit is not null and v_rule.issued_count >= v_rule.total_limit then
-    raise exception '这张券已经兑完了';
-  end if;
-  if coalesce(v_rule.per_member_limit,0) > 0 then
-    select count(*) into v_mine from public.member_coupons
-     where member_id = p_member_id and source_rule_id = v_rule.id;
-    if v_mine >= v_rule.per_member_limit then
-      raise exception '每人限兑 % 张，你已经兑过了', v_rule.per_member_limit;
-    end if;
-  end if;
-  -- 规则上的领取条件（等级、消费额…）跟其它发放方式共用同一套引擎
-  if not public._coupon_cond_ok(v_rule.conditions, public._coupon_facts(p_member_id, '{}'::jsonb)) then
-    raise exception '你还不满足这张券的兑换条件';
-  end if;
+        -- 锁住规则行再数：两次并发兑换会排队，后来的那次看得见前一次插进去的券
+        select * into v_rule from public.coupon_rules
+         where coupon_id = p_coupon_id and trigger_event = 'coin_redeem' and enabled
+         order by created_at limit 1
+         for update;
+        if v_rule is null or v_rule.coin_price is null then
+          raise exception '该优惠券未在积分商城出售';
+        end if;
+        if v_rule.starts_at is not null and now() < v_rule.starts_at then raise exception '兑换还没开始'; end if;
+        if v_rule.ends_at   is not null and now() > v_rule.ends_at   then raise exception '兑换已结束'; end if;
+        if v_rule.total_limit is not null and v_rule.issued_count >= v_rule.total_limit then
+          raise exception '这张券已经兑完了';
+        end if;
+        if coalesce(v_rule.per_member_limit,0) > 0 then
+          select count(*) into v_mine from public.member_coupons
+           where member_id = p_member_id and source_rule_id = v_rule.id;
+          if v_mine >= v_rule.per_member_limit then
+            raise exception '每人限兑 % 张，你已经兑过了', v_rule.per_member_limit;
+          end if;
+        end if;
+        -- 规则上的领取条件（等级、消费额…）跟其它发放方式共用同一套引擎
+        if not public._coupon_cond_ok(v_rule.conditions, public._coupon_facts(p_member_id, '{}'::jsonb)) then
+          raise exception '你还不满足这张券的兑换条件';
+        end if;
 
-  --  0 Coin 就整段跳过：不锁会员行、不扣、也不写一条 delta = 0 的流水
-  --  （对账时那种 0 的行只会让人以为出过 bug）
-  if v_rule.coin_price > 0 then
-    select coins into v_coins from public.members where id = p_member_id for update;
-    if v_coins < v_rule.coin_price then
-      raise exception 'Coin 不足：需要 %，当前 %', v_rule.coin_price, v_coins;
-    end if;
-    update public.members set coins = coins - v_rule.coin_price where id = p_member_id;
-    insert into public.member_coin_ledger(member_id, delta, reason, ref_type, ref_id)
-      values (p_member_id, -v_rule.coin_price, 'mall_redeem', 'coupon', p_coupon_id::text);
+        --  0 Coin 就整段跳过：不锁会员行、不扣、也不写一条 delta = 0 的流水
+        --  （对账时那种 0 的行只会让人以为出过 bug）
+        if v_rule.coin_price > 0 then
+          select coins into v_coins from public.members where id = p_member_id for update;
+          if v_coins < v_rule.coin_price then
+            raise exception 'Coin 不足：需要 %，当前 %', v_rule.coin_price, v_coins;
+          end if;
+          update public.members set coins = coins - v_rule.coin_price where id = p_member_id;
+          insert into public.member_coin_ledger(member_id, delta, reason, ref_type, ref_id)
+            values (p_member_id, -v_rule.coin_price, 'mall_redeem', 'coupon', p_coupon_id::text);
+        end if;
+
+        insert into public.member_coupons(member_id, coupon_id, status, expires_at, source_rule_id)
+          values (p_member_id, p_coupon_id, 'unused', public._coupon_expiry_for(p_coupon_id), v_rule.id)
+          returning id into v_new_id;
+        update public.coupon_rules set issued_count = issued_count + 1 where id = v_rule.id;
+
+        return v_new_id;
+      end;
+      $body$;
+    $sql$;
   end if;
+end
+$guard$;
 
-  insert into public.member_coupons(member_id, coupon_id, status, expires_at, source_rule_id)
-    values (p_member_id, p_coupon_id, 'unused', public._coupon_expiry_for(p_coupon_id), v_rule.id)
-    returning id into v_new_id;
-  update public.coupon_rules set issued_count = issued_count + 1 where id = v_rule.id;
-
-  return v_new_id;
-end;
-$$;
 
 grant execute on function public.rpc_list_mall_coupons() to anon;
 grant execute on function public.rpc_redeem_coupon(uuid, text, uuid) to anon;
