@@ -78,6 +78,8 @@ A rule is `trigger_event` + `conditions`(jsonb) + `per_member_limit` + `total_li
 
 **发券绝不能连累主流程** — both triggers wrap `_coupon_fire` in `begin … exception when others then raise warning`, so a broken rule loses a coupon but never blocks a registration or an order write. Verified by pointing `_coupon_fire` at a function that always raises and confirming registration still succeeds.
 
+**「每人限领」可以按天/周/月**（`coupon_rules.per_member_period`，`supabase-coupon-limit-period.sql`）。原来它是**终身**的，所以「免邮券每周限领 2 张」只能每周复制一张新券模板 —— 券包里堆一排同名券，顾客分不清，统计也散了。加一列 `total`（默认，行为不变）/ `day` / `week` / `month`，数的时候只数当前周期内领的那几张，周期一过自动回满，店家不用点任何按钮。周期的口径**必须**跟营业日和每周任务一致（`_coupon_period_start()` 用 `biz_date()` / `week_start()`），否则「本周领了几张」会跟仪表盘、每周任务对不上，同一天读出两个数。计数比较的是 `biz_date(mc.issued_at) >= 周期起点`，不是原始时间戳 —— 凌晨 1 点领的那张属于前一个营业日。三条发券路径里只有 `_coupon_fire`（注册/下单/生日）和 `rpc_redeem_coupon`（商城兑换）吃这个周期；`coupon_codes` 的每人限领仍是终身的，兑换码本来就是一次性的东西。**`total_limit` 没有周期**：那是「这批券一共印多少张」的意思，本来就不该自己回满。
+
 **不重复发** — `_coupon_fire` takes `select … for update` on the rule row before counting, so a retried registration or a concurrent order waits, re-reads, sees the row the first call just inserted, and skips. `member_coupons.source_rule_id` is what the per-member count is keyed on: counting by `coupon_id` would be wrong when one coupon carries two rules, since each rule's limit is its own. The order trigger additionally returns early when `old.status = new.status`, so the later `kitchen_printed_at` write on the same row can't re-fire it.
 
 `birthday_month` has no scheduler (Supabase free tier has no cron) — `rpc_admin_run_birthday_coupons()` exists to be called manually or wired to a Routine later; it is safe to run repeatedly because `per_member_limit` still applies.
