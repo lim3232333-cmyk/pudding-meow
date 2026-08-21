@@ -152,6 +152,11 @@ All amounts live in `referral_settings` (single row, POS 会员运营 → 邀请
 
 The share icon copies/shares `?ref=CODE`; a page load with that query pre-fills the registration form's 邀请码 field. The QR box is still the grey placeholder the Figma itself shows — a real QR needs the shop's public URL.
 
+### 往右滑＝返回（`_swipeBackInit()`）
+左上角有返回箭头的页面**一律支持右滑返回** —— 顾客会先试这个手势再去找按钮。不写死一张页面清单：每颗返回键带一个 `pg-back` 类，启动时从它往上找到所在的整屏容器（第一个 `position:fixed` 的祖先；注册表单那种嵌在标签页里、没有 fixed 祖先的，就用返回键自己那一块，不要蔓延到整个 app），滑动时直接 `btn.click()` —— **「返回」是什么意思只有那颗按钮的 `onclick` 一处在定义**，以后新加页面只要给返回键加上 `pg-back` 就自动有手势。原来 `pmScreen` / `rcScreen` / `ldScreen` 各抄了一份一模一样的 IIFE，现在合并掉了。
+
+`_swipeBlocked()` 挡掉三类起点，否则手势会互相打架：**横向滚动的容器**（商城那排卡、地址页那两个单行 textarea —— 在里面右滑是要滚它）、**地图和 canvas**（拖地图也是右滑）、**输入框**（往右拖是在挪光标或选字）。判定要求 `dx>80 && |dy|<60 && dx>|dy|×1.5`：斜着划多半是想滚列表，不该把页面关掉。
+
 ### Dining mode must be chosen before ordering
 `currentMode` defaults to `'dinein'`, so a customer who taps 点单 straight from the bottom nav — never touching the home screen's mode cards — used to land in the menu with **no table number** and could order all the way through; the kitchen would get a ticket with nowhere to send it. `_modeChosen` tracks whether the mode was actually settled (home card tapped, or table/address confirmed in its modal) — `currentMode` alone can't tell "the customer picked this" from "this is the default". `switchTab('menu')` calls `promptModeIfNeeded()`, which opens the 堂食 table picker or the 外卖 address book (自取 needs nothing extra and just sets the flag). The modal is dismissible, so `openCheckout()` guards again: dine-in with no `_dineInfo` reopens the table picker instead of going to checkout.
 
