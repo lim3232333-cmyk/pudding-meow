@@ -982,12 +982,12 @@
   .rc-gift-pop.show{ display:block; }
   .rc-gift-pop ul{ margin:0; padding-left:15px; list-style:disc; }
   .rc-gift-pop li{ font-size:10px; font-weight:500; color:#fff; line-height:normal; white-space:nowrap; }
-  .rc-pay-methods{ display:flex; flex-direction:column; gap:8px; margin:12px 0 0 36px; }
-  .rc-pay-row{ display:flex; align-items:center; gap:7px; cursor:pointer; }
-  .rc-pay-dot{ width:12px; height:12px; border-radius:50%; border:1.5px solid var(--red); box-sizing:border-box; flex-shrink:0; }
-  .rc-pay-dot.selected{ background:var(--yellow); }
-  .rc-pay-label{ font-size:12px; color:#000; }
-  .rc-pay-note{ margin:8px 20px 0; font-size:11px; line-height:1.4; color:var(--muted); }
+  /* 充值确认页（#rcPayScreen）复用 .cd-screen 骨架 + 结算页 .ck-pay-x / .ck-price-x 视觉，
+     只有套餐摘要这一小块是专属的（写成 .ck-pay-x 是为了避开 CSS 注释里不能出现 星号斜杠） */
+  .rc-pay-pkg{ display:flex; align-items:center; gap:8px; }
+  .rc-pay-pkg-num{ font-size:20px; font-weight:700; color:var(--red); }
+  .rc-pay-pkg-price{ margin-left:auto; font-size:16px; font-weight:700; color:var(--muted); }
+  .rc-pay-pkg-gifts{ font-size:12px; color:var(--muted); margin-top:4px; }
   .rc-cta{ display:block; margin:12px 17px 0; width:360px; height:29px; background:var(--yellow); border:none; border-radius:8px; box-shadow:0 4px 4px rgba(0,0,0,.25); color:var(--red); font-size:16px; font-family:"Noto Sans SC",sans-serif; cursor:pointer; }
   .rc-tx-title{ margin:36px 0 8px 31px; font-weight:500; font-size:16px; color:var(--red); }
   .rc-tx-card{ margin:0 17px; width:360px; box-sizing:border-box; background:#fff; border-radius:12px; padding:0 13.5px; }
@@ -1787,14 +1787,73 @@
 </div>
     <div class="rc-body">
       <div class="rc-pkg-grid" id="rcPkgGrid"></div>
-      <div class="rc-pay-methods">
-        <div class="rc-pay-row" onclick="selectRcPay('counter')"><span class="rc-pay-dot selected" id="rcPayDotCounter"></span><span class="rc-pay-label">柜台支付 (Cash/DuitNow)</span></div>
-        <div class="rc-pay-row" onclick="selectRcPay('online')"><span class="rc-pay-dot" id="rcPayDotOnline"></span><span class="rc-pay-label">在线支付 (Touch n Go / Online Banking / 信用卡)</span></div>
-</div>
-      <div class="rc-pay-note" id="rcPayNote">充值只在柜台付款：提交后请到柜台以现金 / DuitNow 支付，店员确认收款后余额到账。</div>
-      <button class="rc-cta" onclick="doRecharge()">充值</button>
+      <button class="rc-cta" onclick="openRcPay()">充值</button>
       <div class="rc-tx-title">交易明细</div>
       <div class="rc-tx-card" id="rcTxList"></div>
+</div>
+</div>
+
+  <!-- 充值支付方式：选好套餐点「充值」进这一页选付款方式（Figma 没有专门稿子，
+       骨架借 .cd-screen、付款方式/价格明细借结算页 .ck-pay-*/.ck-price-*，
+       跟点单结算是同一套体验——HitPay 三种方式各自显示费率，手续费不再是
+       店家自己吃。不放 Meow Wallet：拿钱包余额给钱包充值没有意义。 -->
+  <div class="cd-screen" id="rcPayScreen">
+    <div class="cd-top">
+      <div class="cd-back pg-back" onclick="closeRcPay()">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</div>
+      <div class="cd-title">确认充值</div>
+</div>
+    <div class="cd-scroll">
+      <div class="cd-body">
+        <div class="rc-pay-pkg">
+          <span class="rc-coin"></span><span class="rc-pay-pkg-num" id="rcPayPkgNum"></span>
+          <span class="rc-pay-pkg-price" id="rcPayPkgPrice"></span>
+</div>
+        <div class="rc-pay-pkg-gifts" id="rcPayPkgGifts"></div>
+        <div class="ck-hr"></div>
+        <div>
+          <div class="ck-sec-label">付款方式</div>
+          <div class="ck-pay-rows" style="margin-top:12px">
+            <div class="ck-pay-row" id="rcPayRowCounter" onclick="selectRcPay2('counter')">
+              <span class="ck-pay-ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8D0505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg></span>
+              <span>柜台支付 Pay at Counter</span>
+              <svg class="ck-pay-check" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+</div>
+            <div class="ck-pay-hr"></div>
+            <div class="ck-pay-row" id="rcPayRowTng" onclick="selectRcPay2('hp_tng')">
+              <img class="ck-pay-logo" alt="" src="data:image/png;base64,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">
+              <span>Touch n Go<i class="ck-pay-fee" id="rcFeeHpTng"></i></span>
+              <svg class="ck-pay-check" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+</div>
+            <div class="ck-pay-hr"></div>
+            <div class="ck-pay-row" id="rcPayRowFpx" onclick="selectRcPay2('hp_fpx')">
+              <img class="ck-pay-logo" alt="" src="FPX-Full.svg">
+              <span>Online Banking<i class="ck-pay-fee" id="rcFeeHpFpx"></i></span>
+              <svg class="ck-pay-check" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+</div>
+            <div class="ck-pay-hr"></div>
+            <div class="ck-pay-row" id="rcPayRowCard" onclick="selectRcPay2('hp_card')">
+              <img class="ck-pay-logo" alt="" src="credit%20card.svg">
+              <span>信用卡/借记卡<i class="ck-pay-fee" id="rcFeeHpCard"></i></span>
+              <svg class="ck-pay-check" viewBox="0 0 24 24" fill="none" stroke="#8D0505" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+</div>
+</div>
+</div>
+        <div class="ck-hr"></div>
+        <div>
+          <div class="ck-sec-label">价格明细</div>
+          <div class="ck-price-rows" style="margin-top:12px">
+            <div class="ck-price-row"><span>充值金额</span><span id="rcPaySub">RM 0.00</span></div>
+            <div class="ck-price-row" id="rcPayFeeRow"><span id="rcPayFeeLbl">手续费</span><span id="rcPayFee">RM 0.00</span></div>
+            <div class="ck-pay-hr"></div>
+            <div class="ck-price-row total"><span>应付总额</span><span class="val" id="rcPayTotal">RM 0.00</span></div>
+</div>
+</div>
+</div>
+</div>
+    <div class="cd-cta">
+      <button class="cd-btn" id="rcPayBtn" onclick="rcPayNow()">确认充值</button>
 </div>
 </div>
 
@@ -6415,18 +6474,52 @@ function loadRechargePackages(){
 }
 var _rcSelected = 0;
 var _rcAlreadyRecharged = false; // 已经充值过一次了：首充双倍徽章就不该再显示
-var _rcPayMethod ='counter';   // 充值只开放柜台支付
-function renderRcPayMethods(){
-  var online=_rcPayMethod==='online';
-  var c=document.getElementById('rcPayDotCounter'), o=document.getElementById('rcPayDotOnline');
-  if(c) c.classList.toggle('selected', !online);
-  if(o) o.classList.toggle('selected', online);
-  var note=document.getElementById('rcPayNote');
-  if(note) note.textContent = online
-    ? '在线支付：提交后跳转到支付页面，选好方式付款成功后余额自动到账。'
-    : '柜台付款：提交后请到柜台以现金 / DuitNow 支付，店员确认收款后余额到账。';
+/* 充值支付方式：柜台 / Touch n Go / Online Banking / 信用卡，跟结算页同一套
+   hp_tng/hp_fpx/hp_card 编码和费率（_adminFee / _adminFeeDesc）——手续费不再
+   是店家自己吃，客人选哪个方式就看到那个方式的费率，跟点单时体验一致。
+   不放 Meow Wallet：拿钱包余额给钱包充值没有意义。 */
+var _rcPay = 'counter';
+function _rcSyncPayRows(){
+  var rows={counter:'rcPayRowCounter', hp_tng:'rcPayRowTng', hp_fpx:'rcPayRowFpx', hp_card:'rcPayRowCard'};
+  Object.keys(rows).forEach(function(k){
+    var el=document.getElementById(rows[k]);
+    if(el) el.classList.toggle('sel', _rcPay===k);
+  });
+  // 费率跟在方式名字后面，现读现写——后台在 POS 改费率不用改这里的代码
+  [['hp_tng','rcFeeHpTng'],['hp_fpx','rcFeeHpFpx'],['hp_card','rcFeeHpCard']].forEach(function(x){
+    var el=document.getElementById(x[1]); if(!el) return;
+    var d=_adminFeeDesc(x[0]);
+    el.textContent = d ? ' ('+d+')' : '';
+  });
 }
-function selectRcPay(method){ _rcPayMethod = (method==='online') ? 'online' : 'counter'; renderRcPayMethods(); }
+function selectRcPay2(method){ _rcPay=method; renderRcPayScreen(); }
+/* 套餐摘要 + 付款方式选中态 + 手续费/总额，跟 renderCheckout() 是同一个算法：
+   手续费按「客人真正要付的钱」算（这里就是套餐原价，充值没有折扣/配送费这些）。 */
+function renderRcPayScreen(){
+  var p=RECHARGE_PACKAGES[_rcSelected]; if(!p) return;
+  document.getElementById('rcPayPkgNum').textContent=p.coins||0;
+  document.getElementById('rcPayPkgPrice').textContent='RM '+Number(p.price).toFixed(2);
+  var gifts=_rcRewardLines(p);
+  document.getElementById('rcPayPkgGifts').textContent=gifts.length?gifts.join('，'):'';
+  _rcSyncPayRows();
+  var sub=Number(p.price)||0;
+  var afee=_adminFee(_rcPay, sub);
+  var total=sub+afee;
+  document.getElementById('rcPaySub').textContent='RM '+sub.toFixed(2);
+  // 柜台没有这笔钱，整行藏掉——留着一行「手续费 RM 0.00」只会让人愣一下
+  var feeRow=document.getElementById('rcPayFeeRow');
+  feeRow.style.display=afee>0?'flex':'none';
+  document.getElementById('rcPayFee').textContent='RM '+afee.toFixed(2);
+  document.getElementById('rcPayTotal').textContent='RM '+total.toFixed(2);
+  document.getElementById('rcPayBtn').textContent='确认充值 RM'+total.toFixed(2);
+}
+function openRcPay(){
+  if(!RECHARGE_PACKAGES.length){ alert('暂无可用充值套餐，请稍后再试'); return; }
+  _rcPay='counter';
+  renderRcPayScreen();
+  document.getElementById('rcPayScreen').classList.add('show');
+}
+function closeRcPay(){ document.getElementById('rcPayScreen').classList.remove('show'); }
 /* 卡片（Figma 236:159 四态）：Paw Coin + 送的 Coin 数、下面 RM 价、
    右上角可选标签、左下角一个小图标——有赠品时点它弹出 more gift 浮层（Figma 824:792）。 */
 function _rcPkgHtml(p, idx){
@@ -6477,10 +6570,9 @@ function openRecharge(){
   if(!_memberId || !_memberToken){ alert('请先登录会员'); return; }
   _rcSelected = 0;
   _rcGiftOpen = -1;
-  _rcPayMethod ='counter';
+  closeRcPay();   // 防御：万一是从 bfcache 恢复回来的，别让付款方式页叠在充值页上头
   renderRechargePackages();
   loadRechargePackages();
-  renderRcPayMethods();
   var _setBal=function(){ document.getElementById('rcBalance').textContent = (_memberProfile ? (_memberProfile.wallet_balance||0) : 0).toFixed(2); };
   _setBal();
   document.getElementById('rcScreen').classList.add('show');
@@ -6490,20 +6582,26 @@ function openRecharge(){
 function closeRecharge(){
   document.getElementById('rcScreen').classList.remove('show');
 }
-function doRecharge(){
+function rcPayNow(){
   if(!_memberId || !_memberToken){ alert('请先登录会员'); return; }
   var p = RECHARGE_PACKAGES[_rcSelected];
-  var online = _rcPayMethod==='online';
-  if(online && !db){ alert('在线支付需要联网，请检查网络后重试，或改用柜台支付。'); return; }
+  var isHitpay = _rcPay.indexOf('hp_')===0;
+  if(isHitpay && !db){ alert('在线支付需要联网，请检查网络后重试，或改用柜台支付。'); return; }
+  var sub = Number(p.price)||0;
+  // 手续费：柜台是 0，三种 HitPay 方式各自的费率——跟结算页 _doConfirmOrder 同一套算法。
+  // 钱包到账金额（服务端算）不含这笔钱，见 rpc_complete_recharge。
+  var afee = _adminFee(_rcPay, sub);
+  var total = sub + afee;
   // 充值 = 一条 orders 行（ta_mode=recharge），进 POS 待付款。
   // 柜台：店员点「已付款」→ rpc_complete_recharge 到账；在线：付款后 HitPay 回调 webhook → rpc_complete_recharge 到账。
   var order = {
     id:'o'+Date.now(),
     orderNum:'',
     createdAt:new Date().toISOString(),
-    items:[{name:'钱包充值', en:'Wallet Top-up', price:p.price, qty:1, specs:[], image:''}],
-    total:p.price,
-    payMethod: online?'hitpay':'counter',
+    items:[{name:'钱包充值', en:'Wallet Top-up', price:sub, qty:1, specs:[], image:''}],
+    total: total,
+    adminFee: afee,   // 已含在 total 里；单独存一份，钱包到账金额要扣掉它——不然手续费变成免费送的余额
+    payMethod: isHitpay?'hitpay':'counter',
     status:'pending',
     needs_print:true,
     source:'app',
@@ -6511,9 +6609,9 @@ function doRecharge(){
     taMode:'recharge',
     memberId:_memberId,
     deviceId:_deviceId,
-    // package_id 是关键：服务端按它去 recharge_packages 查该发多少，不听这里写的数。
-    // 后面几个只是快照，万一套餐后来被删了才拿来兜底。
-    deliveryInfo:{ recharge:{ package_id:(p.id||null), price:p.price, coins:(p.coins||0),
+    // package_id 是关键：服务端按它去 recharge_packages 查该发多少 coin/xp，不听这里写的数。
+    // price 快照给的是套餐原价（不含手续费）——万一套餐后来被删了，钱包到账兜底也不该把手续费算进去。
+    deliveryInfo:{ recharge:{ package_id:(p.id||null), price:sub, coins:(p.coins||0),
       xp:(p.xp||0), draw_tickets:(p.draw_tickets||0) } }
   };
   assignOrderNumsApp(order).then(function(){
@@ -6521,24 +6619,28 @@ function doRecharge(){
     try{ var ex=JSON.parse(localStorage.getItem('pm_orders')||'[]'); ex.unshift(order); localStorage.setItem('pm_orders',JSON.stringify(ex)); }catch(e){}
     try{ pmBroadcastOrders(); }catch(e){}
     var afterInsert=function(){
-      if(!online){
-        alert('充值申请已提交！\n请到柜台以现金 / DuitNow 支付 RM'+p.price.toFixed(2)+'。\n店员确认收款后，您的 Meow Wallet 到账 RM'+p.price.toFixed(2)+'，并获得 '+(p.coins||0)+' Meow Coin'+(function(){ var g=_rcRewardLines(p); return g.length?('、'+g.join('、')):''; })()+'。');
-        closeRecharge();
+      if(!isHitpay){
+        alert('充值申请已提交！\n请到柜台以现金 / DuitNow 支付 RM'+total.toFixed(2)+'。\n店员确认收款后，您的 Meow Wallet 到账 RM'+sub.toFixed(2)+'，并获得 '+(p.coins||0)+' Meow Coin'+(function(){ var g=_rcRewardLines(p); return g.length?('、'+g.join('、')):''; })()+'。');
+        closeRcPay(); closeRecharge();
         return;
       }
-      // 在线：跳 HitPay 收银页（不指定方式 → 出全部支付选项）。付款成功 webhook 自动到账；
-      // 中途退出/超时未付：跟点单一样直接删除这张 pending 单（返回处理 + POS 15 分钟清扫）。
+      // 在线：跳 HitPay 收银页。客人已经在这一页选好方式，把它传给 HitPay，收银页
+      // 直接进那个方式、跳过「再选一次」那步（跟结算页 confirmOrder() 同一套 method 映射）。
+      // 付款成功 webhook 自动到账；中途退出/超时未付：直接删除这张 pending 单（返回处理 + POS 15 分钟清扫）。
       var redirectUrl = location.origin + location.pathname + '?pm_hitpay=' + encodeURIComponent(order.id);
       try{ sessionStorage.setItem(_HP_AWAIT, order.id); sessionStorage.setItem('pm_hp_recharge','1'); }catch(e){}
+      var hpMethod = ({hp_tng:'tng', hp_fpx:'fpx', hp_card:'card'})[_rcPay] || '';
       db.functions.invoke('hitpay-checkout', {body:{
         orderId: order.id, amount: order.total, currency:'MYR', redirectUrl: redirectUrl,
+        method: hpMethod,
         customerName: (_memberProfile && _memberProfile.nickname) || undefined,
         customerPhone: (_memberProfile && _memberProfile.phone) || undefined
       }}).then(function(r){
         var data = r && r.data;
         if(data && data.ok && data.url){ _pmGotoPay(data.url); }
         else {
-          // 创建失败：撤掉这张 pending 充值单（本地移除 + 云端删），别留在待付款里
+          // 创建失败：撤掉这张 pending 充值单（本地移除 + 云端删），别留在待付款里；
+          // 留在付款方式页，让客人换一种方式或改柜台
           _orders = _orders.filter(function(x){ return x.id!==order.id; });
           try{ var ex3=JSON.parse(localStorage.getItem('pm_orders')||'[]').filter(function(x){return x.id!==order.id;}); localStorage.setItem('pm_orders',JSON.stringify(ex3)); }catch(e){}
           try{ if(db) db.from('orders').delete().eq('id',order.id); }catch(e){}

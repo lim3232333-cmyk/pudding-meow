@@ -112,53 +112,73 @@ $$;
 
 -- ---------------------------------------------------------------------------
 --  小程序充值单：顾客选好套餐 → 下单 → 店员收款点「已付款」
+--  ⚠ 只有在 supabase-recharge-admin-fee.sql 还没跑过时才重建它。那份脚本让
+--    在线充值的手续费不再由店家自己吃，钱包到账金额改成 total − admin_fee；
+--    这里是旧版（到账 = total），重复跑这份会把那处修复悄悄抹掉（跟
+--    coupon_rules.per_member_period 栽过的坑一模一样）。用它留在函数上的注释
+--    当标记，检测到了就跳过、只打一条 notice。
 -- ---------------------------------------------------------------------------
-create or replace function public.rpc_complete_recharge(p_order_id text)
-returns numeric language plpgsql security definer
-set search_path = public
-as $$
-declare
-  v_member uuid; v_price numeric; v_di jsonb; v_bal numeric;
-  v_pkg record; v_coins int; v_xp int; v_tickets int;
+do $guard$
 begin
-  select member_id, total, delivery_info into v_member, v_price, v_di
-    from public.orders where id = p_order_id and ta_mode = 'recharge';
-  if v_member is null then raise exception '充值订单不存在或未绑定会员'; end if;
-
-  perform public._wallet_check_limits(v_member, v_price);
-
-  -- 幂等锁：只有仍是 pending 才处理
-  update public.orders set status = 'done' where id = p_order_id and status = 'pending';
-  if not found then
-    select wallet_balance into v_bal from public.members where id = v_member;
-    return v_bal;
-  end if;
-
-  -- 钱包 1:1 到账（= 顾客在柜台付的钱）
-  insert into public.member_wallet_ledger(member_id, delta, reason, ref_type, ref_id)
-    values (v_member, v_price, 'topup', 'recharge', p_order_id);
-  update public.members set wallet_balance = wallet_balance + v_price where id = v_member;
-
-  -- 送什么，以套餐那一行为准，不听下单时前端写进来的数。
-  -- 判「查到没有」必须用 found，不能写 if v_pkg is not null——record 的 IS NOT NULL
-  -- 是「每个字段都非空」才成立，套餐的 tag 一般是 null，那样会被误判成没查到。
-  select * into v_pkg from public.recharge_packages
-   where id = (v_di->'recharge'->>'package_id')::uuid;
-  if found then
-    v_coins := v_pkg.coins; v_xp := v_pkg.xp; v_tickets := v_pkg.draw_tickets;
+  if exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'rpc_complete_recharge'
+       and obj_description(p.oid, 'pg_proc') = 'recharge-admin-fee-v1: 钱包到账 = orders.total - orders.admin_fee，不是 total 本身（见 supabase-recharge-admin-fee.sql）'
+  ) then
+    raise notice '已检测到 supabase-recharge-admin-fee.sql 跑过 —— 它那版 rpc_complete_recharge 会扣掉充值手续费再到账，这里跳过重建，不覆盖它';
   else
-    -- 套餐后来被删了：退回下单时存的那份快照。金额已经由顾客实付兜底，
-    -- 与其让人家白付钱拿不到东西，不如按快照发。
-    v_coins   := coalesce((v_di->'recharge'->>'coins')::int, 0);
-    v_xp      := coalesce((v_di->'recharge'->>'xp')::int, 0);
-    v_tickets := coalesce((v_di->'recharge'->>'draw_tickets')::int, 0);
+    execute $sql$
+      create or replace function public.rpc_complete_recharge(p_order_id text)
+      returns numeric language plpgsql security definer
+      set search_path = public
+      as $$
+      declare
+        v_member uuid; v_price numeric; v_di jsonb; v_bal numeric;
+        v_pkg record; v_coins int; v_xp int; v_tickets int;
+      begin
+        select member_id, total, delivery_info into v_member, v_price, v_di
+          from public.orders where id = p_order_id and ta_mode = 'recharge';
+        if v_member is null then raise exception '充值订单不存在或未绑定会员'; end if;
+
+        perform public._wallet_check_limits(v_member, v_price);
+
+        -- 幂等锁：只有仍是 pending 才处理
+        update public.orders set status = 'done' where id = p_order_id and status = 'pending';
+        if not found then
+          select wallet_balance into v_bal from public.members where id = v_member;
+          return v_bal;
+        end if;
+
+        -- 钱包 1:1 到账（= 顾客在柜台付的钱）
+        insert into public.member_wallet_ledger(member_id, delta, reason, ref_type, ref_id)
+          values (v_member, v_price, 'topup', 'recharge', p_order_id);
+        update public.members set wallet_balance = wallet_balance + v_price where id = v_member;
+
+        -- 送什么，以套餐那一行为准，不听下单时前端写进来的数。
+        -- 判「查到没有」必须用 found，不能写 if v_pkg is not null——record 的 IS NOT NULL
+        -- 是「每个字段都非空」才成立，套餐的 tag 一般是 null，那样会被误判成没查到。
+        select * into v_pkg from public.recharge_packages
+         where id = (v_di->'recharge'->>'package_id')::uuid;
+        if found then
+          v_coins := v_pkg.coins; v_xp := v_pkg.xp; v_tickets := v_pkg.draw_tickets;
+        else
+          -- 套餐后来被删了：退回下单时存的那份快照。金额已经由顾客实付兜底，
+          -- 与其让人家白付钱拿不到东西，不如按快照发。
+          v_coins   := coalesce((v_di->'recharge'->>'coins')::int, 0);
+          v_xp      := coalesce((v_di->'recharge'->>'xp')::int, 0);
+          v_tickets := coalesce((v_di->'recharge'->>'draw_tickets')::int, 0);
+        end if;
+
+        perform public._wallet_grant_rewards(v_member, v_coins, v_xp, v_tickets, 'recharge', p_order_id);
+
+        select wallet_balance into v_bal from public.members where id = v_member;
+        return v_bal;
+      end; $$;
+    $sql$;
   end if;
+end
+$guard$;
 
-  perform public._wallet_grant_rewards(v_member, v_coins, v_xp, v_tickets, 'recharge', p_order_id);
-
-  select wallet_balance into v_bal from public.members where id = v_member;
-  return v_bal;
-end; $$;
 
 -- ---------------------------------------------------------------------------
 --  柜台直接充：店员选一档套餐，收钱，到账
