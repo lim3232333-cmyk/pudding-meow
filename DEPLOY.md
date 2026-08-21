@@ -216,6 +216,14 @@ Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-admin-fee.s
 
 费率预设照抄 HitPay 的公开费率表（Touch n Go 1.9%、Online Banking 1.8%+RM0.40、信用卡 1.2%+RM1），跑完之后在 **POS → Transaction → 手续费费率** 里随时改，不用再回来碰 SQL。**不跑这段也不会坏**：两个前端读不到费率就用内置的同一份兜底值。要完全不收手续费，把三行的百分比和固定金额都改成 0 就行。
 
+### 充值在线支付的手续费（想让"充值"也走上面那份费率才跑）
+
+Supabase → **SQL Editor** → **New query** → 粘贴 **`supabase-recharge-admin-fee.sql`** 全部内容 → **Run**。前置是上面的 `supabase-admin-fee.sql`（要有 `orders.admin_fee` 列）+ `supabase-wallet-rules.sql`（要有 `rpc_complete_recharge`）——脚本开头有硬检查，缺哪个会直接告诉你。
+
+充值页原来直接跳一个笼统的 HitPay 收银页，不算手续费也不存 `admin_fee`，等于店家自己贴 HitPay 的通道费。跑完这份之后，充值页上会多一段内嵌的「付款方式」（柜台 / Touch n Go / Online Banking / 信用卡，没有余额支付——拿钱包充钱包没有意义），跟结算页一样显示费率；点「充值」先弹一层「充值明细」小结（充值金额/手续费/付款总额），确认后才真正下单，手续费加进要付的钱。钱包到账的金额是「客人付了 − 手续费」，不是客人付的总额，所以手续费不会变成白送的余额。柜台充值（`rpc_pos_topup`）不受影响，从来没有 `admin_fee` 这回事。
+
+**不跑也不会坏**，但会保持现在的问题：在线充值仍旧不收手续费，那笔钱继续由店家自己承担。
+
 ---
 
 ## 第 5 步（选做）：手机接收新订单推送 🔔
